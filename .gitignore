@@ -6,5 +6,10 @@ dist/
 *.tsbuildinfo
 .DS_Store
 
+# Eval run artifacts (may echo real guest text back) and the real dataset
+# itself — this must never be committed once Eloa's 30 messages exist here.
+packages/extractor/eval/results.*.json
+packages/extractor/eval/dataset.real.json
+
 .vercel
 .env*

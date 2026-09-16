@@ -44,7 +44,15 @@ export function createApp() {
       }
       // eslint-disable-next-line no-console
       console.error("extract failed", err);
-      return c.json({ error: "extract_error", detail: process.env.DEBUG_EXTRACT === "1" ? String(err) : undefined }, 502);
+      const message = err instanceof Error ? err.message : String(err);
+      // Distinguishes "the provider is rate-limited/down" from "the model's
+      // output was bad" — collapsing both into one generic error is what made
+      // a Gemini free-tier 429 read as a model-quality problem during the
+      // eval dry run.
+      if (/\b429\b|RESOURCE_EXHAUSTED|rate.?limit/i.test(message)) {
+        return c.json({ error: "provider_rate_limited", detail: process.env.DEBUG_EXTRACT === "1" ? message : "the AI provider is rate-limited — try again shortly" }, 429);
+      }
+      return c.json({ error: "extract_error", detail: process.env.DEBUG_EXTRACT === "1" ? message : undefined }, 502);
     }
   });
 

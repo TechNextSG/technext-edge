@@ -1,0 +1,118 @@
+[
+  {
+    "id": "en-01-complete",
+    "note": "Everything stated, casual WhatsApp phrasing.",
+    "text": "hi! we're 4 people looking to come next Saturday for 3 nights, full board pls. no need for airport transfer, we have our own van",
+    "expected": {
+      "nights": { "state": "stated", "value": 3 },
+      "guests": { "state": "stated", "value": 4 },
+      "meals": { "state": "stated", "value": "full_board" },
+      "transport": { "state": "stated", "value": false },
+      "checkIn": { "state": "stated" },
+      "rooms": { "state": "missing" },
+      "contactName": { "state": "missing" }
+    }
+  },
+  {
+    "id": "en-02-missing-most",
+    "note": "Vague first-touch enquiry, almost nothing usable yet.",
+    "text": "Hi is Casa Escondida open this weekend? how much per person",
+    "expected": {
+      "checkIn": { "state": "missing" },
+      "nights": { "state": "missing" },
+      "guests": { "state": "missing" },
+      "rooms": { "state": "missing" },
+      "contactName": { "state": "missing" }
+    }
+  },
+  {
+    "id": "en-03-trap-unrelated-number",
+    "note": "Fabrication trap: a phone number and a certification count sit near the guest count.",
+    "text": "This is Mark, my number is 09171234567. We are a group of certified divers (12 dives logged each) but only 2 of us are joining this trip, arriving tomorrow for 1 night.",
+    "expected": {
+      "guests": { "state": "stated", "value": 2 },
+      "nights": { "state": "stated", "value": 1 },
+      "checkIn": { "state": "stated" },
+      "contactName": { "state": "stated", "value": "Mark" }
+    }
+  },
+  {
+    "id": "en-04-agent-multiple-rooms",
+    "note": "Agent booking for a group, explicit room count.",
+    "text": "Booking on behalf of an agency: 8 guests, need 4 rooms, checking in this Friday, staying 2 nights, half board only, we'll arrange our own transport",
+    "expected": {
+      "guests": { "state": "stated", "value": 8 },
+      "rooms": { "state": "stated", "value": 4 },
+      "nights": { "state": "stated", "value": 2 },
+      "meals": { "state": "stated", "value": "half_board" },
+      "transport": { "state": "stated", "value": false },
+      "checkIn": { "state": "stated" }
+    }
+  },
+  {
+    "id": "vi-01-complete",
+    "note": "Đầy đủ thông tin, văn phong Messenger thường ngày.",
+    "text": "Chào shop, bên mình 5 người muốn qua thứ Bảy này ở 2 đêm, ăn theo gói full board, có xe đón sân bay giúp mình nhé",
+    "expected": {
+      "guests": { "state": "stated", "value": 5 },
+      "nights": { "state": "stated", "value": 2 },
+      "meals": { "state": "stated", "value": "full_board" },
+      "transport": { "state": "stated", "value": true },
+      "checkIn": { "state": "stated" },
+      "rooms": { "state": "missing" }
+    }
+  },
+  {
+    "id": "vi-02-missing-dates",
+    "note": "Có số khách, chưa có ngày cụ thể.",
+    "text": "Nhóm mình 6 bạn muốn đi lặn, chưa chốt ngày, khoảng cuối tháng này, bên mình có phòng không?",
+    "expected": {
+      "guests": { "state": "stated", "value": 6 },
+      "checkIn": { "state": "missing" },
+      "nights": { "state": "missing" }
+    }
+  },
+  {
+    "id": "vi-03-trap-price-number",
+    "note": "Bẫy bịa đặt: hỏi giá trước, số khách nhắc sau trong câu khác.",
+    "text": "Giá phòng 1 đêm bao nhiêu vậy ạ, với lại mình đi 3 người thôi, ở 1 đêm cuối tuần sau",
+    "expected": {
+      "guests": { "state": "stated", "value": 3 },
+      "nights": { "state": "stated", "value": 1 },
+      "checkIn": { "state": "stated" }
+    }
+  },
+  {
+    "id": "zh-01-complete",
+    "note": "信息完整，常见的中文询价消息。",
+    "text": "你好，我们4个人，下周六来，住3晚，需要全包餐，不需要接机",
+    "expected": {
+      "guests": { "state": "stated", "value": 4 },
+      "nights": { "state": "stated", "value": 3 },
+      "meals": { "state": "stated", "value": "full_board" },
+      "transport": { "state": "stated", "value": false },
+      "checkIn": { "state": "stated" }
+    }
+  },
+  {
+    "id": "zh-02-missing-most",
+    "note": "只问价格，没有具体信息。",
+    "text": "请问潜水套餐多少钱一位？",
+    "expected": {
+      "checkIn": { "state": "missing" },
+      "nights": { "state": "missing" },
+      "guests": { "state": "missing" }
+    }
+  },
+  {
+    "id": "en-05-relative-date-idiom",
+    "note": "Colloquial relative date the parser must not choke on.",
+    "text": "planning a trip in 5 days, party of 2, staying for 4 nights, room only is fine",
+    "expected": {
+      "guests": { "state": "stated", "value": 2 },
+      "nights": { "state": "stated", "value": 4 },
+      "meals": { "state": "stated", "value": "room_only" },
+      "checkIn": { "state": "stated" }
+    }
+  }
+]

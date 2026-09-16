@@ -85,8 +85,16 @@ export async function extract(rawText: string, provider: ExtractProvider): Promi
     try {
       outcome = await attempt(retryContext); // Playbook: "call again once ... if the second attempt still fails, return 422"
     } catch (secondErr) {
-      const cause = secondErr instanceof AttemptFailure ? secondErr.cause : secondErr;
-      throw new ExtractionValidationError(cause, text);
+      if (secondErr instanceof AttemptFailure) {
+        throw new ExtractionValidationError(secondErr.cause, text);
+      }
+      // Not a validation failure — the provider itself failed both times
+      // (rate limit, 5xx, network). Surface as-is so the caller can tell
+      // "the model produced bad JSON twice" apart from "we got rate limited
+      // twice in a row" instead of both reading as one generic 422. Found via
+      // the eval harness: a Gemini free-tier 429 was being reported as
+      // "model output did not match the Trip schema" — misleading.
+      throw secondErr;
     }
   }
 

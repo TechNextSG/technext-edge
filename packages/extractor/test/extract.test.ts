@@ -90,6 +90,17 @@ describe("extract", () => {
     expect(secondCallArg.retry.error).toMatch(/nights/); // the real zod issue, not a generic message
   });
 
+  it("surfaces a transport-level failure (e.g. rate limit) as-is, not wrapped as a validation error", async () => {
+    // Found via the eval harness: a Gemini 429 on both attempts was being
+    // reported as "model output did not match the Trip schema" — misleading,
+    // since the model was never actually asked to produce anything wrong.
+    const rateLimitErr = new Error("Gemini extract failed: 429 RESOURCE_EXHAUSTED");
+    const provider: ExtractProvider = { id: "fake:v1", call: vi.fn().mockRejectedValue(rateLimitErr) };
+
+    await expect(extract(MESSAGE, provider)).rejects.toBe(rateLimitErr);
+    await expect(extract(MESSAGE, provider)).rejects.not.toBeInstanceOf(ExtractionValidationError);
+  });
+
   it("downgrades a 'stated' field to 'missing' when its evidence isn't actually in the message", async () => {
     const hallucinated = {
       ...HAPPY_RAW,
