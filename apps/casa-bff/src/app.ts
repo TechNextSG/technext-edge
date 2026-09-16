@@ -5,12 +5,29 @@ import { z } from "zod";
 // npm-workspace symlink at runtime (ERR_MODULE_NOT_FOUND for the package even
 // though it built and typechecked fine locally). A relative path sidesteps
 // that resolution entirely — plain files, nothing symlink-based to trace.
-import { extract, ExtractionValidationError, createProviderFromEnv } from "../../../packages/extractor/src/index.js";
+import {
+  extract,
+  ExtractionValidationError,
+  createProviderFromEnv,
+  createProviderByName,
+  KNOWN_PROVIDER_NAMES,
+} from "../../../packages/extractor/src/index.js";
 import { TEST_PAGE_HTML } from "./testPage.js";
 
 // Gate G3 (Contract, Playbook Figure B): unknown field = 422, body cap enforced
 // upstream at the edge (G1) — this schema is the app-level half of that gate.
-const ExtractRequest = z.object({ text: z.string().min(1).max(4000) }).strict();
+// `provider`/`apiKey` are an optional per-request override for the test
+// console and the eval harness — bring your own key for a quick bake-off
+// comparison without touching Vercel env vars or redeploying. Omit both to
+// use the server's configured default (createProviderFromEnv).
+const ExtractRequest = z
+  .object({
+    text: z.string().min(1).max(4000),
+    provider: z.enum(KNOWN_PROVIDER_NAMES).optional(),
+    apiKey: z.string().min(1).max(500).optional(),
+  })
+  .strict()
+  .refine((v) => !v.provider || v.apiKey, { message: "apiKey is required when provider is set" });
 
 export function createApp() {
   const app = new Hono();
@@ -24,8 +41,13 @@ export function createApp() {
 
     let provider;
     try {
-      provider = createProviderFromEnv();
+      provider = parsed.data.provider
+        ? createProviderByName(parsed.data.provider, parsed.data.apiKey!)
+        : createProviderFromEnv();
     } catch (err) {
+      // Never include `err` verbatim here if it might echo the request body —
+      // it doesn't (these errors are just "unknown provider"/"key missing"),
+      // but keep it that way: apiKey must never appear in a response or a log.
       return c.json({ error: "server_misconfigured", detail: err instanceof Error ? err.message : String(err) }, 500);
     }
 

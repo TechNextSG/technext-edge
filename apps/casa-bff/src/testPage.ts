@@ -79,6 +79,14 @@ textarea:focus{border-color:var(--teal);outline:none;}
 .chip-btn{font-family:var(--font-m);font-size:11.5px;letter-spacing:.3px;padding:5px 11px;border-radius:999px;border:1.5px solid var(--border);background:var(--card2);color:var(--muted);cursor:pointer;transition:border-color .15s,color .15s;}
 .chip-btn:hover{border-color:var(--teal);color:var(--teal-strong);}
 
+#override{margin-top:14px;font-size:12.5px;}
+#override summary{cursor:pointer;color:var(--muted);font-family:var(--font-m);font-size:11.5px;}
+.override-row{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px;}
+.override-row select,.override-row input{font-family:var(--font-b);font-size:13px;padding:7px 10px;border-radius:7px;border:1.5px solid var(--border);background:var(--card2);color:var(--ink);}
+.override-row input{flex:1;min-width:200px;}
+.override-row select:focus,.override-row input:focus{border-color:var(--teal);outline:none;}
+.override-note{color:var(--muted);font-size:11.5px;margin:8px 0 0;}
+
 .actions{display:flex;align-items:center;gap:12px;}
 .btn{border:none;border-radius:8px;padding:9px 18px;font-size:13.5px;font-weight:600;font-family:var(--font-b);display:inline-flex;align-items:center;gap:6px;cursor:pointer;transition:background .15s;}
 .btn-primary{background:var(--coral);color:#fff;}
@@ -140,6 +148,21 @@ details pre{background:var(--card2);border:1px solid var(--hairline);padding:12p
         <button class="chip-btn" data-text="我们4个人，下周六来，住3晚">ZH example</button>
         <button class="chip-btn" data-text="hi, muốn đặt phòng">missing fields</button>
       </div>
+
+      <details id="override">
+        <summary>Provider override (bring your own key — sent straight from your browser to this server, never through anything else)</summary>
+        <div class="override-row">
+          <select id="provider-select">
+            <option value="">Server default</option>
+            <option value="gemini">Gemini</option>
+            <option value="deepseek-flash">DeepSeek Flash</option>
+            <option value="deepseek-pro">DeepSeek Pro</option>
+          </select>
+          <input id="api-key" type="password" placeholder="API key for the selected provider" autocomplete="off" spellcheck="false">
+        </div>
+        <p class="override-note">Kept only in this tab's session storage for convenience — cleared when the tab closes, never sent anywhere except this server, never logged or echoed back.</p>
+      </details>
+
       <div class="actions">
         <button class="btn btn-primary" id="go">Extract</button>
         <span id="status"></span>
@@ -179,9 +202,32 @@ document.querySelectorAll('.chip-btn').forEach(btn => {
   btn.addEventListener('click', () => { textEl.value = btn.dataset.text; });
 });
 
+const providerSelect = document.getElementById('provider-select');
+const apiKeyInput = document.getElementById('api-key');
+
+// Session-only convenience — never written to localStorage or sent anywhere
+// but this server, and only for as long as this tab stays open.
+function keyStorageKey(provider) { return 'extractor-test-key:' + provider; }
+providerSelect.addEventListener('change', () => {
+  apiKeyInput.value = providerSelect.value ? (sessionStorage.getItem(keyStorageKey(providerSelect.value)) || '') : '';
+});
+apiKeyInput.addEventListener('input', () => {
+  if (providerSelect.value) {
+    try { sessionStorage.setItem(keyStorageKey(providerSelect.value), apiKeyInput.value); } catch {}
+  }
+});
+
 goEl.addEventListener('click', async () => {
   const text = textEl.value.trim();
   if (!text) return;
+
+  const provider = providerSelect.value || undefined;
+  const apiKey = provider ? apiKeyInput.value.trim() : undefined;
+  if (provider && !apiKey) {
+    errorEl.textContent = 'Enter an API key for ' + provider + ', or set "Server default" to use the deployed key.';
+    errorEl.style.display = 'block';
+    return;
+  }
 
   goEl.disabled = true;
   statusEl.textContent = 'Calling provider…';
@@ -194,7 +240,7 @@ goEl.addEventListener('click', async () => {
     const res = await fetch('/v1/extract', {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ text }),
+      body: JSON.stringify({ text, provider, apiKey }),
     });
     const data = await res.json();
     const elapsed = Math.round(performance.now() - started);
