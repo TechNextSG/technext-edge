@@ -20,6 +20,12 @@ function toGeminiSchema(node: unknown): unknown {
     const out: Record<string, unknown> = {};
     for (const [k, v] of Object.entries(node as Record<string, unknown>)) {
       if (k === "$schema" || k === "additionalProperties" || k === "$ref") continue;
+      // Gemini's schema subset doesn't recognize these numeric-range keywords
+      // (confirmed via a live 400: "Unknown name \"exclusiveMinimum\"") —
+      // zod's `.positive()`/`.int().positive()` emit them. Dropping the bound
+      // means Gemini can't enforce it, but zod still validates the real value
+      // after the model responds, so nothing gets through unchecked.
+      if (k === "exclusiveMinimum" || k === "exclusiveMaximum") continue;
       out[k] = toGeminiSchema(v);
     }
     return out;
