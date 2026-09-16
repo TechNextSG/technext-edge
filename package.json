@@ -1,0 +1,18 @@
+{
+  "name": "technext-edge",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Casa Escondida Edge: BFF (Hono) + AI Extractor. Odoo is the brain; this is the edge.",
+  "workspaces": [
+    "packages/*",
+    "apps/*"
+  ],
+  "scripts": {
+    "test": "npm run test --workspace packages/extractor",
+    "dev:bff": "npm run dev --workspace apps/casa-bff"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "license": "UNLICENSED"
+}
