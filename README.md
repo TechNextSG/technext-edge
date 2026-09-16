@@ -43,6 +43,7 @@ the full command sequence.
 ```bash
 vercel link
 vercel env add GEMINI_API_KEY production
+vercel env add GEMINI_API_KEY preview
 rm -rf .vercel/output && vercel build --yes --target production
 vercel deploy --prebuilt --prod --yes
 ```
