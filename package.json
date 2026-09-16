@@ -2,6 +2,7 @@
   "name": "technext-edge",
   "version": "0.1.0",
   "private": true,
+  "type": "module",
   "description": "Casa Escondida Edge: BFF (Hono) + AI Extractor. Odoo is the brain; this is the edge.",
   "workspaces": [
     "packages/*",
