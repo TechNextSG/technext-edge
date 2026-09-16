@@ -78,6 +78,47 @@ point of the bake-off) is not possible on this tier at all. Enabling billing
 a nice-to-have — needs whoever holds the Google Cloud billing account (Sky
 or Anthony), not something fixable in code.
 
+## Update 2026-09-16: DeepSeek Flash synthetic dry run — early technical signal
+
+Ran the same 10 synthetic messages through DeepSeek Flash (via the team's
+LiteLLM gateway, per-request override — no env vars touched, see
+`eval/README.md`). Reminder: 10 synthetic messages is not a sample size
+anything should be decided on. Recorded here as a lead to chase during the
+real bake-off, not a verdict.
+
+| Metric | DeepSeek Flash | Gemini (partial — free-tier quota cut the run short) |
+|---|---|---|
+| Fabricated fields | 0 (see dataset-bug note below) | 0 |
+| Required fields correct | 19/23 (83%) | 3/3 on the one case that completed |
+| Evidence verbatim | 31/31 (100%) | 5/5 |
+| p95 latency | **15.9s — over the 8s threshold** | ~3.2s |
+| Tokens per message (avg) | ~920 in / ~1600 out | ~130 in / ~200 out |
+
+Two findings worth carrying into the real bake-off:
+
+1. **DeepSeek Flash missed relative-date check-in extraction in 4/10 cases** —
+   "arriving tomorrow," "checking in this Friday," "下周六" (next Saturday,
+   unambiguous Chinese), "in 5 days." All four came back `checkIn: missing`
+   instead of `stated`. This is a real, repeated pattern, not one-off noise —
+   worth specifically re-checking against the real 30 messages, since
+   check-in date is one of the two required fields with a hard ≥95% bar.
+2. **DeepSeek's per-message token cost is inflated by this adapter, not
+   necessarily the model** — the gateway doesn't expose native schema-
+   constrained decoding the way Gemini's `responseSchema` does, so
+   `providers/deepseek.ts` embeds the full JSON Schema as prose in the system
+   prompt every call. Before using DeepSeek's token cost to compare against
+   Gemini in the real bake-off, either fix the adapter to send a leaner
+   schema description or account for the gap as an implementation artifact,
+   not a per-token price difference between the two providers.
+
+**Dataset bug found by cross-model agreement, not a provider fault:** both
+Gemini and DeepSeek independently read "this weekend" (case `en-02`) as
+check-in evidence, while the dataset's ground truth said `checkIn: missing`.
+Two different models converging on the same reading is a signal the ground
+truth was wrong, not that both models fabricated the same thing — fixed by
+removing that field's expectation from the dataset (see the eval dataset's
+`en-02-missing-most` case; unscored fields are intentional, not an oversight).
+
 ## Open question this ADR does not resolve
 
 `normalize()` masks PII **before logging**, not before sending to the

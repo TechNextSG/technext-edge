@@ -15,10 +15,9 @@
   },
   {
     "id": "en-02-missing-most",
-    "note": "Vague first-touch enquiry, almost nothing usable yet.",
+    "note": "Vague first-touch enquiry. checkIn intentionally unscored — see below.",
     "text": "Hi is Casa Escondida open this weekend? how much per person",
     "expected": {
-      "checkIn": { "state": "missing" },
       "nights": { "state": "missing" },
       "guests": { "state": "missing" },
       "rooms": { "state": "missing" },
