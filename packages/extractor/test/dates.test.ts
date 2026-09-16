@@ -31,6 +31,10 @@ describe("resolveRelativeDate", () => {
     expect(resolveRelativeDate("cuối tuần sau", TODAY)).toBe("2026-09-26");
   });
 
+  it("resolves 'thứ Bảy này' (this Saturday), found via a live Gemini test that left it unresolved", () => {
+    expect(resolveRelativeDate("thứ Bảy này", TODAY)).toBe("2026-09-19");
+  });
+
   it("returns null for phrases it cannot parse, instead of guessing", () => {
     expect(resolveRelativeDate("sometime in December maybe", TODAY)).toBeNull();
   });

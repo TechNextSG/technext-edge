@@ -48,7 +48,9 @@ export function resolveRelativeDate(phrase: string, today: string): string | nul
   // "next <weekday>" / "thứ Bảy tuần sau" / "cuối tuần sau" (treated as next Saturday)
   const isNextWeek = /next|tuần sau|tuan sau|cuối tuần sau|cuoi tuan sau/.test(p);
   let weekdayToken = p
-    .replace(/next|this|tuần sau|tuan sau|cuối tuần sau|cuoi tuan sau|tuần này|tuan nay/g, "")
+    // "này"/"nay" is Vietnamese "this" — strips both the "tuần này" (this week)
+    // form and a bare trailing "này" on the weekday itself ("thứ Bảy này").
+    .replace(/next|this|tuần sau|tuan sau|cuối tuần sau|cuoi tuan sau|tuần này|tuan nay|này|nay/g, "")
     .trim();
   if (/cuối tuần|cuoi tuan|weekend/.test(p) && !/thứ|thu|day/.test(weekdayToken)) {
     weekdayToken = "saturday";
