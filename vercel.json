@@ -1,6 +1,7 @@
 {
   "framework": null,
   "rewrites": [
+    { "source": "/", "destination": "/api" },
     { "source": "/v1/:path*", "destination": "/api" },
     { "source": "/healthz", "destination": "/api" }
   ]

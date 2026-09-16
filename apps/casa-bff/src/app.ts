@@ -6,6 +6,7 @@ import { z } from "zod";
 // though it built and typechecked fine locally). A relative path sidesteps
 // that resolution entirely — plain files, nothing symlink-based to trace.
 import { extract, ExtractionValidationError, createGeminiProvider } from "../../../packages/extractor/src/index.js";
+import { TEST_PAGE_HTML } from "./testPage.js";
 
 // Gate G3 (Contract, Playbook Figure B): unknown field = 422, body cap enforced
 // upstream at the edge (G1) — this schema is the app-level half of that gate.
@@ -47,6 +48,10 @@ export function createApp() {
   });
 
   app.get("/healthz", (c) => c.json({ ok: true }));
+
+  // Not the real estimator UI (Edge UI pod owns that) — a plain test page so
+  // anyone can try extraction without curl or Postman.
+  app.get("/", (c) => c.html(TEST_PAGE_HTML));
 
   return app;
 }
