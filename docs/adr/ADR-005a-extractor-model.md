@@ -54,6 +54,30 @@ open PII-masking question above is resolved. If it scores well on synthetic
 data, that's a reason to prioritize the masking decision — not a reason to
 skip it.
 
+## Update 2026-09-16: a real blocker found via the eval dry run
+
+Built `packages/extractor/eval/` (runner + a researched, synthetic dataset —
+never Eloa's real messages, see the eval README) as a rehearsal of the
+mechanism before real data arrives. Two real bugs surfaced and were fixed the
+same day: the scorer itself was miscounting a house-norm `default` as
+fabrication, and the pipeline was reporting a Gemini rate-limit (429) as a
+schema-validation failure (422) — misleading, since those are different
+problems with different fixes.
+
+The blocker that matters for planning: **the current `GEMINI_API_KEY` is on
+Google's free tier**, capped at 20 requests/day (and a tight per-minute burst
+limit under that — 9 of 10 back-to-back eval calls hit 429 in one run). This
+has nothing to do with model quality and everything to do with billing not
+being enabled on the Google AI Studio project behind this key.
+
+**This blocks the real bake-off, not just today's dry run.** Running 30 real
+messages against even one candidate provider will exhaust a free-tier key
+immediately; running the same 30 against multiple candidates (the entire
+point of the bake-off) is not possible on this tier at all. Enabling billing
+(or issuing a paid-tier key) for Gemini is a prerequisite for ADR-005b, not
+a nice-to-have — needs whoever holds the Google Cloud billing account (Sky
+or Anthony), not something fixable in code.
+
 ## Open question this ADR does not resolve
 
 `normalize()` masks PII **before logging**, not before sending to the
