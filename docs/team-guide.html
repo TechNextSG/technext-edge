@@ -1,3 +1,4 @@
+<meta charset="utf-8">
 <title>Team Guide</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
@@ -63,6 +64,7 @@ th{font-family:var(--font-m);font-size:10.5px;letter-spacing:.7px;text-transform
 .topbar p{margin:0;color:#CFE4E2;font-size:14px;max-width:60ch;}
 
 .layout{max-width:1100px;margin:0 auto;padding:28px 20px 80px;display:grid;grid-template-columns:220px 1fr;gap:36px;}
+.layout > *{min-width:0;} /* grid items default to min-width:auto — a long unwrapped code line in <pre> would otherwise force the whole grid (and the page) wider than the viewport instead of scrolling inside its own <pre overflow-x:auto> */
 @media (max-width:820px){ .layout{grid-template-columns:1fr;} nav.toc{position:static !important;} }
 
 nav.toc{position:sticky;top:20px;align-self:start;font-size:13px;}
