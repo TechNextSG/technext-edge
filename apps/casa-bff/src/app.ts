@@ -32,11 +32,17 @@ export function createApp() {
       return c.json(outcome);
     } catch (err) {
       if (err instanceof ExtractionValidationError) {
-        return c.json({ error: "extraction_failed", detail: "model output did not match the Trip schema twice" }, 422);
+        const cause = err.zodIssues;
+        const causeDescription =
+          cause instanceof Error ? { message: cause.message, stack: cause.stack } : cause;
+        // eslint-disable-next-line no-console
+        console.error("extraction validation failed twice", JSON.stringify(causeDescription), err.sample);
+        const debug = process.env.DEBUG_EXTRACT === "1" ? { cause: causeDescription, sample: err.sample } : undefined;
+        return c.json({ error: "extraction_failed", detail: "model output did not match the Trip schema twice", debug }, 422);
       }
       // eslint-disable-next-line no-console
       console.error("extract failed", err);
-      return c.json({ error: "extract_error" }, 502);
+      return c.json({ error: "extract_error", detail: process.env.DEBUG_EXTRACT === "1" ? String(err) : undefined }, 502);
     }
   });
 
