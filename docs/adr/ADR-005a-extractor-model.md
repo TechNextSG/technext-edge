@@ -42,6 +42,18 @@ Playbook thresholds (fabricated fields = 0 is a hard cutoff, not averaged
 in), and record the result as **ADR-005b**, which supersedes this one's
 "demo default" clause.
 
+## Update 2026-09-16: a fourth candidate, on a leash
+
+The team already runs a LiteLLM gateway (Railway) giving everyone a budgeted
+DeepSeek key — cheapest of all four candidates. Added `createDeepSeekProvider`
+alongside the other three. This does **not** reverse Gate A: the gateway is
+only a proxy, inference still runs on DeepSeek's own infrastructure, so the
+data-residency disqualification stands. DeepSeek may run **only against
+synthetic/example messages**, never the 30 real ones from Eloa, until the
+open PII-masking question above is resolved. If it scores well on synthetic
+data, that's a reason to prioritize the masking decision — not a reason to
+skip it.
+
 ## Open question this ADR does not resolve
 
 `normalize()` masks PII **before logging**, not before sending to the
