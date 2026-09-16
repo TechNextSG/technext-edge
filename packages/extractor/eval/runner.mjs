@@ -12,12 +12,33 @@ import path from "node:path";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
+// --provider <name>: per-request override (see providerFromEnv.ts's
+// KNOWN_PROVIDER_NAMES) instead of whatever the deployment's env vars
+// default to. Requires EVAL_PROVIDER_API_KEY — the runner never has a
+// built-in key, and doesn't accept one as a flag (that would put a secret
+// in shell history / `ps`).
+const args = process.argv.slice(2);
+let PROVIDER;
+let DATASET_ARG;
+for (let i = 0; i < args.length; i++) {
+  if (args[i] === "--provider") {
+    PROVIDER = args[++i];
+  } else if (!DATASET_ARG) {
+    DATASET_ARG = args[i];
+  }
+}
+
 const BASE_URL = process.env.EVAL_BASE_URL ?? "https://technext-edge-casa-bff.vercel.app";
 const BYPASS = process.env.EVAL_BYPASS_SECRET; // required — no built-in default, see README
-const DATASET_PATH = process.argv[2] ?? path.join(__dirname, "dataset.synthetic.json");
+const PROVIDER_API_KEY = process.env.EVAL_PROVIDER_API_KEY;
+const DATASET_PATH = DATASET_ARG ?? path.join(__dirname, "dataset.synthetic.json");
 
 if (!BYPASS) {
   console.error("Set EVAL_BYPASS_SECRET (the Vercel deployment-protection bypass secret) before running.");
+  process.exit(1);
+}
+if (PROVIDER && !PROVIDER_API_KEY) {
+  console.error(`--provider ${PROVIDER} needs EVAL_PROVIDER_API_KEY set to that provider's key.`);
   process.exit(1);
 }
 
@@ -30,7 +51,7 @@ async function callExtract(text) {
       "content-type": "application/json; charset=utf-8",
       "x-vercel-protection-bypass": BYPASS,
     },
-    body: JSON.stringify({ text }),
+    body: JSON.stringify(PROVIDER ? { text, provider: PROVIDER, apiKey: PROVIDER_API_KEY } : { text }),
   });
   const body = await res.json();
   if (!res.ok) throw new Error(`HTTP ${res.status}: ${JSON.stringify(body)}`);
@@ -83,7 +104,7 @@ function scoreCase(testCase, trip) {
 }
 
 const results = [];
-console.log(`\nRunning ${dataset.length} SIMULATED messages against ${BASE_URL}\n`);
+console.log(`\nRunning ${dataset.length} SIMULATED messages against ${BASE_URL}${PROVIDER ? ` (provider override: ${PROVIDER})` : ""}\n`);
 
 for (const testCase of dataset) {
   const started = Date.now();

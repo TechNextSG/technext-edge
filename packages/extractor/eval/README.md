@@ -56,7 +56,7 @@ Not scored — needs a human or an LLM judge, not wired up yet:
 
 ```bash
 export EVAL_BYPASS_SECRET=<the Vercel deployment-protection bypass secret>
-node eval/runner.mjs                        # synthetic
+node eval/runner.mjs                        # synthetic, server's default provider
 node eval/runner.mjs eval/dataset.real.json  # once Eloa's data exists
 ```
 
@@ -64,3 +64,18 @@ Calls the live deployed endpoint (`EVAL_BASE_URL`, defaults to production) —
 this spends real provider tokens, not a mock. Full results (including every
 field of every response) are written to `eval/results.<timestamp>.json` for
 later comparison across providers; those files are git-ignored.
+
+### Testing a specific provider without touching Vercel env vars
+
+```bash
+export EVAL_PROVIDER_API_KEY=<your key for that provider>
+node eval/runner.mjs --provider deepseek-flash
+node eval/runner.mjs --provider gemini eval/dataset.real.json
+```
+
+`--provider` sends that name plus `EVAL_PROVIDER_API_KEY` as a per-request
+override (see `apps/casa-bff/src/app.ts`) — the deployment's own configured
+default is untouched, so this is safe to run against production without a
+redeploy or without affecting anyone else using the test page at the same
+time. The key never goes anywhere but straight into that one HTTP request;
+it's never written to the results file or logged.
