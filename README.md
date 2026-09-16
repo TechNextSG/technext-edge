@@ -18,8 +18,12 @@ packages/
                  guarantees it makes (never fabricates, evidence is verbatim,
                  dates are never trusted from the model).
 apps/
-  casa-bff/      Hono app, one route: POST /v1/extract. Deploys to Vercel.
+  casa-bff/      Hono app, one route: POST /v1/extract.
 docs/adr/        ADR-005a: why Gemini is the demo default and not a decision.
+api/index.ts     Vercel entry point — lives at the repo root, not inside
+                 apps/casa-bff, so a root-level `vercel deploy` uploads the
+                 whole workspace (packages/extractor included) instead of
+                 just the app subtree. See vercel.json for the /v1 rewrite.
 ```
 
 ## Run it
@@ -33,12 +37,16 @@ npm run dev:bff          # http://localhost:8787/v1/extract
 
 ## Deploy
 
+Always run Vercel commands from the **repo root** — the deploy target is a
+monorepo and the entry point (`api/index.ts`) depends on `packages/extractor`
+outside `apps/casa-bff`.
+
 ```bash
-cd apps/casa-bff
-vercel link              # first time only — link to the technext-edge-casa-bff project
+vercel link               # first time only — links to technext-edge-casa-bff
 vercel env add GEMINI_API_KEY production
 vercel env add GEMINI_API_KEY preview
-vercel deploy --prod
+vercel deploy             # preview
+vercel deploy --prod      # production
 ```
 
 ## Before this becomes the real Extractor pod deliverable
