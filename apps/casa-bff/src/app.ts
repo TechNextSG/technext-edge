@@ -5,7 +5,7 @@ import { z } from "zod";
 // npm-workspace symlink at runtime (ERR_MODULE_NOT_FOUND for the package even
 // though it built and typechecked fine locally). A relative path sidesteps
 // that resolution entirely — plain files, nothing symlink-based to trace.
-import { extract, ExtractionValidationError, createGeminiProvider } from "../../../packages/extractor/src/index.js";
+import { extract, ExtractionValidationError, createProviderFromEnv } from "../../../packages/extractor/src/index.js";
 import { TEST_PAGE_HTML } from "./testPage.js";
 
 // Gate G3 (Contract, Playbook Figure B): unknown field = 422, body cap enforced
@@ -22,11 +22,12 @@ export function createApp() {
       return c.json({ error: "invalid_request", issues: parsed.error.issues }, 422);
     }
 
-    const apiKey = process.env.GEMINI_API_KEY;
-    if (!apiKey) {
-      return c.json({ error: "server_misconfigured", detail: "GEMINI_API_KEY not set" }, 500);
+    let provider;
+    try {
+      provider = createProviderFromEnv();
+    } catch (err) {
+      return c.json({ error: "server_misconfigured", detail: err instanceof Error ? err.message : String(err) }, 500);
     }
-    const provider = createGeminiProvider(apiKey);
 
     try {
       const outcome = await extract(parsed.data.text, provider);

@@ -1,4 +1,5 @@
 import { zodToJsonSchema } from "zod-to-json-schema";
+import { ZodError } from "zod";
 import { Trip, HOUSE_NORM_FIELDS, type Trip as TripType, type Field } from "./schema.js";
 import { HOUSE_NORMS } from "./houseNorms.js";
 import { manilaToday, resolveRelativeDate, deriveCheckOut } from "./dates.js";
@@ -27,6 +28,22 @@ export class ExtractionValidationError extends Error {
   }
 }
 
+// Internal: carries the model's raw (unvalidated) output alongside the zod
+// failure, so a retry can show the model what it got wrong instead of just
+// rolling the dice again with an identical prompt.
+class AttemptFailure extends Error {
+  constructor(public readonly cause: unknown, public readonly raw: unknown) {
+    super("attempt failed validation");
+  }
+}
+
+function summarizeError(err: unknown): string {
+  if (err instanceof ZodError) {
+    return err.issues.map((i) => `${i.path.join(".") || "(root)"}: ${i.message}`).join("; ");
+  }
+  return err instanceof Error ? err.message : String(err);
+}
+
 /**
  * POST /v1/extract's pipeline. Exactly one seam to a vendor: `provider.call`.
  * Everything else here is deterministic code, per the Playbook's "trust the
@@ -39,23 +56,37 @@ export async function extract(rawText: string, provider: ExtractProvider): Promi
   // maskForLogging is for whatever calls this and logs `text` — not applied here.
   void maskForLogging;
 
-  const attempt = async (): Promise<{ parsed: TripType; result: Awaited<ReturnType<ExtractProvider["call"]>> }> => {
-    const result = await provider.call({ text, jsonSchema: TRIP_JSON_SCHEMA, today });
-    const postProcessed = postProcess(result.raw, today, text);
-    const parsed = Trip.parse(postProcessed); // throws ZodError on failure
-    return { parsed, result };
+  type Attempt = { parsed: TripType; result: Awaited<ReturnType<ExtractProvider["call"]>> };
+
+  const attempt = async (retry?: { previousRaw: unknown; error: string }): Promise<Attempt> => {
+    const result = await provider.call({ text, jsonSchema: TRIP_JSON_SCHEMA, today, retry });
+    try {
+      const postProcessed = postProcess(result.raw, today, text);
+      const parsed = Trip.parse(postProcessed); // throws ZodError on failure
+      return { parsed, result };
+    } catch (validationErr) {
+      // Carries the model's own raw output forward — a network/schema-level
+      // failure from provider.call() itself skips this catch entirely and
+      // surfaces with no `raw`, since there's nothing the model can fix there.
+      throw new AttemptFailure(validationErr, result.raw);
+    }
   };
 
   let retried = false;
-  let outcome: { parsed: TripType; result: Awaited<ReturnType<ExtractProvider["call"]>> };
+  let outcome: Attempt;
   try {
     outcome = await attempt();
   } catch (firstErr) {
     retried = true;
+    const retryContext =
+      firstErr instanceof AttemptFailure
+        ? { previousRaw: firstErr.raw, error: summarizeError(firstErr.cause) }
+        : undefined; // a transport-level failure — nothing to hand back to the model
     try {
-      outcome = await attempt(); // Playbook: "call again once ... if the second attempt still fails, return 422"
+      outcome = await attempt(retryContext); // Playbook: "call again once ... if the second attempt still fails, return 422"
     } catch (secondErr) {
-      throw new ExtractionValidationError(secondErr, text);
+      const cause = secondErr instanceof AttemptFailure ? secondErr.cause : secondErr;
+      throw new ExtractionValidationError(cause, text);
     }
   }
 

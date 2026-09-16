@@ -4,6 +4,7 @@ export { Trip, FieldState, HOUSE_NORM_FIELDS } from "./schema.js";
 export type { Field } from "./schema.js";
 export { createGeminiProvider } from "./providers/gemini.js";
 export { createDeepSeekProvider } from "./providers/deepseek.js";
+export { createProviderFromEnv } from "./providerFromEnv.js";
 export type { ExtractProvider, ExtractCall, ExtractResult } from "./provider.js";
 export { resolveRelativeDate, deriveCheckOut, manilaToday } from "./dates.js";
 export { generateQuestions } from "./questions.js";

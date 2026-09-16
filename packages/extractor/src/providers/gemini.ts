@@ -36,7 +36,7 @@ function toGeminiSchema(node: unknown): unknown {
 export function createGeminiProvider(apiKey: string, model = process.env.GEMINI_MODEL ?? "gemini-2.5-flash"): ExtractProvider {
   return {
     id: "google:" + model,
-    async call({ text, jsonSchema, today }: ExtractCall): Promise<ExtractResult> {
+    async call({ text, jsonSchema, today, retry }: ExtractCall): Promise<ExtractResult> {
       const started = Date.now();
       const systemPrompt =
         "You extract trip details from a dive-resort guest's message into the given " +
@@ -45,12 +45,24 @@ export function createGeminiProvider(apiKey: string, model = process.env.GEMINI_
         "that state 'stated' cannot point to verbatim evidence for. Do not resolve relative " +
         "dates yourself — copy the date phrase as written and let the caller resolve it.";
 
+      const userParts = [`Today's date (Asia/Manila): ${today}`, `Guest message:\n${text}`];
+      if (retry) {
+        // Playbook: "call again once with the error attached." Shows the model
+        // its own bad output plus what failed, instead of an identical retry.
+        userParts.push(
+          `Your previous JSON response did not match the schema.\n` +
+            `Error: ${retry.error}\n` +
+            `Your previous response: ${JSON.stringify(retry.previousRaw)}\n` +
+            `Fix it and return JSON matching the schema exactly.`,
+        );
+      }
+
       const res = await fetch(`${API_BASE}/${model}:generateContent?key=${apiKey}`, {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({
           systemInstruction: { parts: [{ text: systemPrompt }] },
-          contents: [{ role: "user", parts: [{ text: `Today's date (Asia/Manila): ${today}\n\nGuest message:\n${text}` }] }],
+          contents: [{ role: "user", parts: [{ text: userParts.join("\n\n") }] }],
           generationConfig: {
             responseMimeType: "application/json",
             responseSchema: toGeminiSchema(jsonSchema),

@@ -70,6 +70,26 @@ describe("extract", () => {
     expect(provider.call).toHaveBeenCalledTimes(2); // Playbook: retry once, then 422
   });
 
+  it("hands the model its own bad output and the real zod error on retry, and accepts a corrected second attempt", async () => {
+    const broken = { ...HAPPY_RAW, nights: { value: "three", state: "stated", evidence: "3 nights" } };
+    const call = vi
+      .fn()
+      .mockResolvedValueOnce({ raw: broken, tokensIn: 500, tokensOut: 150, cacheReadTokens: 0, ms: 40 })
+      .mockResolvedValueOnce({ raw: HAPPY_RAW, tokensIn: 500, tokensOut: 150, cacheReadTokens: 0, ms: 40 });
+    const provider: ExtractProvider = { id: "fake:v1", call };
+
+    const outcome = await extract(MESSAGE, provider);
+
+    expect(outcome.meta.retried).toBe(true);
+    expect(outcome.trip.nights.value).toBe(3); // the corrected second attempt, not the broken first
+
+    expect(call).toHaveBeenCalledTimes(2);
+    const secondCallArg = call.mock.calls[1][0];
+    expect(secondCallArg.retry).toBeDefined();
+    expect(secondCallArg.retry.previousRaw).toEqual(broken);
+    expect(secondCallArg.retry.error).toMatch(/nights/); // the real zod issue, not a generic message
+  });
+
   it("downgrades a 'stated' field to 'missing' when its evidence isn't actually in the message", async () => {
     const hallucinated = {
       ...HAPPY_RAW,

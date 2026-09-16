@@ -15,7 +15,7 @@ export function createDeepSeekProvider(
 ): ExtractProvider {
   return {
     id: "deepseek-gateway:" + model,
-    async call({ text, jsonSchema, today }: ExtractCall): Promise<ExtractResult> {
+    async call({ text, jsonSchema, today, retry }: ExtractCall): Promise<ExtractResult> {
       const started = Date.now();
       const systemPrompt =
         "You extract trip details from a dive-resort guest's message into the given " +
@@ -24,6 +24,17 @@ export function createDeepSeekProvider(
         "that state 'stated' cannot point to verbatim evidence for. Do not resolve relative " +
         "dates yourself — copy the date phrase as written and let the caller resolve it. " +
         "Respond with JSON only, matching this schema exactly:\n" + JSON.stringify(jsonSchema);
+
+      const userParts = [`Today's date (Asia/Manila): ${today}`, `Guest message:\n${text}`];
+      if (retry) {
+        // Playbook: "call again once with the error attached."
+        userParts.push(
+          `Your previous JSON response did not match the schema.\n` +
+            `Error: ${retry.error}\n` +
+            `Your previous response: ${JSON.stringify(retry.previousRaw)}\n` +
+            `Fix it and return JSON matching the schema exactly.`,
+        );
+      }
 
       const res = await fetch(`${GATEWAY_BASE_URL}/chat/completions`, {
         method: "POST",
@@ -35,7 +46,7 @@ export function createDeepSeekProvider(
           model,
           messages: [
             { role: "system", content: systemPrompt },
-            { role: "user", content: `Today's date (Asia/Manila): ${today}\n\nGuest message:\n${text}` },
+            { role: "user", content: userParts.join("\n\n") },
           ],
           response_format: { type: "json_object" },
         }),
