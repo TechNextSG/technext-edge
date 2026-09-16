@@ -1,0 +1,129 @@
+<meta charset="utf-8">
+<title>Extractor Pod Roadmap</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  color-scheme:light;
+  --bg:#EFF4F3; --card:#FFFFFF; --card2:#F5FAF8; --ink:#152321; --muted:#5B6C6A;
+  --border:#D9E4E2; --hairline:#E6EEEC;
+  --head:#0B2E33; --head2:#123C42;
+  --teal:#1C7C82; --teal-strong:#145A5F; --teal-tint:#E7F2F0;
+  --coral:#DC4B33; --coral-ink:#B5301C; --coral-tint:#FBEAE6;
+  --gold:#C99A3B; --gold-bg:#FBF2E0; --gold-ink:#7E5F14;
+  --good:#0ca30c; --good-ink:#0A6E0A; --good-bg:#E7F5E7;
+  --shadow:0 4px 16px rgba(11,46,51,.08);
+  --font-d:'Space Grotesk',ui-sans-serif,sans-serif;
+  --font-b:'Inter',ui-sans-serif,system-ui,sans-serif;
+  --font-m:'IBM Plex Mono',ui-monospace,monospace;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    color-scheme:dark;
+    --bg:#0A181B; --card:#13292E; --card2:#0F2125; --ink:#E4EFED; --muted:#94AAA7;
+    --border:#264845; --hairline:#1C3A3E;
+    --teal:#43ACB3; --teal-strong:#63C6CC; --teal-tint:#153A3E;
+    --coral:#E86A50; --coral-ink:#F0917E; --coral-tint:#3A211C;
+    --gold:#C99A3B; --gold-bg:#33290F; --gold-ink:#E3C069;
+    --good:#0ca30c; --good-ink:#4CC94C; --good-bg:#123212;
+    --shadow:0 4px 16px rgba(0,0,0,.35);
+  }
+}
+:root[data-theme="dark"]{
+  color-scheme:dark;
+  --bg:#0A181B; --card:#13292E; --card2:#0F2125; --ink:#E4EFED; --muted:#94AAA7;
+  --border:#264845; --hairline:#1C3A3E;
+  --teal:#43ACB3; --teal-strong:#63C6CC; --teal-tint:#153A3E;
+  --coral:#E86A50; --coral-ink:#F0917E; --coral-tint:#3A211C;
+  --gold:#C99A3B; --gold-bg:#33290F; --gold-ink:#E3C069;
+  --good:#0ca30c; --good-ink:#4CC94C; --good-bg:#123212;
+  --shadow:0 4px 16px rgba(0,0,0,.35);
+}
+*{box-sizing:border-box;}
+html,body{margin:0;padding:0;}
+body{background:var(--bg);color:var(--ink);font-family:var(--font-b);font-size:15.5px;line-height:1.6;-webkit-font-smoothing:antialiased;}
+code{font-family:var(--font-m);font-size:.88em;background:var(--card2);padding:1px 5px;border-radius:4px;}
+h1,h2,h3{font-family:var(--font-d);font-weight:600;text-wrap:balance;margin:0;}
+
+.topbar{background:linear-gradient(135deg,var(--head) 0%,var(--head2) 100%);color:#fff;padding:22px 24px;}
+.topbar .kicker{font-family:var(--font-m);font-size:10.5px;letter-spacing:1.2px;text-transform:uppercase;color:#9FC6C9;}
+.topbar h1{color:#fff;margin:5px 0 8px;font-size:27px;}
+.topbar p{margin:0;color:#CFE4E2;font-size:14px;max-width:65ch;}
+
+.wrap{max-width:920px;margin:0 auto;padding:26px 20px 70px;}
+.phase{background:var(--card);border:1px solid var(--border);border-radius:12px;box-shadow:var(--shadow);padding:22px 26px;margin-bottom:20px;}
+.phase-head{display:flex;align-items:baseline;gap:12px;flex-wrap:wrap;margin-bottom:6px;}
+.phase-head h2{font-size:19px;color:var(--teal-strong);}
+.phase-when{font-family:var(--font-m);font-size:11px;letter-spacing:.5px;text-transform:uppercase;color:var(--muted);}
+.phase-sub{color:var(--muted);font-size:13.5px;margin:0 0 16px;}
+
+.tasklist{display:flex;flex-direction:column;gap:10px;}
+.task{display:grid;grid-template-columns:22px 1fr auto;gap:10px;align-items:start;padding:10px 12px;background:var(--card2);border-radius:8px;border:1px solid var(--hairline);}
+.task .dot{width:9px;height:9px;border-radius:50%;margin-top:5px;background:var(--teal);}
+.task .body strong{display:block;font-size:14px;margin-bottom:2px;}
+.task .body span{color:var(--muted);font-size:13px;}
+.tag{font-family:var(--font-m);font-size:10px;letter-spacing:.4px;text-transform:uppercase;padding:3px 8px;border-radius:999px;white-space:nowrap;height:fit-content;}
+.tag-code{background:var(--teal-tint);color:var(--teal-strong);}
+.tag-wait{background:var(--gold-bg);color:var(--gold-ink);}
+.tag-decision{background:var(--coral-tint);color:var(--coral-ink);}
+
+.milestone{border-left:3px solid var(--good);background:var(--good-bg);border-radius:0 8px 8px 0;padding:12px 16px;margin-top:16px;font-size:13.5px;color:var(--good-ink);}
+.milestone strong{color:var(--good-ink);}
+
+@media (max-width:600px){ .task{grid-template-columns:18px 1fr;} .tag{grid-column:2;} }
+</style>
+
+<div class="topbar">
+  <div class="kicker">technext-edge · Extractor pod</div>
+  <h1>Roadmap — next chặng</h1>
+  <p>Xuất phát từ trạng thái thật hôm nay (sprint tracker + ADR-005a), không phải kế hoạch lý thuyết. Ba nhóm việc chạy song song: việc code không ai chặn, việc phải chờ người khác, và việc chỉ làm được sau khi cả hai nhóm trên xong.</p>
+</div>
+
+<div class="wrap">
+
+  <div class="phase">
+    <div class="phase-head">
+      <h2>1 · Không ai chặn — làm được ngay</h2>
+      <span class="phase-when">song song, không cần chờ</span>
+    </div>
+    <p class="phase-sub">Toàn bộ nằm trong tay Extractor pod, không phụ thuộc Sky/Anthony/Phillip/Jett/Eloa.</p>
+    <div class="tasklist">
+      <div class="task"><div class="dot"></div><div class="body"><strong>Thêm adapter Claude + GPT-5.1</strong><span>ADR-005a liệt kê 3 ứng viên qua Gate B, nhưng mới có 2 adapter thật (Gemini, DeepSeek). Bake-off thật cần đủ cả 3 để so sánh công bằng.</span></div><span class="tag tag-code">code</span></div>
+      <div class="task"><div class="dot"></div><div class="body"><strong>Sửa DeepSeek adapter nhét schema vào prompt</strong><span>Phát hiện từ eval dry-run: token cao gấp 6-8 lần Gemini vì cách viết adapter, không phải bản chất model. Sửa trước khi dùng số token để so giá.</span></div><span class="tag tag-code">code</span></div>
+      <div class="task"><div class="dot"></div><div class="body"><strong>Nối LLM-judge cho tiêu chí "câu hỏi đúng trọng tâm"</strong><span>Đây là ngưỡng duy nhất trong 5 ngưỡng Playbook chưa tự động chấm được. Cần xong trước khi chạy 30 tin thật để không phải chấm tay.</span></div><span class="tag tag-code">code</span></div>
+      <div class="task"><div class="dot"></div><div class="body"><strong>CI cơ bản: typecheck + vitest trên mỗi lần push</strong><span>Playbook đã ghi rõ yêu cầu này cho repo Edge; hiện chưa có, chỉ chạy tay.</span></div><span class="tag tag-code">code</span></div>
+      <div class="task"><div class="dot"></div><div class="body"><strong>Rate limit cơ bản (Gate G1) trên BFF</strong><span>Hiện endpoint chỉ chặn bởi Vercel SSO — không phải rate limit thật. Cần trước khi ai ngoài pod dùng thử rộng hơn.</span></div><span class="tag tag-code">code</span></div>
+    </div>
+  </div>
+
+  <div class="phase">
+    <div class="phase-head">
+      <h2>2 · Đang chờ người khác</h2>
+      <span class="phase-when">theo dõi song song, nhắc nếu im lặng</span>
+    </div>
+    <p class="phase-sub">Từ sheet "Open Items" — không việc nào sửa được bằng code.</p>
+    <div class="tasklist">
+      <div class="task"><div class="dot" style="background:var(--coral)"></div><div class="body"><strong>Bật billing cho Gemini API key</strong><span>Free tier 20 request/ngày theo project, không theo key — đổi key không giúp gì. Chặn hẳn ADR-005b nếu không có.</span></div><span class="tag tag-wait">chờ Sky/Anthony</span></div>
+      <div class="task"><div class="dot" style="background:var(--coral)"></div><div class="body"><strong>Xoay vòng key gateway DeepSeek</strong><span>Key đã lộ trong chat lúc test hôm nay.</span></div><span class="tag tag-wait">chờ Anthony</span></div>
+      <div class="task"><div class="dot"></div><div class="body"><strong>30 tin nhắn thật, đã che tên</strong><span>Đây là bộ dữ liệu quyết định thật — mọi thứ đã dựng chỉ là diễn tập chờ cái này.</span></div><span class="tag tag-wait">chờ Eloa</span></div>
+      <div class="task"><div class="dot"></div><div class="body"><strong>Đóng băng schema Trip thật</strong><span><code>schema.ts</code> hiện là đoán, đánh dấu placeholder ngay trong code.</span></div><span class="tag tag-wait">chờ Phillip</span></div>
+      <div class="task"><div class="dot"></div><div class="body"><strong>Xác nhận 4 field house-norm + giá trị mặc định</strong><span><code>houseNorms.ts</code> đang đoán — đoán sai sẽ bị tính nhầm thành "bịa đặt" trong eval.</span></div><span class="tag tag-wait">chờ Jett/Eloa</span></div>
+      <div class="task"><div class="dot" style="background:var(--gold)"></div><div class="body"><strong>Quyết định che PII trước khi gửi model hay chỉ trước khi log</strong><span>Đổi luôn cả Gate A — nếu che trước khi gửi, DeepSeek có thể quay lại vòng xét.</span></div><span class="tag tag-decision">cần quyết định</span></div>
+    </div>
+  </div>
+
+  <div class="phase">
+    <div class="phase-head">
+      <h2>3 · Bake-off thật</h2>
+      <span class="phase-when">chỉ chạy khi nhóm 1 &amp; 2 xong</span>
+    </div>
+    <p class="phase-sub">Kết quả trở thành ADR-005b — quyết định model chính thức.</p>
+    <div class="tasklist">
+      <div class="task"><div class="dot"></div><div class="body"><strong>Viết đáp án đúng cho 30 tin nhắn</strong><span>Việc tốn người nhất trong cả bake-off, không phải việc code.</span></div><span class="tag tag-code">người</span></div>
+      <div class="task"><div class="dot"></div><div class="body"><strong>Chạy eval qua cả 4 provider trên cùng bộ dữ liệu thật</strong><span>Claude, Gemini, DeepSeek, GPT-5.1 — cùng schema, cùng prompt, cùng 30 tin.</span></div><span class="tag tag-code">chạy</span></div>
+      <div class="task"><div class="dot"></div><div class="body"><strong>Ghi ADR-005b, chốt model mặc định</strong><span>Đúng nguyên tắc đã đặt ra: loại ngay nếu bịa đặt &gt; 0, còn lại chọn rẻ nhất đạt đủ 4 ngưỡng còn lại.</span></div><span class="tag tag-code">quyết định</span></div>
+    </div>
+    <div class="milestone"><strong>Mốc cuối, theo đúng Blueprint tuần 2:</strong> nối Extractor vào form Estimator UI thật, demo 20 phút với Evane. Đây là mục tiêu ban đầu Blueprint đặt ra — bake-off chỉ là bước để tới được đó với model đáng tin.</div>
+  </div>
+
+</div>
