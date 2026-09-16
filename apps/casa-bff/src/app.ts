@@ -1,6 +1,11 @@
 import { Hono } from "hono";
 import { z } from "zod";
-import { extract, ExtractionValidationError, createGeminiProvider } from "@technext-edge/extractor";
+// Relative import, not the "@technext-edge/extractor" package name: Vercel's
+// Node function bundler traces local files reliably but failed to resolve the
+// npm-workspace symlink at runtime (ERR_MODULE_NOT_FOUND for the package even
+// though it built and typechecked fine locally). A relative path sidesteps
+// that resolution entirely — plain files, nothing symlink-based to trace.
+import { extract, ExtractionValidationError, createGeminiProvider } from "../../../packages/extractor/src/index.js";
 
 // Gate G3 (Contract, Playbook Figure B): unknown field = 422, body cap enforced
 // upstream at the edge (G1) — this schema is the app-level half of that gate.

@@ -7,7 +7,6 @@
     "dev": "tsx watch src/dev.ts"
   },
   "dependencies": {
-    "@technext-edge/extractor": "*",
     "hono": "^4.6.0"
   },
   "devDependencies": {
