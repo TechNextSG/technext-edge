@@ -11,6 +11,12 @@ import type { ExtractCall, ExtractProvider, ExtractResult } from "../provider.js
 
 const API_BASE = "https://generativelanguage.googleapis.com/v1beta/models";
 
+// Playbook's own p95 target for the whole extraction. Measured p95 here is
+// ~3.2s (ADR-005a), so 8s leaves real headroom without masking a genuine
+// hang — a hung request would otherwise wait indefinitely, past Vercel's own
+// function timeout, with no chance for extract.ts's retry-once path to help.
+const TIMEOUT_MS = 8_000;
+
 // Gemini's responseSchema is a constrained subset of JSON Schema: no $ref,
 // no $schema, no additionalProperties. zod-to-json-schema is told to inline
 // everything (no $refStrategy), this strips what's left that Gemini rejects.
@@ -57,18 +63,35 @@ export function createGeminiProvider(apiKey: string, model = process.env.GEMINI_
         );
       }
 
-      const res = await fetch(`${API_BASE}/${model}:generateContent?key=${apiKey}`, {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({
-          systemInstruction: { parts: [{ text: systemPrompt }] },
-          contents: [{ role: "user", parts: [{ text: userParts.join("\n\n") }] }],
-          generationConfig: {
-            responseMimeType: "application/json",
-            responseSchema: toGeminiSchema(jsonSchema),
-          },
-        }),
-      });
+      const controller = new AbortController();
+      const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
+      let res: Response;
+      try {
+        res = await fetch(`${API_BASE}/${model}:generateContent?key=${apiKey}`, {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          signal: controller.signal,
+          body: JSON.stringify({
+            systemInstruction: { parts: [{ text: systemPrompt }] },
+            contents: [{ role: "user", parts: [{ text: userParts.join("\n\n") }] }],
+            generationConfig: {
+              responseMimeType: "application/json",
+              responseSchema: toGeminiSchema(jsonSchema),
+            },
+          }),
+        });
+      } catch (err) {
+        // Named for observability only — extract.ts treats this exactly like
+        // any other transport failure (rate limit, 5xx): it drives the
+        // existing retry-once path and is never mistaken for a validation
+        // error, since it's thrown before postProcess/Trip.parse ever run.
+        if (err instanceof Error && err.name === "AbortError") {
+          throw new Error(`Gemini extract timed out after ${TIMEOUT_MS}ms`);
+        }
+        throw err;
+      } finally {
+        clearTimeout(timer);
+      }
 
       if (!res.ok) {
         throw new Error(`Gemini extract failed: ${res.status} ${await res.text()}`);

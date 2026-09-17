@@ -101,6 +101,18 @@ describe("extract", () => {
     await expect(extract(MESSAGE, provider)).rejects.not.toBeInstanceOf(ExtractionValidationError);
   });
 
+  it("treats a timeout the same way — transport failure, retried once, never wrapped as a validation error", async () => {
+    // The gemini.ts/deepseek.ts AbortController timeout rethrows a plain
+    // Error (not a DOMException) — matches the shape those adapters actually
+    // throw, not a generic guess.
+    const timeoutErr = new Error("Gemini extract timed out after 8000ms");
+    const call = vi.fn().mockRejectedValue(timeoutErr);
+    const provider: ExtractProvider = { id: "fake:v1", call };
+
+    await expect(extract(MESSAGE, provider)).rejects.toBe(timeoutErr);
+    expect(call).toHaveBeenCalledTimes(2); // both attempts timed out — retry-once still fired
+  });
+
   it("downgrades a 'stated' field to 'missing' when its evidence isn't actually in the message", async () => {
     const hallucinated = {
       ...HAPPY_RAW,

@@ -10,6 +10,12 @@ import type { ExtractCall, ExtractProvider, ExtractResult } from "../provider.js
 const GATEWAY_BASE_URL = "https://litellm-production-7402.up.railway.app/v1";
 const TOOL_NAME = "extract_trip";
 
+// Deliberately higher than Gemini's 8s: DeepSeek's own measured p95 on a
+// *successful* call is ~15.9s (ADR-005a) — an 8s cap here would misclassify
+// normal latency as a hang and force a pointless doubling retry. 20s sits
+// comfortably above the measured baseline.
+const TIMEOUT_MS = 20_000;
+
 // DeepSeek has no `response_format: {type: "json_schema"}` (confirmed against
 // their API docs, 2026-09) — only plain `json_object` mode, which is why the
 // original version of this file dumped the whole JSON Schema as prose in the
@@ -44,32 +50,48 @@ export function createDeepSeekProvider(
         );
       }
 
-      const res = await fetch(`${GATEWAY_BASE_URL}/chat/completions`, {
-        method: "POST",
-        headers: {
-          "content-type": "application/json",
-          authorization: `Bearer ${apiKey}`,
-        },
-        body: JSON.stringify({
-          model,
-          messages: [
-            { role: "system", content: systemPrompt },
-            { role: "user", content: userParts.join("\n\n") },
-          ],
-          tools: [
-            {
-              type: "function",
-              function: {
-                name: TOOL_NAME,
-                description: "Record the extracted trip details.",
-                parameters: jsonSchema,
-                strict: true,
+      const controller = new AbortController();
+      const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
+      let res: Response;
+      try {
+        res = await fetch(`${GATEWAY_BASE_URL}/chat/completions`, {
+          method: "POST",
+          headers: {
+            "content-type": "application/json",
+            authorization: `Bearer ${apiKey}`,
+          },
+          signal: controller.signal,
+          body: JSON.stringify({
+            model,
+            messages: [
+              { role: "system", content: systemPrompt },
+              { role: "user", content: userParts.join("\n\n") },
+            ],
+            tools: [
+              {
+                type: "function",
+                function: {
+                  name: TOOL_NAME,
+                  description: "Record the extracted trip details.",
+                  parameters: jsonSchema,
+                  strict: true,
+                },
               },
-            },
-          ],
-          tool_choice: { type: "function", function: { name: TOOL_NAME } },
-        }),
-      });
+            ],
+            tool_choice: { type: "function", function: { name: TOOL_NAME } },
+          }),
+        });
+      } catch (err) {
+        // See gemini.ts's identical catch — same reasoning, same guarantee
+        // that extract.ts's retry/error-classification logic handles this
+        // like any other transport failure, never as a validation error.
+        if (err instanceof Error && err.name === "AbortError") {
+          throw new Error(`DeepSeek extract timed out after ${TIMEOUT_MS}ms`);
+        }
+        throw err;
+      } finally {
+        clearTimeout(timer);
+      }
 
       if (!res.ok) {
         throw new Error(`DeepSeek gateway extract failed: ${res.status} ${await res.text()}`);

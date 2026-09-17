@@ -21,8 +21,22 @@ export interface ConverseOutcome extends ExtractionOutcome {
 // The reply text is assembled from the same generateQuestions() priority
 // order extract() already produces — no extra model call, no second agent,
 // per the Playbook's "v1 only extracts, no multi-agent" boundary.
+//
+// A real guest enquiry runs 2-4 turns; this cap only bites on pathological
+// input (a replay, a bug, someone testing limits). Independent from the
+// BFF's own zod cap (apps/casa-bff/src/app.ts, history.max(20)) — that one
+// guards the wire format, this one guards what actually gets sent to the
+// model, since converse() can be called directly (tests, future channels)
+// without going through the BFF at all.
+const MAX_TRANSCRIPT_TURNS = 8;
+
 export async function converse(turns: ConversationTurn[], provider: ExtractProvider): Promise<ConverseOutcome> {
-  const transcript = turns.map((t) => `${t.role === "guest" ? "Guest" : "Assistant"}: ${t.text}`).join("\n");
+  // Keep the newest turns, not the oldest: a guest's most recent answers are
+  // what fills the remaining fields. Dropping an early "stated" fact just
+  // means generateQuestions() asks it again — one extra round-trip, not
+  // silent data loss.
+  const recentTurns = turns.length > MAX_TRANSCRIPT_TURNS ? turns.slice(turns.length - MAX_TRANSCRIPT_TURNS) : turns;
+  const transcript = recentTurns.map((t) => `${t.role === "guest" ? "Guest" : "Assistant"}: ${t.text}`).join("\n");
   const outcome = await extract(transcript, provider);
 
   const done = outcome.questions.length === 0;

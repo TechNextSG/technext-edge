@@ -86,4 +86,20 @@ describe("converse", () => {
     expect(outcome.done).toBe(true);
     expect(outcome.reply).toMatch(/team will follow up/i);
   });
+
+  it("caps the transcript to the newest 8 turns, so a runaway conversation doesn't grow unbounded", async () => {
+    const provider = providerReturning(PARTIAL_RAW);
+    const turns = Array.from({ length: 12 }, (_, i) => ({
+      role: (i % 2 === 0 ? "guest" : "assistant") as const,
+      text: `turn-marker-${i}`,
+    }));
+
+    await converse(turns, provider);
+
+    const sentText = (provider.call as ReturnType<typeof vi.fn>).mock.calls[0][0].text;
+    expect(sentText).not.toContain("turn-marker-0"); // oldest, dropped
+    expect(sentText).not.toContain("turn-marker-3"); // still outside the newest-8 window
+    expect(sentText).toContain("turn-marker-4"); // start of the newest-8 window
+    expect(sentText).toContain("turn-marker-11"); // newest, always kept
+  });
 });
