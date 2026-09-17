@@ -8,3 +8,5 @@ export { createProviderFromEnv, createProviderByName, KNOWN_PROVIDER_NAMES } fro
 export type { ExtractProvider, ExtractCall, ExtractResult } from "./provider.js";
 export { resolveRelativeDate, deriveCheckOut, manilaToday } from "./dates.js";
 export { generateQuestions } from "./questions.js";
+export { converse } from "./converse.js";
+export type { ConversationTurn, ConverseOutcome } from "./converse.js";
