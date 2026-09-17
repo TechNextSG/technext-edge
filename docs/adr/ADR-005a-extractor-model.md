@@ -167,3 +167,36 @@ sending, DeepSeek's disqualification is worth revisiting.
   changes Gate A) means one new file under `providers/`, not a refactor.
 - The two non-default adapters stay in the repo, unused but compiling and
   tested, so a later switch costs an environment variable, not a rewrite.
+
+## Update 2026-09-17: latency — timeouts and a transcript cap, not a model change
+
+Testing the new `converse()` multi-turn flow surfaced real latency numbers
+worth acting on: Gemini ~3.2s/call, DeepSeek Flash ~11-16s/call, and no
+timeout anywhere — a hung request would wait indefinitely, past Vercel's own
+function limit, with no chance for the retry-once path to help. Fixed
+(infrastructure only, does not touch the model-choice question above):
+
+- **Per-provider request timeouts** via `AbortController`: Gemini 8s (the
+  Playbook's own p95 target; real p95 is ~3.2s so there's headroom), DeepSeek
+  20s (its own measured p95 on a *successful* call is already ~15.9s — an 8s
+  cap would misclassify normal latency as a hang). Traced through
+  `extract.ts`: a timeout is thrown before the block that produces
+  `AttemptFailure`, so it's already treated exactly like the earlier
+  rate-limit case — drives the existing retry-once path, never mis-wrapped
+  as a schema-validation error. No change needed in `extract.ts` itself.
+- **Transcript cap in `converse()`**: capped at the newest 8 turns,
+  independent of the BFF's own 20-turn wire-format cap. Real guest
+  enquiries run 2-4 turns, so this only bites on pathological input — kept
+  the "resend everything, re-extract from scratch" design exactly as-is
+  (decided against incremental merging: real conversations are short enough
+  that per-turn slowdown isn't worth the added complexity/bug surface).
+- **DeepSeek's own latency is architectural, not something in our control**:
+  routes through the team's LiteLLM gateway (Railway) to DeepSeek's actual
+  inference infrastructure — likely real cross-region hop latency on top of
+  inference time. Not worth further optimization effort given DeepSeek was
+  never the production path (see the update above — Anthropic is).
+- Also fixed the same day: DeepSeek's adapter now uses forced tool-calling
+  instead of embedding the full JSON Schema as prose in the prompt (DeepSeek
+  has no `response_format: json_schema` — confirmed against their docs —
+  but does support strict schema-enforced tool calls), cutting input tokens
+  that were inflating both cost and latency.
