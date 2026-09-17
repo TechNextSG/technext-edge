@@ -119,7 +119,40 @@ truth was wrong, not that both models fabricated the same thing — fixed by
 removing that field's expectation from the dataset (see the eval dataset's
 `en-02-missing-most` case; unscored fields are intentional, not an oversight).
 
-## Open question this ADR does not resolve
+## Update 2026-09-17: the Delivery Plan settles this — Anthropic, not Gemini
+
+Anthony published the Casa Delivery Plan (six stages, resource table) on
+2026-09-16. Two things in it directly override this ADR's "not deciding a
+default" stance and its open PII question:
+
+1. **The resourced path for the extractor is an Anthropic API key, TechNext
+   org, held by Anthony** — listed for preview, staging, *and* production,
+   plus eval in CI. Gemini appears nowhere in the plan. Continuing to build
+   against a personal Google AI Studio free-tier key (the source of
+   yesterday's whole quota saga) was never the sanctioned path — it was a
+   reasonable placeholder chosen before this plan existed, not a mistake at
+   the time, but it should stop being the default now that an org key is
+   coming.
+2. **The PII-masking open question below is answered, and more strictly
+   than this ADR anticipated**: *"Guest data runs only on Anthropic and
+   Odoo. DeepSeek and the Hermes beta work on synthetic or internal data,
+   even when names are masked."* This isn't conditional on Gate A's data-
+   residency reasoning being revisited — it's a flat exclusion. DeepSeek
+   stays exactly where it already sits in this repo (synthetic-only, per-
+   request override, never the default), but now permanently, not pending
+   a masking decision. The DeepSeek gateway budget line in the Delivery
+   Plan itself confirms the same scope: *"third column in the eval
+   comparison... not for guest messages, even masked."*
+
+**Consequence for this repo:** once Anthony issues the Anthropic key,
+`EXTRACTOR_PROVIDER` should default to a Claude adapter (not yet written —
+see roadmap) rather than `gemini`. Gemini and GPT-5.1 were Gate-B-qualifying
+candidates for a bake-off that, per this plan, was never going to happen
+against real guest data anyway — Anthropic is the only provider resourced
+to touch it. Keep the Gemini adapter in the repo (costs nothing to leave
+it), but stop spending further effort tuning it.
+
+## Open question this ADR does not resolve (superseded above)
 
 `normalize()` masks PII **before logging**, not before sending to the
 provider — the raw message (with real email/phone) still leaves the system
