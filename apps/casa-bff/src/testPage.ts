@@ -273,6 +273,16 @@ function currentProviderOverride() {
   return { provider, apiKey };
 }
 
+function describeError(data) {
+  const base = data.detail || data.error || 'unknown error';
+  if (Array.isArray(data.issues) && data.issues.length) {
+    const first = data.issues[0];
+    const path = Array.isArray(first.path) && first.path.length ? first.path.join('.') + ': ' : '';
+    return base + ' — ' + path + first.message;
+  }
+  return base;
+}
+
 function renderTripRows(tbody, trip) {
   tbody.innerHTML = '';
   for (const [field, f] of Object.entries(trip)) {
@@ -373,7 +383,7 @@ async function sendChatTurn() {
     if (!res.ok) {
       chatHistory.pop(); // the guest's turn didn't actually get answered — don't leave it dangling
       renderChatLog();
-      chatError.textContent = 'HTTP ' + res.status + ': ' + (data.detail || data.error);
+      chatError.textContent = 'HTTP ' + res.status + ': ' + describeError(data);
       chatError.style.display = 'block';
       return;
     }
@@ -431,7 +441,7 @@ goEl.addEventListener('click', async () => {
     const elapsed = Math.round(performance.now() - started);
 
     if (!res.ok) {
-      errorEl.textContent = 'HTTP ' + res.status + ': ' + (data.detail || data.error);
+      errorEl.textContent = 'HTTP ' + res.status + ': ' + describeError(data);
       errorEl.style.display = 'block';
       return;
     }
