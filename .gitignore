@@ -13,3 +13,4 @@ packages/extractor/eval/dataset.real.json
 
 .vercel
 .env*
+~$*.xlsx
