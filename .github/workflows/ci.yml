@@ -1,0 +1,31 @@
+name: CI
+
+# Playbook requires this for the Edge repo: typecheck + vitest on every push.
+# It exists because a stray brace in dates.ts broke 5 of 10 test files and
+# nothing caught it — the tree was only verified by hand.
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    name: typecheck + tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - run: npm ci
+
+      # typecheck: both workspaces (apps/casa-bff also pulls in packages/extractor/src)
+      # tests: vitest in packages/extractor
+      - run: npm run verify

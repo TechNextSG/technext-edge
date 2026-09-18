@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "tsx watch src/dev.ts",
+    "typecheck": "tsc --noEmit",
     "whatsapp:sim": "node scripts/whatsapp-sim.mjs",
     "whatsapp:check": "node scripts/whatsapp-check.mjs"
   },
