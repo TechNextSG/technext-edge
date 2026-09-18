@@ -4,7 +4,9 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "tsx watch src/dev.ts"
+    "dev": "tsx watch src/dev.ts",
+    "whatsapp:sim": "node scripts/whatsapp-sim.mjs",
+    "whatsapp:check": "node scripts/whatsapp-check.mjs"
   },
   "dependencies": {
     "hono": "^4.6.0"
