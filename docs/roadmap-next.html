@@ -1,5 +1,5 @@
 <meta charset="utf-8">
-<title>Extractor Pod Roadmap</title>
+<title>Extractor Pod Roadmap — 18/09</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <style>
@@ -75,57 +75,165 @@ h1,h2,h3{font-family:var(--font-d);font-weight:600;text-wrap:balance;margin:0;}
 
 <div class="topbar">
   <div class="kicker">technext-edge · Extractor pod</div>
-  <h1>Roadmap — next chặng</h1>
-  <p>Xuất phát từ trạng thái thật hôm nay (sprint tracker + ADR-005a), không phải kế hoạch lý thuyết. Ba nhóm việc chạy song song: việc code không ai chặn, việc phải chờ người khác, và việc chỉ làm được sau khi cả hai nhóm trên xong.</p>
+  <h1>Roadmap — 18/09 (thay bản 17/09)</h1>
+  <p>Bản 17/09 vẫn đúng về hướng nhưng đã lệch thực tế sau một ngày: nó không hề nhắc tới trục WhatsApp/state — nơi toàn bộ rủi ro demo đang nằm — và 2 việc đã xong sau đó không có trong nó. Bản này giữ 3 nhóm cũ, thêm 2 làn mà bản cũ thiếu (<strong>L0 đóng băng &amp; ship</strong>, <strong>L1 chống tái phát</strong>), và bổ sung 3 thứ bản cũ không có: Definition of Done, danh sách việc phải <em>nói không</em>, và lịch theo ngày.</p>
 </div>
 
 <div class="wrap">
 
-  <div class="phase">
+  <div class="phase" style="border-color:#F3B0A2;">
     <div class="phase-head">
-      <h2>1 · Không ai chặn — làm được ngay</h2>
-      <span class="phase-when">song song, không cần chờ</span>
+      <h2 style="color:#B5301C;">0 · Vì sao phải viết lại roadmap</h2>
+      <span class="phase-when">bằng chứng 18/09</span>
     </div>
-    <p class="phase-sub">Toàn bộ nằm trong tay Extractor pod, không phụ thuộc Sky/Anthony/Phillip/Jett/Eloa.</p>
+    <p class="phase-sub">Vấn đề không nằm ở kế hoạch, mà ở chỗ kế hoạch không có gì kiểm chứng tự động. Ba bằng chứng trong hôm nay:</p>
     <div class="tasklist">
-      <div class="task"><div class="dot"></div><div class="body"><strong>Viết adapter Claude</strong><span>Delivery Plan (16/09) chốt: Anthropic API key là đường chính thức cho extractor ở cả preview/staging/production. GPT-5.1 không nằm trong bảng resource — hạ ưu tiên.</span></div><span class="tag tag-code">code</span></div>
-      <div class="task"><div class="dot"></div><div class="body"><strong>Đổi route <code>/healthz</code> thành <code>/v1/health</code> (hoặc thêm alias)</strong><span>Figure 3 của Delivery Plan ghi rõ mốc Staging là "merge đầu tiên ship /v1/health" — tên khác với route hiện tại.</span></div><span class="tag tag-code">code</span></div>
-      <div class="task"><div class="dot"></div><div class="body"><strong>Sửa DeepSeek adapter nhét schema vào prompt</strong><span>Phát hiện từ eval dry-run: token cao gấp 6-8 lần Gemini vì cách viết adapter, không phải bản chất model. Sửa trước khi dùng số token để so giá.</span></div><span class="tag tag-code">code</span></div>
-      <div class="task"><div class="dot"></div><div class="body"><strong>Nối LLM-judge cho tiêu chí "câu hỏi đúng trọng tâm"</strong><span>Đây là ngưỡng duy nhất trong 5 ngưỡng Playbook chưa tự động chấm được. Cần xong trước khi chạy 30 tin thật để không phải chấm tay.</span></div><span class="tag tag-code">code</span></div>
-      <div class="task"><div class="dot"></div><div class="body"><strong>CI cơ bản: typecheck + vitest trên mỗi lần push</strong><span>Playbook đã ghi rõ yêu cầu này cho repo Edge; hiện chưa có, chỉ chạy tay.</span></div><span class="tag tag-code">code</span></div>
-      <div class="task"><div class="dot"></div><div class="body"><strong>Rate limit cơ bản (Gate G1) trên BFF</strong><span>Hiện endpoint chỉ chặn bởi Vercel SSO — không phải rate limit thật. Cần trước khi ai ngoài pod dùng thử rộng hơn.</span></div><span class="tag tag-code">code</span></div>
+      <div class="task"><div class="dot" style="background:#DC4B33;"></div><div class="body"><strong>Cây nguồn từng hỏng mà không ai biết</strong><span><code>packages/extractor/src/dates.ts:96</code> có một dấu <code>}</code> thừa → 5 trong 10 file test không compile được, chỉ 16 test chạy. Phát hiện lúc 18/09 16:26 khi bắt đầu bật typecheck; đã sửa.</span></div><span class="tag tag-decision">đã sửa</span></div>
+      <div class="task"><div class="dot" style="background:#DC4B33;"></div><div class="body"><strong>Không có CI, không có lệnh typecheck ở root</strong><span>Playbook yêu cầu CI cho repo Edge; thực tế không có <code>.github/</code>, và <code>package.json</code> root chỉ có <code>test</code> (chạy mỗi extractor). Đây là lý do trực tiếp của lỗi trên.</span></div><span class="tag tag-decision">đã bổ sung</span></div>
+      <div class="task"><div class="dot" style="background:#DC4B33;"></div><div class="body"><strong>Hai file log PII untracked mà <code>.gitignore</code> không chặn</strong><span>Luật cũ chỉ khớp <code>results.*.json</code>, không khớp <code>results-deepseek.log</code> / <code>results-gemini.log</code> — hai file này có thể chứa nguyên văn tin của khách. Đã chặn và kiểm chứng bằng <code>git check-ignore -v</code>.</span></div><span class="tag tag-decision">đã sửa</span></div>
+      <div class="task"><div class="dot" style="background:#DC4B33;"></div><div class="body"><strong>ADR-006 tự khai "accepted" nhưng chưa từng được commit</strong><span><code>git grep ADR-006</code> (không file code nào nhắc) cho 0 kết quả; <code>conversationStore.ts</code> và <code>whatsapp.ts</code> vẫn ghi "no ADR yet". Tài liệu không có trong git thì không tồn tại — và nó còn đảo ngược ADR-005a mà không có dòng <code>Supersedes</code>.</span></div><span class="tag tag-wait">chờ quyết</span></div>
     </div>
   </div>
 
   <div class="phase">
     <div class="phase-head">
-      <h2>2 · Đang chờ người khác</h2>
-      <span class="phase-when">theo dõi song song, nhắc nếu im lặng</span>
+      <h2>L0 · Đóng băng &amp; ship</h2>
+      <span class="phase-when">hôm nay, không hoãn được</span>
     </div>
-    <p class="phase-sub">Từ sheet "Open Items" — không việc nào sửa được bằng code.</p>
+    <p class="phase-sub">Không thể lập kế hoạch trên một cây nguồn chưa đóng băng. Hiện có 16 file modified + 5 file test mới chưa commit; <code>main</code> còn ahead 2 chưa push.</p>
     <div class="tasklist">
-      <div class="task"><div class="dot" style="background:var(--coral)"></div><div class="body"><strong>Xin Anthropic API key (org TechNext) từ Anthony</strong><span>Đường chính thức theo Delivery Plan — thay cho hướng Gemini free-tier hôm qua. Không cần bật billing Gemini nữa, chỉ cần key này.</span></div><span class="tag tag-wait">chờ Anthony</span></div>
-      <div class="task"><div class="dot" style="background:var(--coral)"></div><div class="body"><strong>Xin key theo role (guest/agent/staff) từ Phillip</strong><span>1 trong 3 việc "chỉ Anthony làm được" đang chặn G1 theo Delivery Plan — dù không trực tiếp thuộc Extractor pod, đáng theo dõi vì chặn cả BFF.</span></div><span class="tag tag-wait">chờ Phillip (qua Anthony)</span></div>
-      <div class="task"><div class="dot" style="background:var(--coral)"></div><div class="body"><strong>Xoay vòng key gateway DeepSeek</strong><span>Key đã lộ trong chat lúc test hôm nay.</span></div><span class="tag tag-wait">chờ Anthony</span></div>
-      <div class="task"><div class="dot"></div><div class="body"><strong>30 tin nhắn thật, đã che tên</strong><span>Đây là bộ dữ liệu quyết định thật — mọi thứ đã dựng chỉ là diễn tập chờ cái này.</span></div><span class="tag tag-wait">chờ Eloa</span></div>
-      <div class="task"><div class="dot"></div><div class="body"><strong>Đóng băng schema Trip thật</strong><span><code>schema.ts</code> hiện là đoán, đánh dấu placeholder ngay trong code.</span></div><span class="tag tag-wait">chờ Phillip</span></div>
-      <div class="task"><div class="dot"></div><div class="body"><strong>Xác nhận 4 field house-norm + giá trị mặc định</strong><span><code>houseNorms.ts</code> đang đoán — đoán sai sẽ bị tính nhầm thành "bịa đặt" trong eval.</span></div><span class="tag tag-wait">chờ Jett/Eloa</span></div>
-      <div class="task"><div class="dot" style="background:var(--good)"></div><div class="body"><strong>~~Quyết định che PII trước khi gửi model~~ — đã chốt trong Delivery Plan</strong><span>"Dữ liệu khách chỉ chạy trên Anthropic và Odoo. DeepSeek/Hermes chỉ dùng dữ liệu giả lập/nội bộ, kể cả khi đã che tên." — không còn là quyết định mở, DeepSeek bị loại vĩnh viễn khỏi luồng dữ liệu khách thật.</span></div><span class="tag" style="background:var(--good-bg);color:var(--good-ink)">đã chốt</span></div>
+      <div class="task"><div class="dot"></div><div class="body"><strong>Commit dòng WIP theo 4 chủ đề, không gộp 1 commit khổng lồ</strong><span>① store + WhatsApp handler · ② converse + questions (đa ngôn ngữ) · ③ extract + dates + schema (5 field optional mới) · ④ provider + eval + test mới. Mỗi commit phải qua <code>npm run verify</code>.</span></div><span class="tag tag-wait">người quyết</span></div>
+      <div class="task"><div class="dot"></div><div class="body"><strong>Push <code>main</code> + deploy rồi test 1 tin thật</strong><span>Deploy là CLI từ repo root (<code>vercel build</code> → <code>vercel deploy --prebuilt --prod</code>), không phải push-to-deploy. Phải xác nhận webhook hết 404 và prod đã có <code>WHATSAPP_*</code>.</span></div><span class="tag tag-wait">người quyết</span></div>
+      <div class="task"><div class="dot"></div><div class="body"><strong>Bổ sung 2 env var còn thiếu vào §6 team guide</strong><span><code>WHATSAPP_TURN_TIMEOUT_MS</code> và <code>WHATSAPP_TIMEOUT_MS</code> đã dùng trong code nhưng chưa có trong tài liệu bàn giao.</span></div><span class="tag tag-code">code</span></div>
+      <div class="task"><div class="dot"></div><div class="body"><strong>Xoay App Secret + API key đã lộ trong chat</strong><span>Tiền đề cho mọi thứ phía sau: khoá đã lộ thì mọi số đo hiệu năng/chi phí đều dựa trên tài khoản có thể bị người khác dùng.</span></div><span class="tag tag-wait">người quyết</span></div>
     </div>
   </div>
 
   <div class="phase">
     <div class="phase-head">
-      <h2>3 · Bake-off thật</h2>
-      <span class="phase-when">chỉ chạy khi nhóm 1 &amp; 2 xong</span>
+      <h2>L1 · Chống tái phát</h2>
+      <span class="phase-when">1 ngày · làn rẻ nhất, chặn nhiều thứ nhất</span>
     </div>
-    <p class="phase-sub">Kết quả trở thành ADR-005b — quyết định model chính thức.</p>
+    <p class="phase-sub">Làn này không thêm tính năng nào cho khách. Nó tồn tại để sự việc ở mục 0 không lặp lại. Trạng thái 18/09: 3/5 việc đã xong.</p>
     <div class="tasklist">
-      <div class="task"><div class="dot"></div><div class="body"><strong>Viết đáp án đúng cho 30 tin nhắn</strong><span>Việc tốn người nhất trong cả bake-off, không phải việc code.</span></div><span class="tag tag-code">người</span></div>
-      <div class="task"><div class="dot"></div><div class="body"><strong>Chạy eval trên 30 tin thật: Claude (thật) + DeepSeek (chỉ để tham chiếu)</strong><span>Theo Delivery Plan, đây không còn là "chọn 1 trong 4" — Claude là đường sản xuất chính thức, DeepSeek chỉ là cột so sánh, không bao giờ chạm dữ liệu khách thật kể cả trong bước eval này.</span></div><span class="tag tag-code">chạy</span></div>
-      <div class="task"><div class="dot"></div><div class="body"><strong>Ghi ADR-005b: xác nhận Claude đạt đủ 5 ngưỡng</strong><span>Không còn là "chọn model nào" mà là "Claude có đạt chuẩn không" — nếu không đạt, quay lại Anthony/Sky, không tự ý chuyển sang provider khác ngoài kế hoạch.</span></div><span class="tag tag-code">quyết định</span></div>
+      <div class="task"><div class="dot" style="background:#3E9B6B;"></div><div class="body"><strong>CI: typecheck + test trên mỗi push</strong><span>Xong: <code>.github/workflows/ci.yml</code> — <code>npm ci</code> rồi <code>npm run verify</code>, Node 20, cancel-in-progress. Còn phải kiểm chứng bằng một lần push thật.</span></div><span class="tag tag-code">xong 18/09</span></div>
+      <div class="task"><div class="dot" style="background:#3E9B6B;"></div><div class="body"><strong>Lệnh typecheck ở root</strong><span>Xong: <code>npm run typecheck</code> chạy cả 2 workspace (<code>--workspaces --if-present</code>); <code>npm run verify</code> = typecheck + test. Bằng chứng: <code>npm run verify</code> exit 0, <strong>10/10 file test pass</strong>.</span></div><span class="tag tag-code">xong 18/09</span></div>
+      <div class="task"><div class="dot" style="background:#3E9B6B;"></div><div class="body"><strong>.gitignore chặn log eval có thể chứa văn bản khách</strong><span>Xong: thêm <code>results*.log</code> và <code>results-*.json</code>. Kiểm chứng: <code>git check-ignore -v</code> trỏ đúng về dòng 13 của <code>.gitignore</code>.</span></div><span class="tag tag-code">xong 18/09</span></div>
+      <div class="task"><div class="dot"></div><div class="body"><strong>Test file cũng phải được typecheck</strong><span>Hiện <code>tsconfig.json</code> của extractor chỉ include <code>["src"]</code> — 5 file test mới <em>không</em> được kiểm kiểu. Đây là lỗ hổng còn lại của L1.</span></div><span class="tag tag-code">code</span></div>
+      <div class="task"><div class="dot"></div><div class="body"><strong>Quyết định số phận <code>.agents/</code></strong><span>Đang untracked nhưng chứa skill dùng chung (browser-skill, technext-status-report). Hoặc commit, hoặc ghi vào <code>.gitignore</code> — không để nó hiện mãi trong mỗi lần <code>git status</code>.</span></div><span class="tag tag-wait">người quyết</span></div>
     </div>
-    <div class="milestone"><strong>Mốc cuối, theo đúng Blueprint tuần 2:</strong> nối Extractor vào form Estimator UI thật, demo 20 phút với Evane. Đây là mục tiêu ban đầu Blueprint đặt ra — bake-off chỉ là bước để tới được đó với model đáng tin.</div>
+  </div>
+
+  <div class="phase">
+    <div class="phase-head">
+      <h2>L2 · Cứng hoá kênh &amp; state</h2>
+      <span class="phase-when">1–2 ngày · chặn rủi ro demo lớn nhất</span>
+    </div>
+    <p class="phase-sub">Ba lỗi trong làn này nằm trong code đang chạy, không phải nâng cấp: chúng đã có mặt trên <code>main</code> hôm nay.</p>
+    <div class="tasklist">
+      <div class="task"><div class="dot" style="background:#DC4B33;"></div><div class="body"><strong>Claim TTL đang là 24 giờ, không phải 60 giây</strong><span><code>conversationStore.ts</code> dùng <code>ttlMs = THREAD_TTL_MS</code> cho khoá claim của wamid. Nếu function bị kill sau khi claim mà trước khi <code>releaseMessage</code>, tin đó bị khoá <strong>24 giờ</strong> — khách im lặng mất một ngày. Cần: claim in-flight ~60s + một "done marker" riêng có TTL dài.</span></div><span class="tag tag-code">code</span></div>
+      <div class="task"><div class="dot" style="background:#DC4B33;"></div><div class="body"><strong><code>releaseMessage</code> không có token → double reply</strong><span>Hiện release chỉ theo <code>id</code>, nên một lượt retry cũ có thể nhả claim của lượt mới. Cần <code>claimMessage → {fenceToken}</code> và <code>releaseMessage(id, token)</code> kiểm token. Bằng chứng phải là test: <em>3 lần giao cùng một wamid ⇒ đúng 1 reply</em>.</span></div><span class="tag tag-code">code</span></div>
+      <div class="task"><div class="dot" style="background:#DC4B33;"></div><div class="body"><strong>Không có khoá theo thread → mất lượt khi khách nhắn liên tiếp</strong><span>Hai tin cách nhau 1 giây có thể chạy song song và ghi đè state của nhau. Cần <code>thread-lock:&lt;phone&gt;</code> + gộp tin trong 2–3 giây thành một lượt.</span></div><span class="tag tag-code">code</span></div>
+      <div class="task"><div class="dot"></div><div class="body"><strong>Không bao giờ im lặng</strong><span>Provider lỗi/timeout thì khách hiện đang nhận <em>không gì cả</em>. Cần một câu xin lỗi tĩnh cộng đánh dấu cần người thật xử lý. Test: giả lập 429 ⇒ phải có reply.</span></div><span class="tag tag-code">code</span></div>
+      <div class="task"><div class="dot"></div><div class="body"><strong>Handoff tối thiểu</strong><span>Từ khoá escalate + số câu đã hỏi + cờ pause thread, đọc <em>trước</em> khi gọi model. Test: thread đã pause ⇒ 0 lần gọi model.</span></div><span class="tag tag-code">code</span></div>
+      <div class="task"><div class="dot"></div><div class="body"><strong>Store cho production + contract test dùng chung</strong><span>Hiện là in-memory. Phải chốt backend (Upstash/Vercel KV hay Postgres) và viết một spec chạy đúng trên cả hai adapter — nếu không, bug chỉ hiện ở prod.</span></div><span class="tag tag-decision">chờ quyết</span></div>
+      <div class="task"><div class="dot"></div><div class="body"><strong>ADR-006: hạ <code>accepted</code> → <code>proposed</code> và commit file</strong><span>Thêm dòng <code>Supersedes: ADR-005a (2026-09-17 cap clause)</code>, sửa 2 comment trong code còn ghi "no ADR yet". Không commit = không tồn tại.</span></div><span class="tag tag-wait">chờ quyết</span></div>
+    </div>
+  </div>
+
+  <div class="phase">
+    <div class="phase-head">
+      <h2>L3 · Hợp đồng &amp; nội dung</h2>
+      <span class="phase-when">2 ngày · làm được mà không chờ ai</span>
+    </div>
+    <p class="phase-sub">Sau L2, kênh đã "cứng". L3 làm cho câu trả lời <em>đúng</em> và <em>tất định</em> — phần duy nhất khách thực sự nhìn thấy.</p>
+    <div class="tasklist">
+      <div class="task"><div class="dot" style="background:#DC4B33;"></div><div class="body"><strong>Hợp đồng hoàn tất: tách <code>READY_FIELDS</code> khỏi danh sách hỏi</strong><span><code>done = questions.length === 0</code> chỉ phủ 7 field trong <code>PRIORITY</code>. WIP vừa thêm 5 field optional (<code>transportType</code>, <code>diver</code>, <code>guestType</code>, <code>diveFrom</code>, <code>diveTo</code>) mà không field nào được hỏi ⇒ <strong><code>done:true</code> vẫn có thể xảy ra khi chưa biết roundtrip</strong>. Điều kiện bàn giao phải tách khỏi điều kiện hỏi.</span></div><span class="tag tag-code">code</span></div>
+      <div class="task"><div class="dot" style="background:#DC4B33;"></div><div class="body"><strong>Sửa lỗi tiền: <code>transportType</code> đang bị suy diễn</strong><span><code>extract.ts</code> tự suy <code>roundtrip</code> từ dữ liệu khác trong khi giá phụ thuộc vào nó. ADR-006 Decision 4 (mơ hồ ⇒ <code>missing</code> và hỏi lại) là cách sửa đúng — phải làm trước demo.</span></div><span class="tag tag-code">code</span></div>
+      <div class="task"><div class="dot"></div><div class="body"><strong>Trạng thái <code>assumed</code> cho default ảnh hưởng tiền</strong><span><code>guestType</code> mặc định <code>retail</code> và <code>transportType</code> hiện là default im lặng — nhưng agent được giảm 30%, nên một default sai là một báo giá sai. Phải hiển thị cho người thật, không nói với khách.</span></div><span class="tag tag-code">code</span></div>
+      <div class="task"><div class="dot"></div><div class="body"><strong>Gom câu hỏi thành nhóm 1+1 hợp lý</strong><span>Hỏi <code>transport</code> trước rồi mới <code>transportType</code>; bỏ <code>diver</code> khỏi cặp với <code>transport</code>. Viết thành ADR + golden test để lần sau không phải tranh luận lại.</span></div><span class="tag tag-code">code</span></div>
+      <div class="task"><div class="dot"></div><div class="body"><strong>Renderer tất định cho câu hỏi và câu xác nhận</strong><span>ADR-006 chốt: model không được viết câu xác nhận cuối — nếu không, nó có thể cam kết giá/phòng. Câu chữ lấy từ <code>questions.ts</code> (đã có en/vi/zh), thêm luật "không giá, không cam kết".</span></div><span class="tag tag-code">code</span></div>
+      <div class="task"><div class="dot"></div><div class="body"><strong>Bổ sung ngày trong tuần còn thiếu</strong><span><code>WEEKDAYS</code> trong <code>dates.ts</code> đang thiếu các dạng viết tắt kiểu Việt (<code>thứ 2</code>, <code>thu 7</code>…). Sửa kèm test dùng <code>today</code> cố định — không dùng ngày thật.</span></div><span class="tag tag-code">code</span></div>
+      <div class="task"><div class="dot"></div><div class="body"><strong>Biến kịch bản Anh Minh thành golden test + case eval</strong><span>Xác nhận 18/07 vs 25/07, nhóm 1+1, transport mơ hồ. Case này phải được thêm vào dataset eval để ngưỡng "fabricated = 0" bắt được hồi quy — đây là cơ chế khiến lỗi tiền không quay lại.</span></div><span class="tag tag-code">code</span></div>
+      <div class="task"><div class="dot"></div><div class="body"><strong>Đo latency turn 1 vs turn 12 trước khi bàn window + anchor</strong><span>ADR-005a phê duyệt p95 ≤ 8s; con số "1.8s → 4–6s" trong ADR-006 không có phép đo nào trong repo. Không đo thì không có cơ sở đảo ngược ADR-005a.</span></div><span class="tag tag-decision">cần số đo</span></div>
+    </div>
+  </div>
+
+  <div class="phase">
+    <div class="phase-head">
+      <h2>L4 · Chờ người khác → mới được làm</h2>
+      <span class="phase-when">theo lịch của người khác</span>
+    </div>
+    <p class="phase-sub">Không việc nào dưới đây làm được trước khi có đầu vào tương ứng. Danh sách này thay cho các mục "Open Items" đã lỗi thời trong sprint tracker.</p>
+    <div class="tasklist">
+      <div class="task"><div class="dot" style="background:#C99A2E;"></div><div class="body"><strong>Anthropic API key (Anthony)</strong><span>Đường chính thức cho extractor ở cả preview/staging/production theo Delivery Plan 16/09. Viết adapter <em>được</em> (test bằng fetch giả) nhưng kiểm chứng thật thì phải có key. Ghi chú: mục "bật billing Gemini" trong tracker đã lỗi thời.</span></div><span class="tag tag-wait">chờ key</span></div>
+      <div class="task"><div class="dot" style="background:#C99A2E;"></div><div class="body"><strong>Freeze schema của Phillip</strong><span><code>schema.ts</code> tự ghi là PLACEHOLDER. Mọi endpoint mới dựa trên nó — xây trên placeholder là xây trên cát.</span></div><span class="tag tag-wait">chờ Phillip</span></div>
+      <div class="task"><div class="dot" style="background:#C99A2E;"></div><div class="body"><strong>House-norm thật + giá trị mặc định (Jett / Eloa)</strong><span>Đoán sai mặc định đọc lên thành bịa trong eval — trùng đúng trục rủi ro của L3.</span></div><span class="tag tag-wait">chờ norm</span></div>
+      <div class="task"><div class="dot" style="background:#C99A2E;"></div><div class="body"><strong>30 tin thật đã che tên (Eloa)</strong><span>Đây mới là dataset bake-off thật. Sau khi có: LLM-judge cho tiêu chí "câu hỏi đúng trọng tâm" → chạy leaderboard → <strong>ADR-005b</strong>.</span></div><span class="tag tag-wait">chặn ADR-005b</span></div>
+      <div class="task"><div class="dot" style="background:#C99A2E;"></div><div class="body"><strong>Quyết định mask PII trước khi gửi hay chỉ trước khi log (Anthony / Sky)</strong><span>Nếu mask trước khi gửi thì lý do loại DeepSeek vì data-residency cần xem lại — tức là thay đổi Gate A của ADR-005a.</span></div><span class="tag tag-wait">chờ quyết</span></div>
+    </div>
+    <div class="milestone"><strong>Mốc cuối, giữ nguyên từ bản 17/09:</strong> nối Extractor vào form Estimator UI thật, demo 20 phút với Evane. Chuỗi phụ thuộc: key → adapter → 30 tin thật → ADR-005b → nối UI. Không nhảy cóc.</div>
+  </div>
+
+  <div class="phase" style="border-color:#BFE0CC;">
+    <div class="phase-head">
+      <h2 style="color:#2F7A54;">Definition of Done — thứ bản 17/09 không có</h2>
+      <span class="phase-when">áp cho mọi việc ở trên</span>
+    </div>
+    <p class="phase-sub">Bản 17/09 liệt kê việc nhưng không nói thế nào là xong, nên "xong" trôi theo trí nhớ. Một việc chỉ được coi là Done khi có <strong>cả 4</strong>:</p>
+    <div class="tasklist">
+      <div class="task"><div class="dot" style="background:#3E9B6B;"></div><div class="body"><strong>① Một commit trên <code>main</code></strong><span>Không phải "đã viết trong working tree". Nếu chưa commit, nó không tồn tại với người còn lại.</span></div><span class="tag tag-code">commit</span></div>
+      <div class="task"><div class="dot" style="background:#3E9B6B;"></div><div class="body"><strong>② Một test hoặc phép đo chứng minh</strong><span>"Đã review", "trông ổn", "chắc là chạy" không tính. Ví dụ ở L1: <code>npm run verify</code> exit 0 + 10/10 test file pass.</span></div><span class="tag tag-code">test</span></div>
+      <div class="task"><div class="dot" style="background:#3E9B6B;"></div><div class="body"><strong>③ Một dòng trong sprint tracker</strong><span>Tracker là nguồn sự thật duy nhất. Lưu ý: sheet "Status Summary" đang đếm cứng <code>D5:D15</code> ⇒ thêm dòng mới sẽ không được đếm, phải sửa formula trước.</span></div><span class="tag tag-code">tracker</span></div>
+      <div class="task"><div class="dot" style="background:#3E9B6B;"></div><div class="body"><strong>④ Env/tài liệu liên quan cập nhật trong cùng commit</strong><span>Không có env var mới nào được dùng trong code mà chưa có trong §6. Đây chính là thứ đã lệch ở L0.</span></div><span class="tag tag-code">doc</span></div>
+      <div class="task"><div class="dot" style="background:#DC4B33;"></div><div class="body"><strong>Luật viết: không có số đo thì không được ghi số</strong><span>ADR-005a sống bằng luật này. ADR-006 đang vi phạm với "1.8s → 4–6s" và "dưới 2.0s ở lượt 15" — cả hai đều không có phép đo trong repo, và con số thứ hai còn bất khả thi so với Gate B p95 ≤ 8s của ADR-005a.</span></div><span class="tag tag-decision">luật</span></div>
+    </div>
+  </div>
+
+  <div class="phase" style="border-color:#F3B0A2;">
+    <div class="phase-head">
+      <h2 style="color:#B5301C;">Roadmap phải nói KHÔNG với gì</h2>
+      <span class="phase-when">quan trọng ngang việc nói có</span>
+    </div>
+    <p class="phase-sub">Roadmap cũ chỉ liệt kê việc sẽ làm, nên không ai thấy việc gì đang bị hoãn ầm thầm. Ghi rõ ra:</p>
+    <div class="tasklist">
+      <div class="task"><div class="dot" style="background:#DC4B33;"></div><div class="body"><strong>Không làm sliding window + state anchor ngay</strong><span>ADR-006 §5 đảo ngược quyết định 5 của ADR-005a mà không có dòng Supersedes. "Anchor" nghĩa là merge state — một bề mặt lỗi mới cho trục zero-hallucination. Code hiện tại (<code>MAX_TRANSCRIPT_CHARS = 60_000</code>, giữ đầu + đuôi) vẫn giữ được dữ kiện. Chỉ làm <em>sau</em> khi có số đo ở L3.</span></div><span class="tag tag-decision">hoãn</span></div>
+      <div class="task"><div class="dot" style="background:#DC4B33;"></div><div class="body"><strong>Không xây endpoint mới / Odoo client trên schema placeholder</strong><span><code>/v1/estimate/compute</code>, <code>/v1/booking/submit</code>, draft store… đều chờ Phillip freeze schema. Xây trước là tự tạo nợ phải viết lại.</span></div><span class="tag tag-decision">hoãn</span></div>
+      <div class="task"><div class="dot" style="background:#DC4B33;"></div><div class="body"><strong>Không làm rate limit (Gate G1) trước demo</strong><span>Cần trước khi cho người ngoài pod dùng thử, nhưng nó không chặn demo — và L2 chặn rủi ro demo lớn hơn.</span></div><span class="tag tag-decision">hoãn</span></div>
+      <div class="task"><div class="dot" style="background:#DC4B33;"></div><div class="body"><strong>Không làm LLM-judge trước khi có 30 tin thật</strong><span>Judge để chấm "câu hỏi đúng trọng tâm" trên 30 tin thật; viết judge khi chưa có dữ liệu là tối ưu mù.</span></div><span class="tag tag-decision">hoãn</span></div>
+      <div class="task"><div class="dot" style="background:#C99A2E;"></div><div class="body"><strong>Adapter Claude: 2 ngày cho adapter hay 2 ngày cho L2?</strong><span>Adapter viết được ngay bằng fetch giả, nhưng kiểm chứng thật thì chờ key. Đề xuất: làm L2 trước vì nó chặn rủi ro khách nhìn thấy (không mất lượt, không double reply, không im lặng), còn adapter chỉ chờ một đầu vào bên ngoài.</span></div><span class="tag tag-decision">chờ quyết</span></div>
+    </div>
+  </div>
+
+  <div class="phase">
+    <div class="phase-head">
+      <h2>Lịch theo ngày</h2>
+      <span class="phase-when">từ 18/09 tới mốc demo</span>
+    </div>
+    <p class="phase-sub">Thứ tự này là thứ tự <em>phụ thuộc</em>, không phải thứ tự sở thích: L0 trước L1 vì không có cây nguồn đóng băng thì CI chỉ báo đỏ vì việc của người khác; L2 trước L3 vì cứng kênh rẻ hơn và chặn rủi ro lớn hơn.</p>
+    <div class="tasklist">
+      <div class="task"><div class="dot"></div><div class="body"><strong>18/09 (tối nay) — L0</strong><span>Commit theo chủ đề, push, deploy, bổ sung §6, xoay khoá. Ra được: env prod chạy, tài liệu khớp code.</span></div><span class="tag tag-code">hôm nay</span></div>
+      <div class="task"><div class="dot"></div><div class="body"><strong>19/09 — L1 xong + L2.1–L2.2</strong><span>CI xanh lần đầu, hết lỗi claim 24 giờ và double reply (kèm test "3 lần giao ⇒ 1 reply").</span></div><span class="tag tag-code">ngày 2</span></div>
+      <div class="task"><div class="dot"></div><div class="body"><strong>20–21/09 — L2.3–L2.7</strong><span>Khoá thread + gộp tin, không bao giờ im lặng, handoff tối thiểu, store prod + contract test, ADR-006 hạ về proposed và được commit.</span></div><span class="tag tag-code">ngày 3–4</span></div>
+      <div class="task"><div class="dot"></div><div class="body"><strong>22–23/09 — L3 (phần lõi)</strong><span>Hợp đồng hoàn tất + sửa lỗi tiền <code>transportType</code> + default <code>assumed</code> + dạng ngày Việt + golden test Anh Minh. Ra được: <code>done</code> có nghĩa, không còn đường nào để bịa giá.</span></div><span class="tag tag-code">ngày 5–6</span></div>
+      <div class="task"><div class="dot"></div><div class="body"><strong>24–25/09 — L3 còn lại</strong><span>Renderer tất định, nhóm 1+1, đo latency, rồi mới quyết window + anchor và cập nhật ADR-006/007.</span></div><span class="tag tag-code">ngày 7–8</span></div>
+      <div class="task"><div class="dot" style="background:#C99A2E;"></div><div class="body"><strong>Khi có key — L4</strong><span>Adapter Claude → LLM-judge → 30 tin thật → ADR-005b → nối Estimator UI → demo Evane.</span></div><span class="tag tag-wait">theo key</span></div>
+    </div>
+  </div>
+
+  <div class="phase">
+    <div class="phase-head">
+      <h2>Rủi ro &amp; cách chặn</h2>
+      <span class="phase-when">5 rủi ro, mỗi cái có một cơ chế cụ thể</span>
+    </div>
+    <div class="tasklist">
+      <div class="task"><div class="dot" style="background:#DC4B33;"></div><div class="body"><strong>R1 · WIP tiếp tục phình</strong><span>Đã 16 file modified + 5 file test mới. Chặn bằng L0.1 (commit theo chủ đề) + L1.1 (CI) — CI là thứ khiến việc đóng băng có giá trị lâu dài.</span></div><span class="tag tag-decision">rủi ro</span></div>
+      <div class="task"><div class="dot" style="background:#DC4B33;"></div><div class="body"><strong>R2 · Tài liệu lệch code (đã xảy ra 3 lần)</strong><span>roadmap 17/09 lệch 1 chặng, tracker đếm cứng tới dòng 15, ADR-006 chưa từng được commit. Chặn bằng DoD ③④ và luật "ADR không commit = không tồn tại".</span></div><span class="tag tag-decision">rủi ro</span></div>
+      <div class="task"><div class="dot" style="background:#DC4B33;"></div><div class="body"><strong>R3 · Zero-hallucination bị phá qua đường <code>derived</code>/<code>default</code></strong><span>Đúng cơ chế đã gây lỗi <code>roundtrip</code>. Chặn bằng trạng thái <code>assumed</code> + luật renderer + <strong>case eval</strong> để ngưỡng "fabricated = 0" bắt được hồi quy.</span></div><span class="tag tag-decision">rủi ro</span></div>
+      <div class="task"><div class="dot" style="background:#DC4B33;"></div><div class="body"><strong>R4 · Prod chưa có <code>WHATSAPP_*</code> ⇒ webhook 404</strong><span>Đây là blocker cứng của mọi demo qua WhatsApp. Chặn bằng L0.2.</span></div><span class="tag tag-decision">rủi ro</span></div>
+      <div class="task"><div class="dot" style="background:#DC4B33;"></div><div class="body"><strong>R5 · Trần thời gian function vs p95 model</strong><span>Khi vượt trần, khách nhận im lặng. Chặn bằng claim TTL ngắn, câu xin lỗi tĩnh, và số đo p95 thật ở L3.</span></div><span class="tag tag-decision">rủi ro</span></div>
+    </div>
+    <div class="milestone"><strong>Bản này khác bản 17/09 ở đâu:</strong> bản cũ trả lời "làm gì tiếp". Bản này trả lời cả "thế nào là xong", "cái gì cố ý không làm", và "cái gì đang chờ người khác" — ba thứ mà thiếu chúng thì roadmap nào cũng sẽ lệch lại sau một ngày.</div>
   </div>
 
 </div>
