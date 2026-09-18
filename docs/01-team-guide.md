@@ -114,9 +114,360 @@ genuine hang all look identical from the outside (see §6).
 | `EXTRACTOR_PROVIDER` | optional | no | `gemini` (default) \| `deepseek-flash` \| `deepseek-pro`. Picks the server's default provider. |
 | `DEEPSEEK_GATEWAY_KEY` | optional | if `EXTRACTOR_PROVIDER` is a DeepSeek value | Your personal LiteLLM gateway key (Railway) — ask Anthony for one. $12 budget per person, shared across everything you use it for, not just this repo. |
 | `DEBUG_EXTRACT` | optional, dev only | no | `1` includes zod issues / stack traces in error responses. Remove after debugging — don't leave it on. |
+| `WHATSAPP_VERIFY_TOKEN` | Production + Preview | only for the WhatsApp channel | A string you invent, then paste into the Meta app dashboard *and* here. Meta never issues it — it just echoes it back on the one-time GET handshake. |
+| `WHATSAPP_APP_SECRET` | Production + Preview | only for the WhatsApp channel | Meta app secret. Verifies `X-Hub-Signature-256` on every inbound message; with it unset the webhook 500s rather than trusting whoever finds the public URL. |
+| `WHATSAPP_ACCESS_TOKEN` | Production + Preview | only for the WhatsApp channel | **System user token** (never expires) for the phone number — §6 explains how to mint one. Without it the webhook still acks Meta but cannot reply to the guest. |
+| `WHATSAPP_PHONE_NUMBER_ID` | Production + Preview | only for the WhatsApp channel | The WhatsApp Business phone number's **ID**, not the number. |
+| `WHATSAPP_APP_ID` | optional, dev only | no | Read only by `scripts/whatsapp-check.mjs`: paired with the app secret it calls `debug_token`, the only way to confirm the access token never expires — and it is what `--exchange-token` needs. |
 
 You don't need to touch env vars at all to try a different provider for one
 request — see the per-request override in §4 and §7.
+
+### The WhatsApp webhook (`/v1/channels/whatsapp/webhook`)
+
+`apps/casa-bff/src/whatsapp.ts` is the entire Meta Cloud API integration — no
+SDK, one HMAC check on the way in and one POST to `graph.facebook.com` on the way
+out. Configuring it is **three** things in the dashboard, and the third is easy to
+leave off because nothing complains until a guest is already waiting:
+
+- **Callback URL**: `https://technext-edge-casa-bff.vercel.app/v1/channels/whatsapp/webhook`
+- **Verify token**: the same string you put in `WHATSAPP_VERIFY_TOKEN`
+- **Đính kèm chứng thực máy khách** / *attach client credentials*: **on**. Left off,
+  Meta sends the POSTs unsigned and the HMAC check below answers `401` to every one of
+  them — the app looks configured, the handshake passed, and no message is ever seen.
+
+Prod does not serve that path yet: `vercel env ls production` lists no `WHATSAPP_*`
+variable and the URL above answers `404`, so until those vars are added and the route is
+deployed, a tunnel is the only URL worth pasting — step 5 of
+[The demo morning](#the-demo-morning) has the command. Sending does not depend on this
+either way — the two halves are independent.
+
+Meta calls the GET half once to prove you own the URL, then POSTs each message
+with an `X-Hub-Signature-256` header that must match `WHATSAPP_APP_SECRET`. A
+POST failing that check is answered `401` before anything is extracted or sent —
+the endpoint is public, so the signature is the only thing deciding who gets to
+make the extractor answer as Casa.
+
+Saving that callback URL does **not** subscribe this app to the WhatsApp Business
+Account, and an app that is not subscribed is never handed a message: the dashboard
+shows a green, saved, verified webhook while every guest message goes somewhere else.
+It is a second, separate call — the one place `curl` is still the shortest path,
+because the id in the URL is the WABA's, not the phone number's:
+
+```bash
+curl -sS -X POST "https://graph.facebook.com/v21.0/$WABA_ID/subscribed_apps" \
+  -H "Authorization: Bearer $WHATSAPP_ACCESS_TOKEN"      # {"success":true}
+```
+
+That block has a trap of its own. `WHATSAPP_ACCESS_TOKEN` in `.env.local` is written
+**quoted** — `WHATSAPP_ACCESS_TOKEN="EAA…"`, the way Vercel CLI left it — and it is the
+one value there anyone copies by hand. Node's `process.loadEnvFile` strips those quotes,
+so the app and both scripts read the token correctly, but the same token pasted into
+`curl` or `Invoke-WebRequest` carries the `"` and Meta answers
+`401 {"message":"Authentication Error","code":190}` — the answer an expired token gives,
+down to the hint `whatsapp:check` prints for it. Strip the quotes before believing a
+fresh token is dead, or let Node read the file itself:
+
+```powershell
+node --env-file=.env.local -e "console.log(process.env.WHATSAPP_ACCESS_TOKEN.length)"
+```
+
+Both halves are readable, so a silent webhook can be split into "never configured"
+and "never subscribed" without waiting for a guest to be ignored — `whatsapp:check`
+reads them when it is handed the ids to look them up with:
+
+```bash
+npm run whatsapp:check --workspace apps/casa-bff -- --app-id <app id> --app-secret <32 hex> --waba-id <waba id>
+# FAIL the app has a whatsapp_business_account webhook subscription  -> callback URL/verify token never saved, or client credentials left off
+# FAIL the app is subscribed to WABA <id> (inbound messages reach this server)  -> the POST above
+```
+
+Neither failure can reach `whatsapp:sim`, which signs and sends its own request: the
+simulator stays 8/8 with a callback URL that points nowhere. Read those two lines, not
+the simulated score, whenever replies stop arriving.
+
+Three things worth knowing before you demo it:
+
+- **Free-form replies only last 24h.** Text sent more than 24h after the guest's
+  last message needs a pre-approved template, which this adapter does not send
+  yet. Longer silences need the template work first.
+- **Conversation memory is in-process** (`conversationStore.ts`) and therefore
+  per serverless instance — fine for a demo, not for guests relying on it. The
+  Redis/Key Value backing store behind that same interface is the next step.
+- **A failed reply still returns 200 to Meta on purpose.** Meta redelivers any
+  non-2xx for days, so the handler dedupes by message id and reports failures in
+  the response body (`{ received, replied, duplicates, failed }`) and the logs.
+  Please don't "fix" that into a 500 — it turns one hiccup into a double reply.
+  A turn also has a deadline (`WHATSAPP_TURN_TIMEOUT_MS`, default 20s): a turn that
+  outlives it is abandoned and its message id released, so Meta's redelivery retries
+  the guest instead of being deduped into silence — §8 has the incident behind that.
+
+To exercise all of that without a Meta app, `apps/casa-bff/scripts/whatsapp-sim.mjs`
+signs requests exactly like Meta does — start the server with any dummy values,
+then run the simulator:
+
+```powershell
+$env:WHATSAPP_APP_SECRET='local-app-secret'; $env:WHATSAPP_VERIFY_TOKEN='local-verify-token'; npm run dev:bff
+npm run whatsapp:sim --workspace apps/casa-bff      # 8 checks, exit 0 when all pass
+```
+
+It asserts the handshake (right and wrong verify token), a missing signature, a
+body that does not match its signature, a read receipt, a guest message, a
+redelivered `wamid`, and a follow-up on the same thread. `replied: 0, failed: 1`
+is the expected local result with a dummy access token: the turn ran, the send to
+Meta was refused, and the log line shows Meta's own error.
+
+Add `-- --from 84359386414` **and** a real `WHATSAPP_ACCESS_TOKEN` /
+`WHATSAPP_PHONE_NUMBER_ID` and the replies go out on that phone's WhatsApp: that run ends
+`replied: 2, failed: 0`, which means Meta **accepted** both replies — not that they were
+delivered, which only the `statuses` webhook says (step 7). The sending half needs no
+public URL, only the receiving half does. Two things have to be true first, and both
+only surface at the send: the number has to be **registered** for Cloud API (`133010`
+until it is) and, while that number is still Meta's test number, the recipient has to
+be on its **allowed list** (`131030` until it is).
+`whatsapp:check` reads the first one back (`platform_type`), so a green line there
+retires `133010` for good; the allowed list is dashboard-only with no read API at all,
+which is how a `131030` hides behind an otherwise perfect run. They are steps 4 and 6 of
+[The demo morning](#the-demo-morning) respectively, and step 6 carries the picker path
+plus the one code worth telling `131030` apart from. For the full loop without deploying,
+run `ngrok http 8787` and paste the tunnel URL into the Meta app's Callback URL — then
+finish with the subscription in the section above, because a tunnel on its own routes
+nothing; the free tunnel URL changes on every restart, so re-paste it each session.
+
+### Getting the credentials — and why the token has to be a system user token
+
+The Meta dashboard hands out a **temporary access token** (24h) first, because it
+is the shortest path to a first "hello world". It is the wrong thing to put in
+Vercel: nothing announces the expiry, the webhook keeps acking Meta, and guests
+just quietly stop getting replies until someone reads the log and finds Meta's
+`code 190`. Mint a token that does not expire instead:
+
+0. **First pick the business portfolio that will own the WhatsApp assets — this
+   is the one irreversible choice in the list.** A WABA belongs to exactly one
+   portfolio and Meta does not let you move it afterwards, and a system user
+   token can only carry assets from the portfolio the system user lives in
+   (which is the entire reason step 2 exists). So:
+   - If the app-creation wizard stops at the **Doanh nghiệp** step saying no business
+     portfolio exists yet ("Chưa có doanh nghiệp nào"), that is this same decision
+     arriving early, not an error: create the portfolio right there
+     (`business.facebook.com/create` — free, self-serve) and refresh the wizard.
+     It does not have to be *verified*; verification is a separate, later step that
+     gates live sending and higher messaging limits, not the test number.
+   - If Meta refuses to create a portfolio because the email domain already has
+     one ("Chúng tôi tìm thấy một hoặc nhiều tài khoản Trình quản lý kinh doanh
+     khác có cùng miền email …"), that is not an error to work around — get
+     added to the existing portfolio instead (`business.facebook.com/settings` →
+     **Users → People → Add** by its admin, role **Admin**, because creating
+     system users and assigning apps needs it).
+   - Whatever portfolio you create the WABA in is where it stays, so don't build
+     it under a personal portfolio "just to test" — a later move means creating
+     the WABA again and re-registering the phone number (a number can only be
+     registered to one WABA at a time).
+   - The app has to be in that same portfolio too; `--app-id` in the check below
+     is what proves the token really carries both.
+1. `business.facebook.com/settings` → **Users → System users → Add** — name it
+   something like `casa-bff-bot`, role **Employee** (Admin only if it also needs
+   to manage other people's access).
+2. **Assign assets** → **WhatsApp Accounts** → pick the one from API Setup →
+   **Manage** (full control) → Save. Skipping this is the classic failure: the
+   token looks healthy, then the first send dies with `code 200`.
+3. **Generate new token** → pick the app → expiration **Never** → tick
+   `business_management`, `whatsapp_business_messaging`,
+   `whatsapp_business_management` → Generate. Meta shows the value once.
+4. Paste it into `WHATSAPP_ACCESS_TOKEN`. The other two come from the app
+   dashboard: `WHATSAPP_PHONE_NUMBER_ID` is the ID next to the "From" picker
+   (not the number) and `WHATSAPP_APP_SECRET` is under App settings → Basic.
+
+Before testing anything, check the credentials against the real Graph API —
+`whatsapp:check` proves the token works, that `expires_at=0` (never expires), that
+it carries `whatsapp_business_messaging`, and that it is actually scoped to the
+WhatsApp account:
+
+```bash
+npm run whatsapp:check --workspace apps/casa-bff -- --app-id <App ID> --app-secret <app secret>
+```
+
+Exit code 0 means the sending half will work; each failure prints Meta's own error
+code plus the one-line meaning of that code. `--app-id`/`--app-secret` are optional
+but they enable the `debug_token` half, without which the run cannot tell a durable
+token from a 24h one.
+
+If a demo lands before the portfolio access does, `--exchange-token` is the bridge: it
+trades the 24h token from API Setup for a long-lived one (~60 days) and writes it into
+`.env.local` for you, never printing it. It still fails the *never expires* line above —
+deliberately, with the exact date the token dies printed beside it — so treat it as a
+stopgap: a refreshed credential is not an owned one. The exchange needs the App ID and
+app secret, cannot revive an already-expired token, and has to be run again before that
+date.
+
+Put all four values — plus `WHATSAPP_APP_ID`, which `whatsapp:check` wants for
+`debug_token` and `--exchange-token` cannot run without — in the **repo-root**
+`.env.local`. `npm run dev` loads
+`apps/casa-bff/.env.local` first and the root one second, and the app-local file is the
+one `vercel env pull` rewrites — it has already wiped this block once.
+
+A system user token has no expiry date but is not immortal: resetting the app
+secret, deleting the system user, or unassigning the WhatsApp account all kill it.
+
+
+### The demo morning
+
+In this order, because each step is what makes the next one meaningful:
+
+1. All four values, plus `WHATSAPP_APP_ID`, in the **repo-root** `.env.local` —
+   step 2 cannot exchange anything without the App ID.
+2. `npm run whatsapp:check --workspace apps/casa-bff -- --exchange-token` — expect
+   `~60 days` plus the line naming the file it wrote. The *never expires* line failing
+   here is expected, not a bug.
+3. **Restart the dev server.** `tsx watch` reloads on `src/` changes but reads
+   `.env.local` exactly once, at boot, so a token written after it started is invisible
+   to the running process; saving any file in `apps/casa-bff/src/` restarts it for free.
+4. **Register the number for Cloud API — this one is API-only.** There is no button for
+   it in WhatsApp Manager, and a healthy token says nothing about it: until the number
+   is registered every send answers `400 (#133010) Account not registered`, which looks
+   exactly like a credentials problem and is not one.
+
+   ```bash
+   npm run whatsapp:check --workspace apps/casa-bff -- --register --pin 202609
+   ```
+
+   That flag *is* the documented `POST /<phone-number-id>/register` call, run with the
+   token from the env file instead of one pasted into a shell — the same reason
+   `--exchange-token` writes the token rather than printing it. Without the flag the
+   script still reads the registration back, as
+   `the number is registered for Cloud API (platform_type CLOUD_API)` — the check that
+   would have caught this before the first send did.
+
+   The PIN is the number's 6-digit two-step verification PIN — if the number already has
+   two-step verification, it is that existing PIN, not a new one; otherwise this call
+   sets it, so record it. Meta allows 10 registration requests per number per 72h and
+   then answers `133016`, so don't retry a rejected call in a loop. The call needs
+   `whatsapp_business_management` + `whatsapp_business_messaging`; the token minted in
+   step 3 of the section above carries both. `{"success":true}` is the answer, and the
+   independent proof it took is `GET /<phone-number-id>?fields=platform_type` flipping
+   `NOT_APPLICABLE` → `CLOUD_API`.
+5. **Turn the receiving half on — every session, not just the first one.** `ngrok http
+   8787`, then in the app's dashboard: Callback URL
+   `<tunnel>/v1/channels/whatsapp/webhook`, the verify token from `.env.local`,
+   **attach client credentials on**, subscribe `messages`, Save — the server has to be
+   running while it verifies, or the Save fails. A saved URL still routes nothing until
+   the app is subscribed to the WABA (the section above explains why that is a
+   separate call), so both halves get read back before anything is demoed:
+
+   ```bash
+   npm run whatsapp:check --workspace apps/casa-bff -- --app-id <app id> --app-secret <32 hex> --waba-id <waba id>
+   ```
+
+   The free tunnel URL changes on every restart and Meta keeps pointing at the dead one,
+   so this step is redone with it rather than at 08:50 on the day.
+
+   Reading that subscription back by hand has a trap of its own:
+   `GET /<app id>/subscriptions` with the Bearer token answers `400 (#190) Application
+   Secret required`, because that call is authenticated with `app_id|app_secret` as the
+   token — exactly what the command above does, so let it make the call instead of
+   pasting a Bearer token in.
+
+   Beside `messages` in that tab there is also a **Test** link, which hands one synthetic
+   payload to the callback URL with no phone, no guest and no allowed list involved — the
+   cheapest look at the inbound half there is; if your build of the dashboard does not
+   show it, the local simulator covers the same ground. Judge it in the inspector, not on
+   that page: a `200` on `POST /v1/channels/whatsapp/webhook` is proof, a `401` says
+   nothing either way (a synthetic payload's signature is not something to lean on, while
+   the simulator signs its requests the way Meta does and a real guest message is always
+   signed). Note the app's mode while you are there — the test number sends in both
+   **Development** and **Live**, so either is fine for Monday, but a mode nobody wrote
+   down is the kind of thing that gets noticed mid-demo.
+6. **Next, the guest's phone messages the business number.** This is the only real test
+   of the half the simulator cannot see, and it is what opens the 24h window: Meta allows
+   a free-form reply only within 24h of the guest's last message (code 131047 otherwise),
+   so a demo that opens with us talking into an empty thread cannot work. This is the
+   likeliest way the demo dies, and the WABA does have approved templates
+   (`hello_world`, plus the `jaspers_market_*` set) — but `whatsapp.ts` has no code
+   path that sends one, so opening the window means a manual Graph call the demo would
+   then have to explain away. Treat it as a rescue, not a plan. And only what Meta
+   delivered itself counts: a green simulated run proves the code path, never an open
+   window, because the clock starts at the guest's last real message.
+   What good looks like: `POST /v1/channels/whatsapp/webhook` in the ngrok inspector or
+   the dev-server log, answered `200` with `received: 1`. That one line proves the
+   callback URL, the verify token, client credentials and the subscription all landed,
+   which no pass/fail word from `whatsapp:sim` can, because the simulator delivers its
+   own request — `replied: 0, failed: 1` beside it still means the inbound half works.
+   A refused send hides one level below that: the turn logs `whatsapp turn failed …
+   Error: WhatsApp send failed: 400 {"error":…}` on the server's **stderr**, while
+   stdout only shows the listen line and the response body just counts it (`failed: 1`).
+   The simulator's closing note blames a dummy `WHATSAPP_ACCESS_TOKEN` even when the
+   token is real, so on a run that should have worked, read that stderr line for the code
+   that actually refused it.
+   If that number is still the **test number** Meta hands out, the guest has to be on
+   its allowed list first, or every send to it dies with `131030` — the reply to a guest
+   who just opened the window included. The list has no page of its own: it lives in the
+   **"To" picker** on the API Setup / Connect on WhatsApp panel, and *clicking that empty
+   field* is what reveals **Manage phone number list** (it can also be reached by typing
+   the number and pressing Send, which answers `131030` and offers the same thing). The
+   picker starts on `US +1` — switch it to the recipient's country, `+84`, and drop that
+   number's leading 0 (`84359386414`, not `0359386414`). Five numbers at most, and
+   each is confirmed by a code Meta sends **to that phone**, which is why the first
+   number listed should be your own: it is the only one whose code you can read in the
+   next minute. The guest's number waits until the guest confirms it is the right one.
+
+   Do not retype those digits from memory — read them back off Meta. Send the dashboard's
+   own `hello_world` sample from that picker and Meta POSTs a **status** update to the
+   callback URL, visible in the ngrok inspector or the dev-server log, whose
+   `statuses[].recipient_id` is Meta's own spelling of the number: E.164 without the `+`
+   (`84359386414` for `+84 359 386 414`), which is the format the send has to use. It
+   arrives within seconds as `sent`, then `delivered`, then `read`, so a `read` also
+   proves the picker accepted the number. No API returns the allowed list itself, which
+   makes this the only read-back there is — and a `recipient_id` that disagrees with
+   what you typed into the "To" field is exactly the typo the demo send dies of.
+
+   A send is the only thing that can tell you, and the two codes are not the same
+   problem — `whatsapp:check` cannot see the list at all, so neither code shows up there:
+
+   - `131030` — not on the list yet, or on it as a different number than the one being
+     sent to (country code and all). It comes back **synchronously**, as a `400` on the
+     send, so the reply never even earns a `wamid`.
+   - `131047` — **on** the list, and the only thing left is the closed 24h window. It
+     arrives **asynchronously**: the send answers `200` with a `wamid`, and seconds later
+     a `statuses` webhook reports it `failed` with `"Message failed to send because more
+     than 24 hours have passed since the customer last replied to this number."` The
+     guest messages first and the same send goes through — worth telling apart because
+     this one is a good result that reads like a bad one.
+
+   That split is why a send's `200` proves nothing on its own: the list is checked before
+   the message is accepted (`131030` is synchronous and fatal), the window only after it
+   (`131047` exists only in the status webhook). `131030` is also the one error Meta
+   localises, so it comes back in the dashboard's language
+   (`Số điện thoại của người nhận không nằm trong danh sách cho phép`).
+7. **Only then the simulator**, once the window above is open — it tests the send path
+   and nothing else:
+   `npm run whatsapp:sim --workspace apps/casa-bff -- --from <your number> --text "..."`
+   — 8/8 with `replied: 2, failed: 0` means Meta **accepted** both replies, and the
+   simulator's closing line stops short of claiming more for exactly that reason.
+   Delivery is a second verdict, arriving a second or two later as another `statuses`
+   webhook: `sent`, then `delivered`, then `read`, or `failed` carrying
+   `errors[0].code 131047`. Read those before believing the demo works — 8/8 with
+   `replied: 2` and no status of its own is the silent third outcome in §8.
+   `8/8` with `failed: 1` is the other trap: every check passes because the webhook
+   answered 200 by design, while the send to Meta was refused. Read `failed`, then the
+   status webhooks, not the score.
+8. Demoing the deployed URL rather than localhost means repeating steps 1–2 as Vercel
+   env vars and redeploying: the webhook route does not exist on prod until then, and
+   Meta's callback URL has to point at `/v1/channels/whatsapp/webhook` on that host.
+
+Rehearsing all of this without a real token still proves most of it, because an env var
+beats the file (`process.loadEnvFile` never overwrites one already set) — so a second
+server with a throwaway secret exercises the whole inbound path on its own port:
+
+```powershell
+cd apps/casa-bff
+$env:WHATSAPP_APP_SECRET='sim-app-secret'; $env:WHATSAPP_VERIFY_TOKEN='sim-verify-token'; $env:PORT=8791
+npm run dev                                                                          # second terminal; leaves 8787 alone
+npm run whatsapp:sim -- --url http://localhost:8791 --secret sim-app-secret --verify-token sim-verify-token
+```
+
+That run stops at 5/8 with `server_misconfigured` on the three message checks — the sim
+now names the missing variables when it does — and `POST /v1/extract` against the same
+port proves the extractor and its provider key are alive independently of Meta.
 
 ## 7. Running the eval harness
 
@@ -175,6 +526,25 @@ node packages/extractor/eval/runner.mjs --provider deepseek-flash
   distinction; collapsing them back into one generic error is what made a
   Gemini quota error read as "the model can't parse this message" during the
   eval dry run.
+- **A stalled WhatsApp turn used to be the one failure with no trace on the wire.**
+  The inbound `wamid` is claimed *before* the turn runs (`claimMessage` in `app.ts`, so an
+  at-least-once redelivery can never double-message a guest). When such a turn never
+  returned, that claim stayed taken: Meta's redelivery was answered
+  `{"received":1,"replied":0,"duplicates":1,"failed":0}`, no send was attempted, so no
+  `statuses` webhook followed either, and the guest never heard back — leaving only a
+  pending request in the ngrok inspector and the turn's own stderr line (this is the
+  15:33 `"hi"` of the 2026-09-18 demo run). Both halves of that are closed now: a turn has
+  a hard deadline and releases its claim when it fails before anything was sent, so that
+  redelivery is a retry the guest actually gets. Per-call timeouts were never the missing
+  piece — DeepSeek already aborts at 20s, Gemini at 8s, each Graph POST at
+  `WHATSAPP_TIMEOUT_MS` (10s); nothing bounded the turn *as a whole*, which is what the
+  deadline does, and nothing gave the claim back, which is what `releaseMessage` does. Two
+  guards keep it honest: the abandoned turn checks an `expired` flag before it appends or
+  sends, so it cannot reply behind the retry's back; and the claim is *not* released once
+  a send is in flight — from there the only safe assumption is that the guest has it.
+  The trace of a failed turn is therefore immediate rather than absent: `failed: 1` in the
+  response body plus a `whatsapp turn failed` stderr line (or `WhatsApp turn exceeded …ms`
+  when the deadline was the cause). Grep for those two.
 
 ## 9. Before this becomes the real Extractor pod deliverable
 
