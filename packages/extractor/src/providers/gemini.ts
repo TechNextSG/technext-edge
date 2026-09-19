@@ -48,9 +48,7 @@ export function createGeminiProvider(apiKey: string, model = process.env.GEMINI_
         "You extract trip details from a dive-resort guest's message into the given " +
         "JSON schema. Every field needs a state: 'stated' (quote it in evidence, verbatim), " +
         "'inferred' (context implies it, no exact quote), or 'missing'. Never invent a value " +
-        "that state 'stated' cannot point to verbatim evidence for. " +
-        "For 'guests': when a message mentions both a party/group size and a different number of people staying (e.g. 'group of 6 but only 3 are staying' is 3; 'nhóm 8 người nhưng chỉ 4 người ở lại' is 4), extract the number of guests staying, or mark it missing if ambiguous — never use the non-staying party total. " +
-        // The same transport rule as providers/deepseek.ts, word for word: this adapter is the
+        "For 'guests': when a message mentions both a party/group size and a different number of people staying (e.g. 'group of 6 but only 3 are staying' or '4 are day visitors, 2 staying overnight'), always extract the number of guests staying overnight (state 'stated', evidence quoting the staying phrase). When adults and children are specified (e.g. '2 adults and 2 kids'), extract their sum as guests. " +
         // configured fallback (providerFromEnv.ts), and a rule that lives in only one prompt is
         // a money bug waiting for a missing key. See that file for why it is phrased as the
         // guest's meaning rather than as keywords.
@@ -77,38 +75,64 @@ export function createGeminiProvider(apiKey: string, model = process.env.GEMINI_
         );
       }
 
-      const controller = new AbortController();
-      const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
-      let res: Response;
-      try {
-        res = await fetch(`${API_BASE}/${model}:generateContent?key=${apiKey}`, {
-          method: "POST",
-          headers: { "content-type": "application/json" },
-          signal: controller.signal,
-          body: JSON.stringify({
-            systemInstruction: { parts: [{ text: systemPrompt }] },
-            contents: [{ role: "user", parts: [{ text: userParts.join("\n\n") }] }],
-            generationConfig: {
-              responseMimeType: "application/json",
-              responseSchema: toGeminiSchema(jsonSchema),
-            },
-          }),
-        });
-      } catch (err) {
-        // Named for observability only — extract.ts treats this exactly like
-        // any other transport failure (rate limit, 5xx): it drives the
-        // existing retry-once path and is never mistaken for a validation
-        // error, since it's thrown before postProcess/Trip.parse ever run.
-        if (err instanceof Error && err.name === "AbortError") {
-          throw new Error(`Gemini extract timed out after ${TIMEOUT_MS}ms`);
+      const maxRetries = 3;
+      let res: Response | undefined;
+      for (let attempt = 0; attempt <= maxRetries; attempt++) {
+        const controller = new AbortController();
+        const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
+        try {
+          res = await fetch(`${API_BASE}/${model}:generateContent?key=${apiKey}`, {
+            method: "POST",
+            headers: { "content-type": "application/json" },
+            signal: controller.signal,
+            body: JSON.stringify({
+              systemInstruction: { parts: [{ text: systemPrompt }] },
+              contents: [{ role: "user", parts: [{ text: userParts.join("\n\n") }] }],
+              generationConfig: {
+                responseMimeType: "application/json",
+                responseSchema: toGeminiSchema(jsonSchema),
+              },
+            }),
+          });
+        } catch (err) {
+          // Named for observability only — extract.ts treats this exactly like
+          // any other transport failure (rate limit, 5xx): it drives the
+          // existing retry-once path and is never mistaken for a validation
+          // error, since it's thrown before postProcess/Trip.parse ever run.
+          if (err instanceof Error && err.name === "AbortError") {
+            throw new Error(`Gemini extract timed out after ${TIMEOUT_MS}ms`);
+          }
+          throw err;
+        } finally {
+          clearTimeout(timer);
         }
-        throw err;
-      } finally {
-        clearTimeout(timer);
+
+        if (res.status === 429 && attempt < maxRetries) {
+          const errText = await res.text();
+          let waitMs = 5000 * Math.pow(2, attempt);
+          try {
+            const parsed = JSON.parse(errText);
+            const retryInfo = parsed.error?.details?.find(
+              (d: Record<string, unknown>) => typeof d.retryDelay === "string"
+            );
+            if (retryInfo?.retryDelay) {
+              const match = String(retryInfo.retryDelay).match(/(\d+(?:\.\d+)?)/);
+              if (match) {
+                waitMs = Math.ceil(parseFloat(match[1]) * 1000) + 1000;
+              }
+            }
+          } catch {
+            // fallback to exponential waitMs
+          }
+          console.warn(`[gemini] Rate limited (429), waiting ${waitMs}ms before retry ${attempt + 1}/${maxRetries}...`);
+          await new Promise((resolve) => setTimeout(resolve, waitMs));
+          continue;
+        }
+        break;
       }
 
-      if (!res.ok) {
-        throw new Error(`Gemini extract failed: ${res.status} ${await res.text()}`);
+      if (!res || !res.ok) {
+        throw new Error(`Gemini extract failed: ${res?.status} ${await res?.text()}`);
       }
       const body = await res.json();
       const usage = body.usageMetadata ?? {};

@@ -482,9 +482,32 @@ function summaryLines(trip: Trip, lang: Lang): string[] {
   return lines;
 }
 
+function getNoFlyAdvisory(trip: Trip, lang: Lang): string | null {
+  if (trip.diver?.value === true && trip.diveTo?.value && trip.checkOut?.value) {
+    if (trip.diveTo.value === trip.checkOut.value) {
+      if (lang === "vi") {
+        return "⚠️ Lưu ý an toàn lặn: Theo chuẩn PADI/DAN, bạn cần nghỉ tối thiểu 18–24 tiếng sau ca lặn trước khi lên máy bay rời Manila.";
+      }
+      if (lang === "zh") {
+        return "⚠️ 潜水安全提示：根据 PADI/DAN 指南，潜水后乘机离开马尼拉前建议至少间隔 18–24 小时。";
+      }
+      return "⚠️ Dive Safety Note: PADI/DAN guidelines recommend an 18–24 hour surface interval after diving before flying out from Manila.";
+    }
+  }
+  return null;
+}
+
 function renderSummary(trip: Trip, lang: Lang): string {
   const name = statedValue<string>(trip, "contactName");
-  return [THANKS[lang](name), SUMMARY[lang].intro, ...summaryLines(trip, lang), "", SUMMARY[lang].closing].join("\n");
+  const noFly = getNoFlyAdvisory(trip, lang);
+  return [
+    THANKS[lang](name),
+    SUMMARY[lang].intro,
+    ...summaryLines(trip, lang),
+    ...(noFly ? ["", noFly] : []),
+    "",
+    SUMMARY[lang].closing,
+  ].join("\n");
 }
 
 /**

@@ -166,6 +166,50 @@ function countsNamedIn(quote: string): CountField[] {
   return COUNT_FIELDS.filter((field) => NOUN_PATTERNS[field].some((pattern) => pattern.test(quote)));
 }
 
+const ADULT_NOUNS = "adults?|người\\s+lớn|nguoi\\s+lon|大人";
+const CHILD_NOUNS = "kids?|children|child|trẻ\\s+em|tre\\s+em|em\\s+bé|bé|小孩|儿童|孩子";
+const STAYING_NOUNS = "are\\s+staying|is\\s+staying|staying|stay\\s+overnight|overnight|ở\\s*lại|o\\s*lai|入住";
+
+const ADULT_PATTERN = new RegExp(`${NUMBER}\\s*${CLASSIFIER}\\s*(?:${ADULT_NOUNS})`, "giu");
+const CHILD_PATTERN = new RegExp(`${NUMBER}\\s*${CLASSIFIER}\\s*(?:${CHILD_NOUNS})`, "giu");
+const STAYING_PATTERN = new RegExp(`${NUMBER}\\s*${CLASSIFIER}\\s*(?:${STAYING_NOUNS})`, "giu");
+
+function extractCountWithPattern(text: string, pattern: RegExp): number | null {
+  for (const match of text.matchAll(pattern)) {
+    const digits = match[1];
+    const word = (match[2] ?? match[3] ?? "").toLowerCase();
+    const val = digits !== undefined ? Number(digits) : NUMBER_WORDS[word];
+    if (typeof val === "number") return val;
+  }
+  return null;
+}
+
+export function adultAndChildSum(text: string): number | null {
+  const turns = text.split("\n").map((t) => t.trim()).filter(Boolean);
+  for (let i = turns.length - 1; i >= 0; i--) {
+    const adults = extractCountWithPattern(turns[i], ADULT_PATTERN);
+    const children = extractCountWithPattern(turns[i], CHILD_PATTERN);
+    if (adults !== null && children !== null) {
+      return adults + children;
+    }
+  }
+  const adults = extractCountWithPattern(text, ADULT_PATTERN);
+  const children = extractCountWithPattern(text, CHILD_PATTERN);
+  if (adults !== null && children !== null) {
+    return adults + children;
+  }
+  return null;
+}
+
+export function stayingGuestsCount(text: string): number | null {
+  const turns = text.split("\n").map((t) => t.trim()).filter(Boolean);
+  for (let i = turns.length - 1; i >= 0; i--) {
+    const staying = extractCountWithPattern(turns[i], STAYING_PATTERN);
+    if (staying !== null) return staying;
+  }
+  return extractCountWithPattern(text, STAYING_PATTERN);
+}
+
 /**
  * The verdict on a count the model stated, in the same shape as
  * corroborateDatePhrase's: "consistent" is the only answer that keeps the model's number;
@@ -181,6 +225,19 @@ export function corroborateCount(
   guestText: string,
   evidence?: string | null,
 ): CountCorroboration {
+  // When a guest specifies both adults and children ("2 adults and 2 kids"),
+  // their sum is the total guest count. If proposed matches that sum, corroborate it.
+  if (field === "guests") {
+    const acSum = adultAndChildSum(guestText);
+    if (acSum !== null && proposed === acSum) {
+      return "consistent";
+    }
+    const staying = stayingGuestsCount(guestText);
+    if (staying !== null && proposed === staying) {
+      return "consistent";
+    }
+  }
+
   // In a multi-turn transcript (guest turns separated by newline), check if a
   // later turn clarified this count: "how many guests?" followed by "3 of us"
   // resolves the earlier "group of 6 but only 3 staying" ambiguity.

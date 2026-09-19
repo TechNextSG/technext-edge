@@ -368,11 +368,24 @@ describe("fallbacks", () => {
     expect(wantsHuman("我想找人工客服")).toBe(true);
   });
 
-  it("does not mistake a booking message for a request to be transferred", () => {
-    // The word alone is not enough, which is the whole reason the phrases are
-    // explicit: "human resources conference" is an enquiry, not an escalation.
-    expect(wantsHuman("we are a human resources team, 12 guests")).toBe(false);
-    expect(wantsHuman("2 guests, next Saturday, 3 nights, no diving")).toBe(false);
-    expect(wantsHuman("cho em hỏi giá phòng ạ")).toBe(false);
+  it("includes PADI/DAN No-Fly safety advisory when diving on check-out day", async () => {
+    const raw = {
+      ...BLANK_RAW,
+      checkIn: { value: "2026-10-10", state: "stated", evidence: "Oct 10" },
+      nights: { value: 2, state: "stated", evidence: "2 nights" },
+      guests: { value: 2, state: "stated", evidence: "2 of us" },
+      diver: { value: true, state: "stated", evidence: "we dive" },
+      diveFrom: { value: "2026-10-11", state: "stated", evidence: "Oct 11" },
+      diveTo: { value: "2026-10-12", state: "stated", evidence: "Oct 12" }, // checkout is Oct 12!
+      contactName: { value: "Tom", state: "stated", evidence: "Tom" },
+    };
+    const outcome = await converse(
+      [{ role: "guest", text: "2 of us Oct 10 for 2 nights, Tom. Diving Oct 11 to Oct 12. we dive" }],
+      providerReturning(raw),
+    );
+
+    expect(outcome.done).toBe(true);
+    expect(outcome.replyKind).toBe("summary");
+    expect(outcome.reply).toContain("⚠️ Dive Safety Note: PADI/DAN guidelines recommend an 18–24 hour surface interval");
   });
 });

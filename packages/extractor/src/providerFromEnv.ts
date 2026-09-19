@@ -105,10 +105,19 @@ export function createProviderFromEnv(env: NodeJS.ProcessEnv = process.env): Ext
       }
       throw new Error("DEEPSEEK_GATEWAY_KEY not set (and no fallback GEMINI_API_KEY found)");
     }
-    case "gemini": {
+    case "gemini":
+    case "gemini-3.1-flash-lite":
+    case "gemini-3.5-flash":
+    case "gemini-3.8-flash":
+    case "gemini-flash-latest":
+    case "gemini-3-flash":
+    case "gemini-2.5-pro":
+    case "gemini-2.5-flash":
+    case "gemini-2.0-flash": {
       const key = env.GEMINI_API_KEY;
       if (!key) throw new Error("GEMINI_API_KEY not set");
-      return createGeminiProvider(key, env.GEMINI_MODEL);
+      const model = which === "gemini" ? env.GEMINI_MODEL : which;
+      return createGeminiProvider(key, model);
     }
     default:
       throw new Error(`Unknown EXTRACTOR_PROVIDER: "${which}" (expected ${KNOWN_PROVIDER_NAMES.join(", ")})`);

@@ -58,9 +58,7 @@ export function createDeepSeekProvider(
         "to null for every other state. When state is 'missing', set both value and evidence to null; " +
         "never use 0 as a placeholder for an unknown count, and never assign unlabeled " +
         "comma-separated numbers to trip fields. Nights, guests, and rooms are 'stated' only when their " +
-        "evidence quotes the exact guest wording; otherwise mark them missing. " +
-        "For 'guests': when a message mentions both a party/group size and a different number of people staying (e.g. 'group of 6 but only 3 are staying' is 3; 'nhóm 8 người nhưng chỉ 4 người ở lại' is 4), extract the number of guests staying, or mark it missing if ambiguous — never use the non-staying party total. " +
-        // The transport rule, stated as the guest's meaning, because the recorded live run got
+        "For 'guests': when a message mentions both a party/group size and a different number of people staying (e.g. 'group of 6 but only 3 are staying' or '4 are day visitors, 2 staying overnight'), always extract the number of guests staying overnight (state 'stated', evidence quoting the staying phrase). When adults and children are specified (e.g. '2 adults and 2 kids'), extract their sum as guests. " +
         // it wrong twice, in two languages, with the guest's own sentence as the evidence
         // (eval's vi-07 "xe tụi mình tự đi", zh-09 "自己开车过去"): both came back as
         // `transport: true`, which puts an airport transfer on the quote for a guest who is
