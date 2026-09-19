@@ -1,0 +1,322 @@
+<!doctype html>
+<html lang="vi" data-lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>{{PROJECT_TITLE}} — Status & Technical Briefing</title>
+<style>
+:root{
+  --ink:#162033; --muted:#647084;
+  --blue:#0d4f5f; --teal:#0f766e; --cyan:#155e75;
+  --coral:#e85d75; --gold:#f59e0b; --violet:#6d5dfc;
+  --line:#d8e2ea; --panel:#f7fafc; --paper:#fff;
+  --green:#059669; --green-bg:#ecfdf5;
+  --red:#dc2626; --red-bg:#fef2f2;
+  --amber:#b45309; --amber-bg:#fffbeb;
+  --shadow:0 18px 50px rgba(15,23,42,.12);
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{margin:0;background:#edf3f5;color:var(--ink);font-family:"Segoe UI",-apple-system,Arial,sans-serif;font-size:14.5px;line-height:1.55;-webkit-font-smoothing:antialiased}
+code{font-family:Consolas,"Courier New",monospace;font-size:.88em;background:var(--panel);border:1px solid var(--line);border-radius:4px;padding:1px 5px}
+
+body[data-lang="vi"] .en{display:none}
+body[data-lang="en"] .vi{display:none}
+
+.layout{display:grid;grid-template-columns:270px minmax(0,1fr);min-height:100vh}
+@media(max-width:900px){.layout{grid-template-columns:1fr}}
+
+.sidebar{position:sticky;top:0;height:100vh;overflow-y:auto;background:var(--ink);color:#cbd5e1;padding:26px 20px;display:flex;flex-direction:column}
+@media(max-width:900px){.sidebar{position:relative;height:auto}}
+.sb-brand{font-size:16px;font-weight:800;color:#fff;margin-bottom:2px}
+.sb-meta{font:11.5px Consolas,monospace;color:#9fb0c4;margin-bottom:18px}
+
+.seg{display:inline-flex;border:1px solid rgba(255,255,255,.18);border-radius:20px;overflow:hidden;background:rgba(255,255,255,.06);margin-bottom:16px}
+.seg button{border:0;background:transparent;color:#9fb0c4;font:700 12px/1 "Segoe UI",Arial;padding:8px 18px;cursor:pointer;flex:1}
+.seg button.active{background:var(--teal);color:#fff}
+
+.prog-box{background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.1);border-radius:12px;padding:12px 14px;margin-bottom:18px}
+.prog-title{font:700 10.5px Consolas,monospace;text-transform:uppercase;color:#8a97ab;margin-bottom:6px;display:flex;justify-content:space-between}
+.prog-bar{height:7px;background:rgba(255,255,255,.12);border-radius:20px;overflow:hidden;margin-bottom:8px}
+.prog-fill{height:7px;width:0%;background:var(--teal);border-radius:20px;transition:width .25s}
+.btn-reset{width:100%;border:1px solid rgba(255,255,255,.15);background:transparent;color:#9fb0c4;font:600 11px/1 "Segoe UI",Arial;padding:6px;border-radius:16px;cursor:pointer}
+.btn-reset:hover{color:#ff8e8e;border-color:#ff8e8e}
+
+.nav-title{font:700 10.5px Consolas,monospace;text-transform:uppercase;color:#64748b;letter-spacing:.08em;margin:14px 0 6px}
+.nav a{display:flex;justify-content:space-between;color:#cbd5e1;text-decoration:none;padding:7px 10px;border-radius:7px;font-size:13px}
+.nav a:hover{background:rgba(255,255,255,.08);color:#fff}
+
+.main{max-width:1080px;width:100%;margin:0 auto;padding:28px 28px 70px}
+
+.head{background:linear-gradient(155deg,#0d4f5f 0%,#155e75 45%,#0f766e 100%);color:#fff;border-radius:16px;padding:32px;box-shadow:var(--shadow);margin-bottom:20px}
+.tags{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px}
+.tag{font:700 10.5px Consolas,monospace;letter-spacing:.08em;padding:4px 10px;border-radius:18px;background:rgba(255,255,255,.16);border:1px solid rgba(255,255,255,.25)}
+.tag.ok{background:#10b981;color:#fff;border-color:#10b981}
+.tag.warn{background:#f59e0b;color:#1e1b18;border-color:#f59e0b}
+.head h1{margin:0 0 10px;font-size:28px;line-height:1.2;letter-spacing:-.02em}
+.head p{margin:0 0 16px;color:#d8eff2;font-size:14.5px;max-width:85ch}
+.meta-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px;border-top:1px solid rgba(255,255,255,.2);padding-top:14px;font-size:12.5px}
+.meta-item strong{display:block;font-size:10.5px;text-transform:uppercase;opacity:.75}
+
+.sec{background:var(--paper);border:1px solid var(--line);border-radius:14px;box-shadow:var(--shadow);padding:24px 26px;margin-bottom:18px}
+.sec-h{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap;margin-bottom:14px;padding-bottom:10px;border-bottom:2px solid var(--line)}
+.sec-l{font:800 12px Consolas,monospace;color:#fff;background:var(--blue);border-radius:6px;padding:4px 8px;letter-spacing:.05em}
+.sec-l.c{background:var(--coral)} .sec-l.g{background:var(--teal)} .sec-l.v{background:var(--violet)} .sec-l.o{background:var(--gold)}
+.sec h2{margin:0;font-size:18.5px;letter-spacing:-.01em}
+.sec-desc{color:var(--muted);font-size:13.5px;margin:0 0 14px}
+
+.tw{overflow-x:auto;border:1px solid var(--line);border-radius:10px;margin:12px 0 16px}
+table{width:100%;border-collapse:collapse;min-width:620px;background:#fff;font-size:13px}
+th{text-align:left;font:700 10.5px Consolas,monospace;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);padding:10px 12px;background:var(--panel);border-bottom:1px solid var(--line)}
+td{padding:10px 12px;border-bottom:1px solid var(--line);vertical-align:top}
+tr:last-child td{border-bottom:none}
+td.bold{font-weight:700;color:var(--ink)}
+.badge{display:inline-block;padding:2px 7px;border-radius:12px;font:700 10.5px Consolas,monospace;text-transform:uppercase}
+.badge.pass{background:var(--green-bg);color:var(--green);border:1px solid var(--green)}
+.badge.warn{background:var(--amber-bg);color:var(--amber);border:1px solid var(--amber)}
+.badge.fail{background:var(--red-bg);color:var(--red);border:1px solid var(--red)}
+
+.kv{display:grid;grid-template-columns:230px 1fr;gap:0;border:1px solid var(--line);border-radius:10px;overflow:hidden;margin-bottom:14px}
+@media(max-width:700px){.kv{grid-template-columns:1fr}}
+.kv>div{padding:10px 14px;border-bottom:1px solid var(--line)}
+.kv>div:nth-last-child(-n+2){border-bottom:none}
+@media(max-width:700px){.kv>div:nth-last-child(2){border-bottom:1px solid var(--line)}}
+.kv .k{background:var(--panel);font:700 11px Consolas,monospace;color:var(--muted);text-transform:uppercase}
+.kv .v{font-size:13.5px}
+
+.ck{border:1px solid var(--line);border-radius:10px;overflow:hidden;margin-bottom:12px}
+.ck-h{background:var(--panel);border-bottom:1px solid var(--line);padding:9px 14px;font:700 11px Consolas,monospace;color:var(--muted);display:flex;justify-content:space-between}
+.ckrow{display:flex;gap:10px;align-items:flex-start;padding:11px 14px;border-bottom:1px solid var(--line);cursor:pointer;transition:background .1s}
+.ckrow:last-child{border-bottom:none}
+.ckrow:hover{background:#f8fafc}
+.ckrow input{margin:3px 0 0;width:16px;height:16px;accent-color:var(--teal);cursor:pointer}
+.ckrow .t{font-size:13.5px;font-weight:600;color:var(--ink)}
+.ckrow .d{font-size:12.5px;color:var(--muted);margin-top:2px}
+
+.callout{border-left:4px solid var(--gold);background:#fffaf0;padding:12px 16px;border-radius:0 8px 8px 0;margin:14px 0;font-size:13.5px}
+.callout.danger{border-left-color:var(--red);background:#fef2f2}
+.callout strong{display:block;margin-bottom:3px}
+
+footer{text-align:center;font-size:12px;color:var(--muted);margin-top:28px}
+</style>
+</head>
+<body data-lang="vi">
+
+<div class="layout">
+  <aside class="sidebar">
+    <div class="sb-brand">{{PROJECT_SHORT_NAME}} Status</div>
+    <div class="sb-meta">OWNER: {{OWNER_NAME}} · SPRINT: {{SPRINT_ID}}</div>
+
+    <div class="seg">
+      <button id="btnVi" class="active">TIẾNG VIỆT</button>
+      <button id="btnEn">ENGLISH</button>
+    </div>
+
+    <div class="prog-box">
+      <div class="prog-title">
+        <span><span class="vi">Checkpoints Đã Đạt</span><span class="en">Verified Items</span></span>
+        <span id="progCount">0/0</span>
+      </div>
+      <div class="prog-bar"><div class="prog-fill" id="progFill"></div></div>
+      <button class="btn-reset" id="btnReset"><span class="vi">Đặt lại Checkbox</span><span class="en">Reset Checkboxes</span></button>
+    </div>
+
+    <nav class="nav">
+      <div class="nav-title"><span class="vi">Nội dung báo cáo</span><span class="en">Sections</span></div>
+      <a href="#summary"><span class="vi">1. Bản chất Dự án</span><span class="en">1. Project Nature</span></a>
+      <a href="#tasks"><span class="vi">2. Danh mục Công việc</span><span class="en">2. Tasks Delivered</span></a>
+      <a href="#stack"><span class="vi">3. Ngăn xếp Công nghệ</span><span class="en">3. Tech Stack</span></a>
+      <a href="#benchmarks"><span class="vi">4. Thử nghiệm & Benchmark</span><span class="en">4. Benchmarks</span></a>
+      <a href="#bugs"><span class="vi">5. Lỗi Đã Bắt & Khắc phục</span><span class="en">5. Defects Solved</span></a>
+      <a href="#checklist"><span class="vi">6. Checkpoints với Lead</span><span class="en">6. Decisions with Lead</span></a>
+    </nav>
+  </aside>
+
+  <main class="main">
+    <header class="head">
+      <div class="tags">
+        <span class="tag ok">STATUS: HEALTHY</span>
+        <span class="tag warn"><span class="vi">CẦN LEAD DUYỆT</span><span class="en">NEEDS LEAD REVIEW</span></span>
+      </div>
+      <h1>
+        <span class="vi">{{PROJECT_TITLE_VI}}</span>
+        <span class="en">{{PROJECT_TITLE_EN}}</span>
+      </h1>
+      <p>
+        <span class="vi">{{PROJECT_DESC_VI}}</span>
+        <span class="en">{{PROJECT_DESC_EN}}</span>
+      </p>
+      <div class="meta-grid">
+        <div class="meta-item">
+          <strong><span class="vi">Phụ trách</span><span class="en">Owner</span></strong>
+          {{OWNER_NAME}}
+        </div>
+        <div class="meta-item">
+          <strong><span class="vi">Nhánh Git</span><span class="en">Git Branch</span></strong>
+          <code>{{GIT_BRANCH}}</code>
+        </div>
+        <div class="meta-item">
+          <strong><span class="vi">Phạm vi</span><span class="en">Scope</span></strong>
+          {{PROJECT_SCOPE}}
+        </div>
+        <div class="meta-item">
+          <strong><span class="vi">Tiến độ Sprint</span><span class="en">Sprint Status</span></strong>
+          {{SPRINT_STATUS}}
+        </div>
+      </div>
+    </header>
+
+    <!-- SECTION 1 -->
+    <section class="sec" id="summary">
+      <div class="sec-h">
+        <span class="sec-l g">PHẦN 1</span>
+        <h2><span class="vi">Bản chất Dự án</span><span class="en">Project Core Architecture</span></h2>
+      </div>
+      <p class="sec-desc">
+        <span class="vi">Mô tả tổng quan mục tiêu và nguyên lý cốt lõi:</span>
+        <span class="en">Executive summary and core architectural principles:</span>
+      </p>
+      <div class="kv">
+        <div class="k"><span class="vi">Mục tiêu</span><span class="en">Core Goal</span></div>
+        <div class="v"><span class="vi">Nội dung chi tiết mục tiêu</span><span class="en">Core goal detail</span></div>
+      </div>
+    </section>
+
+    <!-- SECTION 2 -->
+    <section class="sec" id="tasks">
+      <div class="sec-h">
+        <span class="sec-l">PHẦN 2</span>
+        <h2><span class="vi">Danh mục Công việc Hoàn thành</span><span class="en">Delivered Modules</span></h2>
+      </div>
+      <div class="tw">
+        <table>
+          <thead>
+            <tr>
+              <th><span class="vi">Module / Task</span><span class="en">Module / Task</span></th>
+              <th><span class="vi">Chức năng</span><span class="en">Function</span></th>
+              <th><span class="vi">Trạng thái</span><span class="en">Status</span></th>
+              <th><span class="vi">Minh chứng</span><span class="en">Evidence</span></th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td class="bold"><code>module-01</code></td>
+              <td>Chi tiết chức năng</td>
+              <td><span class="badge pass">DONE</span></td>
+              <td>Unit test pass, đã verify</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- SECTION 6: CHECKLIST -->
+    <section class="sec" id="checklist">
+      <div class="sec-h">
+        <span class="sec-l g">PHẦN 6</span>
+        <h2><span class="vi">Checkpoints Thống Nhất Với Lead</span><span class="en">Decisions with Lead</span></h2>
+      </div>
+      <div class="ck">
+        <div class="ck-h">
+          <span><span class="vi">A · CÁC KẾT QUẢ ĐÃ HOÀN THÀNH</span><span class="en">A · COMPLETED ITEMS</span></span>
+          <span class="cnt" data-g="done"></span>
+        </div>
+        <label class="ckrow"><input type="checkbox" checked data-g="done"><div><div class="t"><span class="vi">Hạng mục đã xong 1</span><span class="en">Completed item 1</span></div><div class="d"><span class="vi">Chi tiết kết quả</span><span class="en">Result detail</span></div></div></label>
+      </div>
+      <div class="ck">
+        <div class="ck-h">
+          <span><span class="vi">B · ĐIỂM CHẶN CẦN LEAD QUYẾT ĐỊNH (BLOCKERS)</span><span class="en">B · BLOCKERS NEEDING LEAD ACTION</span></span>
+          <span class="cnt" data-g="lead"></span>
+        </div>
+        <label class="ckrow"><input type="checkbox" data-g="lead"><div><div class="t"><span class="vi">Điểm chặn 1</span><span class="en">Blocker item 1</span></div><div class="d"><span class="vi">Ai cần làm gì</span><span class="en">Action required</span></div></div></label>
+      </div>
+    </section>
+
+    <footer>
+      <span class="vi">Báo cáo chuẩn hóa TechNext Corporate. Cập nhật ngày 17/09/2026.</span>
+      <span class="en">Standardized TechNext Corporate Status Report. Updated: 17/09/2026.</span>
+    </footer>
+  </main>
+</div>
+
+<script>
+(function(){
+  var KEY = 'technext.project.status.' + (location.pathname.split('/').pop().replace('.html',''));
+  var body = document.body;
+  var btnVi = document.getElementById('btnVi');
+  var btnEn = document.getElementById('btnEn');
+
+  function setLang(l) {
+    body.setAttribute('data-lang', l);
+    btnVi.classList.toggle('active', l === 'vi');
+    btnEn.classList.toggle('active', l === 'en');
+    try { localStorage.setItem(KEY + '.lang', l); } catch(e){}
+  }
+  btnVi.addEventListener('click', function(){ setLang('vi'); });
+  btnEn.addEventListener('click', function(){ setLang('en'); });
+  var savedLang = 'vi';
+  try { savedLang = localStorage.getItem(KEY + '.lang') || 'vi'; } catch(e){}
+  setLang(savedLang === 'en' ? 'en' : 'vi');
+
+  var boxes = Array.prototype.slice.call(document.querySelectorAll('.ckrow input[type=checkbox]'));
+  boxes.forEach(function(b, i){ b.setAttribute('data-i', i); });
+
+  function loadChecks() {
+    var raw = null;
+    try { raw = localStorage.getItem(KEY + '.checks'); } catch(e){}
+    if (!raw) return;
+    try {
+      var saved = JSON.parse(raw);
+      if (Array.isArray(saved)) {
+        boxes.forEach(function(b, i){
+          if (typeof saved[i] === 'boolean') b.checked = saved[i];
+        });
+      }
+    } catch(e){}
+  }
+
+  function saveChecks() {
+    try {
+      localStorage.setItem(KEY + '.checks', JSON.stringify(boxes.map(function(b){ return b.checked; })));
+    } catch(e){}
+  }
+
+  function renderProgress() {
+    var done = boxes.filter(function(b){ return b.checked; }).length;
+    var total = boxes.length;
+    var pct = total ? Math.round((done / total) * 100) : 0;
+    document.getElementById('progCount').textContent = done + '/' + total + ' (' + pct + '%)';
+    document.getElementById('progFill').style.width = pct + '%';
+
+    document.querySelectorAll('.cnt').forEach(function(el){
+      var g = el.getAttribute('data-g');
+      var gb = boxes.filter(function(b){ return b.getAttribute('data-g') === g; });
+      var gd = gb.filter(function(b){ return b.checked; }).length;
+      el.textContent = gd + '/' + gb.length;
+    });
+  }
+
+  boxes.forEach(function(b){
+    b.addEventListener('change', function(){
+      saveChecks();
+      renderProgress();
+      b.closest('.ckrow').style.background = b.checked ? '#f0fdf4' : '';
+    });
+    if (b.checked) b.closest('.ckrow').style.background = '#f0fdf4';
+  });
+
+  document.getElementById('btnReset').addEventListener('click', function(){
+    boxes.forEach(function(b){
+      b.checked = false;
+      b.closest('.ckrow').style.background = '';
+    });
+    saveChecks();
+    renderProgress();
+  });
+
+  loadChecks();
+  renderProgress();
+})();
+</script>
+</body>
+</html>
