@@ -6,7 +6,7 @@
     "ranAt": "2026-09-18T03:42:54.010Z",
     "recordedToday": "2026-09-18",
     "generatedBy": "eval/make-fixtures.mjs",
-    "note": "What the model answered for each case, to replay through extract() offline. Model mistakes are preserved on purpose; fields code owns (language, checkOut, transportType, and every house-norm default) are omitted so the pipeline produces them again. `authored-checkIn` marks the 19 cases whose date the pre-fix code deleted before the recording could store it."
+    "note": "What the model answered for each case, to replay through extract() offline. Model mistakes are preserved on purpose; fields code owns (language, checkOut, transportType, and every house-norm default) are omitted so the pipeline produces them again. `authored-checkIn` marks the 19 cases whose date the pre-fix code deleted before the recording could store it, and the tag after the colon says which half of dates.ts decides it: `resolver`, or `resolver-language` for the two ambiguous pairs (05/12, 12/10) the guest's own detected language settles."
   },
   "cases": [
     {
@@ -161,7 +161,7 @@
     },
     {
       "id": "en-06-padi-open-water",
-      "provenance": "authored-checkIn:model",
+      "provenance": "authored-checkIn:resolver",
       "model": {
         "nights": {
           "value": 4,
@@ -202,7 +202,7 @@
     },
     {
       "id": "en-07-fun-diving-package",
-      "provenance": "authored-checkIn:model",
+      "provenance": "authored-checkIn:resolver",
       "model": {
         "nights": {
           "value": 5,
@@ -243,7 +243,7 @@
     },
     {
       "id": "en-08-family-non-divers",
-      "provenance": "authored-checkIn:model",
+      "provenance": "authored-checkIn:resolver",
       "model": {
         "nights": {
           "value": 3,
@@ -518,7 +518,7 @@
           "evidence": "xe đón sân bay"
         },
         "checkIn": {
-          "value": "2026-10-02",
+          "value": "2026-09-25",
           "state": "stated",
           "evidence": "từ thứ Sáu tuần sau"
         }
@@ -578,7 +578,7 @@
     },
     {
       "id": "vi-09-bay-so-dien-thoai",
-      "provenance": "authored-checkIn:model",
+      "provenance": "authored-checkIn:resolver-language",
       "model": {
         "nights": {
           "value": 2,
@@ -609,7 +609,7 @@
     },
     {
       "id": "vi-10-thue-xe-rieng",
-      "provenance": "authored-checkIn:model",
+      "provenance": "authored-checkIn:resolver-language",
       "model": {
         "nights": {
           "value": 3,

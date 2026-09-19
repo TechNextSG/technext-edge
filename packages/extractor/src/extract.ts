@@ -2,7 +2,8 @@ import { zodToJsonSchema } from "zod-to-json-schema";
 import { ZodError } from "zod";
 import { Trip, HOUSE_NORM_FIELDS, type Trip as TripType, type Field, type FieldState } from "./schema.js";
 import { HOUSE_NORMS } from "./houseNorms.js";
-import { manilaToday, resolveRelativeDate, deriveCheckOut, corroborateDatePhrase } from "./dates.js";
+import { manilaToday, resolveRelativeDate, deriveCheckOut, corroborateDatePhrase, isPlausibleStayDate } from "./dates.js";
+import { corroborateCount } from "./counts.js";
 import { normalize, detectLanguage, guestTextOf, maskForLogging } from "./normalize.js";
 import { generateQuestions } from "./questions.js";
 import type { ExtractProvider } from "./provider.js";
@@ -138,6 +139,12 @@ function postProcess(raw: unknown, today: string, sourceText: string): unknown {
   // "stated" field on the next turn, with the bot's own sentence as evidence.
   const guestText = guestTextOf(sourceText);
 
+  // Detected once, here, because two things decide with it and they must not disagree: the
+  // trip's own `language` field, and the reading of a numeric date pair that has no year on
+  // it (dates.ts numericPairReadings) — "05/12" is 5 December for a Vietnamese guest and 12
+  // May for an English-speaking one, and it is the guest's own message that says which.
+  const guestLanguage = detectLanguage(guestText);
+
   // Some structured-output providers use 0 as a stand-in for an unknown
   // positive count. It is recoverable missing information: ask the guest
   // instead of failing the entire conversation turn.
@@ -183,7 +190,7 @@ function postProcess(raw: unknown, today: string, sourceText: string): unknown {
   // the honest state, and it is also what keeps the date off the question list.
   const checkIn = trip.checkIn;
   if (checkIn && (checkIn.state === "stated" || checkIn.state === "inferred") && checkIn.evidence) {
-    const resolved = resolveRelativeDate(checkIn.evidence, today);
+    const resolved = resolveRelativeDate(checkIn.evidence, today, guestLanguage);
     const proposed = typeof checkIn.value === "string" ? checkIn.value : null;
     if (resolved) {
       // Code read the phrase itself, so this is the guest's own date whether or not the
@@ -191,7 +198,7 @@ function postProcess(raw: unknown, today: string, sourceText: string): unknown {
       // here would keep its value while losing the evidence, priced and never asked).
       checkIn.value = resolved;
       checkIn.state = "stated";
-    } else if (proposed && corroborateDatePhrase(checkIn.evidence, proposed, today) === "consistent") {
+    } else if (proposed && corroborateDatePhrase(checkIn.evidence, proposed, today, guestLanguage) === "consistent") {
       checkIn.value = proposed;
       checkIn.state = "stated";
     } else {
@@ -211,7 +218,7 @@ function postProcess(raw: unknown, today: string, sourceText: string): unknown {
   // Language is detected deterministically from the guest's text. A model must
   // not label it "stated" simply because it saw an English or Vietnamese
   // sentence; guests do not normally state their language explicitly.
-  trip.language = { value: detectLanguage(guestText), state: "inferred", evidence: null };
+  trip.language = { value: guestLanguage, state: "inferred", evidence: null };
 
   // Align with Odoo Estimate API (estimate-api.v1.json / casa-api-guide):
   // 1. guestType: detect agency phrasing or default to "retail"
@@ -267,6 +274,30 @@ function postProcess(raw: unknown, today: string, sourceText: string): unknown {
 
   enforceVerbatimEvidence(trip, guestText);
 
+  // 4. nights, guests and rooms — the three counts the estimate is priced from, checked
+  // against the guest's own words the way a check-in date is. ADR-006 Decision 4 is "ask
+  // what money depends on; never infer it", and until now it stopped at the date: a
+  // number the model stated was kept as long as its evidence was a verbatim substring,
+  // which is not the same as the evidence *being about this count*. vi-09 in the recorded
+  // live run is the measured cost — "nhóm mình có 8 người nhưng chỉ 4 người ở lại" came
+  // back as `guests: 8` — and the model's evidence was the guest's own words, so nothing
+  // in the pipeline could tell the 8 from the 4. corroborateCount does, and the field
+  // becomes the question it should be. It runs here, after evidence enforcement, so a
+  // field that already failed that check is not judged twice, and before checkOut is
+  // derived below, so a night count that does not survive cannot leave a date behind.
+  //
+  // The evidence travels with the number: when the guest's words put no number on this
+  // count, the quote the model chose is the only thing behind the number, so it has to be a
+  // quote about *this* count — "cần 3 phòng" offered as the evidence for `guests: 3` is a room
+  // count wearing a guest label, and counts.ts turns it into a question too.
+  for (const key of ["nights", "guests", "rooms"] as const) {
+    const field = trip[key];
+    if (field?.state !== "stated" || typeof field.value !== "number") continue;
+    if (corroborateCount(key, field.value, guestText, field.evidence) === "conflicting") {
+      trip[key] = { value: null, state: "missing", evidence: null };
+    }
+  }
+
   // checkOut is arithmetic on the guest's own answers, and it runs *after* evidence
   // enforcement on purpose: a check-in or a night count that did not survive
   // enforcement must not leave a derived check-out behind, pointing at a source that
@@ -279,6 +310,51 @@ function postProcess(raw: unknown, today: string, sourceText: string): unknown {
       state: "derived",
       evidence: null,
     };
+  }
+
+  // 5. the dive window (diveFrom / diveTo) — two dates on a field dive revenue is priced
+  // from, and the last place a date can be silently wrong. Both survive the normalization
+  // above only as `stated`, and a stated date still has to be a date the calendar accepts
+  // and a window that sits inside the stay the guest agreed to. A dive window before the
+  // check-in or after the check-out is not a strict reading of the guest's message, it is a
+  // misread of one — and unlike a check-in, nothing downstream asks about it: questions.ts
+  // only puts the window to the guest once `diver` is true, and a window that is present
+  // (non-missing) is never asked about at all. So a window that cannot be true is turned
+  // back into `missing` here, which is what restores the question.
+  //
+  // Deliberately silent when there is no stay to check against: a window with a check-in
+  // the guest has not given yet is unverifiable, not wrong, and dropping it would ask the
+  // guest for two dates they already wrote.
+  const stayFrom = trip.checkIn?.state === "stated" ? (trip.checkIn.value as string) : null;
+  const stayTo = trip.checkOut?.state === "derived" ? (trip.checkOut.value as string) : null;
+  for (const key of ["diveFrom", "diveTo"] as const) {
+    const field = trip[key];
+    if (field?.state !== "stated") continue;
+    // The model may hand back the phrase the guest wrote rather than a date: the recording
+    // has vi-04's window as `diveFrom: "15/10"`. Code reads it exactly as it reads a
+    // check-in — the model's own ISO date if the calendar accepts it, otherwise the guest's
+    // phrase, and nothing at all if neither settles it — so a date the guest gave is kept
+    // rather than asked for again, and a phrase that is not a date stops looking like one.
+    const proposed = typeof field.value === "string" ? field.value : null;
+    const resolved =
+      (proposed && isPlausibleStayDate(proposed, today) ? proposed : null) ??
+      resolveRelativeDate(field.evidence ?? proposed ?? "", today, guestLanguage);
+    const insideStay = resolved !== null && (!stayFrom || resolved >= stayFrom) && (!stayTo || resolved <= stayTo);
+    if (!resolved || !insideStay) {
+      trip[key] = { value: null, state: "missing", evidence: null };
+    } else {
+      field.value = resolved;
+    }
+  }
+  // A window whose ends are the wrong way round cannot be priced either, and half of it is
+  // no more use than none: both ends go back to being asked about.
+  if (
+    trip.diveFrom?.state === "stated" &&
+    trip.diveTo?.state === "stated" &&
+    (trip.diveFrom.value as string) > (trip.diveTo.value as string)
+  ) {
+    trip.diveFrom = { value: null, state: "missing", evidence: null };
+    trip.diveTo = { value: null, state: "missing", evidence: null };
   }
 
   return trip;

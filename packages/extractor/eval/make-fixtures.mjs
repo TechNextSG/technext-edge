@@ -69,23 +69,33 @@ const CODE_OWNED_FIELDS = ["language", "checkOut", "transportType"];
 // The 19 cases whose check-in the pre-fix pipeline dropped (results-deepseek.log lines
 // "mismatch on checkIn: expected stated, got missing"). `evidence` is quoted from the
 // dataset's own message text, so it survives enforceVerbatimEvidence; `value` is what a
-// model returns for that phrase, anchored to RECORDED_TODAY. Cases the resolver reads
-// itself (yearless N月N日, 周/星期, "từ ngày 15/10", "từ thứ Sáu tuần sau", weekend forms)
-// are marked `decidedBy: "resolver"`; the five calendar dates the table has no entry for
-// (Oct 10th, Nov 2, Dec 1st, 05/12, 12/10) are `decidedBy: "model"`, i.e. the
-// corroboration path — those are the ones whose value the pipeline really has to judge,
-// which is why test/evalReplay.test.ts probes them with a wrong date as well.
+// model returns for that phrase, anchored to RECORDED_TODAY. Which half of dates.ts decides
+// the field is marked per case, and it is what test/evalReplay.test.ts reads:
+//
+//   `resolver` the phrase table reads the quote itself, so the model's own date is never
+//              consulted: yearless N月N日, 周/星期, "từ ngày 15/10", "từ thứ Sáu tuần sau",
+//              the weekend forms, and — since the table was taught them — "arriving
+//              tomorrow" (a day-offset word inside a quote) and the English month+day forms
+//              "starting Oct 10th", "Nov 2", "coming Dec 1st".
+//   `resolver-language`
+//              the same, for the two pairs with no year on them that used to be the model's
+//              own call: "05/12" (vi-09) and "12/10" (vi-10) are two valid calendar dates
+//              whichever way they are read, and the guest's language — detected from the same
+//              message, the detection that fills trip.language — leaves exactly one reading
+//              (dates.ts numericPairReadings). Both messages are Vietnamese, so both are
+//              day/month. No case is left to `model` any more; test/evalReplay.test.ts
+//              asserts that, because it is the point.
 const LOST_CHECKINS = {
   "en-03-trap-unrelated-number": { evidence: "arriving tomorrow", value: "2026-09-19", decidedBy: "resolver" },
-  "en-06-padi-open-water": { evidence: "starting Oct 10th", value: "2026-10-10", decidedBy: "model" },
-  "en-07-fun-diving-package": { evidence: "starting Nov 2", value: "2026-11-02", decidedBy: "model" },
-  "en-08-family-non-divers": { evidence: "coming Dec 1st", value: "2026-12-01", decidedBy: "model" },
+  "en-06-padi-open-water": { evidence: "starting Oct 10th", value: "2026-10-10", decidedBy: "resolver" },
+  "en-07-fun-diving-package": { evidence: "starting Nov 2", value: "2026-11-02", decidedBy: "resolver" },
+  "en-08-family-non-divers": { evidence: "coming Dec 1st", value: "2026-12-01", decidedBy: "resolver" },
   "vi-04-khoa-hoc-lan-ow": { evidence: "từ ngày 15/10", value: "2026-10-15", decidedBy: "resolver" },
   "vi-05-dai-ly-dat-doan": { evidence: "từ ngày 20/11", value: "2026-11-20", decidedBy: "resolver" },
-  "vi-06-gia-dinh-nghi-duong": { evidence: "từ thứ Sáu tuần sau", value: "2026-10-02", decidedBy: "resolver" },
+  "vi-06-gia-dinh-nghi-duong": { evidence: "từ thứ Sáu tuần sau", value: "2026-09-25", decidedBy: "resolver" },
   "vi-07-cuoi-tuan-lan-bien": { evidence: "check in thứ Bảy tới", value: "2026-09-19", decidedBy: "resolver" },
-  "vi-09-bay-so-dien-thoai": { evidence: "từ ngày 05/12", value: "2026-12-05", decidedBy: "model" },
-  "vi-10-thue-xe-rieng": { evidence: "từ 12/10", value: "2026-10-12", decidedBy: "model" },
+  "vi-09-bay-so-dien-thoai": { evidence: "từ ngày 05/12", value: "2026-12-05", decidedBy: "resolver-language" },
+  "vi-10-thue-xe-rieng": { evidence: "từ 12/10", value: "2026-10-12", decidedBy: "resolver-language" },
   "zh-01-complete": { evidence: "下周六", value: "2026-09-26", decidedBy: "resolver" },
   "zh-03-trap-phone-wechat": { evidence: "10月12日", value: "2026-10-12", decidedBy: "resolver" },
   "zh-04-padi-ow-course": { evidence: "11月5号", value: "2026-11-05", decidedBy: "resolver" },
@@ -158,7 +168,7 @@ await writeFile(
         ranAt: recording.ranAt,
         recordedToday: RECORDED_TODAY,
         generatedBy: "eval/make-fixtures.mjs",
-        note: "What the model answered for each case, to replay through extract() offline. Model mistakes are preserved on purpose; fields code owns (language, checkOut, transportType, and every house-norm default) are omitted so the pipeline produces them again. `authored-checkIn` marks the 19 cases whose date the pre-fix code deleted before the recording could store it.",
+        note: "What the model answered for each case, to replay through extract() offline. Model mistakes are preserved on purpose; fields code owns (language, checkOut, transportType, and every house-norm default) are omitted so the pipeline produces them again. `authored-checkIn` marks the 19 cases whose date the pre-fix code deleted before the recording could store it, and the tag after the colon says which half of dates.ts decides it: `resolver`, or `resolver-language` for the two ambiguous pairs (05/12, 12/10) the guest's own detected language settles.",
       },
       cases,
     },

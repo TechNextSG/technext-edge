@@ -48,7 +48,17 @@ export function createGeminiProvider(apiKey: string, model = process.env.GEMINI_
         "You extract trip details from a dive-resort guest's message into the given " +
         "JSON schema. Every field needs a state: 'stated' (quote it in evidence, verbatim), " +
         "'inferred' (context implies it, no exact quote), or 'missing'. Never invent a value " +
-        "that state 'stated' cannot point to verbatim evidence for. Copy a date phrase into " +
+        "that state 'stated' cannot point to verbatim evidence for. " +
+        // The same transport rule as providers/deepseek.ts, word for word: this adapter is the
+        // configured fallback (providerFromEnv.ts), and a rule that lives in only one prompt is
+        // a money bug waiting for a missing key. See that file for why it is phrased as the
+        // guest's meaning rather than as keywords.
+        "'transport' is true (stated) only when the guest asks the resort for an airport " +
+        "pickup or transfer. Set it to false (stated) when they say they have their own " +
+        "vehicle, are driving themselves, or do not need a transfer — 'xe tụi mình tự đi', " +
+        "'tự chạy xe', 'own van', 'we have a car', '自己开车', '不需要接送'. Otherwise mark it " +
+        "missing: a guest who never mentions the airport has not asked for anything. " +
+        "Copy a date phrase into " +
         "evidence verbatim, and also put your best ISO date (YYYY-MM-DD) for it in that " +
         "field's value, computed from today's date — the caller re-checks that date against " +
         "the guest's own words and asks the guest whenever the two disagree.";

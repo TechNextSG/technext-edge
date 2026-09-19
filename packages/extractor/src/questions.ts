@@ -283,7 +283,7 @@ const GUESTS_PHRASE: Record<Lang, (guests: number) => string> = {
 
 const MEALS_PHRASE: Record<Lang, (label: string) => string> = {
   en: (label) => label,
-  vi: (label) => `bữa ăn ${label}`,
+  vi: (label) => (label.startsWith("ăn ") ? `bữa ${label}` : `bữa ăn ${label}`),
   zh: (label) => label,
 };
 

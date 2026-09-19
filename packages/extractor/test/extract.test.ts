@@ -367,6 +367,30 @@ describe("extract", () => {
     expect(outcome.trip.checkIn.value).toBe("2026-09-26"); // dates.test.ts's answer for this phrase
     expect(outcome.trip.checkIn.state).toBe("stated");
   });
+
+  it("reads an ambiguous day/month pair the way the guest's own language writes it", async () => {
+    // eval's vi-10: "từ 12/10" is 12 October to a Vietnamese guest and 10 December to an
+    // English-speaking one. Both are real dates, so the resolver used to refuse the pair and
+    // the model's own reading was the only candidate — which is one wrong month whenever the
+    // model read it the other way. The language was already being detected from this same
+    // message for trip.language, so it decides the reading too (dates.ts).
+    const message = "Guest: Nhóm mình 2 người, thuê xe riêng, check in từ 12/10 ở 3 đêm.";
+    const raw = {
+      ...HAPPY_RAW,
+      nights: { value: 3, state: "stated", evidence: "3 đêm" },
+      guests: { value: 2, state: "stated", evidence: "2 người" },
+      checkIn: { value: "2026-12-10", state: "stated", evidence: "từ 12/10" },
+    };
+
+    const outcome = await extract(message, fakeProvider(raw));
+
+    // The model offered December 10 — the English reading. Code read the phrase itself here,
+    // so the Vietnamese guest's own 12 October is what gets priced.
+    expect(outcome.trip.language).toEqual({ value: "vi", state: "inferred", evidence: null });
+    expect(outcome.trip.checkIn).toEqual({ value: "2026-10-12", state: "stated", evidence: "từ 12/10" });
+    expect(outcome.trip.checkOut.value).toBe("2026-10-15"); // +3 nights
+    expect(outcome.questions.map((q) => q.field)).not.toContain("checkIn");
+  });
 });
 
 

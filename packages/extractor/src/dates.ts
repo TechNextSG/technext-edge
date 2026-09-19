@@ -19,6 +19,8 @@
 // Anything less than that stays `missing`, which is what turns the field back into
 // a question. The model proposes; this file decides.
 
+import type { GuestLanguage } from "./normalize.js";
+
 const MANILA_OFFSET_MINUTES = 8 * 60; // UTC+8, no DST
 
 export function manilaToday(now: Date = new Date()): string {
@@ -120,8 +122,13 @@ function daysBetween(fromIso: string, toIso: string): number {
  * an ISO date, anchored to `today` (Manila time, "YYYY-MM-DD"). Returns null
  * for phrases it doesn't recognise — the caller must then treat the field as
  * "missing", not silently drop it.
+ *
+ * `language`, when the caller has detected it (extract.ts detects it from the guest's own
+ * words, the same detection that fills trip.language), settles the one form no table can
+ * read on its own: a bare day/month pair with no year on it, like "05/12". See
+ * numericPairReadings.
  */
-export function resolveRelativeDate(phrase: string, today: string): string | null {
+export function resolveRelativeDate(phrase: string, today: string, language?: GuestLanguage): string | null {
   const p = phrase.trim().toLowerCase();
 
   // Guests commonly answer a follow-up with a numeric calendar date. Validate
@@ -155,26 +162,45 @@ export function resolveRelativeDate(phrase: string, today: string): string | nul
       : upcomingIso(Number(day), Number(month), today);
   }
 
+  // "starting Oct 10th" (en-06), "Nov 2" (en-07), "coming Dec 1st" (en-08) — an English
+  // month name with a day on it. The table had no entry for this form, so three of the 19
+  // check-ins the pre-fix pipeline deleted were left to the model's own reading (they were
+  // tagged `authored-checkIn:model` in eval/fixtures.mock-30.json, where the replay probes
+  // its model-decided cases with a wrong date). Reading the phrase here does not change any
+  // of those dates; it takes the model out of the decision, which is the Playbook rule. A
+  // month with no day on it is still not a date — "sometime in December" has to keep
+  // falling through to null, or vi-02's answer gets guessed at.
+  const enMonthFirst = p.match(/\b(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*\.?\s+(\d{1,2})(?!\d)/);
+  const enDayFirst = p.match(
+    /(?<!\d)(\d{1,2})(?:st|nd|rd|th)?\s+(?:of\s+)?(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*\b/,
+  );
+  if (enMonthFirst ?? enDayFirst) {
+    const match = (enMonthFirst ?? enDayFirst)!;
+    // The two readings of "8 October" and "October 8" put month and day in opposite
+    // groups, so which one is which is decided by which pattern matched, not by position.
+    const monthWord = (enMonthFirst ? match[1] : match[2]) as string;
+    const day = Number(enMonthFirst ? match[2] : match[1]);
+    const iso = upcomingIso(day, EN_MONTHS[monthWord.slice(0, 3)] as number, today);
+    if (iso) return iso;
+  }
+
   // A date with no year at all — "15/10", as in "từ ngày 15/10", is the form guests
   // type most; yearlessNumeric() explains why an ambiguous pair stays unresolved.
   if (!/\d{1,2}\s*[/.\-]\s*\d{1,2}\s*[/.\-]\s*\d{2,4}/.test(p)) {
-    const yearless = yearlessNumeric(p, today);
+    const yearless = yearlessNumeric(p, today, language);
     if (yearless) return yearless;
   }
 
-  if (/^(today|hôm nay|hom nay)$/.test(p)) return today;
-  if (/^(tomorrow|ngày mai|ngay mai)$/.test(p)) return addDays(today, 1);
-  if (/^(day after tomorrow|ngày kia|ngay kia)$/.test(p)) return addDays(today, 2);
-  // Chinese day words. Longest first so 大后天 is not read as 后天.
-  for (const [word, offset] of Object.entries(ZH_DAY_OFFSETS).sort((a, b) => b[0].length - a[0].length)) {
-    if (p.includes(word)) return addDays(today, offset);
-  }
-
-  const inNDays = p.match(/^in (\d+) days?$|^(\d+) ngày nữa$|^(\d+) ngay nua$/);
-  if (inNDays) {
-    const n = Number(inNDays[1] ?? inNDays[2] ?? inNDays[3]);
-    return addDays(today, n);
-  }
+  // Day-offset words, read wherever they sit inside the quote — "arriving tomorrow"
+  // (en-03), "planning a trip in 5 days" (en-05). These used to be anchored to the whole
+  // phrase, and that anchoring is the same asymmetry that cost 8 of the 10 Chinese eval
+  // cases their check-in: the evidence a model quotes is a fragment of the guest's
+  // sentence, not a tidy phrase, so a phrase this table could not read was a date the
+  // guest had already given and was asked for again. All four forms live in
+  // dayOffsetOfPhrase, which the corroboration path reads too — that is what keeps the two
+  // halves of this file from drifting apart — and which refuses a negated one.
+  const offset = dayOffsetOfPhrase(p);
+  if (offset !== null) return addDays(today, offset);
 
   // "next <weekday>" / "thứ Bảy tuần sau" / "cuối tuần sau" (treated as next Saturday)
   // / "下周五". The qualifier words are shared with corroborateDatePhrase below.
@@ -216,31 +242,51 @@ export function deriveCheckOut(checkInIso: string, nights: number): string {
 }
 
 /**
- * "15/10" — a date with no year on it, the form guests type most ("từ ngày 15/10",
- * "7/3"). The 4-digit-year regexes above cannot read it, so every such guest was
- * losing their check-in date.
+ * The readings a yearless numeric pair has, in the order the guest's own convention puts
+ * them. upcomingIso() takes (day, month), so the day-first reading is the pair as written
+ * ("05/12" → 5 December) and the month-first one is the pair swapped ("05/12" → 12 May).
  *
- * The two numbers are read both ways — day/month, as a Vietnamese guest means it,
- * and month/day, as an English-speaking one does — because this function has no
- * language argument to go on. Exactly one reading has to exist for the phrase to be
- * unambiguous: "15/10" is only 15 October (there is no month 15), but "7/3" is both
- * 7 March and 3 July, and this returns null rather than pick one of them. Asking the
- * guest costs a turn; pricing 7 March as 3 July costs a month of revenue. The
- * corroboration path in extract.ts still rescues "7/3": a model that can see the
- * guest's language proposes one reading, and either reading is accepted there.
+ * What used to be missing here is the guest's language. Both orders are valid calendar
+ * dates for "05/12", so this reader refused the pair outright and left the field to
+ * corroboration against the model's own date (extract.ts) — and a model that read it the
+ * other way priced the wrong month, which is exactly what happened to eval's vi-09 and
+ * vi-10. Vietnam and China write day/month, so a "vi" or "zh" guest's pair has one reading
+ * and an English-speaking guest's has the other, and the language is already detected from
+ * that same message (normalize.ts) before the field is resolved.
+ *
+ * The language only breaks a tie between two *possible* dates. An order that is not a date
+ * at all is not a reading in any language — "15/10" is 15 October whether the guest writes
+ * Vietnamese or English — and refusing it because the guest's convention preferred a month
+ * 15 would delete a date they plainly gave, which is the failure this file exists to avoid.
+ *
+ * With no language (the phrase table is also called with a bare quote and no caller
+ * context) both orders are read and an ambiguous pair stays unresolved: one question is
+ * cheaper than a month of revenue priced on the wrong reading.
  */
-function yearlessNumeric(text: string, today: string): string | null {
+function numericPairReadings(a: number, b: number, today: string, language?: GuestLanguage): string[] {
+  const dayFirst = upcomingIso(a, b, today);
+  const monthFirst = upcomingIso(b, a, today);
+  if (dayFirst === null) return monthFirst === null ? [] : [monthFirst];
+  if (monthFirst === null) return [dayFirst];
+  // Both orders land on the same day, so there is nothing to choose between and nothing a
+  // language could add: "5/5" is 5 May in either convention.
+  if (dayFirst === monthFirst) return [dayFirst];
+  if (language === "en") return [monthFirst];
+  if (language === "vi" || language === "zh") return [dayFirst];
+  return [dayFirst, monthFirst];
+}
+
+/**
+ * "05/12" — a date with no year on it, the form guests type most ("từ ngày 15/10",
+ * "7/3"). The 4-digit-year regexes above cannot read it, so every such guest was losing
+ * their check-in date. Exactly one reading has to exist for this reader to settle the
+ * phrase itself; numericPairReadings explains which reading the guest's language leaves.
+ */
+function yearlessNumeric(text: string, today: string, language?: GuestLanguage): string | null {
   const m = text.match(/(\d{1,2})\s*[/.\-]\s*(\d{1,2})/);
   if (!m) return null;
-  const a = Number(m[1]);
-  const b = Number(m[2]);
-  const readings = new Set(
-    [
-      upcomingIso(a, b, today), // day/month
-      upcomingIso(b, a, today), // month/day
-    ].filter((iso): iso is string => iso !== null),
-  );
-  return readings.size === 1 ? [...readings][0]! : null;
+  const readings = numericPairReadings(Number(m[1]), Number(m[2]), today, language);
+  return readings.length === 1 ? readings[0]! : null;
 }
 
 // Where "sometime next year" stops being a booking and starts being a wish. A date
@@ -304,17 +350,30 @@ function weekdayOfPhrase(p: string): number | null {
   return null;
 }
 
+// A date the guest negated is not a date: "not tomorrow" / "không phải ngày mai" /
+// "不是明天" says the opposite of the phrase it contains. Both readers in this file ask
+// this question — resolveRelativeDate reads an offset word wherever it sits in a quote
+// (below), and corroborateDatePhrase holds a model's date to this function's reading — so
+// the guard lives here rather than in either caller. It is deliberately blunt: a negation
+// anywhere in the quoted phrase blocks an offset word in it, and the cost of that is one
+// question, against a stay priced on a day the guest said was not theirs.
+const NEGATED_DATE =
+  /\b(?:not|no|never|isn'?t|aren'?t|doesn'?t|don'?t|won'?t|cannot|can'?t)\b|không|khong|chưa|chua|chẳng|chang|đừng|不|没|別|别/;
+
 function dayOffsetOfPhrase(p: string): number | null {
+  if (NEGATED_DATE.test(p)) return null;
   for (const [word, offset] of Object.entries(ZH_DAY_OFFSETS).sort((a, b) => b[0].length - a[0].length)) {
     if (p.includes(word)) return offset;
   }
-  if (/\b(today|hôm nay|hom nay)\b/.test(p)) return 0;
-  if (/\b(tomorrow|ngày mai|ngay mai)\b/.test(p)) return 1;
+  // Longest phrase first: "the day after tomorrow" contains the word "tomorrow", and the
+  // anchored tests this replaced read it as +1 day whenever the model quoted anything
+  // around it. A date read a day early is a stay priced a day early.
   if (/\b(the day after tomorrow|ngày kia|ngay kia)\b/.test(p)) return 2;
-  // "in 5 days" / "5 ngày nữa" — a counted offset, the form eval's en-05 uses. The
-  // resolver reads it only when the model hands the phrase back bare; inside a longer
-  // quote ("planning a trip in 5 days") this is what still holds the model's date to
-  // the guest's own words instead of throwing the date away.
+  if (/\b(tomorrow|ngày mai|ngay mai)\b/.test(p)) return 1;
+  if (/\b(today|hôm nay|hom nay)\b/.test(p)) return 0;
+  // "in 5 days" / "5 ngày nữa" — a counted offset, the form eval's en-05 uses. The resolver
+  // reads it inside a longer quote too ("planning a trip in 5 days"), which is what en-05's
+  // model-appended evidence looks like; the corroboration path reads the same helper.
   const inNDays = p.match(/\bin (\d+) days?\b/) ?? p.match(/(\d+) ngày nữa/) ?? p.match(/(\d+) ngay nua/);
   if (inNDays) return Number(inNDays[1]);
   return null;
@@ -373,8 +432,19 @@ function nextMonth(month: number): number {
  * A month named without a day can only contradict, never confirm — that is what
  * keeps eval's vi-02 ("chưa chốt ngày, khoảng cuối tháng này") missing instead of
  * filled with whichever day of September a model felt like offering.
+ *
+ * `language` (optional, as in resolveRelativeDate) is what a numeric pair with no year on
+ * it is held to: with it, "05/12" corroborates only the reading the guest's own convention
+ * gives it, so a model that read a Vietnamese guest's day/month pair backwards is
+ * contradicted rather than accepted as the other valid reading. Without it, either reading
+ * counts, exactly as before.
  */
-export function corroborateDatePhrase(phrase: string, iso: string, today: string): DateCorroboration {
+export function corroborateDatePhrase(
+  phrase: string,
+  iso: string,
+  today: string,
+  language?: GuestLanguage,
+): DateCorroboration {
   if (!isPlausibleStayDate(iso, today)) return "contradicted";
 
   const p = phrase.toLowerCase();
@@ -420,9 +490,11 @@ export function corroborateDatePhrase(phrase: string, iso: string, today: string
   const day = dayOfMonthOfPhrase(p);
   if (day !== null) anchor(day === isoDay);
 
-  // "15/10" and "7/3" are read both ways, exactly as yearlessNumeric does it.
+  // "15/10" and "7/3" are read the way the guest's language reads them, exactly as
+  // yearlessNumeric does it — one reading where the language settles it, both where nothing
+  // does.
   const pair = numericPairOfPhrase(p);
-  if (pair) anchor((pair.a === isoDay && pair.b === isoMonth) || (pair.a === isoMonth && pair.b === isoDay));
+  if (pair) anchor(numericPairReadings(pair.a, pair.b, today, language).includes(iso));
 
   if (disagrees) return "contradicted";
   return anchors > 0 ? "consistent" : "no-opinion";

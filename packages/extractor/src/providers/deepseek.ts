@@ -58,7 +58,20 @@ export function createDeepSeekProvider(
         "to null for every other state. When state is 'missing', set both value and evidence to null; " +
         "never use 0 as a placeholder for an unknown count, and never assign unlabeled " +
         "comma-separated numbers to trip fields. Nights, guests, and rooms are 'stated' only when their " +
-        "evidence quotes the exact guest wording; otherwise mark them missing. Copy a date phrase into evidence verbatim, and also put your best ISO date " +
+        "evidence quotes the exact guest wording; otherwise mark them missing. " +
+        // The transport rule, stated as the guest's meaning, because the recorded live run got
+        // it wrong twice, in two languages, with the guest's own sentence as the evidence
+        // (eval's vi-07 "xe tụi mình tự đi", zh-09 "自己开车过去"): both came back as
+        // `transport: true`, which puts an airport transfer on the quote for a guest who is
+        // driving themselves. Negation is the one thing a keyword rule cannot do and this model
+        // can, so nothing in code tries — and a transfer nobody mentioned stays `missing`, which
+        // is the question the guest then answers. providers/gemini.ts carries the same rule.
+        "'transport' is true (stated) only when the guest asks the resort for an airport " +
+        "pickup or transfer. Set it to false (stated) when they say they have their own " +
+        "vehicle, are driving themselves, or do not need a transfer — 'xe tụi mình tự đi', " +
+        "'tự chạy xe', 'own van', 'we have a car', '自己开车', '不需要接送'. Otherwise mark it " +
+        "missing: a guest who never mentions the airport has not asked for anything. " +
+        "Copy a date phrase into evidence verbatim, and also put your best ISO date " +
         "(YYYY-MM-DD) for it in that field's value, computed from today's date — the caller re-checks " +
         "that date against the guest's own words and asks the guest whenever the two disagree.";
 

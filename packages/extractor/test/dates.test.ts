@@ -83,6 +83,39 @@ describe("resolveRelativeDate", () => {
   it("returns null for phrases it cannot parse, instead of guessing", () => {
     expect(resolveRelativeDate("sometime in December maybe", TODAY)).toBeNull();
   });
+
+  it("reads a day-offset word inside the sentence the model quoted", () => {
+    // The evidence a model lifts is a fragment, not a tidy phrase: en-03's was "arriving
+    // tomorrow" and en-05's "planning a trip in 5 days". Both were resolved by the
+    // corroboration path only, which left the date to the model's own arithmetic; reading
+    // them here is what takes the model out of it.
+    expect(resolveRelativeDate("arriving tomorrow", TODAY)).toBe("2026-09-16");
+    expect(resolveRelativeDate("planning a trip in 5 days", TODAY)).toBe("2026-09-20");
+    expect(resolveRelativeDate("chúng tôi đến ngày mai", TODAY)).toBe("2026-09-16");
+    // Longest phrase first: "the day after tomorrow" contains "tomorrow".
+    expect(resolveRelativeDate("leaving the day after tomorrow", TODAY)).toBe("2026-09-17");
+  });
+
+  it("refuses a date the guest negated", () => {
+    // "not tomorrow" is the opposite of a date, and reading the word without the negation
+    // is a stay priced on a day the guest ruled out. Blunt on purpose: the cost of
+    // refusing is one question.
+    expect(resolveRelativeDate("not tomorrow", TODAY)).toBeNull();
+    expect(resolveRelativeDate("không phải ngày mai", TODAY)).toBeNull();
+    expect(resolveRelativeDate("不是明天", TODAY)).toBeNull();
+  });
+
+  it("reads an English month name with a day on it, and nothing vaguer than that", () => {
+    // en-06/07/08's forms, verbatim. Three of the 19 check-ins the pre-fix pipeline deleted
+    // were these, and the table had no entry for any of them.
+    expect(resolveRelativeDate("starting Oct 10th", TODAY)).toBe("2026-10-10");
+    expect(resolveRelativeDate("starting Nov 2", TODAY)).toBe("2026-11-02");
+    expect(resolveRelativeDate("coming Dec 1st", TODAY)).toBe("2026-12-01");
+    expect(resolveRelativeDate("on 8 October", TODAY)).toBe("2026-10-08");
+    // A month on its own is still not a check-in date.
+    expect(resolveRelativeDate("sometime in December", TODAY)).toBeNull();
+    expect(resolveRelativeDate("next month", TODAY)).toBeNull();
+  });
 });
 
 describe("resolveRelativeDate — a week qualifier said on that same weekday", () => {
@@ -158,12 +191,33 @@ describe("resolveRelativeDate — a date with no year", () => {
   });
 
   it("returns null for an ambiguous 7/3 rather than pick a month", () => {
-    // 7 March to a Vietnamese guest, 3 July to an English one, and this parser has no
-    // language to go on. Asking costs a turn; guessing wrong prices the wrong month.
-    // extract.ts still accepts either reading when the model's own date agrees.
+    // 7 March to a Vietnamese guest, 3 July to an English one, and this call has no language
+    // to go on. Asking costs a turn; guessing wrong prices the wrong month. extract.ts passes
+    // the language it detected (the next test), and only then does the pair have one reading.
     expect(resolveRelativeDate("7/3", TODAY)).toBeNull();
     // A two-digit year is not guessed at either.
     expect(resolveRelativeDate("3/3/17", TODAY)).toBeNull();
+  });
+
+  it("reads an ambiguous pair the way the guest's own language writes it", () => {
+    // eval's vi-09 and vi-10, verbatim — the last two check-ins no table could settle, and the
+    // two the eval replay used to hand to the model's own date. Vietnam and China write
+    // day/month, so a pair that is two valid dates on its own has exactly one reading once the
+    // guest's language is known — and extract.ts knows it from the same message (normalize.ts
+    // detects it for the trip's `language` field either way).
+    expect(resolveRelativeDate("từ ngày 05/12", TODAY, "vi")).toBe("2026-12-05");
+    expect(resolveRelativeDate("từ 12/10", TODAY, "vi")).toBe("2026-10-12");
+    expect(resolveRelativeDate("05/12", TODAY, "zh")).toBe("2026-12-05");
+    // The same pair to an English-speaking guest is month/day: the reading their convention
+    // leaves, so the resolver is not a one-way rule either.
+    expect(resolveRelativeDate("12/10", TODAY, "en")).toBe("2026-12-10");
+
+    // Language only breaks a tie between two possible dates. "15/10" has no month 15 in any
+    // language, so it stays the one reading it can be — refusing it because the guest's
+    // convention prefers the other order would delete a date they plainly wrote, which is the
+    // failure this whole table exists to avoid.
+    expect(resolveRelativeDate("15/10", TODAY, "vi")).toBe("2026-10-15");
+    expect(resolveRelativeDate("15/10", TODAY, "en")).toBe("2026-10-15");
   });
 });
 
@@ -208,6 +262,16 @@ describe("corroborateDatePhrase — what lets a model's date be used at all", ()
     expect(corroborateDatePhrase("后天", "2026-09-17", TODAY)).toBe("consistent");
   });
 
+  it("holds a pair to the guest's own reading once it knows the language", () => {
+    // The two readings above are both accepted only because nothing said which convention the
+    // guest writes in. With the language extract.ts detected, a Vietnamese guest's "05/12" is 5
+    // December — so a model that read the pair backwards is contradicted instead of being
+    // waved through as the other valid reading, which is the wrong-month price this closes.
+    expect(corroborateDatePhrase("05/12", "2026-12-05", TODAY, "vi")).toBe("consistent");
+    expect(corroborateDatePhrase("05/12", "2027-05-12", TODAY, "vi")).toBe("contradicted");
+    expect(corroborateDatePhrase("05/12", "2027-05-12", TODAY, "en")).toBe("consistent");
+  });
+
   it("holds a model's date to a counted offset, even inside a longer quote", () => {
     // en-05's "in 5 days" is the form the resolver only reads bare, so this anchor is what
     // keeps a quoted fragment ("planning a trip in 5 days") from being thrown away — and
@@ -218,6 +282,14 @@ describe("corroborateDatePhrase — what lets a model's date be used at all", ()
     // The same for a weekday and a weekend phrase the model quoted with words around them.
     expect(corroborateDatePhrase("check in thứ Bảy tới", "2026-09-19", TODAY)).toBe("consistent");
     expect(corroborateDatePhrase("weekend", "2026-09-19", TODAY)).toBe("consistent");
+  });
+
+  it("has no opinion on a negated date, so the guest keeps getting asked", () => {
+    // The offset reader refuses a negated phrase (resolveRelativeDate, same function), and
+    // corroboration has to refuse it for the same reason: a model that read "not tomorrow"
+    // as tomorrow must not be able to confirm its own mistake against the guest's words.
+    expect(corroborateDatePhrase("not tomorrow", "2026-09-16", TODAY)).toBe("no-opinion");
+    expect(corroborateDatePhrase("không phải ngày mai", "2026-09-16", TODAY)).toBe("no-opinion");
   });
 
   it("has no opinion on a vague phrase, so the guest keeps getting asked", () => {

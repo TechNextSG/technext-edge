@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { extract, ExtractionValidationError } from "../src/extract.js";
 import { corroborateDatePhrase, isPlausibleStayDate, resolveRelativeDate } from "../src/dates.js";
+import { corroborateCount } from "../src/counts.js";
 import { detectLanguage, guestTextOf, maskForLogging, normalize } from "../src/normalize.js";
 import { HOUSE_NORMS } from "../src/houseNorms.js";
 import { FieldState, Trip, type Field } from "../src/schema.js";
@@ -76,7 +77,8 @@ function assertTripContract(trip: Record<string, Field<unknown>>, sourceText: st
     expect(trip[key], `the model's output left "${key}" with no state at all`).toBeDefined();
   }
 
-  const haystack = guestTextOf(normalize(sourceText)).toLowerCase();
+  const guestText = guestTextOf(normalize(sourceText));
+  const haystack = guestText.toLowerCase();
   for (const [key, f] of Object.entries(trip)) {
     expect(Object.keys(f).sort(), `${key} carries keys the contract does not name`).toEqual([
       "evidence",
@@ -117,6 +119,19 @@ function assertTripContract(trip: Record<string, Field<unknown>>, sourceText: st
       `stated check-in ${String(checkIn.value)} is neither the resolver's reading of ` +
         `"${String(checkIn.evidence)}" nor corroborated by it`,
     ).toBe(true);
+  }
+
+  // ADR-006 Decision 4, applied to the three counts the estimate is priced from: a stated
+  // number has to be one the guest's own words put on that count. vi-09 of the eval corpus
+  // is the case — "nhóm mình có 8 người nhưng chỉ 4 người ở lại" recorded as `guests: 8`,
+  // with the guest's own sentence as the evidence — and it is held to on every payload in
+  // this file, including the 200 generated ones.
+  for (const key of ["nights", "guests", "rooms"] as const) {
+    if (trip[key].state !== "stated") continue;
+    expect(
+      corroborateCount(key, trip[key].value as number, guestText),
+      `${key} is stated as a number the guest's own words contradict`,
+    ).not.toBe("conflicting");
   }
 
   if (trip.checkOut.state === "derived") {
@@ -543,6 +558,141 @@ describe("adversarial text — what a guest can type that the pipeline must not 
   });
 });
 
+describe("counts — a number the guest's own words contradict never gets priced", () => {
+  // vi-09 of the eval corpus is the case that produced src/counts.ts: the group is 8 and 4
+  // of them are staying, the model recorded the 8, and its evidence *was* the guest's own
+  // sentence — so evidence enforcement had nothing to object to and the estimate would have
+  // been priced for the wrong half of the sentence. The turn is replayed here in all three
+  // languages, with that same answer.
+  const CASES: Array<[string, string, string, number]> = [
+    ["vi", "Alo mình là Tuấn, sđt 0988776655, nhóm mình có 8 người nhưng chỉ 4 người ở lại 2 đêm", "nhóm mình có 8 người", 8],
+    ["en", "Family of 8 coming in 5 days, but only 4 of us are staying for 2 nights", "Family of 8", 8],
+    ["zh", "我们一共8位客人，但只有4位入住，住2晚", "一共8位客人", 8],
+  ];
+
+  for (const [lang, message, evidence, claimed] of CASES) {
+    it(`turns the guest count into a question when the ${lang} message states two`, async () => {
+      const outcome = await extract(
+        `Guest: ${message}`,
+        providerReturning({ guests: { value: claimed, state: "stated", evidence } }),
+      );
+
+      expect(outcome.trip.guests.state).toBe("missing");
+      expect(outcome.trip.guests.value).toBeNull();
+      expect(outcome.trip.guests.evidence).toBeNull(); // no evidence on a field that is asked about
+      expect(outcome.questions.map((q) => q.field)).toContain("guests");
+    });
+  }
+
+  it("keeps the number when the guest stated only one, and asks when the model moved it", async () => {
+    const message = "Guest: nhóm mình có 4 người ở lại 2 đêm";
+    const kept = await extract(
+      message,
+      providerReturning({
+        guests: { value: 4, state: "stated", evidence: "4 người" },
+        nights: { value: 2, state: "stated", evidence: "2 đêm" },
+      }),
+    );
+    expect(kept.trip.guests.value).toBe(4);
+    expect(kept.trip.guests.state).toBe("stated");
+    expect(kept.trip.nights.value).toBe(2);
+    expect(kept.questions.map((q) => q.field)).not.toContain("guests");
+
+    // The same message, with the model's number taken from somewhere else in the turn: the
+    // count is the guest's to give, so this is a question rather than a price.
+    const moved = await extract(
+      message,
+      providerReturning({ guests: { value: 6, state: "stated", evidence: "4 người" } }),
+    );
+    expect(moved.trip.guests.state).toBe("missing");
+    expect(moved.questions.map((q) => q.field)).toContain("guests");
+  });
+});
+
+describe("the dive window — a date on a field dive revenue is priced from", () => {
+  // The stay in every case below: "in 3 days" is 2026-09-18 (ANCHOR_TODAY + 3), three
+  // nights puts the check-out on 2026-09-21.
+  const STAY = {
+    checkIn: { value: null, state: "stated", evidence: "in 3 days" },
+    nights: { value: 3, state: "stated", evidence: "3 nights" },
+  };
+  const MESSAGE = "Guest: 4 of us want to dive, in 3 days for 3 nights";
+
+  function diveWindow(diveFrom: unknown, diveTo: unknown, evidence: string) {
+    return {
+      ...STAY,
+      diver: { value: true, state: "stated", evidence },
+      diveFrom: { value: diveFrom, state: "stated", evidence },
+      diveTo: { value: diveTo, state: "stated", evidence },
+    };
+  }
+
+  it("keeps a window the stay contains, and asks about one it does not", async () => {
+    const inside = await extract(MESSAGE, providerReturning(diveWindow("2026-09-19", "2026-09-20", "want to dive")));
+    expect(inside.trip.diveFrom.value).toBe("2026-09-19");
+    expect(inside.trip.diveTo.value).toBe("2026-09-20");
+    expect(inside.questions.map((q) => q.field)).not.toContain("diveFrom");
+
+    // A window that starts before the guest arrives, or ends after they leave, is a misread
+    // of the message rather than a strict reading of it — and being present (non-missing) it
+    // would never be asked about, so it would be priced as though the guest had said it.
+    const before = await extract(MESSAGE, providerReturning(diveWindow("2026-09-10", "2026-09-20", "want to dive")));
+    expect(before.trip.diveFrom.state).toBe("missing");
+    expect(before.questions.map((q) => q.field)).toContain("diveFrom");
+    expect(before.trip.diveTo.value).toBe("2026-09-20"); // the end is still the guest's
+
+    const after = await extract(MESSAGE, providerReturning(diveWindow("2026-09-19", "2026-09-25", "want to dive")));
+    expect(after.trip.diveTo.state).toBe("missing");
+    expect(after.questions.map((q) => q.field)).toContain("diveTo");
+  });
+
+  it("refuses a window that ends before it starts, and a date that is not a date", async () => {
+    const swapped = await extract(MESSAGE, providerReturning(diveWindow("2026-09-20", "2026-09-19", "want to dive")));
+    expect(swapped.trip.diveFrom.state).toBe("missing");
+    expect(swapped.trip.diveTo.state).toBe("missing");
+
+    // A phrase where a date belongs is not a date — the live run recorded vi-04's `diveFrom`
+    // as "15/10". It is resolved against the guest's own words (below) rather than priced.
+    const phrase = await extract(MESSAGE, providerReturning(diveWindow("some day soon", "2026-09-20", "want to dive")));
+    expect(phrase.trip.diveFrom.state).toBe("missing");
+  });
+
+  it("resolves the guest's own phrase the way it resolves a check-in (vi-04)", async () => {
+    // "từ ngày 15/10" with four nights: check-in 2026-10-15, check-out 2026-10-19, and the
+    // window the model handed back as the phrase itself — the shape the recording has.
+    const outcome = await extract(
+      "Guest: 4 người muốn lặn, từ ngày 15/10 ở 4 đêm",
+      providerReturning({
+        guests: { value: 4, state: "stated", evidence: "4 người" },
+        checkIn: { value: null, state: "stated", evidence: "từ ngày 15/10" },
+        nights: { value: 4, state: "stated", evidence: "ở 4 đêm" },
+        diver: { value: true, state: "stated", evidence: "muốn lặn" },
+        diveFrom: { value: "15/10", state: "stated", evidence: "từ ngày 15/10" },
+      }),
+    );
+
+    expect(outcome.trip.checkIn.value).toBe("2026-10-15");
+    expect(outcome.trip.diveFrom.value).toBe("2026-10-15");
+    expect(outcome.trip.diveFrom.state).toBe("stated");
+    expect(outcome.questions.map((q) => q.field)).not.toContain("diveFrom");
+  });
+
+  it("leaves a window alone when there is no stay to check it against", async () => {
+    // No check-in yet, so the window is unverifiable rather than wrong: dropping it would ask
+    // the guest for a date they already wrote.
+    const outcome = await extract(
+      "Guest: 4 of us want to dive, we are still deciding on dates",
+      providerReturning({
+        guests: { value: 4, state: "stated", evidence: "4 of us" },
+        diver: { value: true, state: "stated", evidence: "want to dive" },
+        diveFrom: { value: "2026-12-05", state: "stated", evidence: "still deciding on dates" },
+      }),
+    );
+    expect(outcome.trip.diveFrom.value).toBe("2026-12-05");
+    expect(outcome.trip.checkIn.state).toBe("missing");
+  });
+});
+
 describe("latency ceiling on the longest inputs the API accepts", () => {
   // app.ts caps one message at 4,000 chars and a history at 20 turns; converse.ts caps the
   // transcript at 60,000. Every regex that touches guest text runs inside those budgets,
@@ -572,15 +722,21 @@ describe("latency ceiling on the longest inputs the API accepts", () => {
     expect(worst, `masking "1." × 2,000 took ${worst.toFixed(1)}ms`).toBeLessThan(CEILING_MS);
   });
 
-  it("answers a 4,000-character date phrase with null rather than a guess", () => {
-    const phrases = ["thứ ".repeat(MAX_MESSAGE / 5), "1".repeat(MAX_MESSAGE), "a".repeat(MAX_MESSAGE), "ngày mai ".repeat(500)];
+  it("answers a 4,000-character date phrase quickly, and claims only dates it can read", () => {
+    const phrases = ["thứ ".repeat(MAX_MESSAGE / 5), "1".repeat(MAX_MESSAGE), "a".repeat(MAX_MESSAGE)];
 
     for (const phrase of phrases) {
       const elapsed = msOf(() => expect(resolveRelativeDate(phrase, TODAY)).toBeNull());
       expect(elapsed, `resolving a ${phrase.length}-char phrase took ${elapsed.toFixed(1)}ms`).toBeLessThan(CEILING_MS);
     }
 
-    // A phrase the parser does claim, repeated to the cap, is still a cheap lookup.
+    // A phrase the parser does claim, repeated to the cap, is still a cheap lookup. "ngày
+    // mai" resolves here now that the offset words are read wherever they sit in a quote
+    // (the anchoring that used to stop at the whole phrase is what cost en-03 and en-05
+    // their dates) — the point being asserted is the cost, not the silence.
+    const tomorrow = msOf(() => expect(resolveRelativeDate("ngày mai ".repeat(500), TODAY)).toBe("2026-09-16"));
+    expect(tomorrow, `resolving the repeated offset took ${tomorrow.toFixed(1)}ms`).toBeLessThan(CEILING_MS);
+
     const weekend = "cuối tuần sau ".repeat(250);
     const elapsed = msOf(() => resolveRelativeDate(weekend, TODAY));
     expect(elapsed, `resolving a ${weekend.length}-char phrase took ${elapsed.toFixed(1)}ms`).toBeLessThan(CEILING_MS);

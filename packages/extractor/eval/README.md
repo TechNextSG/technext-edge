@@ -43,6 +43,21 @@ Scored automatically:
 - **Required fields correct** (`checkIn`/`nights`/`guests`/`rooms`, ≥95%
   threshold) — state and value both match, only counted where the ground
   truth says the message actually stated it.
+- **Priced fields correct** (`transport`, no threshold — all of them) —
+  compared by *value*, because that is what reaches the quote. An airport
+  transfer the guest did not ask for is a line on the estimate, and the
+  recorded run has that mistake twice (vi-07's "xe tụi mình tự đi" and
+  zh-09's "自己开车过去", both recorded as `transport: true` with the guest's
+  own sentence as the evidence). Kept separate from the required-field
+  number so a live run stays comparable with `results-deepseek.log`'s 63/87.
+  The transcript rule that fixes it is in both providers' system prompts
+  (`packages/extractor/src/providers/deepseek.ts`, and `gemini.ts` for the
+  configured fallback): `true` only when the guest asks for an airport pickup,
+  `false` when they say they drive themselves / have their own vehicle / need no
+  transfer, `missing` otherwise — stated as the guest's *meaning*, because
+  negation ("xe tụi mình tự đi") is the one thing a keyword rule gets wrong.
+  This score is what will show whether the prompt change lands: the fixture
+  replays the old wrong answers on purpose, so a re-run is needed to see 2/2.
 - **Evidence is a verbatim substring** (100% threshold) — re-checked
   client-side even though the server already enforces this in code.
 - **p95 latency** (≤8s threshold).
@@ -110,8 +125,14 @@ Rules the generator holds to, so that the replay means something:
   model's own date and quote are not on disk — the log shows those cases scoring
   `evidence n/n` while their `checkIn` read `missing`. They are written from the guest's
   own words in `dataset.mock-30.json`: a claim about what a model returns for that
-  phrase, not a measurement. For every in-table phrase the resolver decides the date
-  anyway, so those values cannot make a test pass on their own.
+  phrase, not a measurement. The tag says which half of the pipeline decides the field:
+  17 are `resolver` (the phrase table reads the quote, so the authored value cannot make a
+  test pass on its own) and 2 are `resolver-language` — "05/12" (vi-09) and "12/10" (vi-10),
+  ambiguous day/month pairs the table used to refuse. Both messages are Vietnamese, so the
+  language detected from the message itself (the detection that fills `language` on the trip)
+  leaves exactly one reading, and the week-late probe now holds those two to the guest's own
+  day instead of asking for it. No case is left to `model` any more; the replay asserts that
+  the tag is gone, because a tag with no cases behind it is the fix.
 
 Regenerate them from the same recording or a newer one:
 
@@ -122,17 +143,29 @@ node eval/make-fixtures.mjs results.<timestamp>.json
 
 With the recorded answers, the replay asserts offline that the current pipeline:
 
-- reproduces that run field for field, apart from the dates it recovers and the dive
-  fields a later rule deliberately tightened — and never moves a date that run had
-  already resolved;
+- reproduces that run field for field, apart from the dates it recovers, the dive fields a
+  later rule deliberately tightened, and `guests` on the one message whose own words state
+  two counts (vi-09) — and never moves a date that run had already resolved;
 - recovers all 19 deleted dates as the day the guest actually wrote, and adds exactly
   those 19 to the required-field score (63/87 → 82/87), with fabricated fields still 0
   and evidence still verbatim 100% — scored by `eval/score.mjs`, the live runner's own
   scoring code, shared so the two cannot drift apart;
+- never keeps one of the 87 required fields with a value the guest did not give, and asks
+  about every one of them it does not keep (five: four the recorded model never supplied,
+  and vi-09's `guests`);
+- refuses a count the guest's words put no number on when the model's own quote names a
+  different count — `guests: 3` quoted from "3 phòng" is a room count priced per head, so it
+  becomes a question (counts.ts);
 - keeps every date a guest wrote when a model reports it, and asks only about the two
   messages that carry no date at all;
-- refuses a week-late date outright and never records one as `stated`;
-- refuses a date nothing in the guest's words supports ("khoảng cuối tháng này").
+- refuses a week-late date outright and never records one as `stated`, including the two
+  cases whose phrase the table used to leave to the model — their pair now has one reading,
+  from the guest's own language, so the guest keeps the day they wrote;
+- refuses a date nothing in the guest's words supports ("khoảng cuối tháng này");
+- keeps a dive window only as a date the stay contains, resolving the guest's own phrase
+  when the model hands that back instead of a date (vi-04's `diveFrom: "15/10"`);
+- scores `transport` by value, pinned to the two recorded mistakes, so a third cannot
+  appear without failing.
 
 None of that is a model score: it is the score of *that* run's answers. The ≥95%
 required-field threshold above still belongs to the live bake-off, because the recorded

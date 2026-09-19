@@ -45,7 +45,15 @@ function countMatches(text: string, re: RegExp): number {
   return (text.match(re) ?? []).length;
 }
 
-export function detectLanguage(text: string): "vi" | "en" | "zh" {
+/**
+ * The three languages the corpus — and the resort's guests — are written in. A named type
+ * rather than a bare union because more than one file reads it now: extract.ts stores it on
+ * the trip, and dates.ts uses it to settle a numeric date pair that has no year on it (a
+ * Vietnamese guest's "05/12" is 5 December; an English-speaking one's is 12 May).
+ */
+export type GuestLanguage = "vi" | "en" | "zh";
+
+export function detectLanguage(text: string): GuestLanguage {
   if (CJK_RE.test(text)) return "zh";
   if (VI_MARKED_WORDS.test(text)) return "vi";
   if (VI_STRONG_LETTERS.test(text)) return "vi";

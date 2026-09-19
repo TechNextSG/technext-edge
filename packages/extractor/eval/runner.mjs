@@ -9,7 +9,7 @@
 import { readFile, writeFile } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 import path from "node:path";
-import { checkEvidence, scoreCase } from "./score.mjs";
+import { checkEvidence, scoreCase, checkPricedFields } from "./score.mjs";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -100,10 +100,12 @@ for (const testCase of dataset) {
 
   const { rows, fabricated, requiredTotal, requiredCorrect } = scoreCase(testCase, outcome.trip);
   const { stated, evidenceOk } = checkEvidence(outcome.trip, testCase.text);
+  // Prices, not states: `transport` is compared by value, see score.mjs.
+  const { checked: pricedTotal, mismatches: pricedMismatches } = checkPricedFields(testCase, outcome.trip);
   const requiredPct = requiredTotal ? Math.round((requiredCorrect / requiredTotal) * 100) : 100;
   const badFields = rows.filter((r) => !r.stateOk || !r.valueOk || r.isFabrication);
 
-  const mark = fabricated > 0 ? "✗ FABRICATED" : badFields.length ? "~" : "✓";
+  const mark = fabricated > 0 ? "✗ FABRICATED" : badFields.length || pricedMismatches.length ? "~" : "✓";
   console.log(
     `${mark} ${testCase.id.padEnd(28)} required ${requiredCorrect}/${requiredTotal} (${requiredPct}%) · ` +
       `evidence ${evidenceOk}/${stated} · ${outcome.meta.provider} · ${wallMs}ms`,
@@ -115,6 +117,10 @@ for (const testCase of dataset) {
       );
     }
   }
+  for (const m of pricedMismatches) {
+    console.log(`    PRICED on "${m.field}": expected ${JSON.stringify(m.expected)}, got ${JSON.stringify(m.actual)}`);
+  }
+
 
   results.push({
     id: testCase.id,
@@ -130,6 +136,8 @@ for (const testCase of dataset) {
     evidenceStated: stated,
     evidenceOk,
     badFields: badFields.map((r) => r.field),
+    pricedTotal,
+    pricedMismatches,
     trip: outcome.trip,
   });
 }
@@ -144,6 +152,8 @@ const latencies = ok.map((r) => r.wallMs).sort((a, b) => a - b);
 const p95 = latencies.length ? latencies[Math.floor(latencies.length * 0.95)] : null;
 const totalTokensIn = ok.reduce((s, r) => s + r.tokensIn, 0);
 const totalTokensOut = ok.reduce((s, r) => s + r.tokensOut, 0);
+const totalPriced = ok.reduce((s, r) => s + r.pricedTotal, 0);
+const totalPricedBad = ok.reduce((s, r) => s + r.pricedMismatches.length, 0);
 
 console.log("\n" + "─".repeat(60));
 console.log("SUMMARY — simulated data, not Eloa's real messages");
@@ -151,6 +161,7 @@ console.log("─".repeat(60));
 console.log(`Fabricated fields         : ${totalFabricated}  (threshold: 0)`);
 console.log(`Required fields correct   : ${totalRequiredCorrect}/${totalRequired} (${totalRequired ? Math.round((totalRequiredCorrect / totalRequired) * 100) : 0}%, threshold: ≥95%)`);
 console.log(`Evidence verbatim         : ${totalEvidenceOk}/${totalStated} (${totalStated ? Math.round((totalEvidenceOk / totalStated) * 100) : 100}%, threshold: 100%)`);
+console.log(`Priced fields correct     : ${totalPriced - totalPricedBad}/${totalPriced} (transport; a wrong one is a line on the estimate — threshold: all of them)`);
 console.log(`p95 latency               : ${p95 ?? "n/a"}ms (threshold: ≤8000ms)`);
 console.log(`Question targeting        : not scored — needs a human/judge pass, see README`);
 console.log(`Total tokens              : ${totalTokensIn} in / ${totalTokensOut} out`);

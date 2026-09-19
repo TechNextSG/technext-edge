@@ -4,7 +4,7 @@ import { fileURLToPath } from "node:url";
 import path from "node:path";
 import { extract } from "../src/extract.js";
 import type { ExtractProvider } from "../src/provider.js";
-import { checkEvidence, scoreCase } from "../eval/score.mjs";
+import { checkEvidence, scoreCase, checkPricedFields, REQUIRED_FIELDS } from "../eval/score.mjs";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -58,14 +58,29 @@ const baselineById = new Map<
 >(baseline.cases.map((c: { id: string }) => [c.id, c]));
 
 
-// The cases whose check-in the pre-fix pipeline deleted, marked by the generator rather
-// than re-listed here. `authored-checkIn:model` are the five the resolver cannot read
-// (Oct 10th, Nov 2, Dec 1st, 05/12, 12/10): for those the model's own date is what
-// decides the field, which is why the week-late probe below expects them to be refused.
+// The cases whose check-in the pre-fix pipeline deleted, marked by the generator rather than
+// re-listed here. Two tags, and the difference between them is the whole story of the date
+// work:
+//
+//   `:resolver`           the phrase table reads the quote itself, so the model's own date is
+//                          never consulted. 17 of the 19.
+//   `:resolver-language`  the same, for the two pairs with no year on them that used to be
+//                          handed to the model: "05/12" (vi-09) and "12/10" (vi-10) are two
+//                          valid calendar dates whichever way they are read, so the table
+//                          refused them and corroboration had to judge the model's date. The
+//                          guest's language — detected from that same message, the detection
+//                          that fills trip.language — leaves exactly one reading now (dates.ts
+//                          numericPairReadings). Both messages are Vietnamese, so both are
+//                          day/month.
+//
+// `:model` is gone, and it is asserted gone rather than deleted, because it was the tag for the
+// cases where the model's own date decided a money field — a model that read the pair
+// backwards priced the wrong month. A tag with no cases behind it is the fix.
 const recovered = fixtures.cases.filter((c: { provenance: string }) => c.provenance !== "recorded");
-const modelDecided: string[] = recovered
-  .filter((c: { provenance: string }) => c.provenance.endsWith(":model"))
-  .map((c: { id: string }) => c.id);
+const idsWithTag = (tag: string) =>
+  recovered.filter((c: { provenance: string }) => c.provenance.endsWith(":" + tag)).map((c: { id: string }) => c.id);
+const modelDecided = idsWithTag("model");
+const languageRead = idsWithTag("resolver-language");
 
 /**
  * The date the guest's own words put the stay on — written from dataset.mock-30.json's
@@ -218,7 +233,12 @@ describe("eval replay — the recorded deepseek-flash run, re-run offline", () =
     // as its "evidence", the one thing the model is not trusted with — and the fixture
     // deliberately leaves it out so postProcess derives it from `transport` again. The
     // value still has to match; only the state and the invented evidence differ.
-    const intended = new Set([...DIVE_FIELDS, "checkIn", "checkOut", "transportType"]);
+    // `guests` is here for the same kind of reason: the recording has vi-09's `guests: 8`
+    // for a message that says both 8 and 4, and corroborateCount (counts.ts) turns a count
+    // the guest's own words contradict into a question instead of a price. The fixture
+    // still carries the model's 8 — the answer is replayed wrong on purpose — so this is
+    // the field where the current pipeline is meant to differ from that run.
+    const intended = new Set([...DIVE_FIELDS, "checkIn", "checkOut", "transportType", "guests"]);
     const changedDates: string[] = [];
 
     for (const item of dataset) {
@@ -270,16 +290,111 @@ describe("eval replay — the recorded deepseek-flash run, re-run offline", () =
     expect(changedDates.sort()).toEqual(recovered.map((c: { id: string }) => c.id).sort());
   });
 
-  it("asks about the dive fields that run assumed, and leaves the stated ones alone", async () => {
+  it("keeps a dive window only as a date inside the stay, and asks about every other one", async () => {
     const { trips } = await replay();
+    const windowsKept: string[] = [];
+
     for (const item of dataset) {
       const before = baselineById.get(item.id)!.trip;
       const after = trips.get(item.id)!;
+      const stayFrom = after.checkIn.state === "stated" ? (after.checkIn.value as string) : null;
+      const stayTo = after.checkOut.state === "derived" ? (after.checkOut.value as string) : null;
+
       for (const field of DIVE_FIELDS) {
-        if (before[field].state === "stated") expect(after[field], `${item.id}.${field}`).toEqual(before[field]);
-        else expect(after[field].state, `${item.id}.${field} is a money field and must be asked about`).toBe("missing");
+        // ADR-006 Decision 4: dive revenue is priced from `diver` and the window, so
+        // anything the run inferred — and anything code cannot settle as a date the stay
+        // contains — has to be a question. `diver` is the field that gates the other two.
+        if (after[field].state !== "stated") {
+          expect(after[field].state, `${item.id}.${field} is a money field and must be asked about`).toBe("missing");
+          expect(before[field].state, `${item.id}.${field} was missing in that run too`).not.toBe("stated");
+          continue;
+        }
+        if (field === "diver") {
+          expect(after[field], `${item.id}.diver`).toEqual(before[field]);
+          continue;
+        }
+        windowsKept.push(`${item.id}.${field}`);
+        expect(after[field].value, `${item.id}.${field} is stated as something that is not a date`).toMatch(
+          /^\d{4}-\d{2}-\d{2}$/,
+        );
+        if (stayFrom) expect((after[field].value as string) >= stayFrom, `${item.id}.${field} starts before the stay`).toBe(true);
+        if (stayTo) expect((after[field].value as string) <= stayTo, `${item.id}.${field} ends after the stay`).toBe(true);
       }
     }
+
+    // The one window that run stated was vi-04's `diveFrom: "15/10"` — the guest's own
+    // phrase, handed back where a date belongs. Code resolves it (dates.ts) instead of
+    // asking the guest for the date they already wrote, and the stay that came out of the
+    // same message (check-in 15/10, four nights) contains it.
+    expect(windowsKept).toEqual(["vi-04-khoa-hoc-lan-ow.diveFrom"]);
+    expect(trips.get("vi-04-khoa-hoc-lan-ow")!.diveFrom.value).toBe("2026-10-15");
+  });
+
+  it("turns the count the guest's own words contradict into a question (vi-09)", async () => {
+    const { trips, questions } = await replay();
+    const trip = trips.get("vi-09-bay-so-dien-thoai")!;
+
+    // "nhóm mình có 8 người nhưng chỉ 4 người ở lại 2 đêm": the recorded answer took the 8,
+    // and its evidence was the guest's own words — a verbatim substring, so evidence
+    // enforcement had nothing to object to — and the estimate would have been priced for a
+    // group twice the size of the one actually staying. counts.ts asks instead of choosing.
+    expect(trip.guests.state).toBe("missing");
+    expect(trip.guests.value).toBeNull();
+    expect(trip.guests.evidence).toBeNull();
+    expect(questions.get("vi-09-bay-so-dien-thoai")).toContain("guests");
+
+    // The rest of that sentence survives: one number for the nights, and the check-in the
+    // recording never stored comes back as the day the guest wrote.
+    expect(trip.nights.value).toBe(2);
+    expect(trip.nights.state).toBe("stated");
+    expect(trip.checkIn.value).toBe("2026-12-05");
+  });
+
+  it("never keeps a required field with a value the guest did not give — it asks instead", async () => {
+    const { trips, questions } = await replay();
+    const keptWrong: string[] = [];
+    const asked: string[] = [];
+    let stated = 0;
+
+    for (const item of dataset) {
+      const trip = trips.get(item.id)!;
+      const askedHere = questions.get(item.id) ?? [];
+      for (const field of REQUIRED_FIELDS) {
+        if (item.expected[field]?.state !== "stated") continue;
+        stated += 1;
+        const actual = trip[field];
+        if (actual.state === "stated") {
+          // Stated means the guest gave it. A value that is not the one the dataset's own
+          // text contains is the money bug this work is about: it is priced as an answer.
+          if (item.expected[field].value !== undefined && actual.value !== item.expected[field].value) {
+            keptWrong.push(`${item.id}.${field}=${String(actual.value)}`);
+          }
+          continue;
+        }
+        // Not stated: the guest's answer is not in the trip, so it has to be asked for.
+        asked.push(`${item.id}.${field}`);
+        expect(askedHere, `${item.id}.${field} is neither kept nor asked about`).toContain(field);
+      }
+    }
+
+    // The invariant, and the acceptance check for this work: of the required fields the
+    // corpus says the guest stated, none is kept with a value the guest did not give.
+    // vi-09's `guests: 8` used to be exactly that — priced, and never asked about.
+    expect(stated).toBe(87);
+    expect(keptWrong).toEqual([]);
+    // Five of the 87 are not kept, and each is a question rather than a silence (asserted
+    // above). Four are answers the recorded model never supplied — en-09's whole message
+    // scored 0/3 in that run's own log, and en-10 says "Solo diver" without the model
+    // recording a count — and the fifth is vi-09's `guests`, the count the guest's own words
+    // contradict. Pinned so a new gap shows up as a failure here rather than as a field that
+    // quietly stopped being asked about.
+    expect(asked).toEqual([
+      "en-09-trap-price-inquiry.checkIn",
+      "en-09-trap-price-inquiry.guests",
+      "en-09-trap-price-inquiry.nights",
+      "en-10-solo-diver.guests",
+      "vi-09-bay-so-dien-thoai.guests",
+    ]);
   });
 
   it("recovers every deleted date as the day the guest actually wrote", async () => {
@@ -373,13 +488,16 @@ describe("eval replay — what the pipeline does with the date a model offers", 
       expect(trip.checkIn.value, `${id} recorded a date the guest did not write`).toBe(guestIso(id));
     }
 
-    // The five cases whose phrase the table cannot read are the ones where the model's
-    // own date is what decides the field — a week out, they must be refused outright and
-    // become the question they should be. Anything else would price the stay a week late.
-    expect(modelDecided).toHaveLength(5);
-    for (const id of modelDecided) {
-      expect(trips.get(id)!.checkIn.state, `${id} accepted a wrong date`).toBe("missing");
-      expect(questions.get(id)).toContain("checkIn");
+    // Nothing is left to the model any more. The two cases that were are the ambiguous day/month
+    // pairs "05/12" (vi-09) and "12/10" (vi-10): code reads both from the guest's own language
+    // now, so a week-late model date neither moves them nor gets them deleted — the guest keeps
+    // the day they wrote instead of being asked for it again, which is the point of reading the
+    // pair rather than asking about it.
+    expect(modelDecided).toEqual([]);
+    expect(languageRead).toEqual(["vi-09-bay-so-dien-thoai", "vi-10-thue-xe-rieng"]);
+    for (const id of languageRead) {
+      expect(trips.get(id)!.checkIn.value, `${id} lost the day its own guest wrote`).toBe(guestIso(id));
+      expect(questions.get(id)).not.toContain("checkIn");
     }
   });
 
@@ -392,6 +510,33 @@ describe("eval replay — what the pipeline does with the date a model offers", 
     expect(trip.checkIn.value).toBeNull();
     expect(trip.checkIn.evidence).toBeNull();
     expect(questions.get("vi-02-missing-dates")).toContain("checkIn");
+  });
+});
+
+describe("eval replay — the priced fields the score used to ignore", () => {
+  it("scores transport the way the live runner does, and pins the recorded mistake", async () => {
+    const { trips } = await replay();
+    const mismatched: string[] = [];
+    let checked = 0;
+
+    for (const item of dataset) {
+      const priced = checkPricedFields(item, trips.get(item.id)!);
+      checked += priced.checked;
+      for (const m of priced.mismatches) mismatched.push(`${item.id}.${m.field}`);
+    }
+
+    // 20 of the 30 messages say something about the airport transfer, one way or the other.
+    expect(checked).toBe(20);
+
+    // Two recorded answers make this mistake, in two languages, and both are the same one:
+    // a guest who says they are driving themselves comes back as `transport: true`, with
+    // their own sentence ("xe tụi mình tự đi", "自己开车过去") as the evidence — so evidence
+    // enforcement could not see it, and nothing scored it. vi-07 is Vietnamese, zh-09
+    // Chinese: that the model does it twice says it is a prompt/schema problem rather than
+    // a one-off, which is exactly what this assertion is for. The answers are replayed
+    // wrong on purpose (make-fixtures.mjs); what the assertion buys is that the mistake is
+    // *visible* in the score, and that a third one cannot appear without failing here.
+    expect(mismatched).toEqual(["vi-07-cuoi-tuan-lan-bien.transport", "zh-09-room-only.transport"]);
   });
 });
 
@@ -412,7 +557,10 @@ describe("eval fixtures", () => {
     const authored = fixtures.cases.filter((c: { provenance: string }) => c.provenance !== "recorded");
     expect(authored).toHaveLength(19);
     for (const c of authored) expect(c.provenance.startsWith("authored-checkIn:")).toBe(true);
-    expect(authored.filter((c: { provenance: string }) => c.provenance.endsWith(":model"))).toHaveLength(5);
+    // No check-in is decided by the model's own date any more: the two that were are the
+    // ambiguous pairs the guest's detected language settles (see the week-late test above).
+    expect(modelDecided).toEqual([]);
+    expect(languageRead).toHaveLength(2);
 
     // GUEST_DATE is this file's only independent expectation about dates: a message added
     // to the dataset without one would otherwise be scored as "no opinion" and pass.

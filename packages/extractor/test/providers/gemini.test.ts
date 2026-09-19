@@ -38,3 +38,34 @@ describe("createGeminiProvider timeout", () => {
     await assertion;
   });
 });
+
+describe("createGeminiProvider prompt", () => {
+  // Gemini is the configured fallback (providerFromEnv.ts), so it has to carry the same
+  // transport rule DeepSeek's prompt does: a rule that lives in one prompt only is a bug
+  // waiting for a missing API key. test/providers/deepseek.test.ts has the reasoning — the
+  // recorded live run priced an airport transfer for two guests who were driving themselves.
+  it("tells the model how to read transport, self-driving included", async () => {
+    vi.useRealTimers(); // the call below has no timers to advance
+    let request: Record<string, any> | undefined;
+    global.fetch = vi.fn(async (_url: string, init?: RequestInit) => {
+      request = JSON.parse(String(init?.body));
+      return new Response(
+        JSON.stringify({ candidates: [{ content: { parts: [{ text: "{}" }] } }] }),
+        { status: 200, headers: { "content-type": "application/json" } },
+      );
+    }) as unknown as typeof fetch;
+
+    await createGeminiProvider("fake-key").call({
+      text: "hi",
+      jsonSchema: { type: "object", properties: {} },
+      today: "2026-09-15",
+    });
+
+    const prompt: string = request?.systemInstruction?.parts?.[0]?.text ?? "";
+    expect(prompt).toContain("airport pickup or transfer");
+    expect(prompt).toContain("driving themselves");
+    expect(prompt).toContain("xe tụi mình tự đi"); // vi-07, verbatim from the eval corpus
+    expect(prompt).toContain("自己开车"); // zh-09
+    expect(prompt).toMatch(/Otherwise mark it missing/);
+  });
+});
