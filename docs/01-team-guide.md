@@ -95,8 +95,15 @@ vercel env add GEMINI_API_KEY preview
 
 rm -rf .vercel/output
 vercel build --yes --target production
-vercel deploy --prebuilt --prod --yes
+vercel deploy --prebuilt --prod --yes --scope aidev1-technexts-projects
 ```
+
+**`deploy` needs `--scope aidev1-technexts-projects`; reads do not.** Without it the CLI
+answers `Error: Not authorized` while `vercel whoami` and `vercel project ls` both succeed
+on the same login (measured 2026-09-19) — the read side resolves the team from
+`.vercel/project.json`, the write side wants it named. It fails after printing
+`Deploying technext-edge-casa-bff`, so it reads like a permissions problem on the project
+and is not one.
 
 Building locally first (`vercel build` then `--prebuilt`) is the reliable
 path — a plain `vercel deploy --prod` works too but gives you nothing to
@@ -104,6 +111,25 @@ inspect if something goes wrong mid-build. If a deploy sits at "Building…"
 for what feels like too long, don't assume it's slow — check `vercel logs
 <deployment-url>` first; a 429/quota error, a bad commit-author check, and a
 genuine hang all look identical from the outside (see §6).
+
+**Rebuild before every `--prebuilt` deploy, and read the build's TypeScript output.**
+`vercel build` writes `.vercel/output` and exits `0` even when its type-check fails,
+and `vercel deploy --prebuilt` then ships whatever is in that directory. Skip the
+rebuild and you deploy the *previous* source under a new URL — which is exactly what
+happened here: production served a build with no `/v1/converse`, no `/v1/health` and
+no WhatsApp route until 2026-09-18, and nothing in the deploy output said so. The
+error itself was one line (`Promise.prototype.finally` missing from the lib Vercel
+type-checks with, because it does not read this repo's `tsconfig.json`), so:
+
+```powershell
+Remove-Item -Recurse -Force .vercel/output
+npx vercel build --yes --target production 2>&1 | Select-String 'error TS'
+npx vercel deploy --prebuilt --prod --yes --scope aidev1-technexts-projects
+```
+
+A non-empty `error TS` line means the build is not the build you think it is. Fix the
+code rather than deploying around it — `npm run typecheck` at the repo root uses this
+repo's tsconfig and can be green while the deployment build is not.
 
 ## 6. Environment variables
 
@@ -136,11 +162,40 @@ leave off because nothing complains until a guest is already waiting:
   Meta sends the POSTs unsigned and the HMAC check below answers `401` to every one of
   them — the app looks configured, the handshake passed, and no message is ever seen.
 
-Prod does not serve that path yet: `vercel env ls production` lists no `WHATSAPP_*`
-variable and the URL above answers `404`, so until those vars are added and the route is
-deployed, a tunnel is the only URL worth pasting — step 5 of
-[The demo morning](#the-demo-morning) has the command. Sending does not depend on this
-either way — the two halves are independent.
+Both halves are wired to production now (2026-09-18): `vercel env ls production` lists
+the four `WHATSAPP_*` variables, the URL above answers the handshake, and
+`whatsapp:sim --url https://technext-edge-casa-bff.vercel.app` ends 8/8. Meta is
+pointed there, so a phone test needs no laptop and no tunnel; reach for the tunnel
+only while iterating on `apps/casa-bff/src/`, then point Meta back. Three commands
+cover both directions:
+
+```bash
+npm run whatsapp:webhook --workspace apps/casa-bff                                        # what Meta calls today
+npm run whatsapp:webhook --workspace apps/casa-bff -- --url https://abc.trycloudflare.com  # a tunnel, for local work
+npm run whatsapp:webhook --workspace apps/casa-bff -- --url https://technext-edge-casa-bff.vercel.app
+```
+
+That script is the API behind the three dashboard fields below, and it exists because
+a free tunnel URL changes on every restart. It reads the current subscription, posts
+the new callback URL **keeping the same field list** (a POST to that endpoint replaces
+it), reads it back, and subscribes the WABA when `--waba-id`/`WHATSAPP_WABA_ID` is set.
+Meta runs the handshake inside the POST, so a URL that cannot answer fails right there,
+while the server is still up to fix it. Two traps it encodes, both worth more than the
+script: `POST /<app id>/subscriptions` answers `400 Unsupported post request. Object
+with ID … does not exist` when its parameters arrive as a form body — the same call with
+them in the query string answers `{"success":true}`; and `vercel env add` does **not**
+strip quotes, unlike Node's `.env.local` parsing, so the quoted `WHATSAPP_ACCESS_TOKEN`
+described below is stored *with* its `"` and every send on that deployment answers
+`401 #190`. Pipe the value through Node rather than copying the line:
+
+```powershell
+node -e "process.loadEnvFile('.env.local'); process.stdout.write(process.env.WHATSAPP_ACCESS_TOKEN)" |
+  npx vercel env add WHATSAPP_ACCESS_TOKEN production --force
+```
+
+Reading that back from inside the deployment is what `GET
+/v1/channels/whatsapp/status` is for (below) — presence is not validity, and a quoted
+token is present.
 
 Meta calls the GET half once to prove you own the URL, then POSTs each message
 with an `X-Hub-Signature-256` header that must match `WHATSAPP_APP_SECRET`. A
@@ -186,7 +241,7 @@ Neither failure can reach `whatsapp:sim`, which signs and sends its own request:
 simulator stays 8/8 with a callback URL that points nowhere. Read those two lines, not
 the simulated score, whenever replies stop arriving.
 
-Three things worth knowing before you demo it:
+Four things worth knowing before you demo it:
 
 - **Free-form replies only last 24h.** Text sent more than 24h after the guest's
   last message needs a pre-approved template, which this adapter does not send
@@ -194,13 +249,33 @@ Three things worth knowing before you demo it:
 - **Conversation memory is in-process** (`conversationStore.ts`) and therefore
   per serverless instance — fine for a demo, not for guests relying on it. The
   Redis/Key Value backing store behind that same interface is the next step.
+  Handoff state (below) is in the same map, so a redeploy forgets it too.
 - **A failed reply still returns 200 to Meta on purpose.** Meta redelivers any
   non-2xx for days, so the handler dedupes by message id and reports failures in
-  the response body (`{ received, replied, duplicates, failed }`) and the logs.
-  Please don't "fix" that into a 500 — it turns one hiccup into a double reply.
-  A turn also has a deadline (`WHATSAPP_TURN_TIMEOUT_MS`, default 20s): a turn that
-  outlives it is abandoned and its message id released, so Meta's redelivery retries
-  the guest instead of being deduped into silence — §8 has the incident behind that.
+  the response body (`{ received, replied, duplicates, failed, handoffs }`) and the
+  logs. Please don't "fix" that into a 500 — it turns one hiccup into a double
+  reply. A turn also has a deadline (`WHATSAPP_TURN_TIMEOUT_MS`, default 20s): a
+  turn that outlives it is abandoned, and — since 2026-09-18 — the guest is sent a
+  static apology while its claim stays taken, so Meta's redelivery is a duplicate
+  rather than a second message. §8 has the incident behind the deadline itself.
+- **No guest is left in silence, and that costs a thread.** When a turn fails, when
+  the guest asks for a person, or when the bot has asked `ASK_LIMIT` times and the
+  enquiry is still incomplete, the thread is *parked*: the guest gets one static
+  sentence saying a person has it, and **no model is called on that thread again**
+  until someone hands it back — deliberately, so a bot cannot talk over the human.
+  Read the list and hand one back with:
+
+  ```bash
+  npm run whatsapp:threads --workspace apps/casa-bff                     # who is waiting
+  npm run whatsapp:threads --workspace apps/casa-bff -- --resume 639171234567
+  ```
+
+  The same two things over HTTP are `GET /v1/channels/whatsapp/threads` and
+  `POST /v1/channels/whatsapp/threads/<phone>/resume`, both guarded by
+  `x-verify-token` (the verify token — no new secret). `GET
+  /v1/channels/whatsapp/status` answers the other half of "why is nothing arriving":
+  whether *this deployment's* credentials can still read the phone number back from
+  Graph, which is a different question from whether the values are present.
 
 To exercise all of that without a Meta app, `apps/casa-bff/scripts/whatsapp-sim.mjs`
 signs requests exactly like Meta does — start the server with any dummy values,
@@ -230,9 +305,18 @@ retires `133010` for good; the allowed list is dashboard-only with no read API a
 which is how a `131030` hides behind an otherwise perfect run. They are steps 4 and 6 of
 [The demo morning](#the-demo-morning) respectively, and step 6 carries the picker path
 plus the one code worth telling `131030` apart from. For the full loop without deploying,
-run `ngrok http 8787` and paste the tunnel URL into the Meta app's Callback URL — then
-finish with the subscription in the section above, because a tunnel on its own routes
-nothing; the free tunnel URL changes on every restart, so re-paste it each session.
+run `ngrok http 8787` and hand the tunnel URL to Meta — and redo that every session,
+because the free URL changes on every restart, which is the whole reason the next
+command exists:
+
+```bash
+npm run whatsapp:webhook --workspace apps/casa-bff -- --url https://<tunnel>
+```
+
+It sets the callback URL, reads it back, and finishes with the subscription in the
+section above — a tunnel on its own routes nothing. (It also puts the URL back:
+`-- --url https://technext-edge-casa-bff.vercel.app` is the honest state, because a
+dead tunnel left in Meta's config loses guest messages silently.)
 
 ### Getting the credentials — and why the token has to be a system user token
 
@@ -545,6 +629,18 @@ node packages/extractor/eval/runner.mjs --provider deepseek-flash
   The trace of a failed turn is therefore immediate rather than absent: `failed: 1` in the
   response body plus a `whatsapp turn failed` stderr line (or `WhatsApp turn exceeded …ms`
   when the deadline was the cause). Grep for those two.
+
+- **An optional field the model leaves out used to delete its own question.** The
+  Tier-2 Odoo fields (`diver`, `diveFrom`, `diveTo`, `transportType`) are optional in
+  the Trip schema, so a provider can return a tool call that simply has no `diver` key
+  in it — measured against the live provider on 2026-09-19: the same guest message came
+  back with `diver: missing` on one call and with no `diver` key on the next, so one
+  reply asked "would you like to go diving" and the other dropped the question, with no
+  error and no log line. `extract.ts` now normalizes a key that is absent (and any state
+  only code may set, `default`/`derived`) to `missing` before anything asks, and the
+  three dive fields survive only as `stated`. If you add a priced or optional field, ask
+  what its *absent* state does — silence is this pipeline's default failure mode, and it
+  leaves no trace.
 
 ## 9. Before this becomes the real Extractor pod deliverable
 

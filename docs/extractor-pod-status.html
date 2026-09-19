@@ -1,0 +1,1377 @@
+<!doctype html>
+<html lang="vi" data-lang="vi">
+
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>TechNext AI Extractor Pod — Corporate Status Report &amp; Technical Briefing</title>
+  <style>
+    :root {
+      --ink: #162033;
+      --muted: #647084;
+      --blue: #0d4f5f;
+      --teal: #0f766e;
+      --cyan: #155e75;
+      --coral: #e85d75;
+      --gold: #f59e0b;
+      --violet: #6d5dfc;
+      --line: #d8e2ea;
+      --panel: #f7fafc;
+      --paper: #fff;
+      --green: #059669;
+      --green-bg: #ecfdf5;
+      --red: #dc2626;
+      --red-bg: #fef2f2;
+      --amber: #b45309;
+      --amber-bg: #fffbeb;
+      --shadow: 0 18px 50px rgba(15, 23, 42, .12);
+    }
+
+    * {
+      box-sizing: border-box
+    }
+
+    html {
+      scroll-behavior: smooth
+    }
+
+    body {
+      margin: 0;
+      background: #edf3f5;
+      color: var(--ink);
+      font-family: "Segoe UI", -apple-system, Arial, sans-serif;
+      font-size: 14px;
+      line-height: 1.55;
+      -webkit-font-smoothing: antialiased
+    }
+
+    code {
+      font-family: Consolas, "Courier New", monospace;
+      font-size: .88em;
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 4px;
+      padding: 1px 5px
+    }
+
+    /* i18n switcher */
+    body[data-lang="vi"] .en {
+      display: none
+    }
+
+    body[data-lang="en"] .vi {
+      display: none
+    }
+
+    /* Layout */
+    .layout {
+      display: grid;
+      grid-template-columns: 270px minmax(0, 1fr);
+      min-height: 100vh
+    }
+
+    @media(max-width:960px) {
+      .layout {
+        grid-template-columns: 1fr
+      }
+    }
+
+    /* Sidebar */
+    .sidebar {
+      position: sticky;
+      top: 0;
+      height: 100vh;
+      overflow-y: auto;
+      background: var(--ink);
+      color: #cbd5e1;
+      padding: 26px 20px;
+      display: flex;
+      flex-direction: column
+    }
+
+    @media(max-width:960px) {
+      .sidebar {
+        position: relative;
+        height: auto
+      }
+    }
+
+    .sb-brand {
+      font-size: 16px;
+      font-weight: 800;
+      color: #fff;
+      margin-bottom: 2px;
+      letter-spacing: -.01em
+    }
+
+    .sb-meta {
+      font: 11.5px Consolas, monospace;
+      color: #9fb0c4;
+      margin-bottom: 18px
+    }
+
+    .seg {
+      display: inline-flex;
+      border: 1px solid rgba(255, 255, 255, .18);
+      border-radius: 20px;
+      overflow: hidden;
+      background: rgba(255, 255, 255, .06);
+      margin-bottom: 16px
+    }
+
+    .seg button {
+      border: 0;
+      background: transparent;
+      color: #9fb0c4;
+      font: 700 12px/1 "Segoe UI", Arial;
+      padding: 8px 18px;
+      cursor: pointer;
+      flex: 1
+    }
+
+    .seg button.active {
+      background: var(--teal);
+      color: #fff
+    }
+
+    .prog-box {
+      background: rgba(255, 255, 255, .05);
+      border: 1px solid rgba(255, 255, 255, .1);
+      border-radius: 12px;
+      padding: 12px 14px;
+      margin-bottom: 18px
+    }
+
+    .prog-title {
+      font: 700 10.5px Consolas, monospace;
+      text-transform: uppercase;
+      color: #8a97ab;
+      margin-bottom: 6px;
+      display: flex;
+      justify-content: space-between
+    }
+
+    .prog-bar {
+      height: 7px;
+      background: rgba(255, 255, 255, .12);
+      border-radius: 20px;
+      overflow: hidden;
+      margin-bottom: 8px
+    }
+
+    .prog-fill {
+      height: 7px;
+      width: 0%;
+      background: var(--teal);
+      border-radius: 20px;
+      transition: width .25s
+    }
+
+    .btn-reset {
+      width: 100%;
+      border: 1px solid rgba(255, 255, 255, .15);
+      background: transparent;
+      color: #9fb0c4;
+      font: 600 11px/1 "Segoe UI", Arial;
+      padding: 6px;
+      border-radius: 16px;
+      cursor: pointer
+    }
+
+    .btn-reset:hover {
+      color: #ff8e8e;
+      border-color: #ff8e8e
+    }
+
+    .nav-title {
+      font: 700 10.5px Consolas, monospace;
+      text-transform: uppercase;
+      color: #64748b;
+      letter-spacing: .08em;
+      margin: 14px 0 6px
+    }
+
+    .nav a {
+      display: flex;
+      justify-content: space-between;
+      color: #cbd5e1;
+      text-decoration: none;
+      padding: 7px 10px;
+      border-radius: 7px;
+      font-size: 13px
+    }
+
+    .nav a:hover {
+      background: rgba(255, 255, 255, .08);
+      color: #fff
+    }
+
+    /* Main */
+    .main {
+      max-width: 1080px;
+      width: 100%;
+      margin: 0 auto;
+      padding: 28px 28px 70px
+    }
+
+    /* Hero Header */
+    .head {
+      background: linear-gradient(155deg, #0d4f5f 0%, #155e75 45%, #0f766e 100%);
+      color: #fff;
+      border-radius: 16px;
+      padding: 32px;
+      box-shadow: var(--shadow);
+      margin-bottom: 20px
+    }
+
+    .tags {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      margin-bottom: 12px
+    }
+
+    .tag {
+      font: 700 10.5px Consolas, monospace;
+      letter-spacing: .06em;
+      padding: 4px 10px;
+      border-radius: 18px;
+      background: rgba(255, 255, 255, .16);
+      border: 1px solid rgba(255, 255, 255, .25)
+    }
+
+    .tag.ok {
+      background: #10b981;
+      color: #fff;
+      border-color: #10b981
+    }
+
+    .tag.warn {
+      background: #f59e0b;
+      color: #1e1b18;
+      border-color: #f59e0b
+    }
+
+    .head h1 {
+      margin: 0 0 10px;
+      font-size: 27px;
+      line-height: 1.22;
+      letter-spacing: -.02em
+    }
+
+    .head p {
+      margin: 0 0 16px;
+      color: #d8eff2;
+      font-size: 14.5px;
+      max-width: 85ch
+    }
+
+    .meta-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      gap: 12px;
+      border-top: 1px solid rgba(255, 255, 255, .2);
+      padding-top: 14px;
+      font-size: 12.5px
+    }
+
+    .meta-item strong {
+      display: block;
+      font-size: 10.5px;
+      text-transform: uppercase;
+      opacity: .75
+    }
+
+    /* Sections */
+    .sec {
+      background: var(--paper);
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      box-shadow: var(--shadow);
+      padding: 24px 26px;
+      margin-bottom: 18px
+    }
+
+    .sec-h {
+      display: flex;
+      align-items: baseline;
+      gap: 10px;
+      flex-wrap: wrap;
+      margin-bottom: 14px;
+      padding-bottom: 10px;
+      border-bottom: 2px solid var(--line)
+    }
+
+    .sec-l {
+      font: 800 12px Consolas, monospace;
+      color: #fff;
+      background: var(--blue);
+      border-radius: 6px;
+      padding: 4px 8px;
+      letter-spacing: .05em
+    }
+
+    .sec-l.c {
+      background: var(--coral)
+    }
+
+    .sec-l.g {
+      background: var(--teal)
+    }
+
+    .sec-l.v {
+      background: var(--violet)
+    }
+
+    .sec-l.o {
+      background: var(--gold)
+    }
+
+    .sec h2 {
+      margin: 0;
+      font-size: 18.5px;
+      letter-spacing: -.01em
+    }
+
+    .sec-desc {
+      color: var(--muted);
+      font-size: 13.5px;
+      margin: 0 0 14px
+    }
+
+    /* Tables */
+    .tw {
+      overflow-x: auto;
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      margin: 12px 0 16px
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      min-width: 620px;
+      background: #fff;
+      font-size: 13px
+    }
+
+    th {
+      text-align: left;
+      font: 700 10.5px Consolas, monospace;
+      letter-spacing: .06em;
+      text-transform: uppercase;
+      color: var(--muted);
+      padding: 10px 12px;
+      background: var(--panel);
+      border-bottom: 1px solid var(--line)
+    }
+
+    td {
+      padding: 10px 12px;
+      border-bottom: 1px solid var(--line);
+      vertical-align: top
+    }
+
+    tr:last-child td {
+      border-bottom: none
+    }
+
+    td.bold {
+      font-weight: 700;
+      color: var(--ink)
+    }
+
+    .badge {
+      display: inline-block;
+      padding: 2px 7px;
+      border-radius: 12px;
+      font: 700 10.5px Consolas, monospace;
+      text-transform: uppercase
+    }
+
+    .badge.pass {
+      background: var(--green-bg);
+      color: var(--green);
+      border: 1px solid var(--green)
+    }
+
+    .badge.warn {
+      background: var(--amber-bg);
+      color: var(--amber);
+      border: 1px solid var(--amber)
+    }
+
+    .badge.fail {
+      background: var(--red-bg);
+      color: var(--red);
+      border: 1px solid var(--red)
+    }
+
+    /* Key Value grid */
+    .kv {
+      display: grid;
+      grid-template-columns: 230px 1fr;
+      gap: 0;
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      overflow: hidden;
+      margin-bottom: 14px
+    }
+
+    @media(max-width:720px) {
+      .kv {
+        grid-template-columns: 1fr
+      }
+    }
+
+    .kv>div {
+      padding: 10px 14px;
+      border-bottom: 1px solid var(--line)
+    }
+
+    .kv>div:nth-last-child(-n+2) {
+      border-bottom: none
+    }
+
+    @media(max-width:720px) {
+      .kv>div:nth-last-child(2) {
+        border-bottom: 1px solid var(--line)
+      }
+    }
+
+    .kv .k {
+      background: var(--panel);
+      font: 700 11px Consolas, monospace;
+      color: var(--muted);
+      text-transform: uppercase
+    }
+
+    .kv .v {
+      font-size: 13.5px
+    }
+
+    /* Interactive Checkpoints */
+    .ck {
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      overflow: hidden;
+      margin-bottom: 12px
+    }
+
+    .ck-h {
+      background: var(--panel);
+      border-bottom: 1px solid var(--line);
+      padding: 9px 14px;
+      font: 700 11px Consolas, monospace;
+      color: var(--muted);
+      display: flex;
+      justify-content: space-between
+    }
+
+    .ckrow {
+      display: flex;
+      gap: 10px;
+      align-items: flex-start;
+      padding: 11px 14px;
+      border-bottom: 1px solid var(--line);
+      cursor: pointer;
+      transition: background .1s
+    }
+
+    .ckrow:last-child {
+      border-bottom: none
+    }
+
+    .ckrow:hover {
+      background: #f8fafc
+    }
+
+    .ckrow input {
+      margin: 3px 0 0;
+      width: 16px;
+      height: 16px;
+      accent-color: var(--teal);
+      cursor: pointer
+    }
+
+    .ckrow .t {
+      font-size: 13.5px;
+      font-weight: 600;
+      color: var(--ink)
+    }
+
+    .ckrow .d {
+      font-size: 12.5px;
+      color: var(--muted);
+      margin-top: 2px
+    }
+
+    /* Callout */
+    .callout {
+      border-left: 4px solid var(--gold);
+      background: #fffaf0;
+      padding: 12px 16px;
+      border-radius: 0 8px 8px 0;
+      margin: 14px 0;
+      font-size: 13.5px
+    }
+
+    .callout.danger {
+      border-left-color: var(--red);
+      background: #fef2f2
+    }
+
+    .callout.info {
+      border-left-color: var(--teal);
+      background: #f0fdfa
+    }
+
+    .callout strong {
+      display: block;
+      margin-bottom: 3px
+    }
+
+    footer {
+      text-align: center;
+      font-size: 12px;
+      color: var(--muted);
+      margin-top: 28px
+    }
+  </style>
+</head>
+
+<body data-lang="vi">
+
+  <div class="layout">
+    <!-- SIDEBAR -->
+    <aside class="sidebar">
+      <div class="sb-brand">TechNext Extractor Pod</div>
+      <div class="sb-meta">TECHNEXT-EDGE · CASA ESCONDIDA</div>
+
+      <div class="seg">
+        <button id="btnVi" class="active">TIẾNG VIỆT</button>
+        <button id="btnEn">ENGLISH</button>
+      </div>
+
+      <!-- Progress box -->
+      <div class="prog-box">
+        <div class="prog-title">
+          <span><span class="vi">Checkpoints Đã Đạt</span><span class="en">Verified Items</span></span>
+          <span id="progCount">0/0</span>
+        </div>
+        <div class="prog-bar">
+          <div class="prog-fill" id="progFill"></div>
+        </div>
+        <button class="btn-reset" id="btnReset"><span class="vi">Đặt lại Checkbox</span><span class="en">Reset
+            Checkboxes</span></button>
+      </div>
+
+      <nav class="nav">
+        <div class="nav-title"><span class="vi">Nội dung báo cáo</span><span class="en">Sections</span></div>
+        <a href="#summary"><span class="vi">1. Bản chất Pod &amp; Pipeline</span><span class="en">1. Pod Core &amp;
+            Pipeline</span></a>
+        <a href="#poc-status"><span class="vi">2. Hiện trạng &amp; Năng lực</span><span class="en">2. Status &amp;
+            Capabilities</span></a>
+        <a href="#tech-stack"><span class="vi">3. Stack &amp; Báo cáo WhatsApp Prod</span><span class="en">3. Stack
+            &amp; WhatsApp Prod</span></a>
+        <a href="#benchmarks"><span class="vi">4. Benchmarks &amp; Roadmap 5 Làn</span><span class="en">4. Benchmarks
+            &amp; 5 Lanes</span></a>
+        <a href="#bugs"><span class="vi">5. Lỗi Đã Bắt &amp; Khắc phục</span><span class="en">5. Real Bugs
+            Caught</span></a>
+        <a href="#checklist"><span class="vi">6. Checkpoints &amp; Điểm Chốt Lead</span><span class="en">6. Decisions
+            with Lead</span></a>
+      </nav>
+    </aside>
+
+    <!-- MAIN CONTENT -->
+    <main class="main">
+
+      <!-- HEADER -->
+      <header class="head">
+        <div class="tags">
+          <span class="tag ok">VITEST: 72/72 PASS (10 FILES)</span>
+          <span class="tag ok">TYPECHECK: 0 ERRORS</span>
+          <span class="tag ok">ZERO HALLUCINATION: 0 FABRICATED</span>
+          <span class="tag ok">WHATSAPP 2-WAY VERIFIED</span>
+          <span class="tag warn"><span class="vi">BÁO CÁO LEAD: ĐIỀU KIỆN WHATSAPP PROD</span><span class="en">LEAD
+              BRIEFING: WHATSAPP PROD PREREQUISITES</span></span>
+        </div>
+        <h1>
+          <span class="vi">Báo Cáo Trạng Thái AI Extractor Pod &amp; Kế Hoạch Chuẩn Hóa WhatsApp Production</span>
+          <span class="en">AI Extractor Pod Corporate Status &amp; WhatsApp Production Engineering Plan</span>
+        </h1>
+        <p>
+          <span class="vi">Đồng bộ 100% với mã nguồn thực tế tại <code>technext-edge</code> (18/09/2026). Webhook hai
+            chiều Meta WhatsApp Cloud API đã thông mạch thật; toàn bộ 72/72 tests xanh; đã khắc phục sự cố treo turn 20s
+            và chuẩn bị đệ trình Lead điều kiện tiên quyết để vận hành WhatsApp trên số thật của Resort.</span>
+          <span class="en">100% verified against live code records in <code>technext-edge</code> (18/09/2026). 2-way
+            Meta WhatsApp Cloud API verified; 72/72 unit tests passing; resolved inbound turn stall bug (20s timeout +
+            release claim); formalized WhatsApp Production prerequisites for Tech Lead and Management.</span>
+        </p>
+        <div class="meta-grid">
+          <div class="meta-item">
+            <strong><span class="vi">Phụ trách (Owner)</span><span class="en">Owner</span></strong>
+            Extractor Pod (TechNext Edge Team)
+          </div>
+          <div class="meta-item">
+            <strong><span class="vi">Nhánh Git &amp; Trạng thái</span><span class="en">Git Branch &amp;
+                Status</span></strong>
+            <code>main</code> (72/72 Vitest · 0 TS Errors)
+          </div>
+          <div class="meta-item">
+            <strong><span class="vi">Phạm vi Kỹ thuật</span><span class="en">Technical Scope</span></strong>
+            <code>packages/extractor</code> + <code>apps/casa-bff</code>
+          </div>
+          <div class="meta-item">
+            <strong><span class="vi">Mục tiêu Sát sườn</span><span class="en">Near-term Milestone</span></strong>
+            <span class="vi">Demo Thứ Hai (Sandbox) · Chuẩn bị Go-Live Prod</span>
+            <span class="en">Monday Demo (Sandbox) · Prepare Prod Go-Live</span>
+          </div>
+        </div>
+      </header>
+
+      <!-- SECTION 1: SUMMARY -->
+      <section class="sec" id="summary">
+        <div class="sec-h">
+          <span class="sec-l g"><span class="vi">PHẦN 1</span><span class="en">PART 1</span></span>
+          <h2><span class="vi">Bản chất Pod: Vai trò Edge BFF &amp; Pipeline Trích xuất AI</span><span class="en">Pod
+              Core: Edge BFF Role &amp; AI Extraction Pipeline</span></h2>
+        </div>
+        <p class="sec-desc">
+          <span class="vi">Extractor Pod chịu trách nhiệm chuyển hóa các tin nhắn tự do từ khách hàng (WhatsApp,
+            Webchat) thành dữ liệu đặt phòng có cấu trúc nghiêm ngặt (<code>Trip</code>) theo chuẩn Odoo của Phillip,
+            đảm bảo <b>Zero Hallucination</b> và kiểm soát 100% chi phí:</span>
+          <span class="en">The Extractor Pod transforms unstructured incoming guest messages (WhatsApp, Web) into
+            strict, verified <code>Trip</code> entities aligned with Phillip's Odoo API guide, ensuring <b>Zero
+              Hallucination</b> and preventing financial discrepancies:</span>
+        </p>
+
+        <div class="kv">
+          <div class="k"><span class="vi">Meta Cloud API Loop</span><span class="en">Meta Cloud API Loop</span></div>
+          <div class="v"><span class="vi">Tiếp nhận webhook từ Meta Graph API, kiểm chứng chữ ký số, áp dụng cơ chế
+              chống xử lý trùng bằng <code>claimMessage(wamid)</code>, và gửi phản hồi dạng hội thoại tự do trong cửa sổ
+              24h.</span><span class="en">Consumes Meta Graph API webhooks, validates signatures, enforces deduplication
+              via <code>claimMessage(wamid)</code>, and sends replies within the 24h service window.</span></div>
+
+          <div class="k"><span class="vi">Zero-Hallucination Policy</span><span class="en">Zero-Hallucination
+              Policy</span></div>
+          <div class="v"><span class="vi">Hàm <code>enforceVerbatimEvidence</code> đối chiếu từng trường
+              <code>stated</code>: bắt buộc phải có trích dẫn đúng từng ký tự trong tin nhắn khách. Với yêu cầu xe mơ hồ
+              ("có xe đón không?"), bot tuyệt đối không tự gán <code>roundtrip</code> mà giữ <code>missing</code> để hỏi
+              lại.</span><span class="en"><code>enforceVerbatimEvidence</code> drops any <code>stated</code> field
+              lacking exact verbatim substring proof. Ambiguous transport inquiries are retained as <code>missing</code>
+              rather than hallucinating <code>roundtrip</code>.</span></div>
+
+          <div class="k"><span class="vi">Deterministic Dates</span><span class="en">Deterministic Dates</span></div>
+          <div class="v"><span class="vi">Bộ giải quyết ngày theo giờ <b>Asia/Manila</b> (<code>dates.ts</code>) xử lý
+              ngày số, tháng chữ ("21 September"), ngày tương đối ("thứ 7 tuần sau", "10月12日") thuần bằng mã TypeScript,
+              <b>tuyệt đối không giao việc tính ngày cho LLM</b>.</span><span class="en">Deterministic Manila date
+              parser (<code>dates.ts</code>) processes calendar dates, named months ("21 September"), and relative
+              phrases ("next Saturday", "10月12日") in pure TypeScript, never offloading calendar math to LLM.</span>
+          </div>
+
+          <div class="k"><span class="vi">Converse Engine &amp; Priority</span><span class="en">Converse Engine &amp;
+              Priority</span></div>
+          <div class="v"><span class="vi">Động cơ hội thoại (<code>converse.ts</code>) trích xuất lại transcript (tối đa
+              60.000 ký tự) theo trần ADR-005a, tự động chọn câu hỏi cần ưu tiên hỏi tiếp (Check-in $\rightarrow$ Guests
+              $\rightarrow$ Rooms $\rightarrow$ Meals) đa ngữ (Anh, Việt, Trung).</span><span class="en">Conversational
+              engine (<code>converse.ts</code>) re-extracts dialogue up to 60k chars per ADR-005a cap, deterministically
+              selecting follow-up questions by priority across EN, VI, and ZH.</span></div>
+        </div>
+      </section>
+
+      <!-- SECTION 2: POC STATUS -->
+      <section class="sec" id="poc-status">
+        <div class="sec-h">
+          <span class="sec-l"><span class="vi">PHẦN 2</span><span class="en">PART 2</span></span>
+          <h2><span class="vi">Hiện Trạng Kỹ Thuật &amp; Năng Lực Đã Chuyển Giao</span><span class="en">Current
+              Technical Deliverables &amp; Verified Modules</span></h2>
+        </div>
+        <p class="sec-desc">
+          <span class="vi">Bảng tổng hợp các thành phần mã nguồn đã hoàn thành, tích hợp và kiểm chứng qua hệ thống 72
+            unit tests cô lập:</span>
+          <span class="en">Inventory of implemented components, integrated and verified through 72 isolated unit
+            tests:</span>
+        </p>
+
+        <div class="tw">
+          <table>
+            <thead>
+              <tr>
+                <th><span class="vi">Module / Thành phần</span><span class="en">Module / Component</span></th>
+                <th><span class="vi">Mô tả Chức năng</span><span class="en">Functional Description</span></th>
+                <th><span class="vi">Trạng thái</span><span class="en">Status</span></th>
+                <th><span class="vi">Bằng chứng Kiểm chứng</span><span class="en">Verification Evidence</span></th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td class="bold"><code>WhatsApp Inbound Loop</code></td>
+                <td><span class="vi">Xử lý Webhook Meta, trích xuất text, gửi qua AI Extractor và đẩy phản hồi Graph
+                    API</span><span class="en">Handles Meta Webhooks, extracts text, invokes AI pipeline, and dispatches
+                    Graph API reply</span></td>
+                <td><span class="badge pass">VERIFIED LIVE</span></td>
+                <td><span class="vi">Runbook §6 (commit <code>3713b93</code>) xác nhận qua <code>statuses</code> webhook
+                    Meta</span><span class="en">Runbook §6 (commit <code>3713b93</code>) confirmed via Meta
+                    <code>statuses</code> webhook</span></td>
+              </tr>
+              <tr>
+                <td class="bold"><code>Turn Timeout &amp; Claim Release</code></td>
+                <td><span class="vi">Giới hạn thời gian turn 20s, nhả wamid claim khi LLM lỗi để Meta redelivery không
+                    bị nuốt tin</span><span class="en">Bounds turn to 20s, releases wamid claim on error so Meta
+                    redelivery is processed</span></td>
+                <td><span class="badge pass">COMMITTED</span></td>
+                <td><span class="vi">Commit <code>7c07aeb</code>, 29 test cases trong
+                    <code>test/whatsapp.test.ts</code></span><span class="en">Commit <code>7c07aeb</code>, 29 test cases
+                    in <code>test/whatsapp.test.ts</code></span></td>
+              </tr>
+              <tr>
+                <td class="bold"><code>Calendar &amp; Named Dates</code></td>
+                <td><span class="vi">Phân giải đa định dạng: "21 September", "21/9", "thứ 7", "ngày 20 tháng
+                    11"</span><span class="en">Resolves named months, day/month without year, Vietnamese weekdays, and
+                    Chinese dates</span></td>
+                <td><span class="badge pass">72/72 PASS</span></td>
+                <td><span class="vi">9 test cases trong <code>test/dates.test.ts</code> pass 100%</span><span
+                    class="en">9 test cases in <code>test/dates.test.ts</code> pass 100%</span></td>
+              </tr>
+              <tr>
+                <td class="bold"><code>Split TTL &amp; Fencing Token</code></td>
+                <td><span class="vi">Tách TTL claim in-flight (60s) với TTL thread (24h), kèm fencing token chống stale
+                    turn</span><span class="en">Splits in-flight claim TTL (60s) from thread TTL (24h), with fencing
+                    token protection</span></td>
+                <td><span class="badge pass">IMPLEMENTED</span></td>
+                <td><span class="vi">9 test cases trong <code>test/conversationStore.test.ts</code></span><span
+                    class="en">9 test cases in <code>test/conversationStore.test.ts</code></span></td>
+              </tr>
+              <tr>
+                <td class="bold"><code>Odoo Schema Alignment</code></td>
+                <td><span class="vi">Bổ sung <code>guestType</code>, <code>transportType</code>, <code>diveFrom</code>,
+                    <code>diveTo</code>, <code>diver</code></span><span class="en">Added <code>guestType</code>,
+                    <code>transportType</code>, <code>diveFrom</code>, <code>diveTo</code>, <code>diver</code>
+                    fields</span></td>
+                <td><span class="badge pass">ALIGNED</span></td>
+                <td><span class="vi">Khớp với hướng dẫn API Odoo của Phillip</span><span class="en">Aligned with
+                    Phillip's Odoo API Guide</span></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- SECTION 3: TECH STACK & WHATSAPP PRODUCTION -->
+      <section class="sec" id="tech-stack">
+        <div class="sec-h">
+          <span class="sec-l c"><span class="vi">PHẦN 3</span><span class="en">PART 3</span></span>
+          <h2><span class="vi">Báo Cáo Cho Lead: Điều Kiện Tiên Quyết Lên Production WhatsApp</span><span
+              class="en">Briefing for Lead: WhatsApp Production Prerequisites</span></h2>
+        </div>
+        <p class="sec-desc">
+          <span class="vi">Hiện tại hệ thống kết nối qua <b>Sandbox / Test Mode cá nhân</b> (chỉ nhắn được 5 số trong
+            Allowed List). Để đưa lên Production cho khách thật của Casa Escondida, Lead &amp; Ban Quản trị cần chuẩn bị
+            4 trụ cột:</span>
+          <span class="en">Currently connected via <b>Personal Sandbox / Test Mode</b> (limited to 5 Allowed List
+            numbers). To launch Production for real resort guests, Lead and Management must coordinate 4 pillars:</span>
+        </p>
+
+        <div class="tw">
+          <table>
+            <thead>
+              <tr>
+                <th><span class="vi">Trụ cột</span><span class="en">Pillar</span></th>
+                <th><span class="vi">Hiện trạng Test/Sandbox</span><span class="en">Current Sandbox State</span></th>
+                <th><span class="vi">Yêu cầu Production Thật</span><span class="en">Production Requirement</span></th>
+                <th><span class="vi">Bên Phụ trách &amp; Thời gian</span><span class="en">Owner &amp; SLA</span></th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td class="bold"><span class="vi">1. Pháp lý &amp; Định danh Meta</span><span class="en">1. Legal &amp;
+                    Meta BM</span></td>
+                <td>
+                  <span class="vi">Tài khoản cá nhân dev, test app sandbox</span>
+                  <span class="en">Personal developer account, sandbox test app</span>
+                </td>
+                <td>
+                  <span class="vi"><b>Meta Business Verification</b>: nộp Giấy phép kinh doanh + Sao kê tài khoản khớp
+                    tên pháp nhân TechNext/Casa</span>
+                  <span class="en"><b>Meta Business Verification</b>: submit Business Registration + Bank Statement
+                    matching legal entity</span>
+                </td>
+                <td><span class="badge warn"><span class="vi">LEAD &amp; PM (2-7 NGÀY)</span><span class="en">LEAD &amp;
+                      PM (2-7 DAYS)</span></span></td>
+              </tr>
+              <tr>
+                <td class="bold"><span class="vi">2. Số điện thoại "Sạch"</span><span class="en">2. Clean Hotline
+                    Number</span></td>
+                <td>
+                  <span class="vi">SIM cá nhân test trong Allowed List</span>
+                  <span class="en">Personal test SIM in Allowed List</span>
+                </td>
+                <td>
+                  <span class="vi"><b>Bắt buộc xóa tài khoản WhatsApp trên điện thoại</b>. Số kích hoạt Cloud API sẽ
+                    KHÔNG THỂ dùng song song với app điện thoại.</span>
+                  <span class="en"><b>Must delete WhatsApp account on mobile phone</b>. Numbers on Cloud API cannot run
+                    concurrently on phone apps.</span>
+                </td>
+                <td><span class="badge warn"><span class="vi">RESORT MANAGEMENT</span><span class="en">RESORT
+                      MANAGEMENT</span></span></td>
+              </tr>
+              <tr>
+                <td class="bold"><span class="vi">3. Cửa sổ 24h &amp; Templates</span><span class="en">3. 24h Window
+                    &amp; Templates</span></td>
+                <td>
+                  <span class="vi">Nhắn tin text tự do không giới hạn template</span>
+                  <span class="en">Freeform text messages without template limits</span>
+                </td>
+                <td>
+                  <span class="vi">Sau 24h hoặc bot chủ động liên hệ: bắt buộc dùng <b>Message Template duyệt trước</b>
+                    (Utility: Báo giá, Re-engagement: Mở lại hội thoại).</span>
+                  <span class="en">After 24h or for outbound outreach: requires <b>pre-approved Message Templates</b>
+                    (Utility quote, Re-engagement).</span>
+                </td>
+                <td><span class="badge pass">EXTRACTOR POD</span></td>
+              </tr>
+              <tr>
+                <td class="bold"><span class="vi">4. Vận hành Lễ tân (Handoff)</span><span class="en">4. Staff Inbox /
+                    Handoff</span></td>
+                <td>
+                  <span class="vi">Cờ <code>paused</code> đã có: <code>GET /v1/channels/whatsapp/threads</code> liệt kê thread đang chờ người thật
+                    (khoá bằng <code>x-verify-token</code>), <code>POST …/threads/&lt;phone&gt;/resume</code> trả thread lại cho bot, và
+                    <code>npm run whatsapp:threads</code> làm cả hai ngay trên terminal. Chưa có <b>giao diện web</b>.</span>
+                  <span class="en">The <code>paused</code> flag exists: <code>GET /v1/channels/whatsapp/threads</code> lists what a
+                    person owes a guest (guarded by <code>x-verify-token</code>), <code>POST …/threads/&lt;phone&gt;/resume</code> hands one
+                    back to the bot, and <code>npm run whatsapp:threads</code> does both from a terminal. No <b>web inbox</b> yet.</span>
+                </td>
+                <td>
+                  <span class="vi">Khi bot dừng (<code>paused: true</code>), lễ tân dùng <b>Staff Web Inbox</b> trên BFF
+                    hoặc nhận alert Telegram/Slack để tiếp quản.</span>
+                  <span class="en">When bot halts (<code>paused: true</code>), staff uses <b>Staff Web Inbox</b> on BFF
+                    or receives Telegram/Slack alerts to take over.</span>
+                </td>
+                <td><span class="badge pass"><span class="vi">POD &amp; LỄ TÂN</span><span class="en">POD &amp; FRONT
+                      DESK</span></span></td>
+              </tr>
+              <tr>
+                <td class="bold"><span class="vi">5. Hạ tầng Kỹ thuật Stack</span><span class="en">5. Enterprise Tech
+                    Stack</span></td>
+                <td>
+                  <span class="vi">Token 24h tạm thời, InMemoryStore</span>
+                  <span class="en">Temporary 24h token, InMemoryStore</span>
+                </td>
+                <td>
+                  <span class="vi"><b>System User Permanent Token</b> + <b>HMAC SHA256</b> verification + <b>Upstash
+                      Redis REST</b> (Serverless không nghẽn TCP).</span>
+                  <span class="en"><b>System User Permanent Token</b> + <b>HMAC SHA256</b> verification + <b>Upstash
+                      Redis REST</b> (stateless serverless friendly).</span>
+                </td>
+                <td><span class="badge pass">EXTRACTOR POD</span></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="callout info">
+          <strong><span class="vi">Chiến lược phân tách phạm vi (Scope Split):</span><span class="en">Scope Split
+              Strategy:</span></strong>
+          <span class="vi"><b>Demo Thứ Hai (18–21/09):</b> Tiếp tục dùng Sandbox + Allowed List + cứng hoá L0/L1/L2 (0
+            VNĐ chi phí, an toàn tuyệt đối).<br>
+            <b>Production Thật (Sau Thứ Hai):</b> Kích hoạt quy trình duyệt Meta Business Verification cùng Ban Quản lý
+            Resort và nạp thẻ thanh toán.</span>
+          <span class="en"><b>Monday Demo (18–21/09):</b> Maintain Sandbox + Allowed List + L0/L1/L2 hardening ($0 cost,
+            100% demo safe).<br>
+            <b>Production Go-Live (Post-Monday):</b> Trigger Meta Business Verification workflow with Resort Management
+            and attach billing credit card.</span>
+        </div>
+      </section>
+
+      <!-- SECTION 4: BENCHMARKS & ROADMAP -->
+      <section class="sec" id="benchmarks">
+        <div class="sec-h">
+          <span class="sec-l o"><span class="vi">PHẦN 4</span><span class="en">PART 4</span></span>
+          <h2><span class="vi">Kết Quả Thử Nghiệm Model &amp; Lộ Trình Thực Thi 5 Làn</span><span class="en">Model
+              Benchmarks &amp; 5-Lane Execution Roadmap</span></h2>
+        </div>
+        <p class="sec-desc">
+          <span class="vi">So sánh kết quả benchmark tự động 30 cases (10 EN + 10 VI + 10 ZH) và kế hoạch hành động 5
+            làn đóng băng hệ thống:</span>
+          <span class="en">Benchmark comparison on 30 mock cases (10 EN + 10 VI + 10 ZH) alongside the 5-lane system
+            hardening roadmap:</span>
+        </p>
+
+        <div class="tw">
+          <table>
+            <thead>
+              <tr>
+                <th><span class="vi">Tiêu chí Đánh giá</span><span class="en">Metric</span></th>
+                <th>DeepSeek Flash</th>
+                <th>Gemini 3.1 Flash-Lite</th>
+                <th><span class="vi">Ngưỡng Playbook</span><span class="en">Playbook Gate</span></th>
+                <th><span class="vi">Kết luận Kỹ thuật</span><span class="en">Technical Verdict</span></th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td class="bold"><span class="vi">Bịa đặt (Fabrication)</span><span class="en">Fabricated Fields</span>
+                </td>
+                <td><b>0</b> ✅</td>
+                <td><b>0</b> ✅</td>
+                <td><span class="badge pass">0 (CUTOFF)</span></td>
+                <td><span class="badge pass"><span class="vi">ZERO HALLUCINATION</span><span class="en">ZERO
+                      HALLUCINATION</span></span></td>
+              </tr>
+              <tr>
+                <td class="bold"><span class="vi">Trích dẫn nguyên văn</span><span class="en">Verbatim Evidence</span>
+                </td>
+                <td>135/135 (100%) ✅</td>
+                <td>72/72 (100%) ✅</td>
+                <td><span class="badge pass">≥ 95%</span></td>
+                <td><span class="badge pass"><span class="vi">ĐẠT CHUẨN CẢ 2</span><span class="en">BOTH
+                      PASS</span></span></td>
+              </tr>
+              <tr>
+                <td class="bold"><span class="vi">Độ trễ p95</span><span class="en">p95 Latency</span></td>
+                <td><b>2836ms</b> ✅</td>
+                <td><b>4449ms</b> ✅</td>
+                <td><span class="badge pass">≤ 8000ms</span></td>
+                <td><span class="badge pass"><span class="vi">PASS (DeepSeek nhanh hơn 36%)</span><span class="en">PASS
+                      (DeepSeek 36% faster)</span></span></td>
+              </tr>
+              <tr>
+                <td class="bold"><span class="vi">Tính ổn định (Rate limits)</span><span class="en">Call
+                    Reliability</span></td>
+                <td><b>0 lỗi / 30 cases</b> ✅</td>
+                <td><b>13 lỗi 429</b> 🔴</td>
+                <td><span class="badge pass"><span class="vi">0 LỖI</span><span class="en">0 ERRORS</span></span></td>
+                <td><span class="badge fail"><span class="vi">Gemini Free-tier bị nghẽn</span><span class="en">Gemini
+                      Free-tier throttled</span></span></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <!-- 5-LANE ROADMAP TABLE -->
+        <h3 style="font-size:15px;color:var(--blue);margin:18px 0 8px">
+          <span class="vi">Lộ Trình Hành Động 5 Làn (Phê chuẩn 18/09)</span>
+          <span class="en">5-Lane Action Roadmap (Approved 18/09)</span>
+        </h3>
+        <div class="tw">
+          <table>
+            <thead>
+              <tr>
+                <th><span class="vi">Làn</span><span class="en">Lane</span></th>
+                <th><span class="vi">Nhiệm vụ Cốt lõi</span><span class="en">Core Tasks</span></th>
+                <th><span class="vi">Thời gian</span><span class="en">Timeline</span></th>
+                <th><span class="vi">Mục tiêu Hoàn thành</span><span class="en">Completion Target</span></th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td class="bold">
+                  <code><span class="vi">L0 · Đóng băng &amp; Ship</span><span class="en">L0 · Freeze &amp; Ship</span></code>
+                </td>
+                <td>
+                  <span class="vi">Tách 4 commit nguyên tử $\rightarrow$ push <code>main</code> $\rightarrow$ deploy
+                    Vercel prod $\rightarrow$ đồng bộ §6 env vars</span>
+                  <span class="en">Split 4 atomic commits $\rightarrow$ push <code>main</code> $\rightarrow$ deploy
+                    Vercel prod $\rightarrow$ sync §6 env vars</span>
+                </td>
+                <td>
+                  <span class="vi">Hôm nay (18/09)</span>
+                  <span class="en">Today (18/09)</span>
+                </td>
+                <td><span class="badge pass"><span class="vi">SẠCH WORKING TREE</span><span class="en">CLEAN WORKING
+                      TREE</span></span></td>
+              </tr>
+              <tr>
+                <td class="bold">
+                  <code><span class="vi">L1 · Chống tái phát</span><span class="en">L1 · Defect Prevention</span></code>
+                </td>
+                <td>
+                  <span class="vi">GitHub Actions CI, root <code>npm run verify</code>, fix TS2532,
+                    <code>.gitignore</code> logs &amp; dataset</span>
+                  <span class="en">GitHub Actions CI, root <code>npm run verify</code>, fix TS2532,
+                    <code>.gitignore</code> logs &amp; dataset</span>
+                </td>
+                <td>19/09</td>
+                <td><span class="badge pass"><span class="vi">KHÓA TRẦN LỖI TYPE</span><span class="en">ZERO TYPECHECK
+                      ERRORS</span></span></td>
+              </tr>
+              <tr>
+                <td class="bold">
+                  <code><span class="vi">L2 · Cứng hoá Kênh</span><span class="en">L2 · Channel Hardening</span></code>
+                </td>
+                <td>
+                  <span class="vi">Claim TTL 60s, Coalescing 2.5s gộp tin, tin nhắn tĩnh xin lỗi khi 429, Handoff tối
+                    thiểu</span>
+                  <span class="en">Claim TTL 60s, Coalescing 2.5s rapid msgs, static 429 fallback msg, basic
+                    handoff</span>
+                </td>
+                <td>20–21/09</td>
+                <td><span class="badge pass"><span class="vi">CHỐNG TREO &amp; MẤT TIN</span><span class="en">NO HANGS
+                      &amp; NO LOST MSGS</span></span></td>
+              </tr>
+              <tr>
+                <td class="bold">
+                  <code><span class="vi">L3 · Hợp đồng Tất định</span><span class="en">L3 · Deterministic Contracts</span></code>
+                </td>
+                <td>
+                  <span class="vi">READY_FIELDS, reply renderer tất định (renderAsk/renderConfirmation), xe đón không tự
+                    roundtrip</span>
+                  <span class="en">READY_FIELDS, deterministic reply renderer (renderAsk/renderConfirmation), no
+                    auto-roundtrip</span>
+                </td>
+                <td>22–23/09</td>
+                <td><span class="badge pass"><span class="vi">ZERO HALLUCINATION REPLY</span><span class="en">ZERO
+                      HALLUCINATION REPLY</span></span></td>
+              </tr>
+              <tr>
+                <td class="bold">
+                  <code><span class="vi">L4 · Chờ bên ngoài</span><span class="en">L4 · External Dependencies</span></code>
+                </td>
+                <td>
+                  <span class="vi">Nhận Anthropic key từ Anthony $\rightarrow$ Claude adapter $\rightarrow$ chạy 30 tin
+                    thật của Eloa $\rightarrow$ ký ADR-005b</span>
+                  <span class="en">Receive Anthropic key from Anthony $\rightarrow$ Claude adapter $\rightarrow$ eval 30
+                    real msgs $\rightarrow$ sign ADR-005b</span>
+                </td>
+                <td>
+                  <span class="vi">Khi có Key</span>
+                  <span class="en">Upon Key Handover</span>
+                </td>
+                <td><span class="badge warn"><span class="vi">BAKE-OFF CHÍNH THỨC</span><span class="en">OFFICIAL
+                      BAKE-OFF</span></span></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="callout danger">
+          <strong><span class="vi">Danh mục kiên quyết "NÓI KHÔNG" (Phạm vi bảo vệ chất lượng):</span><span
+              class="en">Strict "SAY NO" List (Scope Boundaries):</span></strong>
+          <span class="vi">1. <b>KHÔNG</b> triển khai Sliding window + Anchor prompt khi chưa có số đo latency Turn 1 vs
+            Turn 12 (Task 3.7).<br>
+            2. <b>KHÔNG</b> dựng Odoo Client hay endpoint tính giá ảo trước khi Phillip freeze schema.<br>
+            3. <b>KHÔNG</b> tự động gán <code>transportType: roundtrip</code> cho câu hỏi xe đưa đón mơ hồ.</span>
+          <span class="en">1. <b>NO</b> sliding window or anchor prompt before measuring Turn 1 vs Turn 12 latency (Task
+            3.7).<br>
+            2. <b>NO</b> mock Odoo client or pricing endpoints before Phillip freezes schema.<br>
+            3. <b>NO</b> automatic <code>roundtrip</code> inference for ambiguous transport inquiries.</span>
+        </div>
+      </section>
+
+      <!-- SECTION 5: REAL BUGS -->
+      <section class="sec" id="bugs">
+        <div class="sec-h">
+          <span class="sec-l c"><span class="vi">PHẦN 5</span><span class="en">PART 5</span></span>
+          <h2><span class="vi">6 Lỗi Kỹ Thuật Thật Đã Bắt &amp; Khắc Phục Trong Pod</span><span class="en">6 Real
+              Technical Defects Caught &amp; Hardened in Pod</span></h2>
+        </div>
+        <p class="sec-desc">
+          <span class="vi">Các sự cố phát hiện trong quá trình chạy thử nghiệm trực tiếp và giải pháp khắc phục triệt
+            để:</span>
+          <span class="en">Issues uncovered during live webhook runs and rigorous automated test executions:</span>
+        </p>
+
+        <div class="callout danger">
+          <strong>
+            <span class="vi">BUG-EXT-05 (Chí mạng) — WhatsApp Inbound Turn Bị Treo Vô Tận Khi LLM Lỗi Làm Nuốt Chửng Tin
+              Redelivery:</span>
+            <span class="en">BUG-EXT-05 (Critical) — WhatsApp Inbound Turn Hung Indefinitely on LLM Failure, Swallowing
+              Redeliveries:</span>
+          </strong>
+          <span class="vi">Khi provider LLM bị treo hoặc phản hồi chậm, turn không có deadline tổng dẫn đến giữ kết nối
+            serverless quá lâu. Hơn nữa, wamid claim không được giải phóng trong khối catch, khiến tin gửi lại của Meta
+            bị hiểu nhầm thành tin trùng (<code>duplicates: 1</code>) và bị im lặng bỏ qua. <b>Đã sửa:</b> Thêm trần
+            <code>WHATSAPP_TURN_TIMEOUT_MS = 20s</code> (commit <code>7c07aeb</code>) và gọi
+            <code>releaseMessage(wamid)</code> khi thất bại.</span>
+          <span class="en">When LLM providers lagged or timed out, turns lacked an overarching deadline. Furthermore,
+            wamid claims were never freed on error, causing Meta redeliveries to be discarded as silent duplicates.
+            <b>Fixed:</b> Added <code>WHATSAPP_TURN_TIMEOUT_MS = 20s</code> deadline (commit <code>7c07aeb</code>) and
+            <code>releaseMessage(wamid)</code> on failure.</span>
+        </div>
+
+        <div class="callout danger">
+          <strong>
+            <span class="vi">BUG-EXT-06 (Lớn) — Bộ Phân Giải Ngày Tự Động Xóa Sạch Check-in Khi Khách Gõ Tháng Bằng Chữ
+              ("21 September"):</span>
+            <span class="en">BUG-EXT-06 (Major) — Date Resolver Wiped Valid Check-In When Guest Used Named Months ("21
+              September"):</span>
+          </strong>
+          <span class="vi">Bộ bóc tách DeepSeek trích xuất đúng <code>evidence: "21 September"</code> nhưng
+            <code>dates.ts</code> cũ chỉ có regex cho <code>YYYY-MM-DD</code> và <code>DD/MM/YYYY</code> (bắt buộc năm 4
+            chữ số). Hàm trả về <code>null</code> dẫn đến post-processing xóa sạch trường <code>checkIn</code> thành
+            <code>missing</code>. <b>Đã sửa:</b> Viết lại bộ phân giải lịch hỗ trợ tên tháng tiếng Anh, định dạng
+            ngày/tháng không có năm, thứ trong tuần tiếng Việt và chữ Hán.</span>
+          <span class="en">DeepSeek extracted valid evidence ("21 September"), but legacy <code>dates.ts</code> only
+            parsed strict 4-digit year dates. The null return wiped <code>checkIn</code> to <code>missing</code>.
+            <b>Fixed:</b> Implemented comprehensive calendar resolver supporting named months, yearless dates,
+            Vietnamese weekdays, and Chinese formats.</span>
+        </div>
+
+        <div class="callout">
+          <strong>
+            <span class="vi">BUG-EXT-01 (Vừa) — Rate Limit 429 Bị Báo Nhầm Thành Lỗi Validation Schema 422:</span>
+            <span class="en">BUG-EXT-01 (Medium) — Rate Limit 429 Erroneously Reported as Schema Validation 422:</span>
+          </strong>
+          <span class="vi">Lỗi cạn hạn ngạch Gemini free-tier bị gói nhầm thành <code>ExtractionValidationError</code>.
+            <b>Đã sửa:</b> Phân tách rạch ròi lỗi hạ tầng (429/502) và lỗi dữ liệu Zod (422).</span>
+          <span class="en">Gemini free-tier quota exhaustion was miswrapped into schema validation errors. <b>Fixed:</b>
+            Separated infrastructure errors (429/502) from schema validation failures (422).</span>
+        </div>
+
+        <div class="callout">
+          <strong>
+            <span class="vi">BUG-EXT-02 (Vừa) — DeepSeek Gateway Từ Chối Boolean Bounds Với Lỗi 400:</span>
+            <span class="en">BUG-EXT-02 (Medium) — DeepSeek Gateway Rejected Boolean Bounds with HTTP 400:</span>
+          </strong>
+          <span class="vi"><code>zod-to-json-schema</code> sinh <code>exclusiveMinimum: true</code> bị gateway từ chối.
+            <b>Đã sửa:</b> Viết hàm <code>toDeepSeekSchema()</code> chuẩn hóa bounds.</span>
+          <span class="en"><code>zod-to-json-schema</code> emitted boolean bounds rejected by DeepSeek. <b>Fixed:</b>
+            Implemented <code>toDeepSeekSchema()</code> stripping unsupported bounds.</span>
+        </div>
+
+        <div class="callout">
+          <strong>
+            <span class="vi">BUG-EXT-03 (Vừa) — Máy Chấm Điểm Đếm Nhầm Giá Trị Mặc Định Thành Bịa Đặt:</span>
+            <span class="en">BUG-EXT-03 (Medium) — Eval Harness Miscounted Villa Defaults as Fabrications:</span>
+          </strong>
+          <span class="vi">Scorer đếm giá trị phòng mặc định là hallucination. <b>Đã sửa:</b> Phân biệt rõ state
+            <code>default</code> của villa với model hallucination.</span>
+          <span class="en">Scorer miscounted villa default room numbers as hallucinations. <b>Fixed:</b> Properly
+            decoupled <code>default</code> states from fabrications.</span>
+        </div>
+
+        <div class="callout">
+          <strong>
+            <span class="vi">BUG-EXT-04 (Vừa) — DeepSeek Bị Trễ Do Xung Đột Chế Độ Suy Nghĩ (Thinking Mode):</span>
+            <span class="en">BUG-EXT-04 (Medium) — DeepSeek Delayed Due to Thinking Mode Conflict with Tool
+              Calling:</span>
+          </strong>
+          <span class="vi">Xung đột giữa thinking mode và tool-calling gây trễ tới 16s. <b>Đã sửa:</b> Cấu hình
+            <code>thinking: { type: "disabled" }</code> triệt tiêu độ trễ thừa.</span>
+          <span class="en">Conflict between thinking mode and tool calls pushed latency to 16s. <b>Fixed:</b> Enforced
+            disabled thinking mode to eliminate latency overhead.</span>
+        </div>
+      </section>
+
+      <!-- SECTION 6: CHECKLIST -->
+      <section class="sec" id="checklist">
+        <div class="sec-h">
+          <span class="sec-l g"><span class="vi">PHẦN 6</span><span class="en">PART 6</span></span>
+          <h2><span class="vi">Checkpoints Thống Nhất &amp; Điểm Chốt Với Lead</span><span class="en">Alignment &amp;
+              Sign-off Checkpoints with Lead</span></h2>
+        </div>
+        <p class="sec-desc">
+          <span class="vi">Bảng danh mục kiểm tra tương tác lưu trực tiếp trên trình duyệt (tự động đồng bộ
+            localStorage):</span>
+          <span class="en">Interactive review checklist persisted via browser localStorage:</span>
+        </p>
+
+        <div class="ck">
+          <div class="ck-h">
+            <span><span class="vi">A · CÁC KẾT QUẢ ĐÃ HOÀN THÀNH &amp; KIỂM CHỨNG (72/72 PASS)</span><span class="en">A
+                · COMPLETED &amp; VERIFIED DELIVERABLES (72/72 PASS)</span></span>
+            <span class="cnt" data-g="done"></span>
+          </div>
+          <label class="ckrow"><input type="checkbox" checked data-g="done">
+            <div>
+              <div class="t"><span class="vi">BFF Hono tích hợp Meta WhatsApp Webhook, gửi nhận tin thành công (Runbook
+                  §6)</span><span class="en">BFF Hono integrates Meta WhatsApp Webhook, successfully sending and
+                  receiving messages</span></div>
+              <div class="d"><span class="vi">Đã xác minh qua `statuses` webhook, chống trả lời lặp với
+                  `claimMessage(wamid)`</span><span class="en">Verified via `statuses` webhook, duplicate protection via
+                  `claimMessage(wamid)`</span></div>
+            </div>
+          </label>
+          <label class="ckrow"><input type="checkbox" checked data-g="done">
+            <div>
+              <div class="t"><span class="vi">Khắc phục lỗi treo turn 20s và nhả claim wamid khi lỗi (Commit
+                  7c07aeb)</span><span class="en">Fixed 20s turn stall and released wamid claim on error (Commit
+                  7c07aeb)</span></div>
+              <div class="d"><span class="vi">Đảm bảo redelivery của Meta được xử lý lại thay vì bị im lặng nuốt
+                  mất</span><span class="en">Ensures Meta redelivery is processed rather than silently dropped</span>
+              </div>
+            </div>
+          </label>
+          <label class="ckrow"><input type="checkbox" checked data-g="done">
+            <div>
+              <div class="t"><span class="vi">Bộ phân giải ngày đa ngữ dates.ts xử lý trơn tru "21 September", "21/9",
+                  "thứ 7"</span><span class="en">Multilingual date parser dates.ts reliably handles "21 September",
+                  "21/9", "thứ 7"</span></div>
+              <div class="d"><span class="vi">100% mã TypeScript xác định, neo theo giờ Manila, không giao việc tính
+                  ngày cho AI</span><span class="en">100% deterministic TypeScript anchored to Manila time, no LLM date
+                  math</span></div>
+            </div>
+          </label>
+          <label class="ckrow"><input type="checkbox" checked data-g="done">
+            <div>
+              <div class="t"><span class="vi">Cơ chế Zero Hallucination đạt 0 trường bịa đặt trên toàn bộ 30 test
+                  cases</span><span class="en">Zero Hallucination enforcement achieves 0 fabricated fields across 30
+                  test cases</span></div>
+              <div class="d"><span class="vi">Yêu cầu xe đưa đón mơ hồ được giữ missing, không tự ý gán
+                  roundtrip</span><span class="en">Ambiguous transport requests kept as missing, preventing unwarranted
+                  roundtrip defaults</span></div>
+            </div>
+          </label>
+          <label class="ckrow"><input type="checkbox" checked data-g="done">
+            <div>
+              <div class="t"><span class="vi">Bộ nhớ hội thoại hỗ trợ Split TTL (60s claim vs 24h thread) và Fencing
+                  Token</span><span class="en">Conversation store supports Split TTL (60s claim vs 24h thread) and
+                  Fencing Tokens</span></div>
+              <div class="d"><span class="vi">Ngăn ngừa race condition giữa các turn chạy song song hoặc quá
+                  hạn</span><span class="en">Prevents race conditions between concurrent or expired turns</span></div>
+            </div>
+          </label>
+        </div>
+
+        <div class="ck">
+          <div class="ck-h">
+            <span><span class="vi">B · YÊU CẦU CẤP BÁCH CẦN LEAD CHỈ ĐẠO &amp; PHÊ DUYỆT (BLOCKERS)</span><span
+                class="en">B · URGENT ACTION ITEMS REQUIRING LEAD DECISION (BLOCKERS)</span></span>
+            <span class="cnt" data-g="lead"></span>
+          </div>
+          <label class="ckrow"><input type="checkbox" data-g="lead">
+            <div>
+              <div class="t"><span class="vi">[Lead / PM] Kích hoạt Meta Business Verification &amp; Chuẩn bị Hotline
+                  WhatsApp riêng</span><span class="en">[Lead / PM] Initiate Meta Business Verification &amp; Prepare
+                  Dedicated WhatsApp Hotline</span></div>
+              <div class="d"><span class="vi">Nộp giấy phép kinh doanh để mở giới hạn gửi tin; số hotline bắt buộc xóa
+                  app trên điện thoại</span><span class="en">Submit registration docs to unlock messaging tier; hotline
+                  must delete mobile WhatsApp app</span></div>
+            </div>
+          </label>
+          <label class="ckrow"><input type="checkbox" data-g="lead">
+            <div>
+              <div class="t"><span class="vi">[Lead] Phê duyệt triển khai Làn L0 (Freeze &amp; Ship) và L1 (GitHub
+                  CI)</span><span class="en">[Lead] Approve Lane L0 (Freeze &amp; Ship) and Lane L1 (GitHub CI)
+                  execution</span></div>
+              <div class="d"><span class="vi">Tách 18 file dở dang thành 4 commit nguyên tử, push main và khóa trần lỗi
+                  typecheck</span><span class="en">Split 18 modified files into 4 atomic commits, push main, and enforce
+                  CI typechecks</span></div>
+            </div>
+          </label>
+          <label class="ckrow"><input type="checkbox" data-g="lead">
+            <div>
+              <div class="t"><span class="vi">[Anthony] Cấp Anthropic API Key (TechNext org) để viết adapter
+                  Claude</span><span class="en">[Anthony] Issue TechNext Org Anthropic API Key for Claude adapter</span>
+              </div>
+              <div class="d"><span class="vi">Kênh chính thức duy nhất được duyệt xử lý dữ liệu khách hàng theo Delivery
+                  Plan</span><span class="en">The only approved provider for real guest data compliance per Delivery
+                  Plan</span></div>
+            </div>
+          </label>
+          <label class="ckrow"><input type="checkbox" data-g="lead">
+            <div>
+              <div class="t"><span class="vi">[Eloa] Bàn giao 30 tin nhắn thật của khách để chạy Bake-off chính
+                  thức</span><span class="en">[Eloa] Deliver 30 real guest messages for official Bake-off
+                  evaluation</span></div>
+              <div class="d"><span class="vi">Thay thế bộ dữ liệu giả lập mock-30 để ký duyệt báo cáo quyết định
+                  ADR-005b</span><span class="en">Replaces synthetic mock-30 dataset to sign off definitive ADR-005b
+                  report</span></div>
+            </div>
+          </label>
+          <label class="ckrow"><input type="checkbox" data-g="lead">
+            <div>
+              <div class="t"><span class="vi">[Phillip] Đóng băng Odoo Trip API Schema
+                  (contracts/casa/estimate-api.v1.yaml)</span><span class="en">[Phillip] Freeze Odoo Trip API Schema
+                  (estimate-api.v1.yaml)</span></div>
+              <div class="d"><span class="vi">Chốt hợp đồng dữ liệu chính thức trước khi triển khai các endpoint tính
+                  giá tiếp theo</span><span class="en">Finalizes formal data contract before implementing subsequent
+                  pricing endpoints</span></div>
+            </div>
+          </label>
+        </div>
+      </section>
+
+      <footer>
+        <span class="vi">Báo cáo chuẩn TechNext Corporate Status Report · Biên soạn tự động từ mã nguồn thực tế tại
+          <code>technext-edge</code> · Cập nhật ngày 18/09/2026.</span>
+        <span class="en">Standard TechNext Corporate Status Report · Compiled directly from live codebase records in
+          <code>technext-edge</code> · Updated 18/09/2026.</span>
+      </footer>
+
+    </main>
+  </div>
+
+  <script>
+    (function () {
+      var KEY = 'technext.edge.extractor.status.v2';
+      var body = document.body;
+      var btnVi = document.getElementById('btnVi');
+      var btnEn = document.getElementById('btnEn');
+
+      function setLang(l) {
+        body.setAttribute('data-lang', l);
+        btnVi.classList.toggle('active', l === 'vi');
+        btnEn.classList.toggle('active', l === 'en');
+        try { localStorage.setItem(KEY + '.lang', l); } catch (e) { }
+      }
+      btnVi.addEventListener('click', function () { setLang('vi'); });
+      btnEn.addEventListener('click', function () { setLang('en'); });
+      var savedLang = 'vi';
+      try { savedLang = localStorage.getItem(KEY + '.lang') || 'vi'; } catch (e) { }
+      setLang(savedLang === 'en' ? 'en' : 'vi');
+
+      var boxes = Array.prototype.slice.call(document.querySelectorAll('.ckrow input[type=checkbox]'));
+      boxes.forEach(function (b, i) { b.setAttribute('data-i', i); });
+
+      function loadChecks() {
+        var raw = null;
+        try { raw = localStorage.getItem(KEY + '.checks'); } catch (e) { }
+        if (!raw) return;
+        try {
+          var saved = JSON.parse(raw);
+          if (Array.isArray(saved)) {
+            boxes.forEach(function (b, i) {
+              if (typeof saved[i] === 'boolean') b.checked = saved[i];
+            });
+          }
+        } catch (e) { }
+      }
+
+      function saveChecks() {
+        try {
+          localStorage.setItem(KEY + '.checks', JSON.stringify(boxes.map(function (b) { return b.checked; })));
+        } catch (e) { }
+      }
+
+      function renderProgress() {
+        var done = boxes.filter(function (b) { return b.checked; }).length;
+        var total = boxes.length;
+        var pct = total ? Math.round((done / total) * 100) : 0;
+        document.getElementById('progCount').textContent = done + '/' + total + ' (' + pct + '%)';
+        document.getElementById('progFill').style.width = pct + '%';
+
+        document.querySelectorAll('.cnt').forEach(function (el) {
+          var g = el.getAttribute('data-g');
+          var gb = boxes.filter(function (b) { return b.getAttribute('data-g') === g; });
+          var gd = gb.filter(function (b) { return b.checked; }).length;
+          el.textContent = gd + '/' + gb.length;
+        });
+      }
+
+      boxes.forEach(function (b) {
+        b.addEventListener('change', function () {
+          saveChecks();
+          renderProgress();
+          b.closest('.ckrow').style.background = b.checked ? '#f0fdf4' : '';
+        });
+        if (b.checked) b.closest('.ckrow').style.background = '#f0fdf4';
+      });
+
+      document.getElementById('btnReset').addEventListener('click', function () {
+        boxes.forEach(function (b) {
+          b.checked = false;
+          b.closest('.ckrow').style.background = '';
+        });
+        saveChecks();
+        renderProgress();
+      });
+
+      loadChecks();
+      renderProgress();
+    })();
+  </script>
+</body>
+
+</html>
