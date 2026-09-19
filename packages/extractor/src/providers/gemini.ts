@@ -15,7 +15,7 @@ const API_BASE = "https://generativelanguage.googleapis.com/v1beta/models";
 // ~3.2s (ADR-005a), so 8s leaves real headroom without masking a genuine
 // hang — a hung request would otherwise wait indefinitely, past Vercel's own
 // function timeout, with no chance for extract.ts's retry-once path to help.
-const TIMEOUT_MS = Number(process.env.GEMINI_TIMEOUT_MS ?? 8_000);
+const TIMEOUT_MS = Number(process.env.GEMINI_TIMEOUT_MS ?? 15_000);
 
 // Gemini's responseSchema is a constrained subset of JSON Schema: no $ref,
 // no $schema, no additionalProperties. zod-to-json-schema is told to inline

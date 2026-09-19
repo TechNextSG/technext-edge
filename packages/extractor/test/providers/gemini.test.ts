@@ -12,7 +12,7 @@ afterEach(() => {
 });
 
 describe("createGeminiProvider timeout", () => {
-  it("times out after 8s instead of hanging forever on a stuck request", async () => {
+  it("times out after 15s instead of hanging forever on a stuck request", async () => {
     // A fetch that never settles — mirrors a genuinely hung connection.
     // The mock must reject (not just never resolve) when aborted, matching
     // real fetch's behavior: it rejects the promise with an AbortError as
@@ -32,9 +32,9 @@ describe("createGeminiProvider timeout", () => {
 
     // Attach a rejection observer immediately so advancing timers doesn't
     // race an "unhandled rejection" before the assertion below attaches.
-    const assertion = expect(callPromise).rejects.toThrow(/timed out after 8000ms/);
+    const assertion = expect(callPromise).rejects.toThrow(/timed out after 15000ms/);
 
-    await vi.advanceTimersByTimeAsync(9_000);
+    await vi.advanceTimersByTimeAsync(16_000);
     await assertion;
   });
 });
