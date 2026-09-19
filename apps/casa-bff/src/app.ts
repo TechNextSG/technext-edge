@@ -8,18 +8,26 @@ import { z } from "zod";
 import {
   extract,
   converse,
+  detectLanguage,
+  fallbackReply,
+  wantsHuman,
+  ASK_LIMIT,
   ExtractionValidationError,
   createProviderFromEnv,
   createProviderByName,
   KNOWN_PROVIDER_NAMES,
   maskForLogging,
+  type ConversationTurn,
   type ExtractProvider,
+  type GuestLanguage,
 } from "../../../packages/extractor/src/index.js";
 import { TEST_PAGE_HTML } from "./testPage.js";
 import { createInMemoryConversationStore, type ConversationStore } from "./conversationStore.js";
 import {
+  checkSenderCredentials,
   createWhatsAppSender,
   parseInboundTexts,
+  sameSecret,
   verifySignature,
   whatsAppConfig,
   type WhatsAppSendText,
@@ -94,6 +102,32 @@ function handleExtractError(err: unknown): Response {
   return Response.json({ error: "extract_error", detail: process.env.DEBUG_EXTRACT === "1" ? message : undefined }, { status: 502 });
 }
 
+// How long a parked thread stays quiet after the guest was told a person is on it.
+// Long enough that three messages typed in a row get one holding reply instead of
+// three, short enough that a guest with something new to say gets "we're on it"
+// rather than silence.
+const HOLD_REPEAT_MS = 10 * 60 * 1000;
+
+/** How many replies the bot has already taken in this thread. */
+function assistantTurns(history: ConversationTurn[]): number {
+  return history.filter((turn) => turn.role === "assistant").length;
+}
+
+/**
+ * The language to hold a guest in when there is no trip to render one from. Read
+ * off the guest's own turns only: the assistant's Vietnamese and Chinese wording is
+ * full of diacritics, so letting the bot's own replies vote would pin a thread to
+ * whatever language it happened to answer in first (normalize.ts says more).
+ */
+function guestLanguage(history: ConversationTurn[]): GuestLanguage {
+  return detectLanguage(
+    history
+      .filter((turn) => turn.role === "guest")
+      .map((turn) => turn.text)
+      .join("\n"),
+  );
+}
+
 /**
  * Construction seams, all optional and all defaulting to the production path in
  * api/index.ts (`createApp()` with no arguments). They exist because the two
@@ -152,14 +186,14 @@ export function createApp(options: AppOptions = {}) {
     try {
       const outcome = parsed.data.message
         ? await converse(
-            {
-              message: parsed.data.message,
-              history: parsed.data.history,
-              channel: parsed.data.channel,
-              conversationId: parsed.data.conversationId,
-            },
-            provider,
-          )
+          {
+            message: parsed.data.message,
+            history: parsed.data.history,
+            channel: parsed.data.channel,
+            conversationId: parsed.data.conversationId,
+          },
+          provider,
+        )
         : await converse(parsed.data.history!, provider);
       return c.json(outcome);
     } catch (err) {
@@ -215,7 +249,7 @@ export function createApp(options: AppOptions = {}) {
     if (inbound.length === 0) {
       // Receipts and non-text messages both land here: nothing to answer, but
       // still a 200 so Meta stops retrying the event.
-      return c.json({ received: 0, replied: 0, duplicates: 0, failed: 0 });
+      return c.json({ received: 0, replied: 0, duplicates: 0, failed: 0, handoffs: 0 });
     }
 
     // Resolved after the signature check so an unauthenticated caller can't use
@@ -229,9 +263,20 @@ export function createApp(options: AppOptions = {}) {
       return c.json({ error: "server_misconfigured", detail: err instanceof Error ? err.message : String(err) }, 500);
     }
 
+    // Bound once as `const`s: the try above either set both or already returned, and
+    // a value the failure path below depends on must not be a `let` that TypeScript
+    // can only call "definitely assigned so far" inside a catch block.
+    const model = provider;
+    const send = sendText;
+
     let replied = 0;
     let duplicates = 0;
     let failed = 0;
+    // Guest messages answered with "a person is taking over" instead of an enquiry
+    // reply: a failed turn's apology, a parked thread, or the asking limit. Counted
+    // apart from `replied` because `replied: 1, failed: 1` on its own cannot say
+    // whether the guest got an answer or a holding message.
+    let handoffs = 0;
 
     for (const message of inbound) {
       if (!(await store.claimMessage(message.id))) {
@@ -261,31 +306,98 @@ export function createApp(options: AppOptions = {}) {
       try {
         const turn = (async () => {
           await store.append(message.from, { role: "guest", text: message.text });
+          const history = await store.history(message.from);
+          const language = guestLanguage(history);
+
+          // Both handoff flags are read *before* anything expensive is spent. A
+          // thread a person already owns — or one the guest has just asked a
+          // person for — gets a static holding reply and no model call at all: a
+          // model answering here would be talking over the human.
+          const parked = await store.paused(message.from);
+          if (parked || wantsHuman(message.text)) {
+            // Parked and told a moment ago (HOLD_REPEAT_MS): nothing is repeated
+            // at every "ok" the guest types. Not silence either — they were told
+            // a person is on it, and that is still true.
+            if (parked && !(await store.needsTelling(message.from, HOLD_REPEAT_MS))) return;
+            const text = fallbackReply("handoff", language);
+            await store.pause(message.from, parked?.reason ?? "guest_asked_for_human");
+            await store.append(message.from, { role: "assistant", text });
+            sending = true;
+            await send({ to: message.from, body: text });
+            await store.markTold(message.from);
+            replied++;
+            handoffs++;
+            return;
+          }
+
           // The same call the test console makes: full history in, one reply out.
-          const outcome = await converse(await store.history(message.from), provider);
+          const outcome = await converse(history, model);
           // Abandoned while the provider was still thinking: Meta already has its
           // answer for this wamid, so stop here rather than appending and sending
           // behind the redelivery's back. This is what keeps "one guest message,
           // at most one reply" true even when the deadline fires mid-turn.
           if (expired) return;
+
+          // Asking has stopped being progress: the guest is stuck, or the
+          // extractor is, and one more round of the same questions is where an
+          // enquiry dies. A person now is worth more than a ninth question.
+          if (!outcome.done && assistantTurns(history) >= ASK_LIMIT) {
+            const text = fallbackReply("handoff", language);
+            await store.pause(message.from, "asking_limit");
+            await store.append(message.from, { role: "assistant", text });
+            sending = true;
+            await send({ to: message.from, body: text });
+            await store.markTold(message.from);
+            replied++;
+            handoffs++;
+            return;
+          }
+
           await store.append(message.from, { role: "assistant", text: outcome.reply });
           sending = true;
-          await sendText({ to: message.from, body: outcome.reply });
+          await send({ to: message.from, body: outcome.reply });
+          replied++;
         })();
 
-        // Cleared on both paths: a live timer would keep a serverless instance
-        // awake (and a test process open) long after the turn is done with.
-        await Promise.race([turn, deadline]).finally(() => clearTimeout(timer));
-        replied++;
+        try {
+          await Promise.race([turn, deadline]);
+        } finally {
+          // Cleared on both paths — a `finally` block rather than
+          // `Promise.prototype.finally`, which the deployment build's TypeScript
+          // does not have in its lib (Vercel type-checks without this repo's
+          // tsconfig). A live timer would otherwise keep a serverless instance
+          // awake, and a test process open, long after the turn is done with.
+          clearTimeout(timer);
+        }
       } catch (err) {
         failed++;
-        // Nothing was sent, so the claim can safely go back and Meta's
-        // redelivery becomes a retry rather than a duplicate nobody answers.
-        // Skipped once a send is in flight, where the only safe assumption left
-        // is that the guest may have received it. (A send that fails *after*
-        // Meta accepted it still costs the guest a second reply either way; the
-        // opposite guess — silence — is the failure this release exists to end.)
-        if (!sending) await store.releaseMessage(message.id);
+        // A guest who has heard nothing cannot tell "busy" from "broken", and has
+        // no reason to write again — so this path speaks instead of only logging:
+        // a static apology, the thread parked for a person, and a line in the
+        // handoff view. That silence is the failure this release exists to end.
+        let apologized = false;
+        if (!sending) {
+          try {
+            const text = fallbackReply("apology", guestLanguage(await store.history(message.from)));
+            await store.pause(message.from, "turn_failed");
+            await store.append(message.from, { role: "assistant", text });
+            await send({ to: message.from, body: text });
+            await store.markTold(message.from);
+            apologized = true;
+            replied++;
+            handoffs++;
+          } catch (apologyErr) {
+            // eslint-disable-next-line no-console
+            console.error("whatsapp apology failed", maskForLogging(message.from), apologyErr);
+          }
+        }
+        // The claim goes back only when the guest really did hear nothing (nothing
+        // sent, and no apology): then Meta's redelivery is a retry rather than a
+        // duplicate nobody answers. Otherwise it stays taken, because a redelivery
+        // would only repeat a message they already have. (A send that failed
+        // *after* Meta accepted it still costs the guest a second message either
+        // way; the opposite guess — silence — is the failure this release ends.)
+        if (!sending && !apologized) await store.releaseMessage(message.id);
         // eslint-disable-next-line no-console
         console.error("whatsapp turn failed", maskForLogging(message.from), maskForLogging(message.text), err);
       }
@@ -294,7 +406,63 @@ export function createApp(options: AppOptions = {}) {
     // Always 2xx once the signature checks out. Meta retries a non-2xx for days,
     // and a retry after we already answered would message the guest twice; the
     // counts in this body plus the log line above are the failure surface.
-    return c.json({ received: inbound.length, replied, duplicates, failed });
+    // `replied` counts every message that left — answers and holding messages —
+    // while `handoffs` counts the subset that told the guest a person is taking it.
+    return c.json({ received: inbound.length, replied, duplicates, failed, handoffs });
+  });
+
+  // ---- Handoff view --------------------------------------------------------
+  // A parked thread is a person's job waiting to happen. Without a way to read
+  // that list, "flagged for the Casa team" is where enquiries go to be forgotten,
+  // and without a way to hand one back, a single provider hiccup parks a guest for
+  // the rest of the day (roadmap L2).
+  //
+  // Guarded by the verify token rather than a new secret: it is already the one
+  // credential everyone working on this channel has to hand, and it is what the
+  // Meta handshake already compares against. Read-only routes would be harmless
+  // open, but resume() is a write, so the guard covers both — one rule, no cases.
+  function handoffAuthorized(header: string | undefined): boolean {
+    return sameSecret(header, whatsAppConfig().verifyToken);
+  }
+
+  app.get("/v1/channels/whatsapp/threads", async (c) => {
+    if (!handoffAuthorized(c.req.header("x-verify-token"))) {
+      return c.json({ error: "unauthorized" }, 401);
+    }
+    return c.json({ paused: await store.pausedThreads() });
+  });
+
+  // Whoever answered a parked guest calls this, so the bot can take the thread
+  // again instead of staying quiet for the rest of its 24h window. It is also how
+  // a test session is unstuck without restarting the process.
+  app.post("/v1/channels/whatsapp/threads/:phone/resume", async (c) => {
+    if (!handoffAuthorized(c.req.header("x-verify-token"))) {
+      return c.json({ error: "unauthorized" }, 401);
+    }
+    const phone = c.req.param("phone");
+    await store.resume(phone);
+    return c.json({ ok: true, phone });
+  });
+
+  // Are the credentials *this deployment* holds actually usable? The laptop
+  // pre-flight (scripts/whatsapp-check.mjs) answers that for an env file, not for a
+  // deployment — and a value pasted into a dashboard keeps whatever quotes it was
+  // copied with, whose only symptom is silence on a real guest's message. Read-only,
+  // and it reports what Meta already says publicly about the number.
+  app.get("/v1/channels/whatsapp/status", async (c) => {
+    if (!handoffAuthorized(c.req.header("x-verify-token"))) {
+      return c.json({ error: "unauthorized" }, 401);
+    }
+    const config = whatsAppConfig();
+    return c.json({
+      configured: {
+        verifyToken: Boolean(config.verifyToken),
+        appSecret: Boolean(config.appSecret),
+        accessToken: Boolean(config.accessToken),
+        phoneNumberId: Boolean(config.phoneNumberId),
+      },
+      sender: await checkSenderCredentials(config),
+    });
   });
 
   // Health check endpoints: /v1/health is canonical per Delivery Plan (Figure 3)

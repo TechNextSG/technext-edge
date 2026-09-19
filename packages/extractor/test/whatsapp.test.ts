@@ -2,7 +2,8 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { createHmac } from "node:crypto";
 import { createApp } from "../../../apps/casa-bff/src/app.js";
 import { createWhatsAppSender, parseInboundTexts, verifySignature } from "../../../apps/casa-bff/src/whatsapp.js";
-import { createInMemoryConversationStore } from "../../../apps/casa-bff/src/conversationStore.js";
+import { createInMemoryConversationStore, type ConversationStore } from "../../../apps/casa-bff/src/conversationStore.js";
+import { ASK_LIMIT } from "../src/questions.js";
 import type { ExtractProvider } from "../src/provider.js";
 
 const VERIFY_TOKEN = "casa-verify-token";
@@ -14,7 +15,8 @@ const TURN_TIMEOUT_MS = 5_000;
 
 // The same partial extraction converse.test.ts uses: checkIn is `stated` (so the
 // deterministic date resolver fills it) while guests is missing, which makes the
-// reply deterministic — "How many guests in total?" — instead of vendor-dependent.
+// first numbered question of the reply deterministic — "How many guests in
+// total?" — instead of vendor-dependent.
 const PARTIAL_RAW = {
   language: { value: null, state: "missing", evidence: null },
   checkIn: { value: null, state: "stated", evidence: "next Saturday" },
@@ -25,6 +27,13 @@ const PARTIAL_RAW = {
   meals: { value: null, state: "missing", evidence: null },
   transport: { value: null, state: "missing", evidence: null },
   contactName: { value: null, state: "missing", evidence: null },
+  // The Tier-2 fields a real provider usually returns as missing — that is what puts
+  // the diving question on the reply. When it omits them instead, extract.ts normalizes
+  // the absence to this same state (see extract.test.ts), so the question survives.
+  diver: { value: null, state: "missing", evidence: null },
+  diveFrom: { value: null, state: "missing", evidence: null },
+  diveTo: { value: null, state: "missing", evidence: null },
+  transportType: { value: null, state: "missing", evidence: null },
 };
 
 const FIRST_TEXT = "Hi, next Saturday for 3 nights please";
@@ -83,16 +92,19 @@ function post(app: App, body: string, signature = sign(body)) {
 }
 
 // Injects both seams: a fake provider (no vendor call) and a recording sender
-// (no Graph API call), which is what keeps every webhook test offline.
-function harness(provider: ExtractProvider) {
+// (no Graph API call), which is what keeps every webhook test offline. The store
+// comes back too, because several tests have to read what the channel did to the
+// thread — a claim kept or given back, a thread parked, a transcript.
+function harness(provider: ExtractProvider, store: ConversationStore = createInMemoryConversationStore()) {
   const sent: Array<{ to: string; body: string }> = [];
   const app = createApp({
     provider,
+    store,
     sendWhatsApp: async (message) => {
       sent.push(message);
     },
   });
-  return { app, sent };
+  return { app, sent, store };
 }
 
 // Everything a turn does after the provider call resolves is plain async code,
@@ -265,16 +277,33 @@ describe("WhatsApp webhook (Meta Cloud API)", () => {
     const res = await post(app, textEvent("wamid.1", FIRST_TEXT));
 
     expect(res.status).toBe(200);
-    expect(await res.json()).toEqual({ received: 1, replied: 1, duplicates: 0, failed: 0 });
+    expect(await res.json()).toEqual({ received: 1, replied: 1, duplicates: 0, failed: 0, handoffs: 0 });
     expect(provider.call).toHaveBeenCalledTimes(1);
     expect(transcriptSentOn(provider)).toContain(`Guest: ${FIRST_TEXT}`);
-    // The wording is the extractor's business, not the channel's: whether one reply
-    // asks about one unanswered field or four is a converse.ts decision (owned by
+    // The wording is the extractor's business, not the channel's: how much of the
+    // form one reply carries is a converse.ts decision (owned by
     // converse.test.ts). So this asserts that the guest was asked about the first
     // missing field of PARTIAL_RAW, not the exact phrasing.
     expect(sent).toHaveLength(1);
     expect(sent[0].to).toBe(GUEST);
     expect(sent[0].body).toContain(FIRST_REPLY);
+  });
+
+  it("answers with an acknowledgment and every open field in a single message, not one question per turn", async () => {
+    const provider = providerReturning(PARTIAL_RAW);
+    const { app, sent } = harness(provider);
+
+    await post(app, textEvent("wamid.1", FIRST_TEXT));
+
+    // One guest message, one WhatsApp message — and that message acknowledges
+    // what was understood, then asks every open field, numbered.
+    expect(sent).toHaveLength(1);
+    const numbered = sent[0].body.split("\n").filter((line) => /^\d+\. /.test(line));
+    expect(numbered).toHaveLength(3); // guests, diver, contactName
+    expect(sent[0].body).toContain("1. How many guests in total?"); // priority order, not alphabetical
+    expect(sent[0].body).toContain("I've noted down your stay starting Sep 26 for 3 nights.");
+    expect(sent[0].body).not.toContain("Rooms:"); // a house norm, shown in the summary rather than asked
+    expect(sent[0].body.length).toBeLessThan(4096); // the whole reply is nowhere near Meta's limit
   });
 
   it("carries earlier turns forward, so turn two is not answered as a brand-new guest", async () => {
@@ -302,32 +331,133 @@ describe("WhatsApp webhook (Meta Cloud API)", () => {
     await post(app, body);
     const res = await post(app, body);
 
-    expect(await res.json()).toEqual({ received: 1, replied: 0, duplicates: 1, failed: 0 });
+    expect(await res.json()).toEqual({ received: 1, replied: 0, duplicates: 1, failed: 0, handoffs: 0 });
     expect(provider.call).toHaveBeenCalledTimes(1);
     expect(sent).toHaveLength(1);
   });
 
-  it("gives the claim back when a turn fails before any reply, so Meta's redelivery answers instead of duplicating", async () => {
+  it("apologizes rather than falling silent when the provider fails, and parks the thread for a person", async () => {
     const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
     const provider = providerReturning(PARTIAL_RAW);
     const call = provider.call as ReturnType<typeof vi.fn>;
     // extract() retries once, so both attempts have to fail for the turn to fail:
     // the shape of a gateway that is down, or of a key that stopped working.
     call.mockRejectedValue(new Error("DeepSeek gateway extract failed: 500"));
-    const { app, sent } = harness(provider);
+    const { app, sent, store } = harness(provider);
     const body = textEvent("wamid.1", FIRST_TEXT);
 
-    expect(await (await post(app, body)).json()).toEqual({ received: 1, replied: 0, duplicates: 0, failed: 1 });
-    expect(sent).toHaveLength(0);
-    expect(errorSpy).toHaveBeenCalledTimes(1);
-
-    // Provider recovers and Meta redelivers the same wamid unmodified: that
-    // delivery is a retry now, not a duplicate swallowed in silence.
-    call.mockResolvedValue({ raw: PARTIAL_RAW, tokensIn: 10, tokensOut: 10, cacheReadTokens: 0, ms: 5 });
-    expect(await (await post(app, body)).json()).toEqual({ received: 1, replied: 1, duplicates: 0, failed: 0 });
+    // Still a failed turn — but the guest is not left with nothing, which is the
+    // point of the whole path: one static message, saying a person has it.
+    expect(await (await post(app, body)).json()).toEqual({ received: 1, replied: 1, duplicates: 0, failed: 1, handoffs: 1 });
     expect(sent).toHaveLength(1);
     expect(sent[0].to).toBe(GUEST);
-    expect(sent[0].body).toContain(FIRST_REPLY);
+    expect(sent[0].body).toContain("Sorry");
+    expect(errorSpy).toHaveBeenCalledTimes(1);
+
+    // The thread is a person's now, under a reason the reception view can read.
+    expect(await store.paused(GUEST)).toMatchObject({ phone: GUEST, reason: "turn_failed" });
+    expect(await store.history(GUEST)).toEqual([
+      { role: "guest", text: FIRST_TEXT },
+      { role: "assistant", text: expect.stringContaining("Sorry") },
+    ]);
+
+    // A message that did reach the guest keeps the claim taken: Meta's redelivery
+    // of the same wamid is a duplicate, not a second apology.
+    expect(await (await post(app, body)).json()).toEqual({ received: 1, replied: 0, duplicates: 1, failed: 0, handoffs: 0 });
+    expect(sent).toHaveLength(1);
+
+    // And the next thing the guest writes buys no model call at all: a person owns
+    // this thread, so the bot does not answer over them. They were told a moment
+    // ago, so this is quiet rather than a second identical sentence.
+    call.mockResolvedValue({ raw: PARTIAL_RAW, tokensIn: 10, tokensOut: 10, cacheReadTokens: 0, ms: 5 });
+    expect(await (await post(app, textEvent("wamid.2", "3 nights"))).json()).toEqual({
+      received: 1,
+      replied: 0,
+      duplicates: 0,
+      failed: 0,
+      handoffs: 0,
+    });
+    expect(provider.call).toHaveBeenCalledTimes(2); // the two failed attempts, and nothing since
+    expect(sent).toHaveLength(1);
+  });
+
+  it("tells a parked guest once, and again only after the holding window has passed", async () => {
+    const provider = providerReturning(PARTIAL_RAW);
+    const { app, sent } = harness(provider);
+    // "Can I speak to a human" parks the thread in the same turn it is answered.
+    await post(app, textEvent("wamid.1", "Can I speak to a human please?"));
+
+    expect(sent).toHaveLength(1);
+    expect(sent[0].body).toContain("A member of the Casa team");
+
+    // Three messages typed in a row are three separate deliveries, and none of
+    // them deserves the same sentence again — but none of them is silence either.
+    await post(app, textEvent("wamid.2", "hello?"));
+    await post(app, textEvent("wamid.3", "ok"));
+    expect(sent).toHaveLength(1);
+    expect(provider.call).not.toHaveBeenCalled();
+
+    // A new question an hour later is answered again: "we're on it" beats silence
+    // even when the sentence is the same one.
+    vi.setSystemTime(new Date("2026-09-15T01:00:00Z"));
+    expect(await (await post(app, textEvent("wamid.4", "any news?"))).json()).toEqual({
+      received: 1,
+      replied: 1,
+      duplicates: 0,
+      failed: 0,
+      handoffs: 1,
+    });
+    expect(sent).toHaveLength(2);
+  });
+
+  it("hands the thread to a person when the guest asks for one, in the guest's own language", async () => {
+    const provider = providerReturning(PARTIAL_RAW);
+    const { app, sent, store } = harness(provider);
+
+    // Vietnamese, so the holding reply has to be Vietnamese: the guest's words are
+    // the only evidence of which language to be stuck in, and the model is never
+    // asked — that is the point of reading the escalate keywords before the call.
+    expect(await (await post(app, textEvent("wamid.1", "Cho mình gặp nhân viên nhé"))).json()).toEqual({
+      received: 1,
+      replied: 1,
+      duplicates: 0,
+      failed: 0,
+      handoffs: 1,
+    });
+    expect(provider.call).not.toHaveBeenCalled();
+    expect(sent).toHaveLength(1);
+    expect(sent[0].body).toContain("Đội ngũ Casa");
+    expect(await store.paused(GUEST)).toMatchObject({ reason: "guest_asked_for_human" });
+  });
+
+  it("stops asking at the asking limit and hands over, instead of asking a ninth time", async () => {
+    const store = createInMemoryConversationStore();
+    // A thread asked ASK_LIMIT times that is still incomplete: a guest answering
+    // one field at a time forever, or an extractor that never fills the field it
+    // keeps asking about. Either way, another round of questions is not progress.
+    for (let i = 0; i < ASK_LIMIT; i++) {
+      await store.append(GUEST, { role: "guest", text: `message ${i}` }, { role: "assistant", text: `reply ${i}` });
+    }
+    const provider = providerReturning(PARTIAL_RAW); // fields still missing ⇒ done: false
+    const { app, sent } = harness(provider, store);
+
+    expect(await (await post(app, textEvent("wamid.1", "still thinking about it"))).json()).toEqual({
+      received: 1,
+      replied: 1,
+      duplicates: 0,
+      failed: 0,
+      handoffs: 1,
+    });
+    expect(provider.call).toHaveBeenCalledTimes(1); // one extraction, then a person takes it
+    expect(sent).toHaveLength(1);
+    expect(sent[0].body).toContain("A member of the Casa team");
+    expect(await store.paused(GUEST)).toMatchObject({ reason: "asking_limit" });
+
+    // Parked, so the *next* message costs nothing: the limit is never re-decided
+    // by asking the model again.
+    provider.call = vi.fn().mockResolvedValue({ raw: PARTIAL_RAW, tokensIn: 10, tokensOut: 10, cacheReadTokens: 0, ms: 5 });
+    await post(app, textEvent("wamid.2", "hello?"));
+    expect(provider.call).not.toHaveBeenCalled();
   });
 
   it("keeps the claim once a send is in flight, so a redelivery cannot reply twice", async () => {
@@ -341,14 +471,14 @@ describe("WhatsApp webhook (Meta Cloud API)", () => {
     });
     const body = textEvent("wamid.1", FIRST_TEXT);
 
-    expect(await (await post(app, body)).json()).toEqual({ received: 1, replied: 0, duplicates: 0, failed: 1 });
+    expect(await (await post(app, body)).json()).toEqual({ received: 1, replied: 0, duplicates: 0, failed: 1, handoffs: 0 });
     // The guest may well have this reply already — a send that fails after Meta
     // accepted it looks identical from here — so the redelivery is a duplicate.
-    expect(await (await post(app, body)).json()).toEqual({ received: 1, replied: 0, duplicates: 1, failed: 0 });
+    expect(await (await post(app, body)).json()).toEqual({ received: 1, replied: 0, duplicates: 1, failed: 0, handoffs: 0 });
     expect(provider.call).toHaveBeenCalledTimes(1);
   });
 
-  it("abandons a turn that outlives its deadline, acks Meta, and lets the redelivery answer", async () => {
+  it("abandons a turn that outlives its deadline, apologizes, and never answers that message twice", async () => {
     vi.stubEnv("WHATSAPP_TURN_TIMEOUT_MS", String(TURN_TIMEOUT_MS));
     const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
     const store = createInMemoryConversationStore();
@@ -357,41 +487,40 @@ describe("WhatsApp webhook (Meta Cloud API)", () => {
     const hung = new Promise<void>((resolve) => {
       releaseProvider = resolve;
     });
-    const sent: Array<{ to: string; body: string }> = [];
-    const app = createApp({
-      provider: {
-        id: "fake:hang",
-        call: vi.fn(() => hung.then(() => ({ raw: PARTIAL_RAW, tokensIn: 10, tokensOut: 10, cacheReadTokens: 0, ms: 5 }))),
-      },
-      store,
-      sendWhatsApp: async (message) => {
-        sent.push(message);
-      },
-    });
+    const provider: ExtractProvider = {
+      id: "fake:hang",
+      call: vi.fn(() => hung.then(() => ({ raw: PARTIAL_RAW, tokensIn: 10, tokensOut: 10, cacheReadTokens: 0, ms: 5 }))),
+    };
+    const { app, sent } = harness(provider, store);
     const body = textEvent("wamid.1", FIRST_TEXT);
 
     const res = await abandon(post(app, body));
 
+    // Meta still gets its 200 — and the guest has something to read while the
+    // provider is stuck, which is the half that used to be silence.
     expect(res.status).toBe(200);
-    expect(await res.json()).toEqual({ received: 1, replied: 0, duplicates: 0, failed: 1 });
-    expect(sent).toHaveLength(0);
+    expect(await res.json()).toEqual({ received: 1, replied: 1, duplicates: 0, failed: 1, handoffs: 1 });
+    expect(sent).toHaveLength(1);
+    expect(sent[0].body).toContain("Sorry");
     expect(String(errorSpy.mock.calls[0][3])).toContain("WhatsApp turn exceeded");
 
-    // The provider finally answers *after* Meta already had its 200. The
-    // abandoned turn must not append a reply or message the guest behind the
-    // redelivery's back — that is what keeps "one guest message, at most one
-    // reply" true, and it is why releasing the claim is safe.
+    // The provider finally answers *after* Meta already had its 200. The abandoned
+    // turn must not append a reply or message the guest behind the apology's back:
+    // that is what keeps "one guest message, at most one reply" true.
     releaseProvider?.();
     await flush();
 
-    expect(sent).toHaveLength(0);
-    expect(await store.history(GUEST)).toEqual([{ role: "guest", text: FIRST_TEXT }]);
-
-    // Now Meta's redelivery really does answer the guest.
-    expect(await (await post(app, body)).json()).toEqual({ received: 1, replied: 1, duplicates: 0, failed: 0 });
     expect(sent).toHaveLength(1);
-    expect(sent[0].to).toBe(GUEST);
-    expect(sent[0].body).toContain(FIRST_REPLY);
+    expect(await store.history(GUEST)).toEqual([
+      { role: "guest", text: FIRST_TEXT },
+      { role: "assistant", text: expect.stringContaining("Sorry") },
+    ]);
+
+    // Meta's redelivery is a duplicate: the claim stayed taken precisely because
+    // the guest already heard from us. No second model call, no repeated sentence.
+    expect(await (await post(app, body)).json()).toEqual({ received: 1, replied: 0, duplicates: 1, failed: 0, handoffs: 0 });
+    expect(provider.call).toHaveBeenCalledTimes(1);
+    expect(sent).toHaveLength(1);
   });
 
   it("answers nothing at all for a delivery receipt", async () => {
@@ -405,7 +534,7 @@ describe("WhatsApp webhook (Meta Cloud API)", () => {
     const res = await post(app, body);
 
     expect(res.status).toBe(200);
-    expect(await res.json()).toEqual({ received: 0, replied: 0, duplicates: 0, failed: 0 });
+    expect(await res.json()).toEqual({ received: 0, replied: 0, duplicates: 0, failed: 0, handoffs: 0 });
     expect(provider.call).not.toHaveBeenCalled();
     expect(sent).toHaveLength(0);
   });
@@ -417,7 +546,7 @@ describe("WhatsApp webhook (Meta Cloud API)", () => {
       entry: [{ changes: [{ value: { messages: [{ id: "wamid.1", from: GUEST, type: "audio", audio: { id: "MEDIA" } }] } }] }],
     });
 
-    expect(await (await post(app, body)).json()).toEqual({ received: 0, replied: 0, duplicates: 0, failed: 0 });
+    expect(await (await post(app, body)).json()).toEqual({ received: 0, replied: 0, duplicates: 0, failed: 0, handoffs: 0 });
     expect(provider.call).not.toHaveBeenCalled();
     expect(sent).toHaveLength(0);
   });
@@ -435,7 +564,7 @@ describe("WhatsApp webhook (Meta Cloud API)", () => {
     const res = await post(app, textEvent("wamid.1", FIRST_TEXT));
 
     expect(res.status).toBe(200);
-    expect(await res.json()).toEqual({ received: 1, replied: 0, duplicates: 0, failed: 1 });
+    expect(await res.json()).toEqual({ received: 1, replied: 0, duplicates: 0, failed: 1, handoffs: 0 });
     // The failure is logged, and logged masked: the number never appears raw.
     expect(errorSpy).toHaveBeenCalledWith("whatsapp turn failed", "[phone]", FIRST_TEXT, expect.anything());
     expect(errorSpy.mock.calls[0].join(" ")).not.toContain(GUEST);
@@ -453,6 +582,97 @@ describe("WhatsApp webhook (Meta Cloud API)", () => {
 
     expect(res.status).toBe(500);
     expect((await res.json()).error).toBe("server_misconfigured");
+  });
+});
+
+describe("handoff view", () => {
+  it("refuses to list or resume threads without the verify token", async () => {
+    const { app } = harness(providerReturning(PARTIAL_RAW));
+
+    const list = await app.request("/v1/channels/whatsapp/threads");
+    expect(list.status).toBe(401);
+    // A wrong token is refused too: the guard is a comparison, not a presence check.
+    const wrong = await app.request("/v1/channels/whatsapp/threads", {
+      headers: { "x-verify-token": `${VERIFY_TOKEN}x` },
+    });
+    expect(wrong.status).toBe(401);
+    const resume = await app.request(`/v1/channels/whatsapp/threads/${GUEST}/resume`, { method: "POST" });
+    expect(resume.status).toBe(401);
+  });
+
+  it("lists what a person has to answer, and hands the thread back on resume", async () => {
+    const provider = providerReturning(PARTIAL_RAW);
+    const { app, sent, store } = harness(provider);
+    // "Can I speak to a human" parks the thread, which is what reception has to see.
+    await post(app, textEvent("wamid.1", "Can I speak to a human please?"));
+    expect(await store.pausedThreads()).toHaveLength(1);
+
+    const list = await app.request("/v1/channels/whatsapp/threads", { headers: { "x-verify-token": VERIFY_TOKEN } });
+    expect(await list.json()).toEqual({
+      paused: [{ phone: GUEST, reason: "guest_asked_for_human", since: expect.any(Number), toldAt: expect.any(Number) }],
+    });
+
+    // Someone answered, so the bot takes the thread again — and this time it does
+    // call the model, because the thread is its own again.
+    const resume = await app.request(`/v1/channels/whatsapp/threads/${GUEST}/resume`, {
+      method: "POST",
+      headers: { "x-verify-token": VERIFY_TOKEN },
+    });
+    expect(await resume.json()).toEqual({ ok: true, phone: GUEST });
+    expect(await store.pausedThreads()).toEqual([]);
+
+    await post(app, textEvent("wamid.2", FIRST_TEXT));
+    expect(provider.call).toHaveBeenCalledTimes(1);
+    expect(sent).toHaveLength(2);
+    expect(sent[1].body).toContain(FIRST_REPLY);
+  });
+  it("reports whether the deployment's own credentials work, without sending anything", async () => {
+    vi.stubEnv("WHATSAPP_ACCESS_TOKEN", "EAAG-token");
+    vi.stubEnv("WHATSAPP_PHONE_NUMBER_ID", "1278878915314039");
+    const fetchMock = vi.fn().mockResolvedValue(
+      new Response(
+        JSON.stringify({ display_phone_number: "+1 555-150-6595", quality_rating: "GREEN", platform_type: "CLOUD_API" }),
+        { status: 200 },
+      ),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+    const { app } = harness(providerReturning(PARTIAL_RAW));
+
+    const res = await app.request("/v1/channels/whatsapp/status", { headers: { "x-verify-token": VERIFY_TOKEN } });
+
+    expect(await res.json()).toEqual({
+      configured: { verifyToken: true, appSecret: true, accessToken: true, phoneNumberId: true },
+      sender: { ok: true, displayPhoneNumber: "+1 555-150-6595", qualityRating: "GREEN", platformType: "CLOUD_API" },
+    });
+    // Read-only by construction: a GET of the number's own attributes, never a message.
+    const [url, init] = fetchMock.mock.calls[0];
+    expect(String(url)).toContain("1278878915314039");
+    expect(init.headers.authorization).toBe("Bearer EAAG-token");
+    expect(init.body).toBeUndefined();
+  });
+
+  it("says what Meta refused when the credentials this deployment holds are unusable", async () => {
+    // The failure this route exists for: a token pasted into a dashboard keeps the
+    // quotes it was copied with. It is present, so "configured" is all true — and a
+    // send would still answer 401 (#190) on a guest's message.
+    vi.stubEnv("WHATSAPP_ACCESS_TOKEN", '"EAAG-quoted"');
+    vi.stubEnv("WHATSAPP_PHONE_NUMBER_ID", "1278878915314039");
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue(
+        new Response('{"error":{"code":190,"message":"Authentication Error"}}', { status: 401 }),
+      ),
+    );
+    const { app } = harness(providerReturning(PARTIAL_RAW));
+
+    const res = await app.request("/v1/channels/whatsapp/status", { headers: { "x-verify-token": VERIFY_TOKEN } });
+    const body = await res.json();
+
+    expect(res.status).toBe(200);
+    expect(body.configured.accessToken).toBe(true);
+    expect(body.sender.ok).toBe(false);
+    expect(body.sender.error).toContain("401");
+    expect(body.sender.error).toContain("190");
   });
 });
 

@@ -7,7 +7,9 @@
     "dev": "tsx watch src/dev.ts",
     "typecheck": "tsc --noEmit",
     "whatsapp:sim": "node scripts/whatsapp-sim.mjs",
-    "whatsapp:check": "node scripts/whatsapp-check.mjs"
+    "whatsapp:check": "node scripts/whatsapp-check.mjs",
+    "whatsapp:threads": "node scripts/whatsapp-threads.mjs",
+    "whatsapp:webhook": "node scripts/whatsapp-webhook.mjs"
   },
   "dependencies": {
     "hono": "^4.6.0"

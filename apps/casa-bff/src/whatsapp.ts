@@ -66,6 +66,72 @@ export function verifySignature(rawBody: string, header: string | undefined, app
   return timingSafeEqual(Buffer.from(received, "utf8"), Buffer.from(expected, "utf8"));
 }
 
+/**
+ * Constant-time comparison of a shared secret a caller sent us, for the routes
+ * that are guarded by the verify token instead of by a signature (the handoff
+ * view in app.ts). Same reasoning as verifySignature's comparison: `===` on a
+ * secret exits at the first differing byte, which leaks it to anyone willing to
+ * measure how long a rejection takes.
+ */
+export function sameSecret(received: string | undefined, expected: string | undefined): boolean {
+  if (!received || !expected) return false;
+  const a = Buffer.from(received, "utf8");
+  const b = Buffer.from(expected, "utf8");
+  // timingSafeEqual throws on a length mismatch, so guard first.
+  if (a.length !== b.length) return false;
+  return timingSafeEqual(a, b);
+}
+
+export interface SenderCheck {
+  ok: boolean;
+  displayPhoneNumber?: string;
+  qualityRating?: string;
+  platformType?: string;
+  error?: string;
+}
+
+/**
+ * Asks Meta what it thinks of the sender credentials *this process* was given.
+ *
+ * scripts/whatsapp-check.mjs answers that for an env file on a laptop, which is a
+ * different question: a value pasted into a hosting dashboard keeps whatever quotes
+ * it was copied with (Node strips them from a .env file, a dashboard does not), and
+ * the first symptom is a 401 on a real guest's message, hours later. Read-only: a GET
+ * of the phone number's own public attributes, so it cannot send anything.
+ */
+export async function checkSenderCredentials(config: WhatsAppConfig): Promise<SenderCheck> {
+  const { accessToken, phoneNumberId, apiVersion, timeoutMs } = config;
+  if (!accessToken || !phoneNumberId) {
+    return { ok: false, error: "WHATSAPP_ACCESS_TOKEN and WHATSAPP_PHONE_NUMBER_ID are both required" };
+  }
+
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    const url = new URL(`https://graph.facebook.com/${apiVersion}/${phoneNumberId}`);
+    url.searchParams.set("fields", "display_phone_number,quality_rating,platform_type");
+    const res = await fetch(url, { headers: { authorization: `Bearer ${accessToken}` }, signal: controller.signal });
+    const body = await res.text();
+    if (!res.ok) {
+      // Meta's body names the problem (190 invalid token, 133010 not registered),
+      // and this is the one place that error is worth reading before a guest finds it.
+      return { ok: false, error: `Meta refused the token: ${res.status} ${body.slice(0, 300)}` };
+    }
+    const json = JSON.parse(body) as Record<string, unknown>;
+    return {
+      ok: true,
+      displayPhoneNumber: typeof json.display_phone_number === "string" ? json.display_phone_number : undefined,
+      qualityRating: typeof json.quality_rating === "string" ? json.quality_rating : undefined,
+      platformType: typeof json.platform_type === "string" ? json.platform_type : undefined,
+    };
+  } catch (err) {
+    if (err instanceof Error && err.name === "AbortError") return { ok: false, error: `Meta did not answer within ${timeoutMs}ms` };
+    return { ok: false, error: err instanceof Error ? err.message : String(err) };
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
 export interface InboundTextMessage {
   /** Meta's message id (`wamid...`) — the dedupe key, not the guest's number. */
   id: string;
@@ -115,8 +181,10 @@ export function parseInboundTexts(payload: unknown): InboundTextMessage[] {
 
 export type WhatsAppSendText = (input: { to: string; body: string }) => Promise<void>;
 
-// Meta rejects a text body over 4096 characters outright. Our replies are one
-// question long, so this only ever fires if generateQuestions() grows a novel.
+// Meta rejects a text body over 4096 characters outright. A reply is a short
+// deterministic message now (see renderReply in questions.ts): a greeting, an
+// acknowledgment plus the open questions, or a summary — a dozen short lines at
+// most, so this only ever fires if a conversation grows a novel.
 const MAX_BODY_CHARS = 4096;
 
 export function createWhatsAppSender(config: WhatsAppConfig): WhatsAppSendText {
