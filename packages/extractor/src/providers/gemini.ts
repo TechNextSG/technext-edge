@@ -59,6 +59,7 @@ export function createGeminiProvider(apiKey: string, model = process.env.GEMINI_
         "vehicle, are driving themselves, or do not need a transfer — 'xe tụi mình tự đi', " +
         "'tự chạy xe', 'own van', 'we have a car', '自己开车', '不需要接送'. Otherwise mark it " +
         "missing: a guest who never mentions the airport has not asked for anything. " +
+        "'diver' is true (stated) when the guest asks to dive, take a dive course, or are divers. Set it to false (stated) when they say they are not diving, do not want to dive, or have no diving plans — 'no diving', 'không lặn', 'không có nhu cầu lặn', '不潜水'. Otherwise mark it missing. " +
         "Copy a date phrase into " +
         "evidence verbatim, and also put your best ISO date (YYYY-MM-DD) for it in that " +
         "field's value, computed from today's date — the caller re-checks that date against " +
