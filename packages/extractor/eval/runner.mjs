@@ -9,6 +9,7 @@
 import { readFile, writeFile } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 import path from "node:path";
+import { checkEvidence, scoreCase } from "./score.mjs";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -74,50 +75,8 @@ async function callExtract(text) {
   return body;
 }
 
-function checkEvidence(trip, sourceText) {
-  const haystack = sourceText.toLowerCase();
-  let stated = 0;
-  let evidenceOk = 0;
-  for (const f of Object.values(trip)) {
-    if (f.state === "stated") {
-      stated++;
-      if (f.evidence && haystack.includes(f.evidence.toLowerCase())) evidenceOk++;
-    }
-  }
-  return { stated, evidenceOk };
-}
-
-function scoreCase(testCase, trip) {
-  const rows = [];
-  let fabricated = 0;
-  let requiredTotal = 0;
-  let requiredCorrect = 0;
-  const REQUIRED = ["checkIn", "guests", "rooms", "nights"];
-
-  for (const [field, expected] of Object.entries(testCase.expected)) {
-    const actual = trip[field];
-    const stateOk = actual.state === expected.state;
-    const valueOk = expected.value === undefined ? true : actual.value === expected.value;
-
-    // Fabrication per Playbook's own definition: "a value present that the
-    // message never said AND NO HOUSE NORM COVERS." "default" is the house
-    // norm doing its job on purpose — that is not fabrication, it's the
-    // opposite: an honest, labeled guess. Only "stated"/"inferred" claim the
-    // message itself as the source, so only those can be dishonest about it.
-    const isFabrication =
-      expected.state === "missing" && (actual.state === "stated" || actual.state === "inferred") && actual.value !== null;
-    if (isFabrication) fabricated++;
-
-    if (REQUIRED.includes(field) && expected.state === "stated") {
-      requiredTotal++;
-      if (stateOk && valueOk) requiredCorrect++;
-    }
-
-    rows.push({ field, expected, actual: { state: actual.state, value: actual.value }, stateOk, valueOk, isFabrication });
-  }
-
-  return { rows, fabricated, requiredTotal, requiredCorrect };
-}
+// Scoring lives in score.mjs: the offline replay (test/evalReplay.test.ts) has to apply
+// the same rules as this script, or the numbers stop meaning the same thing.
 
 const results = [];
 console.log(`\nRunning ${dataset.length} SIMULATED messages against ${BASE_URL}${PROVIDER ? ` (provider override: ${PROVIDER})` : ""}\n`);

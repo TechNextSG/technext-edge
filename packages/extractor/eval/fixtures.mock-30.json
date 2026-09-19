@@ -1,0 +1,982 @@
+{
+  "provenance": {
+    "dataset": "dataset.mock-30.json",
+    "recording": "results.1789702974010.json",
+    "provider": "deepseek-gateway:deepseek-flash",
+    "ranAt": "2026-09-18T03:42:54.010Z",
+    "recordedToday": "2026-09-18",
+    "generatedBy": "eval/make-fixtures.mjs",
+    "note": "What the model answered for each case, to replay through extract() offline. Model mistakes are preserved on purpose; fields code owns (language, checkOut, transportType, and every house-norm default) are omitted so the pipeline produces them again. `authored-checkIn` marks the 19 cases whose date the pre-fix code deleted before the recording could store it."
+  },
+  "cases": [
+    {
+      "id": "en-01-complete",
+      "provenance": "recorded",
+      "model": {
+        "checkIn": {
+          "value": "2026-09-26",
+          "state": "stated",
+          "evidence": "next Saturday"
+        },
+        "nights": {
+          "value": 3,
+          "state": "stated",
+          "evidence": "3 nights"
+        },
+        "guests": {
+          "value": 4,
+          "state": "stated",
+          "evidence": "4 people"
+        },
+        "meals": {
+          "value": "full_board",
+          "state": "stated",
+          "evidence": "full board"
+        },
+        "transport": {
+          "value": false,
+          "state": "stated",
+          "evidence": "no need for airport transfer"
+        },
+        "guestType": {
+          "value": "retail",
+          "state": "inferred",
+          "evidence": null
+        }
+      }
+    },
+    {
+      "id": "en-02-missing-most",
+      "provenance": "recorded",
+      "model": {
+        "checkIn": {
+          "value": "2026-09-19",
+          "state": "stated",
+          "evidence": "this weekend"
+        }
+      }
+    },
+    {
+      "id": "en-03-trap-unrelated-number",
+      "provenance": "authored-checkIn:resolver",
+      "model": {
+        "nights": {
+          "value": 1,
+          "state": "stated",
+          "evidence": "for 1 night"
+        },
+        "guests": {
+          "value": 2,
+          "state": "stated",
+          "evidence": "only 2 of us are joining this trip"
+        },
+        "contactName": {
+          "value": "Mark",
+          "state": "stated",
+          "evidence": "This is Mark"
+        },
+        "guestType": {
+          "value": "retail",
+          "state": "inferred",
+          "evidence": null
+        },
+        "diver": {
+          "value": true,
+          "state": "stated",
+          "evidence": "We are a group of certified divers (12 dives logged each)"
+        },
+        "checkIn": {
+          "value": "2026-09-19",
+          "state": "stated",
+          "evidence": "arriving tomorrow"
+        }
+      }
+    },
+    {
+      "id": "en-04-agent-multiple-rooms",
+      "provenance": "recorded",
+      "model": {
+        "checkIn": {
+          "value": "2026-09-25",
+          "state": "stated",
+          "evidence": "this Friday"
+        },
+        "nights": {
+          "value": 2,
+          "state": "stated",
+          "evidence": "staying 2 nights"
+        },
+        "guests": {
+          "value": 8,
+          "state": "stated",
+          "evidence": "8 guests"
+        },
+        "rooms": {
+          "value": 4,
+          "state": "stated",
+          "evidence": "need 4 rooms"
+        },
+        "meals": {
+          "value": "half_board",
+          "state": "stated",
+          "evidence": "half board only"
+        },
+        "transport": {
+          "value": false,
+          "state": "stated",
+          "evidence": "we'll arrange our own transport"
+        },
+        "guestType": {
+          "value": "agent",
+          "state": "stated",
+          "evidence": "Booking on behalf of a travel agency"
+        }
+      }
+    },
+    {
+      "id": "en-05-relative-date-idiom",
+      "provenance": "recorded",
+      "model": {
+        "checkIn": {
+          "value": "2026-09-23",
+          "state": "stated",
+          "evidence": "in 5 days"
+        },
+        "nights": {
+          "value": 4,
+          "state": "stated",
+          "evidence": "staying for 4 nights"
+        },
+        "guests": {
+          "value": 2,
+          "state": "stated",
+          "evidence": "party of 2"
+        },
+        "meals": {
+          "value": "room_only",
+          "state": "stated",
+          "evidence": "room only is fine"
+        }
+      }
+    },
+    {
+      "id": "en-06-padi-open-water",
+      "provenance": "authored-checkIn:model",
+      "model": {
+        "nights": {
+          "value": 4,
+          "state": "stated",
+          "evidence": "staying 4 nights"
+        },
+        "guests": {
+          "value": 2,
+          "state": "stated",
+          "evidence": "2 of us"
+        },
+        "meals": {
+          "value": "full_board",
+          "state": "stated",
+          "evidence": "full board"
+        },
+        "transport": {
+          "value": true,
+          "state": "stated",
+          "evidence": "need van from NAIA airport"
+        },
+        "guestType": {
+          "value": "retail",
+          "state": "inferred",
+          "evidence": null
+        },
+        "diver": {
+          "value": true,
+          "state": "inferred",
+          "evidence": null
+        },
+        "checkIn": {
+          "value": "2026-10-10",
+          "state": "stated",
+          "evidence": "starting Oct 10th"
+        }
+      }
+    },
+    {
+      "id": "en-07-fun-diving-package",
+      "provenance": "authored-checkIn:model",
+      "model": {
+        "nights": {
+          "value": 5,
+          "state": "stated",
+          "evidence": "5 nights"
+        },
+        "guests": {
+          "value": 3,
+          "state": "stated",
+          "evidence": "3 certified rescue divers"
+        },
+        "meals": {
+          "value": "full_board",
+          "state": "stated",
+          "evidence": "full board please"
+        },
+        "transport": {
+          "value": false,
+          "state": "stated",
+          "evidence": "we will arrange our own car"
+        },
+        "guestType": {
+          "value": "retail",
+          "state": "inferred",
+          "evidence": null
+        },
+        "diver": {
+          "value": true,
+          "state": "stated",
+          "evidence": "3 certified rescue divers"
+        },
+        "checkIn": {
+          "value": "2026-11-02",
+          "state": "stated",
+          "evidence": "starting Nov 2"
+        }
+      }
+    },
+    {
+      "id": "en-08-family-non-divers",
+      "provenance": "authored-checkIn:model",
+      "model": {
+        "nights": {
+          "value": 3,
+          "state": "stated",
+          "evidence": "for 3 nights"
+        },
+        "guests": {
+          "value": 5,
+          "state": "stated",
+          "evidence": "Family of 5"
+        },
+        "rooms": {
+          "value": 2,
+          "state": "stated",
+          "evidence": "2 rooms needed"
+        },
+        "meals": {
+          "value": "full_board",
+          "state": "stated",
+          "evidence": "full board"
+        },
+        "transport": {
+          "value": true,
+          "state": "stated",
+          "evidence": "arrange Manila airport transfer"
+        },
+        "guestType": {
+          "value": "retail",
+          "state": "inferred",
+          "evidence": null
+        },
+        "checkIn": {
+          "value": "2026-12-01",
+          "state": "stated",
+          "evidence": "coming Dec 1st"
+        }
+      }
+    },
+    {
+      "id": "en-09-trap-price-inquiry",
+      "provenance": "recorded",
+      "model": {}
+    },
+    {
+      "id": "en-10-solo-diver",
+      "provenance": "recorded",
+      "model": {
+        "checkIn": {
+          "value": "2026-09-25",
+          "state": "stated",
+          "evidence": "this Friday"
+        },
+        "nights": {
+          "value": 2,
+          "state": "stated",
+          "evidence": "2 nights"
+        },
+        "rooms": {
+          "value": 1,
+          "state": "stated",
+          "evidence": "1 room"
+        },
+        "meals": {
+          "value": "full_board",
+          "state": "stated",
+          "evidence": "full board"
+        },
+        "transport": {
+          "value": false,
+          "state": "stated",
+          "evidence": "no airport transfer needed"
+        },
+        "guestType": {
+          "value": "retail",
+          "state": "inferred",
+          "evidence": null
+        },
+        "diver": {
+          "value": true,
+          "state": "stated",
+          "evidence": "Solo diver"
+        }
+      }
+    },
+    {
+      "id": "vi-01-complete",
+      "provenance": "recorded",
+      "model": {
+        "checkIn": {
+          "value": "2026-09-19",
+          "state": "stated",
+          "evidence": "thứ Bảy này"
+        },
+        "nights": {
+          "value": 2,
+          "state": "stated",
+          "evidence": "ở 2 đêm"
+        },
+        "guests": {
+          "value": 5,
+          "state": "stated",
+          "evidence": "bên mình 5 người"
+        },
+        "meals": {
+          "value": "full_board",
+          "state": "stated",
+          "evidence": "ăn theo gói full board"
+        },
+        "transport": {
+          "value": true,
+          "state": "stated",
+          "evidence": "có xe đón sân bay giúp mình nhé"
+        }
+      }
+    },
+    {
+      "id": "vi-02-missing-dates",
+      "provenance": "recorded",
+      "model": {
+        "guests": {
+          "value": 6,
+          "state": "stated",
+          "evidence": "6 bạn"
+        },
+        "guestType": {
+          "value": "retail",
+          "state": "inferred",
+          "evidence": null
+        },
+        "diver": {
+          "value": true,
+          "state": "stated",
+          "evidence": "muốn đi lặn"
+        }
+      }
+    },
+    {
+      "id": "vi-03-trap-price-number",
+      "provenance": "recorded",
+      "model": {
+        "checkIn": {
+          "value": "2026-09-26",
+          "state": "stated",
+          "evidence": "cuối tuần sau"
+        },
+        "nights": {
+          "value": 1,
+          "state": "stated",
+          "evidence": "ở 1 đêm"
+        },
+        "guests": {
+          "value": 3,
+          "state": "stated",
+          "evidence": "mình đi 3 người thôi"
+        }
+      }
+    },
+    {
+      "id": "vi-04-khoa-hoc-lan-ow",
+      "provenance": "authored-checkIn:resolver",
+      "model": {
+        "nights": {
+          "value": 4,
+          "state": "stated",
+          "evidence": "ở lại 4 đêm"
+        },
+        "guests": {
+          "value": 4,
+          "state": "stated",
+          "evidence": "Nhóm mình 4 người"
+        },
+        "meals": {
+          "value": "full_board",
+          "state": "stated",
+          "evidence": "ăn trọn gói"
+        },
+        "transport": {
+          "value": true,
+          "state": "stated",
+          "evidence": "thuê xe đón từ sân bay Manila"
+        },
+        "guestType": {
+          "value": "retail",
+          "state": "inferred",
+          "evidence": null
+        },
+        "diveFrom": {
+          "value": "15/10",
+          "state": "stated",
+          "evidence": "từ ngày 15/10"
+        },
+        "diver": {
+          "value": true,
+          "state": "stated",
+          "evidence": "muốn học từ ngày 15/10"
+        },
+        "checkIn": {
+          "value": "2026-10-15",
+          "state": "stated",
+          "evidence": "từ ngày 15/10"
+        }
+      }
+    },
+    {
+      "id": "vi-05-dai-ly-dat-doan",
+      "provenance": "authored-checkIn:resolver",
+      "model": {
+        "nights": {
+          "value": 3,
+          "state": "stated",
+          "evidence": "ở 3 đêm"
+        },
+        "guests": {
+          "value": 10,
+          "state": "stated",
+          "evidence": "đoàn 10 khách"
+        },
+        "rooms": {
+          "value": 5,
+          "state": "stated",
+          "evidence": "đặt 5 phòng"
+        },
+        "meals": {
+          "value": "half_board",
+          "state": "stated",
+          "evidence": "Đoàn ăn half board"
+        },
+        "transport": {
+          "value": false,
+          "state": "stated",
+          "evidence": "tự túc xe"
+        },
+        "guestType": {
+          "value": "agent",
+          "state": "inferred",
+          "evidence": null
+        },
+        "checkIn": {
+          "value": "2026-11-20",
+          "state": "stated",
+          "evidence": "từ ngày 20/11"
+        }
+      }
+    },
+    {
+      "id": "vi-06-gia-dinh-nghi-duong",
+      "provenance": "authored-checkIn:resolver",
+      "model": {
+        "nights": {
+          "value": 3,
+          "state": "stated",
+          "evidence": "3 đêm"
+        },
+        "guests": {
+          "value": 4,
+          "state": "stated",
+          "evidence": "Gia đình mình 4 người"
+        },
+        "rooms": {
+          "value": 2,
+          "state": "stated",
+          "evidence": "Cần 2 phòng"
+        },
+        "meals": {
+          "value": "full_board",
+          "state": "stated",
+          "evidence": "ăn full board"
+        },
+        "transport": {
+          "value": true,
+          "state": "stated",
+          "evidence": "xe đón sân bay"
+        },
+        "checkIn": {
+          "value": "2026-10-02",
+          "state": "stated",
+          "evidence": "từ thứ Sáu tuần sau"
+        }
+      }
+    },
+    {
+      "id": "vi-07-cuoi-tuan-lan-bien",
+      "provenance": "authored-checkIn:resolver",
+      "model": {
+        "nights": {
+          "value": 2,
+          "state": "stated",
+          "evidence": "2 đêm"
+        },
+        "guests": {
+          "value": 6,
+          "state": "stated",
+          "evidence": "Nhóm 6 người"
+        },
+        "meals": {
+          "value": "full_board",
+          "state": "stated",
+          "evidence": "ăn full board"
+        },
+        "transport": {
+          "value": true,
+          "state": "stated",
+          "evidence": "xe tụi mình tự đi"
+        },
+        "guestType": {
+          "value": "retail",
+          "state": "inferred",
+          "evidence": null
+        },
+        "diver": {
+          "value": true,
+          "state": "stated",
+          "evidence": "muốn đi lặn"
+        },
+        "checkIn": {
+          "value": "2026-09-19",
+          "state": "stated",
+          "evidence": "check in thứ Bảy tới"
+        }
+      }
+    },
+    {
+      "id": "vi-08-hoi-gia-chung",
+      "provenance": "recorded",
+      "model": {
+        "checkIn": {
+          "value": "2026-09-19",
+          "state": "stated",
+          "evidence": "cuối tuần này"
+        }
+      }
+    },
+    {
+      "id": "vi-09-bay-so-dien-thoai",
+      "provenance": "authored-checkIn:model",
+      "model": {
+        "nights": {
+          "value": 2,
+          "state": "stated",
+          "evidence": "2 đêm"
+        },
+        "guests": {
+          "value": 8,
+          "state": "stated",
+          "evidence": "nhóm mình có 8 người"
+        },
+        "meals": {
+          "value": "full_board",
+          "state": "stated",
+          "evidence": "ăn trọn gói"
+        },
+        "contactName": {
+          "value": "Tuấn",
+          "state": "stated",
+          "evidence": "mình là Tuấn"
+        },
+        "checkIn": {
+          "value": "2026-12-05",
+          "state": "stated",
+          "evidence": "từ ngày 05/12"
+        }
+      }
+    },
+    {
+      "id": "vi-10-thue-xe-rieng",
+      "provenance": "authored-checkIn:model",
+      "model": {
+        "nights": {
+          "value": 3,
+          "state": "stated",
+          "evidence": "3 đêm"
+        },
+        "guests": {
+          "value": 2,
+          "state": "stated",
+          "evidence": "2 người"
+        },
+        "meals": {
+          "value": "full_board",
+          "state": "stated",
+          "evidence": "ăn trọn gói full board"
+        },
+        "transport": {
+          "value": true,
+          "state": "stated",
+          "evidence": "cần xe van riêng đưa đón 2 chiều Manila - Anilao"
+        },
+        "checkIn": {
+          "value": "2026-10-12",
+          "state": "stated",
+          "evidence": "từ 12/10"
+        }
+      }
+    },
+    {
+      "id": "zh-01-complete",
+      "provenance": "authored-checkIn:resolver",
+      "model": {
+        "nights": {
+          "value": 3,
+          "state": "stated",
+          "evidence": "住3晚"
+        },
+        "guests": {
+          "value": 4,
+          "state": "stated",
+          "evidence": "我们4个人"
+        },
+        "meals": {
+          "value": "full_board",
+          "state": "stated",
+          "evidence": "需要全包餐"
+        },
+        "transport": {
+          "value": false,
+          "state": "stated",
+          "evidence": "不需要接机"
+        },
+        "checkIn": {
+          "value": "2026-09-26",
+          "state": "stated",
+          "evidence": "下周六"
+        }
+      }
+    },
+    {
+      "id": "zh-02-missing-most",
+      "provenance": "recorded",
+      "model": {
+        "diver": {
+          "value": true,
+          "state": "inferred",
+          "evidence": null
+        }
+      }
+    },
+    {
+      "id": "zh-03-trap-phone-wechat",
+      "provenance": "authored-checkIn:resolver",
+      "model": {
+        "nights": {
+          "value": 3,
+          "state": "stated",
+          "evidence": "住3晚"
+        },
+        "guests": {
+          "value": 2,
+          "state": "stated",
+          "evidence": "我们一共2位持证潜水员"
+        },
+        "meals": {
+          "value": "full_board",
+          "state": "stated",
+          "evidence": "全包餐"
+        },
+        "transport": {
+          "value": true,
+          "state": "stated",
+          "evidence": "需要马尼拉机场接送"
+        },
+        "contactName": {
+          "value": "李明",
+          "state": "stated",
+          "evidence": "我是李明"
+        },
+        "guestType": {
+          "value": "retail",
+          "state": "inferred",
+          "evidence": null
+        },
+        "diver": {
+          "value": true,
+          "state": "stated",
+          "evidence": "持证潜水员"
+        },
+        "checkIn": {
+          "value": "2026-10-12",
+          "state": "stated",
+          "evidence": "10月12日"
+        }
+      }
+    },
+    {
+      "id": "zh-04-padi-ow-course",
+      "provenance": "authored-checkIn:resolver",
+      "model": {
+        "nights": {
+          "value": 4,
+          "state": "stated",
+          "evidence": "住4晚"
+        },
+        "guests": {
+          "value": 2,
+          "state": "stated",
+          "evidence": "我们2个人"
+        },
+        "meals": {
+          "value": "full_board",
+          "state": "stated",
+          "evidence": "需要全包餐"
+        },
+        "transport": {
+          "value": true,
+          "state": "stated",
+          "evidence": "马尼拉机场接送"
+        },
+        "guestType": {
+          "value": "retail",
+          "state": "inferred",
+          "evidence": null
+        },
+        "diver": {
+          "value": true,
+          "state": "stated",
+          "evidence": "想考OW潜水证"
+        },
+        "checkIn": {
+          "value": "2026-11-05",
+          "state": "stated",
+          "evidence": "11月5号"
+        }
+      }
+    },
+    {
+      "id": "zh-05-fun-dive-club",
+      "provenance": "authored-checkIn:resolver",
+      "model": {
+        "nights": {
+          "value": 4,
+          "state": "stated",
+          "evidence": "住4晚"
+        },
+        "guests": {
+          "value": 6,
+          "state": "stated",
+          "evidence": "6位持证潜水员"
+        },
+        "rooms": {
+          "value": 2,
+          "state": "stated",
+          "evidence": "需要2间房"
+        },
+        "meals": {
+          "value": "full_board",
+          "state": "stated",
+          "evidence": "全包餐"
+        },
+        "transport": {
+          "value": false,
+          "state": "stated",
+          "evidence": "自驾前往不需要接送"
+        },
+        "guestType": {
+          "value": "instructor",
+          "state": "inferred",
+          "evidence": null
+        },
+        "diver": {
+          "value": true,
+          "state": "stated",
+          "evidence": "持证潜水员"
+        },
+        "checkIn": {
+          "value": "2026-10-20",
+          "state": "stated",
+          "evidence": "10月20日"
+        }
+      }
+    },
+    {
+      "id": "zh-06-agency-booking",
+      "provenance": "authored-checkIn:resolver",
+      "model": {
+        "nights": {
+          "value": 2,
+          "state": "stated",
+          "evidence": "住2晚"
+        },
+        "guests": {
+          "value": 6,
+          "state": "stated",
+          "evidence": "共6位客人"
+        },
+        "rooms": {
+          "value": 3,
+          "state": "stated",
+          "evidence": "代预订3间房"
+        },
+        "meals": {
+          "value": "half_board",
+          "state": "stated",
+          "evidence": "半餐"
+        },
+        "transport": {
+          "value": false,
+          "state": "stated",
+          "evidence": "不需要接送机"
+        },
+        "guestType": {
+          "value": "agent",
+          "state": "stated",
+          "evidence": "我们是旅行社"
+        },
+        "checkIn": {
+          "value": "2026-11-15",
+          "state": "stated",
+          "evidence": "11月15日"
+        }
+      }
+    },
+    {
+      "id": "zh-07-family-trip",
+      "provenance": "authored-checkIn:resolver",
+      "model": {
+        "nights": {
+          "value": 2,
+          "state": "stated",
+          "evidence": "住2晚"
+        },
+        "guests": {
+          "value": 3,
+          "state": "stated",
+          "evidence": "一家3口"
+        },
+        "rooms": {
+          "value": 1,
+          "state": "stated",
+          "evidence": "需要1间房"
+        },
+        "meals": {
+          "value": "full_board",
+          "state": "stated",
+          "evidence": "全包餐"
+        },
+        "transport": {
+          "value": true,
+          "state": "stated",
+          "evidence": "安排马尼拉机场接送"
+        },
+        "checkIn": {
+          "value": "2026-12-10",
+          "state": "stated",
+          "evidence": "12月10日"
+        }
+      }
+    },
+    {
+      "id": "zh-08-relative-date",
+      "provenance": "authored-checkIn:resolver",
+      "model": {
+        "nights": {
+          "value": 2,
+          "state": "stated",
+          "evidence": "住2晚"
+        },
+        "guests": {
+          "value": 3,
+          "state": "stated",
+          "evidence": "我们3个人"
+        },
+        "meals": {
+          "value": "full_board",
+          "state": "stated",
+          "evidence": "全包餐"
+        },
+        "transport": {
+          "value": false,
+          "state": "stated",
+          "evidence": "不需要接送"
+        },
+        "checkIn": {
+          "value": "2026-09-25",
+          "state": "stated",
+          "evidence": "下周五"
+        }
+      }
+    },
+    {
+      "id": "zh-09-room-only",
+      "provenance": "authored-checkIn:resolver",
+      "model": {
+        "nights": {
+          "value": 2,
+          "state": "stated",
+          "evidence": "住2晚"
+        },
+        "guests": {
+          "value": 2,
+          "state": "stated",
+          "evidence": "2位客人"
+        },
+        "meals": {
+          "value": "room_only",
+          "state": "stated",
+          "evidence": "只订房间不需要餐食"
+        },
+        "transport": {
+          "value": true,
+          "state": "stated",
+          "evidence": "自己开车过去"
+        },
+        "checkIn": {
+          "value": "2026-10-24",
+          "state": "stated",
+          "evidence": "10月24日"
+        }
+      }
+    },
+    {
+      "id": "zh-10-trap-price-inquiry",
+      "provenance": "authored-checkIn:resolver",
+      "model": {
+        "nights": {
+          "value": 3,
+          "state": "stated",
+          "evidence": "住3晚"
+        },
+        "guests": {
+          "value": 4,
+          "state": "stated",
+          "evidence": "我们4个人"
+        },
+        "meals": {
+          "value": "full_board",
+          "state": "stated",
+          "evidence": "全包餐"
+        },
+        "checkIn": {
+          "value": "2026-11-08",
+          "state": "stated",
+          "evidence": "11月8日"
+        }
+      }
+    }
+  ]
+}

@@ -79,3 +79,62 @@ default is untouched, so this is safe to run against production without a
 redeploy or without affecting anyone else using the test page at the same
 time. The key never goes anywhere but straight into that one HTTP request;
 it's never written to the results file or logged.
+
+## Offline replay — the same 30 messages, no provider and no key
+
+`runner.mjs` is the bake-off: it spends real tokens against a deployment, which is
+why it runs when someone decides to run it. The pipeline's own rules (dates resolved
+in code, house norms, evidence enforcement) are deterministic, so once a model's
+answers are on disk they can be re-run on every `npm test`. That is what
+`test/evalReplay.test.ts` does, and it is the gate a date regression has to get past.
+
+Two generated files make that possible, both written by `eval/make-fixtures.mjs` from a
+recording of a live run — `results.1789702974010.json`, deepseek-flash through the local
+bff on 2026-09-18, whose own report is `results-deepseek.log`:
+
+| file | what it is |
+| --- | --- |
+| `fixtures.mock-30.json` | what the model answered, per case, fed back into `extract()` through a stub provider |
+| `baseline.deepseek-flash.json` | what that run's pipeline made of it, to compare the current pipeline against |
+
+Rules the generator holds to, so that the replay means something:
+
+- **A field the model got wrong is replayed wrong.** The recorded answers go back in as
+  they were, mistakes included (vi-09's `guests: 8` for a message that says 4, vi-07's
+  `transport: true` for "xe tụi mình tự đi"). Correcting them would measure whoever
+  wrote the fixture.
+- **Fields code owns are omitted**, so the pipeline produces them again: `language`,
+  `checkOut`, `transportType`, and every `default` house norm.
+- **19 check-ins are restored by hand**, marked `provenance: "authored-checkIn:*"`. The
+  pre-fix pipeline deleted those dates *before* the runner could record them, so the
+  model's own date and quote are not on disk — the log shows those cases scoring
+  `evidence n/n` while their `checkIn` read `missing`. They are written from the guest's
+  own words in `dataset.mock-30.json`: a claim about what a model returns for that
+  phrase, not a measurement. For every in-table phrase the resolver decides the date
+  anyway, so those values cannot make a test pass on their own.
+
+Regenerate them from the same recording or a newer one:
+
+```bash
+node eval/make-fixtures.mjs                       # default recording
+node eval/make-fixtures.mjs results.<timestamp>.json
+```
+
+With the recorded answers, the replay asserts offline that the current pipeline:
+
+- reproduces that run field for field, apart from the dates it recovers and the dive
+  fields a later rule deliberately tightened — and never moves a date that run had
+  already resolved;
+- recovers all 19 deleted dates as the day the guest actually wrote, and adds exactly
+  those 19 to the required-field score (63/87 → 82/87), with fabricated fields still 0
+  and evidence still verbatim 100% — scored by `eval/score.mjs`, the live runner's own
+  scoring code, shared so the two cannot drift apart;
+- keeps every date a guest wrote when a model reports it, and asks only about the two
+  messages that carry no date at all;
+- refuses a week-late date outright and never records one as `stated`;
+- refuses a date nothing in the guest's words supports ("khoảng cuối tháng này").
+
+None of that is a model score: it is the score of *that* run's answers. The ≥95%
+required-field threshold above still belongs to the live bake-off, because the recorded
+answers contain that model's own mistakes.
+

@@ -1,0 +1,2262 @@
+{
+  "provenance": {
+    "recording": "results.1789702974010.json",
+    "provider": "deepseek-gateway:deepseek-flash",
+    "ranAt": "2026-09-18T03:42:54.010Z",
+    "recordedToday": "2026-09-18",
+    "generatedBy": "eval/make-fixtures.mjs",
+    "note": "The trip that run produced for every case, so test/evalReplay.test.ts can assert the current pipeline still produces it — apart from the check-in dates this work recovers and the dive fields a later rule deliberately tightened. Extracted values only; no guest text."
+  },
+  "cases": [
+    {
+      "id": "en-01-complete",
+      "trip": {
+        "language": {
+          "value": "en",
+          "state": "inferred",
+          "evidence": null
+        },
+        "checkIn": {
+          "value": "2026-09-26",
+          "state": "stated",
+          "evidence": "next Saturday"
+        },
+        "checkOut": {
+          "value": "2026-09-29",
+          "state": "derived",
+          "evidence": null
+        },
+        "nights": {
+          "value": 3,
+          "state": "stated",
+          "evidence": "3 nights"
+        },
+        "guests": {
+          "value": 4,
+          "state": "stated",
+          "evidence": "4 people"
+        },
+        "rooms": {
+          "value": 1,
+          "state": "default",
+          "evidence": null
+        },
+        "meals": {
+          "value": "full_board",
+          "state": "stated",
+          "evidence": "full board"
+        },
+        "transport": {
+          "value": false,
+          "state": "stated",
+          "evidence": "no need for airport transfer"
+        },
+        "contactName": {
+          "value": null,
+          "state": "missing",
+          "evidence": null
+        },
+        "guestType": {
+          "value": "retail",
+          "state": "inferred",
+          "evidence": null
+        },
+        "transportType": {
+          "value": "none",
+          "state": "stated",
+          "evidence": "no need for airport transfer"
+        },
+        "diveFrom": {
+          "value": null,
+          "state": "missing",
+          "evidence": null
+        },
+        "diveTo": {
+          "value": null,
+          "state": "missing",
+          "evidence": null
+        },
+        "diver": {
+          "value": false,
+          "state": "default",
+          "evidence": null
+        }
+      }
+    },
+    {
+      "id": "en-02-missing-most",
+      "trip": {
+        "language": {
+          "value": "en",
+          "state": "inferred",
+          "evidence": null
+        },
+        "checkIn": {
+          "value": "2026-09-19",
+          "state": "stated",
+          "evidence": "this weekend"
+        },
+        "checkOut": {
+          "value": null,
+          "state": "missing",
+          "evidence": null
+        },
+        "nights": {
+          "value": null,
+          "state": "missing",
+          "evidence": null
+        },
+        "guests": {
+          "value": null,
+          "state": "missing",
+          "evidence": null
+        },
+        "rooms": {
+          "value": 1,
+          "state": "default",
+          "evidence": null
+        },
+        "meals": {
+          "value": "full_board",
+          "state": "default",
+          "evidence": null
+        },
+        "transport": {
+          "value": false,
+          "state": "default",
+          "evidence": null
+        },
+        "contactName": {
+          "value": null,
+          "state": "missing",
+          "evidence": null
+        },
+        "guestType": {
+          "value": "retail",
+          "state": "default",
+          "evidence": null
+        },
+        "transportType": {
+          "value": "none",
+          "state": "derived",
+          "evidence": null
+        },
+        "diveFrom": {
+          "value": null,
+          "state": "missing",
+          "evidence": null
+        },
+        "diveTo": {
+          "value": null,
+          "state": "missing",
+          "evidence": null
+        },
+        "diver": {
+          "value": false,
+          "state": "default",
+          "evidence": null
+        }
+      }
+    },
+    {
+      "id": "en-03-trap-unrelated-number",
+      "trip": {
+        "language": {
+          "value": "en",
+          "state": "inferred",
+          "evidence": null
+        },
+        "checkIn": {
+          "value": null,
+          "state": "missing",
+          "evidence": null
+        },
+        "checkOut": {
+          "value": null,
+          "state": "missing",
+          "evidence": null
+        },
+        "nights": {
+          "value": 1,
+          "state": "stated",
+          "evidence": "for 1 night"
+        },
+        "guests": {
+          "value": 2,
+          "state": "stated",
+          "evidence": "only 2 of us are joining this trip"
+        },
+        "rooms": {
+          "value": 1,
+          "state": "default",
+          "evidence": null
+        },
+        "meals": {
+          "value": "full_board",
+          "state": "default",
+          "evidence": null
+        },
+        "transport": {
+          "value": false,
+          "state": "default",
+          "evidence": null
+        },
+        "contactName": {
+          "value": "Mark",
+          "state": "stated",
+          "evidence": "This is Mark"
+        },
+        "guestType": {
+          "value": "retail",
+          "state": "inferred",
+          "evidence": null
+        },
+        "transportType": {
+          "value": "none",
+          "state": "derived",
+          "evidence": null
+        },
+        "diveFrom": {
+          "value": null,
+          "state": "missing",
+          "evidence": null
+        },
+        "diveTo": {
+          "value": null,
+          "state": "missing",
+          "evidence": null
+        },
+        "diver": {
+          "value": true,
+          "state": "stated",
+          "evidence": "We are a group of certified divers (12 dives logged each)"
+        }
+      }
+    },
+    {
+      "id": "en-04-agent-multiple-rooms",
+      "trip": {
+        "language": {
+          "value": "en",
+          "state": "inferred",
+          "evidence": null
+        },
+        "checkIn": {
+          "value": "2026-09-25",
+          "state": "stated",
+          "evidence": "this Friday"
+        },
+        "checkOut": {
+          "value": "2026-09-27",
+          "state": "derived",
+          "evidence": null
+        },
+        "nights": {
+          "value": 2,
+          "state": "stated",
+          "evidence": "staying 2 nights"
+        },
+        "guests": {
+          "value": 8,
+          "state": "stated",
+          "evidence": "8 guests"
+        },
+        "rooms": {
+          "value": 4,
+          "state": "stated",
+          "evidence": "need 4 rooms"
+        },
+        "meals": {
+          "value": "half_board",
+          "state": "stated",
+          "evidence": "half board only"
+        },
+        "transport": {
+          "value": false,
+          "state": "stated",
+          "evidence": "we'll arrange our own transport"
+        },
+        "contactName": {
+          "value": null,
+          "state": "missing",
+          "evidence": null
+        },
+        "guestType": {
+          "value": "agent",
+          "state": "stated",
+          "evidence": "Booking on behalf of a travel agency"
+        },
+        "transportType": {
+          "value": "none",
+          "state": "stated",
+          "evidence": "we'll arrange our own transport"
+        },
+        "diveFrom": {
+          "value": null,
+          "state": "missing",
+          "evidence": null
+        },
+        "diveTo": {
+          "value": null,
+          "state": "missing",
+          "evidence": null
+        },
+        "diver": {
+          "value": false,
+          "state": "default",
+          "evidence": null
+        }
+      }
+    },
+    {
+      "id": "en-05-relative-date-idiom",
+      "trip": {
+        "language": {
+          "value": "en",
+          "state": "inferred",
+          "evidence": null
+        },
+        "checkIn": {
+          "value": "2026-09-23",
+          "state": "stated",
+          "evidence": "in 5 days"
+        },
+        "checkOut": {
+          "value": "2026-09-27",
+          "state": "derived",
+          "evidence": null
+        },
+        "nights": {
+          "value": 4,
+          "state": "stated",
+          "evidence": "staying for 4 nights"
+        },
+        "guests": {
+          "value": 2,
+          "state": "stated",
+          "evidence": "party of 2"
+        },
+        "rooms": {
+          "value": 1,
+          "state": "default",
+          "evidence": null
+        },
+        "meals": {
+          "value": "room_only",
+          "state": "stated",
+          "evidence": "room only is fine"
+        },
+        "transport": {
+          "value": false,
+          "state": "default",
+          "evidence": null
+        },
+        "contactName": {
+          "value": null,
+          "state": "missing",
+          "evidence": null
+        },
+        "guestType": {
+          "value": "retail",
+          "state": "default",
+          "evidence": null
+        },
+        "transportType": {
+          "value": "none",
+          "state": "derived",
+          "evidence": null
+        },
+        "diveFrom": {
+          "value": null,
+          "state": "missing",
+          "evidence": null
+        },
+        "diveTo": {
+          "value": null,
+          "state": "missing",
+          "evidence": null
+        },
+        "diver": {
+          "value": false,
+          "state": "default",
+          "evidence": null
+        }
+      }
+    },
+    {
+      "id": "en-06-padi-open-water",
+      "trip": {
+        "language": {
+          "value": "en",
+          "state": "inferred",
+          "evidence": null
+        },
+        "checkIn": {
+          "value": null,
+          "state": "missing",
+          "evidence": null
+        },
+        "checkOut": {
+          "value": null,
+          "state": "missing",
+          "evidence": null
+        },
+        "nights": {
+          "value": 4,
+          "state": "stated",
+          "evidence": "staying 4 nights"
+        },
+        "guests": {
+          "value": 2,
+          "state": "stated",
+          "evidence": "2 of us"
+        },
+        "rooms": {
+          "value": 1,
+          "state": "default",
+          "evidence": null
+        },
+        "meals": {
+          "value": "full_board",
+          "state": "stated",
+          "evidence": "full board"
+        },
+        "transport": {
+          "value": true,
+          "state": "stated",
+          "evidence": "need van from NAIA airport"
+        },
+        "contactName": {
+          "value": null,
+          "state": "missing",
+          "evidence": null
+        },
+        "guestType": {
+          "value": "retail",
+          "state": "inferred",
+          "evidence": null
+        },
+        "transportType": {
+          "value": "oneway",
+          "state": "inferred",
+          "evidence": null
+        },
+        "diveFrom": {
+          "value": null,
+          "state": "missing",
+          "evidence": null
+        },
+        "diveTo": {
+          "value": null,
+          "state": "missing",
+          "evidence": null
+        },
+        "diver": {
+          "value": true,
+          "state": "inferred",
+          "evidence": null
+        }
+      }
+    },
+    {
+      "id": "en-07-fun-diving-package",
+      "trip": {
+        "language": {
+          "value": "en",
+          "state": "inferred",
+          "evidence": null
+        },
+        "checkIn": {
+          "value": null,
+          "state": "missing",
+          "evidence": null
+        },
+        "checkOut": {
+          "value": null,
+          "state": "missing",
+          "evidence": null
+        },
+        "nights": {
+          "value": 5,
+          "state": "stated",
+          "evidence": "5 nights"
+        },
+        "guests": {
+          "value": 3,
+          "state": "stated",
+          "evidence": "3 certified rescue divers"
+        },
+        "rooms": {
+          "value": 1,
+          "state": "default",
+          "evidence": null
+        },
+        "meals": {
+          "value": "full_board",
+          "state": "stated",
+          "evidence": "full board please"
+        },
+        "transport": {
+          "value": false,
+          "state": "stated",
+          "evidence": "we will arrange our own car"
+        },
+        "contactName": {
+          "value": null,
+          "state": "missing",
+          "evidence": null
+        },
+        "guestType": {
+          "value": "retail",
+          "state": "inferred",
+          "evidence": null
+        },
+        "transportType": {
+          "value": "none",
+          "state": "stated",
+          "evidence": "we will arrange our own car"
+        },
+        "diveFrom": {
+          "value": null,
+          "state": "missing",
+          "evidence": null
+        },
+        "diveTo": {
+          "value": null,
+          "state": "missing",
+          "evidence": null
+        },
+        "diver": {
+          "value": true,
+          "state": "stated",
+          "evidence": "3 certified rescue divers"
+        }
+      }
+    },
+    {
+      "id": "en-08-family-non-divers",
+      "trip": {
+        "language": {
+          "value": "en",
+          "state": "inferred",
+          "evidence": null
+        },
+        "checkIn": {
+          "value": null,
+          "state": "missing",
+          "evidence": null
+        },
+        "checkOut": {
+          "value": null,
+          "state": "missing",
+          "evidence": null
+        },
+        "nights": {
+          "value": 3,
+          "state": "stated",
+          "evidence": "for 3 nights"
+        },
+        "guests": {
+          "value": 5,
+          "state": "stated",
+          "evidence": "Family of 5"
+        },
+        "rooms": {
+          "value": 2,
+          "state": "stated",
+          "evidence": "2 rooms needed"
+        },
+        "meals": {
+          "value": "full_board",
+          "state": "stated",
+          "evidence": "full board"
+        },
+        "transport": {
+          "value": true,
+          "state": "stated",
+          "evidence": "arrange Manila airport transfer"
+        },
+        "contactName": {
+          "value": null,
+          "state": "missing",
+          "evidence": null
+        },
+        "guestType": {
+          "value": "retail",
+          "state": "inferred",
+          "evidence": null
+        },
+        "transportType": {
+          "value": "oneway",
+          "state": "inferred",
+          "evidence": null
+        },
+        "diveFrom": {
+          "value": null,
+          "state": "missing",
+          "evidence": null
+        },
+        "diveTo": {
+          "value": null,
+          "state": "missing",
+          "evidence": null
+        },
+        "diver": {
+          "value": false,
+          "state": "default",
+          "evidence": null
+        }
+      }
+    },
+    {
+      "id": "en-09-trap-price-inquiry",
+      "trip": {
+        "language": {
+          "value": "en",
+          "state": "inferred",
+          "evidence": null
+        },
+        "checkIn": {
+          "value": null,
+          "state": "missing",
+          "evidence": null
+        },
+        "checkOut": {
+          "value": null,
+          "state": "missing",
+          "evidence": null
+        },
+        "nights": {
+          "value": null,
+          "state": "missing",
+          "evidence": null
+        },
+        "guests": {
+          "value": null,
+          "state": "missing",
+          "evidence": null
+        },
+        "rooms": {
+          "value": 1,
+          "state": "default",
+          "evidence": null
+        },
+        "meals": {
+          "value": "full_board",
+          "state": "default",
+          "evidence": null
+        },
+        "transport": {
+          "value": false,
+          "state": "default",
+          "evidence": null
+        },
+        "contactName": {
+          "value": null,
+          "state": "missing",
+          "evidence": null
+        },
+        "guestType": {
+          "value": "retail",
+          "state": "default",
+          "evidence": null
+        },
+        "transportType": {
+          "value": "none",
+          "state": "derived",
+          "evidence": null
+        },
+        "diveFrom": {
+          "value": null,
+          "state": "missing",
+          "evidence": null
+        },
+        "diveTo": {
+          "value": null,
+          "state": "missing",
+          "evidence": null
+        },
+        "diver": {
+          "value": false,
+          "state": "default",
+          "evidence": null
+        }
+      }
+    },
+    {
+      "id": "en-10-solo-diver",
+      "trip": {
+        "language": {
+          "value": "en",
+          "state": "inferred",
+          "evidence": null
+        },
+        "checkIn": {
+          "value": "2026-09-25",
+          "state": "stated",
+          "evidence": "this Friday"
+        },
+        "checkOut": {
+          "value": "2026-09-27",
+          "state": "derived",
+          "evidence": null
+        },
+        "nights": {
+          "value": 2,
+          "state": "stated",
+          "evidence": "2 nights"
+        },
+        "guests": {
+          "value": null,
+          "state": "missing",
+          "evidence": null
+        },
+        "rooms": {
+          "value": 1,
+          "state": "stated",
+          "evidence": "1 room"
+        },
+        "meals": {
+          "value": "full_board",
+          "state": "stated",
+          "evidence": "full board"
+        },
+        "transport": {
+          "value": false,
+          "state": "stated",
+          "evidence": "no airport transfer needed"
+        },
+        "contactName": {
+          "value": null,
+          "state": "missing",
+          "evidence": null
+        },
+        "guestType": {
+          "value": "retail",
+          "state": "inferred",
+          "evidence": null
+        },
+        "transportType": {
+          "value": "none",
+          "state": "stated",
+          "evidence": "no airport transfer needed"
+        },
+        "diveFrom": {
+          "value": "2026-09-25",
+          "state": "derived",
+          "evidence": null
+        },
+        "diveTo": {
+          "value": "2026-09-27",
+          "state": "derived",
+          "evidence": null
+        },
+        "diver": {
+          "value": true,
+          "state": "stated",
+          "evidence": "Solo diver"
+        }
+      }
+    },
+    {
+      "id": "vi-01-complete",
+      "trip": {
+        "language": {
+          "value": "vi",
+          "state": "inferred",
+          "evidence": null
+        },
+        "checkIn": {
+          "value": "2026-09-19",
+          "state": "stated",
+          "evidence": "thứ Bảy này"
+        },
+        "checkOut": {
+          "value": "2026-09-21",
+          "state": "derived",
+          "evidence": null
+        },
+        "nights": {
+          "value": 2,
+          "state": "stated",
+          "evidence": "ở 2 đêm"
+        },
+        "guests": {
+          "value": 5,
+          "state": "stated",
+          "evidence": "bên mình 5 người"
+        },
+        "rooms": {
+          "value": 1,
+          "state": "default",
+          "evidence": null
+        },
+        "meals": {
+          "value": "full_board",
+          "state": "stated",
+          "evidence": "ăn theo gói full board"
+        },
+        "transport": {
+          "value": true,
+          "state": "stated",
+          "evidence": "có xe đón sân bay giúp mình nhé"
+        },
+        "contactName": {
+          "value": null,
+          "state": "missing",
+          "evidence": null
+        },
+        "guestType": {
+          "value": "retail",
+          "state": "default",
+          "evidence": null
+        },
+        "transportType": {
+          "value": "oneway",
+          "state": "inferred",
+          "evidence": null
+        },
+        "diveFrom": {
+          "value": null,
+          "state": "missing",
+          "evidence": null
+        },
+        "diveTo": {
+          "value": null,
+          "state": "missing",
+          "evidence": null
+        },
+        "diver": {
+          "value": false,
+          "state": "default",
+          "evidence": null
+        }
+      }
+    },
+    {
+      "id": "vi-02-missing-dates",
+      "trip": {
+        "language": {
+          "value": "vi",
+          "state": "inferred",
+          "evidence": null
+        },
+        "checkIn": {
+          "value": null,
+          "state": "missing",
+          "evidence": null
+        },
+        "checkOut": {
+          "value": null,
+          "state": "missing",
+          "evidence": null
+        },
+        "nights": {
+          "value": null,
+          "state": "missing",
+          "evidence": null
+        },
+        "guests": {
+          "value": 6,
+          "state": "stated",
+          "evidence": "6 bạn"
+        },
+        "rooms": {
+          "value": 1,
+          "state": "default",
+          "evidence": null
+        },
+        "meals": {
+          "value": "full_board",
+          "state": "default",
+          "evidence": null
+        },
+        "transport": {
+          "value": false,
+          "state": "default",
+          "evidence": null
+        },
+        "contactName": {
+          "value": null,
+          "state": "missing",
+          "evidence": null
+        },
+        "guestType": {
+          "value": "retail",
+          "state": "inferred",
+          "evidence": null
+        },
+        "transportType": {
+          "value": "none",
+          "state": "derived",
+          "evidence": null
+        },
+        "diveFrom": {
+          "value": null,
+          "state": "missing",
+          "evidence": null
+        },
+        "diveTo": {
+          "value": null,
+          "state": "missing",
+          "evidence": null
+        },
+        "diver": {
+          "value": true,
+          "state": "stated",
+          "evidence": "muốn đi lặn"
+        }
+      }
+    },
+    {
+      "id": "vi-03-trap-price-number",
+      "trip": {
+        "language": {
+          "value": "vi",
+          "state": "inferred",
+          "evidence": null
+        },
+        "checkIn": {
+          "value": "2026-09-26",
+          "state": "stated",
+          "evidence": "cuối tuần sau"
+        },
+        "checkOut": {
+          "value": "2026-09-27",
+          "state": "derived",
+          "evidence": null
+        },
+        "nights": {
+          "value": 1,
+          "state": "stated",
+          "evidence": "ở 1 đêm"
+        },
+        "guests": {
+          "value": 3,
+          "state": "stated",
+          "evidence": "mình đi 3 người thôi"
+        },
+        "rooms": {
+          "value": 1,
+          "state": "default",
+          "evidence": null
+        },
+        "meals": {
+          "value": "full_board",
+          "state": "default",
+          "evidence": null
+        },
+        "transport": {
+          "value": false,
+          "state": "default",
+          "evidence": null
+        },
+        "contactName": {
+          "value": null,
+          "state": "missing",
+          "evidence": null
+        },
+        "guestType": {
+          "value": "retail",
+          "state": "default",
+          "evidence": null
+        },
+        "transportType": {
+          "value": "none",
+          "state": "derived",
+          "evidence": null
+        },
+        "diveFrom": {
+          "value": null,
+          "state": "missing",
+          "evidence": null
+        },
+        "diveTo": {
+          "value": null,
+          "state": "missing",
+          "evidence": null
+        },
+        "diver": {
+          "value": false,
+          "state": "default",
+          "evidence": null
+        }
+      }
+    },
+    {
+      "id": "vi-04-khoa-hoc-lan-ow",
+      "trip": {
+        "language": {
+          "value": "vi",
+          "state": "inferred",
+          "evidence": null
+        },
+        "checkIn": {
+          "value": null,
+          "state": "missing",
+          "evidence": null
+        },
+        "checkOut": {
+          "value": null,
+          "state": "missing",
+          "evidence": null
+        },
+        "nights": {
+          "value": 4,
+          "state": "stated",
+          "evidence": "ở lại 4 đêm"
+        },
+        "guests": {
+          "value": 4,
+          "state": "stated",
+          "evidence": "Nhóm mình 4 người"
+        },
+        "rooms": {
+          "value": 1,
+          "state": "default",
+          "evidence": null
+        },
+        "meals": {
+          "value": "full_board",
+          "state": "stated",
+          "evidence": "ăn trọn gói"
+        },
+        "transport": {
+          "value": true,
+          "state": "stated",
+          "evidence": "thuê xe đón từ sân bay Manila"
+        },
+        "contactName": {
+          "value": null,
+          "state": "missing",
+          "evidence": null
+        },
+        "guestType": {
+          "value": "retail",
+          "state": "inferred",
+          "evidence": null
+        },
+        "transportType": {
+          "value": "oneway",
+          "state": "inferred",
+          "evidence": null
+        },
+        "diveFrom": {
+          "value": "15/10",
+          "state": "stated",
+          "evidence": "từ ngày 15/10"
+        },
+        "diveTo": {
+          "value": null,
+          "state": "missing",
+          "evidence": null
+        },
+        "diver": {
+          "value": true,
+          "state": "stated",
+          "evidence": "muốn học từ ngày 15/10"
+        }
+      }
+    },
+    {
+      "id": "vi-05-dai-ly-dat-doan",
+      "trip": {
+        "language": {
+          "value": "vi",
+          "state": "inferred",
+          "evidence": null
+        },
+        "checkIn": {
+          "value": null,
+          "state": "missing",
+          "evidence": null
+        },
+        "checkOut": {
+          "value": "23/11",
+          "state": "stated",
+          "evidence": "đến 23/11"
+        },
+        "nights": {
+          "value": 3,
+          "state": "stated",
+          "evidence": "ở 3 đêm"
+        },
+        "guests": {
+          "value": 10,
+          "state": "stated",
+          "evidence": "đoàn 10 khách"
+        },
+        "rooms": {
+          "value": 5,
+          "state": "stated",
+          "evidence": "đặt 5 phòng"
+        },
+        "meals": {
+          "value": "half_board",
+          "state": "stated",
+          "evidence": "Đoàn ăn half board"
+        },
+        "transport": {
+          "value": false,
+          "state": "stated",
+          "evidence": "tự túc xe"
+        },
+        "contactName": {
+          "value": null,
+          "state": "missing",
+          "evidence": null
+        },
+        "guestType": {
+          "value": "agent",
+          "state": "inferred",
+          "evidence": null
+        },
+        "transportType": {
+          "value": "none",
+          "state": "stated",
+          "evidence": "tự túc xe"
+        },
+        "diveFrom": {
+          "value": null,
+          "state": "missing",
+          "evidence": null
+        },
+        "diveTo": {
+          "value": null,
+          "state": "missing",
+          "evidence": null
+        },
+        "diver": {
+          "value": false,
+          "state": "default",
+          "evidence": null
+        }
+      }
+    },
+    {
+      "id": "vi-06-gia-dinh-nghi-duong",
+      "trip": {
+        "language": {
+          "value": "vi",
+          "state": "inferred",
+          "evidence": null
+        },
+        "checkIn": {
+          "value": null,
+          "state": "missing",
+          "evidence": null
+        },
+        "checkOut": {
+          "value": null,
+          "state": "missing",
+          "evidence": null
+        },
+        "nights": {
+          "value": 3,
+          "state": "stated",
+          "evidence": "3 đêm"
+        },
+        "guests": {
+          "value": 4,
+          "state": "stated",
+          "evidence": "Gia đình mình 4 người"
+        },
+        "rooms": {
+          "value": 2,
+          "state": "stated",
+          "evidence": "Cần 2 phòng"
+        },
+        "meals": {
+          "value": "full_board",
+          "state": "stated",
+          "evidence": "ăn full board"
+        },
+        "transport": {
+          "value": true,
+          "state": "stated",
+          "evidence": "xe đón sân bay"
+        },
+        "contactName": {
+          "value": null,
+          "state": "missing",
+          "evidence": null
+        },
+        "guestType": {
+          "value": "retail",
+          "state": "default",
+          "evidence": null
+        },
+        "transportType": {
+          "value": "oneway",
+          "state": "inferred",
+          "evidence": null
+        },
+        "diveFrom": {
+          "value": null,
+          "state": "missing",
+          "evidence": null
+        },
+        "diveTo": {
+          "value": null,
+          "state": "missing",
+          "evidence": null
+        },
+        "diver": {
+          "value": false,
+          "state": "default",
+          "evidence": null
+        }
+      }
+    },
+    {
+      "id": "vi-07-cuoi-tuan-lan-bien",
+      "trip": {
+        "language": {
+          "value": "vi",
+          "state": "inferred",
+          "evidence": null
+        },
+        "checkIn": {
+          "value": null,
+          "state": "missing",
+          "evidence": null
+        },
+        "checkOut": {
+          "value": null,
+          "state": "missing",
+          "evidence": null
+        },
+        "nights": {
+          "value": 2,
+          "state": "stated",
+          "evidence": "2 đêm"
+        },
+        "guests": {
+          "value": 6,
+          "state": "stated",
+          "evidence": "Nhóm 6 người"
+        },
+        "rooms": {
+          "value": 1,
+          "state": "default",
+          "evidence": null
+        },
+        "meals": {
+          "value": "full_board",
+          "state": "stated",
+          "evidence": "ăn full board"
+        },
+        "transport": {
+          "value": true,
+          "state": "stated",
+          "evidence": "xe tụi mình tự đi"
+        },
+        "contactName": {
+          "value": null,
+          "state": "missing",
+          "evidence": null
+        },
+        "guestType": {
+          "value": "retail",
+          "state": "inferred",
+          "evidence": null
+        },
+        "transportType": {
+          "value": "none",
+          "state": "stated",
+          "evidence": "xe tụi mình tự đi"
+        },
+        "diveFrom": {
+          "value": null,
+          "state": "missing",
+          "evidence": null
+        },
+        "diveTo": {
+          "value": null,
+          "state": "missing",
+          "evidence": null
+        },
+        "diver": {
+          "value": true,
+          "state": "stated",
+          "evidence": "muốn đi lặn"
+        }
+      }
+    },
+    {
+      "id": "vi-08-hoi-gia-chung",
+      "trip": {
+        "language": {
+          "value": "vi",
+          "state": "inferred",
+          "evidence": null
+        },
+        "checkIn": {
+          "value": "2026-09-19",
+          "state": "stated",
+          "evidence": "cuối tuần này"
+        },
+        "checkOut": {
+          "value": null,
+          "state": "missing",
+          "evidence": null
+        },
+        "nights": {
+          "value": null,
+          "state": "missing",
+          "evidence": null
+        },
+        "guests": {
+          "value": null,
+          "state": "missing",
+          "evidence": null
+        },
+        "rooms": {
+          "value": 1,
+          "state": "default",
+          "evidence": null
+        },
+        "meals": {
+          "value": "full_board",
+          "state": "default",
+          "evidence": null
+        },
+        "transport": {
+          "value": false,
+          "state": "default",
+          "evidence": null
+        },
+        "contactName": {
+          "value": null,
+          "state": "missing",
+          "evidence": null
+        },
+        "guestType": {
+          "value": "retail",
+          "state": "default",
+          "evidence": null
+        },
+        "transportType": {
+          "value": "none",
+          "state": "derived",
+          "evidence": null
+        },
+        "diveFrom": {
+          "value": null,
+          "state": "missing",
+          "evidence": null
+        },
+        "diveTo": {
+          "value": null,
+          "state": "missing",
+          "evidence": null
+        },
+        "diver": {
+          "value": false,
+          "state": "default",
+          "evidence": null
+        }
+      }
+    },
+    {
+      "id": "vi-09-bay-so-dien-thoai",
+      "trip": {
+        "language": {
+          "value": "vi",
+          "state": "inferred",
+          "evidence": null
+        },
+        "checkIn": {
+          "value": null,
+          "state": "missing",
+          "evidence": null
+        },
+        "checkOut": {
+          "value": null,
+          "state": "missing",
+          "evidence": null
+        },
+        "nights": {
+          "value": 2,
+          "state": "stated",
+          "evidence": "2 đêm"
+        },
+        "guests": {
+          "value": 8,
+          "state": "stated",
+          "evidence": "nhóm mình có 8 người"
+        },
+        "rooms": {
+          "value": 1,
+          "state": "default",
+          "evidence": null
+        },
+        "meals": {
+          "value": "full_board",
+          "state": "stated",
+          "evidence": "ăn trọn gói"
+        },
+        "transport": {
+          "value": false,
+          "state": "default",
+          "evidence": null
+        },
+        "contactName": {
+          "value": "Tuấn",
+          "state": "stated",
+          "evidence": "mình là Tuấn"
+        },
+        "guestType": {
+          "value": "retail",
+          "state": "default",
+          "evidence": null
+        },
+        "transportType": {
+          "value": "none",
+          "state": "derived",
+          "evidence": null
+        },
+        "diveFrom": {
+          "value": null,
+          "state": "missing",
+          "evidence": null
+        },
+        "diveTo": {
+          "value": null,
+          "state": "missing",
+          "evidence": null
+        },
+        "diver": {
+          "value": false,
+          "state": "default",
+          "evidence": null
+        }
+      }
+    },
+    {
+      "id": "vi-10-thue-xe-rieng",
+      "trip": {
+        "language": {
+          "value": "vi",
+          "state": "inferred",
+          "evidence": null
+        },
+        "checkIn": {
+          "value": null,
+          "state": "missing",
+          "evidence": null
+        },
+        "checkOut": {
+          "value": null,
+          "state": "missing",
+          "evidence": null
+        },
+        "nights": {
+          "value": 3,
+          "state": "stated",
+          "evidence": "3 đêm"
+        },
+        "guests": {
+          "value": 2,
+          "state": "stated",
+          "evidence": "2 người"
+        },
+        "rooms": {
+          "value": 1,
+          "state": "default",
+          "evidence": null
+        },
+        "meals": {
+          "value": "full_board",
+          "state": "stated",
+          "evidence": "ăn trọn gói full board"
+        },
+        "transport": {
+          "value": true,
+          "state": "stated",
+          "evidence": "cần xe van riêng đưa đón 2 chiều Manila - Anilao"
+        },
+        "contactName": {
+          "value": null,
+          "state": "missing",
+          "evidence": null
+        },
+        "guestType": {
+          "value": "retail",
+          "state": "default",
+          "evidence": null
+        },
+        "transportType": {
+          "value": "roundtrip",
+          "state": "stated",
+          "evidence": "đưa đón 2 chiều Manila - Anilao"
+        },
+        "diveFrom": {
+          "value": null,
+          "state": "missing",
+          "evidence": null
+        },
+        "diveTo": {
+          "value": null,
+          "state": "missing",
+          "evidence": null
+        },
+        "diver": {
+          "value": false,
+          "state": "default",
+          "evidence": null
+        }
+      }
+    },
+    {
+      "id": "zh-01-complete",
+      "trip": {
+        "language": {
+          "value": "zh",
+          "state": "inferred",
+          "evidence": null
+        },
+        "checkIn": {
+          "value": null,
+          "state": "missing",
+          "evidence": null
+        },
+        "checkOut": {
+          "value": null,
+          "state": "missing",
+          "evidence": null
+        },
+        "nights": {
+          "value": 3,
+          "state": "stated",
+          "evidence": "住3晚"
+        },
+        "guests": {
+          "value": 4,
+          "state": "stated",
+          "evidence": "我们4个人"
+        },
+        "rooms": {
+          "value": 1,
+          "state": "default",
+          "evidence": null
+        },
+        "meals": {
+          "value": "full_board",
+          "state": "stated",
+          "evidence": "需要全包餐"
+        },
+        "transport": {
+          "value": false,
+          "state": "stated",
+          "evidence": "不需要接机"
+        },
+        "contactName": {
+          "value": null,
+          "state": "missing",
+          "evidence": null
+        },
+        "guestType": {
+          "value": "retail",
+          "state": "default",
+          "evidence": null
+        },
+        "transportType": {
+          "value": "none",
+          "state": "inferred",
+          "evidence": null
+        },
+        "diveFrom": {
+          "value": null,
+          "state": "missing",
+          "evidence": null
+        },
+        "diveTo": {
+          "value": null,
+          "state": "missing",
+          "evidence": null
+        },
+        "diver": {
+          "value": false,
+          "state": "default",
+          "evidence": null
+        }
+      }
+    },
+    {
+      "id": "zh-02-missing-most",
+      "trip": {
+        "language": {
+          "value": "zh",
+          "state": "inferred",
+          "evidence": null
+        },
+        "checkIn": {
+          "value": null,
+          "state": "missing",
+          "evidence": null
+        },
+        "checkOut": {
+          "value": null,
+          "state": "missing",
+          "evidence": null
+        },
+        "nights": {
+          "value": null,
+          "state": "missing",
+          "evidence": null
+        },
+        "guests": {
+          "value": null,
+          "state": "missing",
+          "evidence": null
+        },
+        "rooms": {
+          "value": 1,
+          "state": "default",
+          "evidence": null
+        },
+        "meals": {
+          "value": "full_board",
+          "state": "default",
+          "evidence": null
+        },
+        "transport": {
+          "value": false,
+          "state": "default",
+          "evidence": null
+        },
+        "contactName": {
+          "value": null,
+          "state": "missing",
+          "evidence": null
+        },
+        "guestType": {
+          "value": "retail",
+          "state": "default",
+          "evidence": null
+        },
+        "transportType": {
+          "value": "none",
+          "state": "derived",
+          "evidence": null
+        },
+        "diveFrom": {
+          "value": null,
+          "state": "missing",
+          "evidence": null
+        },
+        "diveTo": {
+          "value": null,
+          "state": "missing",
+          "evidence": null
+        },
+        "diver": {
+          "value": true,
+          "state": "inferred",
+          "evidence": null
+        }
+      }
+    },
+    {
+      "id": "zh-03-trap-phone-wechat",
+      "trip": {
+        "language": {
+          "value": "zh",
+          "state": "inferred",
+          "evidence": null
+        },
+        "checkIn": {
+          "value": null,
+          "state": "missing",
+          "evidence": null
+        },
+        "checkOut": {
+          "value": null,
+          "state": "missing",
+          "evidence": null
+        },
+        "nights": {
+          "value": 3,
+          "state": "stated",
+          "evidence": "住3晚"
+        },
+        "guests": {
+          "value": 2,
+          "state": "stated",
+          "evidence": "我们一共2位持证潜水员"
+        },
+        "rooms": {
+          "value": 1,
+          "state": "default",
+          "evidence": null
+        },
+        "meals": {
+          "value": "full_board",
+          "state": "stated",
+          "evidence": "全包餐"
+        },
+        "transport": {
+          "value": true,
+          "state": "stated",
+          "evidence": "需要马尼拉机场接送"
+        },
+        "contactName": {
+          "value": "李明",
+          "state": "stated",
+          "evidence": "我是李明"
+        },
+        "guestType": {
+          "value": "retail",
+          "state": "inferred",
+          "evidence": null
+        },
+        "transportType": {
+          "value": "roundtrip",
+          "state": "inferred",
+          "evidence": null
+        },
+        "diveFrom": {
+          "value": null,
+          "state": "missing",
+          "evidence": null
+        },
+        "diveTo": {
+          "value": null,
+          "state": "missing",
+          "evidence": null
+        },
+        "diver": {
+          "value": true,
+          "state": "stated",
+          "evidence": "持证潜水员"
+        }
+      }
+    },
+    {
+      "id": "zh-04-padi-ow-course",
+      "trip": {
+        "language": {
+          "value": "zh",
+          "state": "inferred",
+          "evidence": null
+        },
+        "checkIn": {
+          "value": null,
+          "state": "missing",
+          "evidence": null
+        },
+        "checkOut": {
+          "value": null,
+          "state": "missing",
+          "evidence": null
+        },
+        "nights": {
+          "value": 4,
+          "state": "stated",
+          "evidence": "住4晚"
+        },
+        "guests": {
+          "value": 2,
+          "state": "stated",
+          "evidence": "我们2个人"
+        },
+        "rooms": {
+          "value": 1,
+          "state": "default",
+          "evidence": null
+        },
+        "meals": {
+          "value": "full_board",
+          "state": "stated",
+          "evidence": "需要全包餐"
+        },
+        "transport": {
+          "value": true,
+          "state": "stated",
+          "evidence": "马尼拉机场接送"
+        },
+        "contactName": {
+          "value": null,
+          "state": "missing",
+          "evidence": null
+        },
+        "guestType": {
+          "value": "retail",
+          "state": "inferred",
+          "evidence": null
+        },
+        "transportType": {
+          "value": "roundtrip",
+          "state": "inferred",
+          "evidence": null
+        },
+        "diveFrom": {
+          "value": null,
+          "state": "missing",
+          "evidence": null
+        },
+        "diveTo": {
+          "value": null,
+          "state": "missing",
+          "evidence": null
+        },
+        "diver": {
+          "value": true,
+          "state": "stated",
+          "evidence": "想考OW潜水证"
+        }
+      }
+    },
+    {
+      "id": "zh-05-fun-dive-club",
+      "trip": {
+        "language": {
+          "value": "zh",
+          "state": "inferred",
+          "evidence": null
+        },
+        "checkIn": {
+          "value": null,
+          "state": "missing",
+          "evidence": null
+        },
+        "checkOut": {
+          "value": null,
+          "state": "missing",
+          "evidence": null
+        },
+        "nights": {
+          "value": 4,
+          "state": "stated",
+          "evidence": "住4晚"
+        },
+        "guests": {
+          "value": 6,
+          "state": "stated",
+          "evidence": "6位持证潜水员"
+        },
+        "rooms": {
+          "value": 2,
+          "state": "stated",
+          "evidence": "需要2间房"
+        },
+        "meals": {
+          "value": "full_board",
+          "state": "stated",
+          "evidence": "全包餐"
+        },
+        "transport": {
+          "value": false,
+          "state": "stated",
+          "evidence": "自驾前往不需要接送"
+        },
+        "contactName": {
+          "value": null,
+          "state": "missing",
+          "evidence": null
+        },
+        "guestType": {
+          "value": "instructor",
+          "state": "inferred",
+          "evidence": null
+        },
+        "transportType": {
+          "value": "none",
+          "state": "stated",
+          "evidence": "不需要接送"
+        },
+        "diveFrom": {
+          "value": null,
+          "state": "missing",
+          "evidence": null
+        },
+        "diveTo": {
+          "value": null,
+          "state": "missing",
+          "evidence": null
+        },
+        "diver": {
+          "value": true,
+          "state": "stated",
+          "evidence": "持证潜水员"
+        }
+      }
+    },
+    {
+      "id": "zh-06-agency-booking",
+      "trip": {
+        "language": {
+          "value": "zh",
+          "state": "inferred",
+          "evidence": null
+        },
+        "checkIn": {
+          "value": null,
+          "state": "missing",
+          "evidence": null
+        },
+        "checkOut": {
+          "value": null,
+          "state": "missing",
+          "evidence": null
+        },
+        "nights": {
+          "value": 2,
+          "state": "stated",
+          "evidence": "住2晚"
+        },
+        "guests": {
+          "value": 6,
+          "state": "stated",
+          "evidence": "共6位客人"
+        },
+        "rooms": {
+          "value": 3,
+          "state": "stated",
+          "evidence": "代预订3间房"
+        },
+        "meals": {
+          "value": "half_board",
+          "state": "stated",
+          "evidence": "半餐"
+        },
+        "transport": {
+          "value": false,
+          "state": "stated",
+          "evidence": "不需要接送机"
+        },
+        "contactName": {
+          "value": null,
+          "state": "missing",
+          "evidence": null
+        },
+        "guestType": {
+          "value": "agent",
+          "state": "stated",
+          "evidence": "我们是旅行社"
+        },
+        "transportType": {
+          "value": "none",
+          "state": "stated",
+          "evidence": "不需要接送机"
+        },
+        "diveFrom": {
+          "value": null,
+          "state": "missing",
+          "evidence": null
+        },
+        "diveTo": {
+          "value": null,
+          "state": "missing",
+          "evidence": null
+        },
+        "diver": {
+          "value": false,
+          "state": "default",
+          "evidence": null
+        }
+      }
+    },
+    {
+      "id": "zh-07-family-trip",
+      "trip": {
+        "language": {
+          "value": "zh",
+          "state": "inferred",
+          "evidence": null
+        },
+        "checkIn": {
+          "value": null,
+          "state": "missing",
+          "evidence": null
+        },
+        "checkOut": {
+          "value": null,
+          "state": "missing",
+          "evidence": null
+        },
+        "nights": {
+          "value": 2,
+          "state": "stated",
+          "evidence": "住2晚"
+        },
+        "guests": {
+          "value": 3,
+          "state": "stated",
+          "evidence": "一家3口"
+        },
+        "rooms": {
+          "value": 1,
+          "state": "stated",
+          "evidence": "需要1间房"
+        },
+        "meals": {
+          "value": "full_board",
+          "state": "stated",
+          "evidence": "全包餐"
+        },
+        "transport": {
+          "value": true,
+          "state": "stated",
+          "evidence": "安排马尼拉机场接送"
+        },
+        "contactName": {
+          "value": null,
+          "state": "missing",
+          "evidence": null
+        },
+        "guestType": {
+          "value": "retail",
+          "state": "default",
+          "evidence": null
+        },
+        "transportType": {
+          "value": "roundtrip",
+          "state": "derived",
+          "evidence": null
+        },
+        "diveFrom": {
+          "value": null,
+          "state": "missing",
+          "evidence": null
+        },
+        "diveTo": {
+          "value": null,
+          "state": "missing",
+          "evidence": null
+        },
+        "diver": {
+          "value": false,
+          "state": "default",
+          "evidence": null
+        }
+      }
+    },
+    {
+      "id": "zh-08-relative-date",
+      "trip": {
+        "language": {
+          "value": "zh",
+          "state": "inferred",
+          "evidence": null
+        },
+        "checkIn": {
+          "value": null,
+          "state": "missing",
+          "evidence": null
+        },
+        "checkOut": {
+          "value": null,
+          "state": "missing",
+          "evidence": null
+        },
+        "nights": {
+          "value": 2,
+          "state": "stated",
+          "evidence": "住2晚"
+        },
+        "guests": {
+          "value": 3,
+          "state": "stated",
+          "evidence": "我们3个人"
+        },
+        "rooms": {
+          "value": 1,
+          "state": "default",
+          "evidence": null
+        },
+        "meals": {
+          "value": "full_board",
+          "state": "stated",
+          "evidence": "全包餐"
+        },
+        "transport": {
+          "value": false,
+          "state": "stated",
+          "evidence": "不需要接送"
+        },
+        "contactName": {
+          "value": null,
+          "state": "missing",
+          "evidence": null
+        },
+        "guestType": {
+          "value": "retail",
+          "state": "default",
+          "evidence": null
+        },
+        "transportType": {
+          "value": "none",
+          "state": "stated",
+          "evidence": "不需要接送"
+        },
+        "diveFrom": {
+          "value": null,
+          "state": "missing",
+          "evidence": null
+        },
+        "diveTo": {
+          "value": null,
+          "state": "missing",
+          "evidence": null
+        },
+        "diver": {
+          "value": false,
+          "state": "default",
+          "evidence": null
+        }
+      }
+    },
+    {
+      "id": "zh-09-room-only",
+      "trip": {
+        "language": {
+          "value": "zh",
+          "state": "inferred",
+          "evidence": null
+        },
+        "checkIn": {
+          "value": null,
+          "state": "missing",
+          "evidence": null
+        },
+        "checkOut": {
+          "value": null,
+          "state": "missing",
+          "evidence": null
+        },
+        "nights": {
+          "value": 2,
+          "state": "stated",
+          "evidence": "住2晚"
+        },
+        "guests": {
+          "value": 2,
+          "state": "stated",
+          "evidence": "2位客人"
+        },
+        "rooms": {
+          "value": 1,
+          "state": "default",
+          "evidence": null
+        },
+        "meals": {
+          "value": "room_only",
+          "state": "stated",
+          "evidence": "只订房间不需要餐食"
+        },
+        "transport": {
+          "value": true,
+          "state": "stated",
+          "evidence": "自己开车过去"
+        },
+        "contactName": {
+          "value": null,
+          "state": "missing",
+          "evidence": null
+        },
+        "guestType": {
+          "value": "retail",
+          "state": "default",
+          "evidence": null
+        },
+        "transportType": {
+          "value": "roundtrip",
+          "state": "derived",
+          "evidence": null
+        },
+        "diveFrom": {
+          "value": null,
+          "state": "missing",
+          "evidence": null
+        },
+        "diveTo": {
+          "value": null,
+          "state": "missing",
+          "evidence": null
+        },
+        "diver": {
+          "value": false,
+          "state": "default",
+          "evidence": null
+        }
+      }
+    },
+    {
+      "id": "zh-10-trap-price-inquiry",
+      "trip": {
+        "language": {
+          "value": "zh",
+          "state": "inferred",
+          "evidence": null
+        },
+        "checkIn": {
+          "value": null,
+          "state": "missing",
+          "evidence": null
+        },
+        "checkOut": {
+          "value": null,
+          "state": "missing",
+          "evidence": null
+        },
+        "nights": {
+          "value": 3,
+          "state": "stated",
+          "evidence": "住3晚"
+        },
+        "guests": {
+          "value": 4,
+          "state": "stated",
+          "evidence": "我们4个人"
+        },
+        "rooms": {
+          "value": 1,
+          "state": "default",
+          "evidence": null
+        },
+        "meals": {
+          "value": "full_board",
+          "state": "stated",
+          "evidence": "全包餐"
+        },
+        "transport": {
+          "value": false,
+          "state": "default",
+          "evidence": null
+        },
+        "contactName": {
+          "value": null,
+          "state": "missing",
+          "evidence": null
+        },
+        "guestType": {
+          "value": "retail",
+          "state": "default",
+          "evidence": null
+        },
+        "transportType": {
+          "value": "none",
+          "state": "derived",
+          "evidence": null
+        },
+        "diveFrom": {
+          "value": null,
+          "state": "missing",
+          "evidence": null
+        },
+        "diveTo": {
+          "value": null,
+          "state": "missing",
+          "evidence": null
+        },
+        "diver": {
+          "value": false,
+          "state": "default",
+          "evidence": null
+        }
+      }
+    }
+  ]
+}
