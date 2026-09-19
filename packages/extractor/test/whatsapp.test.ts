@@ -286,7 +286,10 @@ describe("WhatsApp webhook (Meta Cloud API)", () => {
 
     const secondTurn = transcriptSentOn(provider, 1);
     expect(secondTurn).toContain(`Guest: ${FIRST_TEXT}`);
-    expect(secondTurn).toContain(`Assistant: ${FIRST_REPLY}`);
+    // The assistant turn kept in history is the whole form, so every question it
+    // asked reaches the model inside a single assistant message.
+    expect(secondTurn).toContain("Assistant: Thanks! I've noted down");
+    expect(secondTurn).toContain(FIRST_REPLY);
     expect(secondTurn).toContain("Guest: 2 of us, 1 room");
     expect(sent).toHaveLength(2);
   });

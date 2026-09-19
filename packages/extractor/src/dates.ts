@@ -16,14 +16,18 @@ function addDays(iso: string, days: number): string {
   return d.toISOString().slice(0, 10);
 }
 
+// Vietnamese guests answer a follow-up with the digit form as often as the named
+// one ("thứ 7" / "thu 7" for "thứ bảy"), and the named forms plus t2..t7 alone
+// were not enough: "thứ 7 tuần sau" — a very common reply — resolved to null and
+// silently became a missing check-in. Both spellings of every day are listed.
 const WEEKDAYS: Record<string, number> = {
   sunday: 0, sun: 0, "chủ nhật": 0, "chu nhat": 0, cn: 0,
-  monday: 1, mon: 1, "thứ hai": 1, "thu hai": 1, t2: 1,
-  tuesday: 2, tue: 2, "thứ ba": 2, "thu ba": 2, t3: 2,
-  wednesday: 3, wed: 3, "thứ tư": 3, "thu tu": 3, t4: 3,
-  thursday: 4, thu: 4, "thứ năm": 4, "thu nam": 4, t5: 4,
-  friday: 5, fri: 5, "thứ sáu": 5, "thu sau": 5, t6: 5,
-  saturday: 6, sat: 6, "thứ bảy": 6, "thu bay": 6, t7: 6,
+  monday: 1, mon: 1, "thứ hai": 1, "thu hai": 1, "thứ 2": 1, "thu 2": 1, t2: 1,
+  tuesday: 2, tue: 2, "thứ ba": 2, "thu ba": 2, "thứ 3": 2, "thu 3": 2, t3: 2,
+  wednesday: 3, wed: 3, "thứ tư": 3, "thu tu": 3, "thứ 4": 3, "thu 4": 3, t4: 3,
+  thursday: 4, thu: 4, "thứ năm": 4, "thu nam": 4, "thứ 5": 4, "thu 5": 4, t5: 4,
+  friday: 5, fri: 5, "thứ sáu": 5, "thu sau": 5, "thứ 6": 5, "thu 6": 5, t6: 5,
+  saturday: 6, sat: 6, "thứ bảy": 6, "thu bay": 6, "thứ 7": 6, "thu 7": 6, t7: 6,
 };
 
 /**
@@ -34,6 +38,28 @@ const WEEKDAYS: Record<string, number> = {
  */
 export function resolveRelativeDate(phrase: string, today: string): string | null {
   const p = phrase.trim().toLowerCase();
+
+  // Guests commonly answer a follow-up with a numeric calendar date. Validate
+  // the calendar value instead of asking the model to interpret it.
+  const isoDate = p.match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/);
+  const numericDate = p.match(/^(\d{1,2})[/.\-](\d{1,2})[/.\-](\d{4})$/);
+  if (isoDate || numericDate) {
+    const [, isoYear, isoMonth, isoDay] = isoDate ?? [];
+    const [, numericDay, numericMonth, numericYear] = numericDate ?? [];
+    const day = isoDay ?? numericDay;
+    const month = isoMonth ?? numericMonth;
+    const year = isoYear ?? numericYear;
+    const candidate = `${year}-${month.padStart(2, "0")}-${day.padStart(2, "0")}`;
+    const parsed = new Date(`${candidate}T00:00:00Z`);
+    if (
+      parsed.getUTCFullYear() === Number(year) &&
+      parsed.getUTCMonth() + 1 === Number(month) &&
+      parsed.getUTCDate() === Number(day)
+    ) {
+      return candidate;
+    }
+    return null;
+  }
 
   if (/^(today|hôm nay|hom nay)$/.test(p)) return today;
   if (/^(tomorrow|ngày mai|ngay mai)$/.test(p)) return addDays(today, 1);

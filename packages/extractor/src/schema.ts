@@ -29,6 +29,13 @@ export type Field<T> = { value: T | null; state: FieldState; evidence: string | 
 
 export const MealPlan = z.enum(["full_board", "half_board", "room_only", "none"]);
 
+// Fields aligned with Odoo Estimate API (estimate-api.v1.json):
+export const GuestType = z.enum(["retail", "agent", "instructor"]);
+export type GuestType = z.infer<typeof GuestType>;
+
+export const TransportType = z.enum(["none", "roundtrip", "oneway"]);
+export type TransportType = z.infer<typeof TransportType>;
+
 export const Trip = z.object({
   language: field(z.enum(["vi", "en", "zh"])),
   checkIn: field(z.string()), // ISO date, resolved in code — never trust a relative date from the model
@@ -39,6 +46,13 @@ export const Trip = z.object({
   meals: field(MealPlan),
   transport: field(z.boolean()), // airport van round trip requested
   contactName: field(z.string()),
+
+  // Tier 2 fields from Odoo API Field Guide (missing causes silent pricing error):
+  guestType: field(GuestType).optional(), // retail (default) | agent (30% discount) | instructor
+  transportType: field(TransportType).optional(), // none | roundtrip | oneway
+  diveFrom: field(z.string()).optional(), // ISO date start of dive window (vital for dive charges)
+  diveTo: field(z.string()).optional(), // ISO date end of dive window (vital for dive charges)
+  diver: field(z.boolean()).optional(), // true if group includes certified divers or dive courses
 });
 export type Trip = z.infer<typeof Trip>;
 
@@ -47,3 +61,4 @@ export type Trip = z.infer<typeof Trip>;
 // PLACEHOLDER — confirm the real 4 with Jett/Eloa before the eval run; guessed
 // wrong, this list silently mislabels real "missing" fields as "default".
 export const HOUSE_NORM_FIELDS = ["meals", "transport", "rooms", "language"] as const;
+

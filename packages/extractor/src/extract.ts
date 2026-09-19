@@ -1,9 +1,9 @@
 import { zodToJsonSchema } from "zod-to-json-schema";
 import { ZodError } from "zod";
-import { Trip, HOUSE_NORM_FIELDS, type Trip as TripType, type Field } from "./schema.js";
+import { Trip, HOUSE_NORM_FIELDS, type Trip as TripType, type Field, type FieldState } from "./schema.js";
 import { HOUSE_NORMS } from "./houseNorms.js";
 import { manilaToday, resolveRelativeDate, deriveCheckOut } from "./dates.js";
-import { normalize, detectLanguage, maskForLogging } from "./normalize.js";
+import { normalize, detectLanguage, guestTextOf, maskForLogging } from "./normalize.js";
 import { generateQuestions } from "./questions.js";
 import type { ExtractProvider } from "./provider.js";
 
@@ -114,6 +114,14 @@ export async function extract(rawText: string, provider: ExtractProvider): Promi
   };
 }
 
+// The two FieldStates that are this file's to set: `default` (house norms, applied
+// to exactly HOUSE_NORM_FIELDS below) and `derived` (checkOut from checkIn + nights,
+// transportType from the transport boolean). The prompt tells the model its states
+// are 'stated', 'inferred' or 'missing' (see providers/deepseek.ts) — a `default` a
+// model pins on its own guess would otherwise be shown to the guest as a house norm,
+// and, being non-missing, would keep the question from ever being asked.
+const CODE_ONLY_STATES: ReadonlyArray<FieldState> = ["default", "derived"];
+
 // Everything the model is not trusted to get right, done here instead:
 //  - relative dates resolved against Manila "today"
 //  - checkOut always derived from checkIn + nights, never taken from the model
@@ -121,6 +129,39 @@ export async function extract(rawText: string, provider: ExtractProvider): Promi
 //  - language re-checked by heuristic when the model left it missing
 function postProcess(raw: unknown, today: string, sourceText: string): unknown {
   const trip = structuredClone(raw) as Record<string, Field<unknown>>;
+
+  // Evidence, language and guest-type detection read the *guest's* words only.
+  // A transcript also carries the assistant's own replies, and a field the bot
+  // printed itself ("Meals: full board") would otherwise come back as a
+  // "stated" field on the next turn, with the bot's own sentence as evidence.
+  const guestText = guestTextOf(sourceText);
+
+  // Some structured-output providers use 0 as a stand-in for an unknown
+  // positive count. It is recoverable missing information: ask the guest
+  // instead of failing the entire conversation turn.
+  for (const key of ["nights", "guests", "rooms"] as const) {
+    const field = trip[key];
+    if (field?.state === "inferred" || (typeof field?.value === "number" && field.value <= 0)) {
+      trip[key] = { value: null, state: "missing", evidence: null };
+    }
+  }
+
+  // Neither an absent key nor a state only code may set is an answer, and the two
+  // have the same symptom: the field stops being `missing`, so it is never asked
+  // about. The Tier-2 Odoo fields are optional in the schema, so a model that simply
+  // leaves one out produces a trip with no state for it — measured against the live
+  // provider on 2026-09-19, on the first message of a real WhatsApp run: the same
+  // text came back with `diver: missing` on one call and with no `diver` key at all on
+  // the next. The first reply asked "would you like to go diving", the second dropped
+  // the question entirely — for the field dive revenue is priced from. Normalizing
+  // both cases to `missing` here is what turns them back into a question (or, for the
+  // four house-norm fields, into the norm a few lines below).
+  for (const key of Object.keys(Trip.shape) as Array<keyof TripType>) {
+    const field = trip[key] as Field<unknown> | undefined;
+    if (!field || typeof field !== "object" || field.state === undefined || CODE_ONLY_STATES.includes(field.state)) {
+      trip[key] = { value: null, state: "missing", evidence: null };
+    }
+  }
 
   const checkIn = trip.checkIn;
   if (checkIn && (checkIn.state === "stated" || checkIn.state === "inferred") && checkIn.evidence) {
@@ -130,6 +171,7 @@ function postProcess(raw: unknown, today: string, sourceText: string): unknown {
     } else {
       checkIn.value = null;
       checkIn.state = "missing";
+      checkIn.evidence = null;
     }
   }
 
@@ -149,11 +191,64 @@ function postProcess(raw: unknown, today: string, sourceText: string): unknown {
     }
   }
 
-  if (trip.language?.state === "missing") {
-    trip.language = { value: detectLanguage(sourceText), state: "inferred", evidence: null };
+  // Language is detected deterministically from the guest's text. A model must
+  // not label it "stated" simply because it saw an English or Vietnamese
+  // sentence; guests do not normally state their language explicitly.
+  trip.language = { value: detectLanguage(guestText), state: "inferred", evidence: null };
+
+  // Align with Odoo Estimate API (estimate-api.v1.json / casa-api-guide):
+  // 1. guestType: detect agency phrasing or default to "retail"
+  const isAgent = /\b(agency|travel\s+agent|travel\s+agency|agent|tour\s+operator)\b|đại\s*lý|旅行社|代理/i.test(guestText);
+  if (!trip.guestType || trip.guestType.state === "missing") {
+    trip.guestType = isAgent
+      ? { value: "agent", state: "inferred", evidence: null }
+      : { value: "retail", state: "default", evidence: null };
   }
 
-  enforceVerbatimEvidence(trip, sourceText);
+  // 2. transportType: maps from transport boolean (roundtrip vs none)
+  if (!trip.transportType || trip.transportType.state === "missing") {
+    if (trip.transport?.value === true) {
+      trip.transportType = { value: "roundtrip", state: "derived", evidence: null };
+    } else if (trip.transport?.value === false) {
+      trip.transportType = { value: "none", state: "derived", evidence: null };
+    } else {
+      trip.transportType = { value: "none", state: "default", evidence: null };
+    }
+  }
+
+  // 3. diver and dive window (diveFrom / diveTo)
+  // These used to be *inferred* here by a keyword regex, with the window then
+  // derived as the whole stay. Both were wrong for the same reason: the regex fed
+  // a money field, and a derived window is an assumption the guest never agreed
+  // to, so a guest who wrote "we might dive" was priced for a dive package. All
+  // three now come from the model's structured output when the guest actually
+  // said something, and otherwise from a question the guest answers
+  // (questions.ts): diver is asked outright, and the window only once diver is
+  // true, so a non-diving enquiry is never asked for a dive window.
+  //
+  // Enforced here, not merely described: `stated` is the only dive answer that
+  // survives this function. An `inferred` one ("we might dive") would be priced as
+  // though the guest had confirmed it and — being non-missing — would never be asked
+  // about, which is the same money bug through a different door. ADR-006 Decision 4
+  // is "ask what money depends on; never infer it", so an unconfirmed answer becomes
+  // `missing` again and the guest's own reply is the only thing that fills it.
+  for (const key of ["diver", "diveFrom", "diveTo"] as const) {
+    if (trip[key]?.state !== "stated") {
+      trip[key] = { value: null, state: "missing", evidence: null };
+    }
+  }
+
+
+  // Evidence proves an explicit guest statement only. Keeping it on inferred,
+  // missing, default or derived fields makes the UI look more certain than the
+  // underlying data and can turn an ambiguous reply into a fabricated fact.
+  for (const field of Object.values(trip)) {
+    if (field && field.state !== "stated") {
+      field.evidence = null;
+    }
+  }
+
+  enforceVerbatimEvidence(trip, guestText);
 
   return trip;
 }
@@ -163,6 +258,10 @@ function postProcess(raw: unknown, today: string, sourceText: string): unknown {
 // evidence the source text doesn't actually contain is downgraded to
 // "missing" rather than trusted — the fabricated-fields-must-be-zero rule
 // applies here, in code, not only in the eval report.
+//
+// The haystack is the guest's own words, never the whole transcript: the bot's
+// replies are in the transcript too, and checking against them would let a value
+// the bot printed come back as a guest-stated fact on the next turn.
 function enforceVerbatimEvidence(trip: Record<string, Field<unknown>>, sourceText: string): void {
   const haystack = sourceText.toLowerCase();
   for (const [key, f] of Object.entries(trip)) {

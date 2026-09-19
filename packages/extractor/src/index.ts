@@ -10,7 +10,8 @@ export { resolveRelativeDate, deriveCheckOut, manilaToday } from "./dates.js";
 // Exported for whoever logs raw guest text — the webhook in apps/casa-bff is
 // the first such caller. extract() itself deliberately does not mask what it
 // sends to the provider (see normalize.ts).
-export { maskForLogging } from "./normalize.js";
-export { generateQuestions } from "./questions.js";
+export { maskForLogging, detectLanguage, guestTextOf } from "./normalize.js";
+export { generateQuestions, renderReply, fallbackReply, wantsHuman, ASK_LIMIT } from "./questions.js";
+export type { ReplyKind, RenderedReply, FallbackKind, GuestLanguage } from "./questions.js";
 export { converse } from "./converse.js";
-export type { ConversationTurn, ConverseOutcome } from "./converse.js";
+export type { ConversationChannel, ConversationInput, ConversationTurn, ConverseOutcome } from "./converse.js";

@@ -23,7 +23,9 @@ let DATASET_ARG;
 for (let i = 0; i < args.length; i++) {
   if (args[i] === "--provider") {
     PROVIDER = args[++i];
-  } else if (!DATASET_ARG) {
+  } else if (args[i] === "--dataset") {
+    DATASET_ARG = args[++i];
+  } else if (!DATASET_ARG && !args[i].startsWith("--")) {
     DATASET_ARG = args[i];
   }
 }
@@ -31,7 +33,19 @@ for (let i = 0; i < args.length; i++) {
 const BASE_URL = process.env.EVAL_BASE_URL ?? "https://technext-edge-casa-bff.vercel.app";
 const BYPASS = process.env.EVAL_BYPASS_SECRET; // required — no built-in default, see README
 const PROVIDER_API_KEY = process.env.EVAL_PROVIDER_API_KEY;
-const DATASET_PATH = DATASET_ARG ?? path.join(__dirname, "dataset.synthetic.json");
+
+function resolveDatasetPath(arg) {
+  if (!arg) {
+    // Default to mock-30 if present, else synthetic
+    return path.join(__dirname, "dataset.mock-30.json");
+  }
+  if (arg === "mock-30" || arg === "mock") return path.join(__dirname, "dataset.mock-30.json");
+  if (arg === "synthetic") return path.join(__dirname, "dataset.synthetic.json");
+  if (arg === "real") return path.join(__dirname, "dataset.real.json");
+  return path.isAbsolute(arg) ? arg : path.resolve(process.cwd(), arg);
+}
+
+const DATASET_PATH = resolveDatasetPath(DATASET_ARG);
 
 if (!BYPASS) {
   console.error("Set EVAL_BYPASS_SECRET (the Vercel deployment-protection bypass secret) before running.");
@@ -42,7 +56,9 @@ if (PROVIDER && !PROVIDER_API_KEY) {
   process.exit(1);
 }
 
+console.log(`Running eval against: ${path.basename(DATASET_PATH)}`);
 const dataset = JSON.parse(await readFile(DATASET_PATH, "utf8"));
+
 
 async function callExtract(text) {
   const res = await fetch(`${BASE_URL}/v1/extract`, {

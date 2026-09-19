@@ -16,6 +16,24 @@ const TOOL_NAME = "extract_trip";
 // comfortably above the measured baseline.
 const TIMEOUT_MS = 20_000;
 
+// zod-to-json-schema with the OpenAPI target emits `exclusiveMinimum: true`
+// for positive numbers. DeepSeek's tool-schema validator expects the newer
+// numeric form and rejects that boolean with a 400. Zod still enforces the
+// positive/integer constraints after the model responds, so dropping the
+// unsupported bound here does not weaken the application's validation.
+function toDeepSeekSchema(node: unknown): unknown {
+  if (Array.isArray(node)) return node.map(toDeepSeekSchema);
+  if (node && typeof node === "object") {
+    const out: Record<string, unknown> = {};
+    for (const [key, value] of Object.entries(node as Record<string, unknown>)) {
+      if (key === "exclusiveMinimum" || key === "exclusiveMaximum") continue;
+      out[key] = toDeepSeekSchema(value);
+    }
+    return out;
+  }
+  return node;
+}
+
 // DeepSeek has no `response_format: {type: "json_schema"}` (confirmed against
 // their API docs, 2026-09) — only plain `json_object` mode, which is why the
 // original version of this file dumped the whole JSON Schema as prose in the
@@ -36,7 +54,11 @@ export function createDeepSeekProvider(
         `the ${TOOL_NAME} tool. Every field needs a state: 'stated' (quote it in ` +
         "evidence, verbatim), 'inferred' (context implies it, no exact quote), or " +
         "'missing'. Never invent a value that state 'stated' cannot point to verbatim " +
-        "evidence for. Do not resolve relative dates yourself — copy the date phrase " +
+        "evidence for. Evidence must only be a verbatim substring for 'stated'; set it " +
+        "to null for every other state. When state is 'missing', set both value and evidence to null; " +
+        "never use 0 as a placeholder for an unknown count, and never assign unlabeled " +
+        "comma-separated numbers to trip fields. Nights, guests, and rooms are 'stated' only when their " +
+        "evidence quotes the exact guest wording; otherwise mark them missing. Do not resolve relative dates yourself — copy the date phrase " +
         "as written and let the caller resolve it.";
 
       const userParts = [`Today's date (Asia/Manila): ${today}`, `Guest message:\n${text}`];
@@ -63,6 +85,10 @@ export function createDeepSeekProvider(
           signal: controller.signal,
           body: JSON.stringify({
             model,
+            // The gateway rejects named/required tool_choice while thinking is
+            // enabled. Extraction needs one deterministic tool call, so use
+            // DeepSeek's non-thinking mode for this structured-output path.
+            thinking: { type: "disabled" },
             messages: [
               { role: "system", content: systemPrompt },
               { role: "user", content: userParts.join("\n\n") },
@@ -73,8 +99,7 @@ export function createDeepSeekProvider(
                 function: {
                   name: TOOL_NAME,
                   description: "Record the extracted trip details.",
-                  parameters: jsonSchema,
-                  strict: true,
+                  parameters: toDeepSeekSchema(jsonSchema),
                 },
               },
             ],

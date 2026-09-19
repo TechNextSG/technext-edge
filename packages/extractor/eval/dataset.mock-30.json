@@ -1,0 +1,360 @@
+[
+  {
+    "id": "en-01-complete",
+    "note": "Everything stated, casual WhatsApp phrasing.",
+    "text": "hi! we're 4 people looking to come next Saturday for 3 nights, full board pls. no need for airport transfer, we have our own van",
+    "expected": {
+      "nights": { "state": "stated", "value": 3 },
+      "guests": { "state": "stated", "value": 4 },
+      "meals": { "state": "stated", "value": "full_board" },
+      "transport": { "state": "stated", "value": false },
+      "checkIn": { "state": "stated" },
+      "rooms": { "state": "missing" },
+      "contactName": { "state": "missing" }
+    }
+  },
+  {
+    "id": "en-02-missing-most",
+    "note": "Vague first-touch enquiry.",
+    "text": "Hi is Casa Escondida open this weekend? how much per person",
+    "expected": {
+      "nights": { "state": "missing" },
+      "guests": { "state": "missing" },
+      "rooms": { "state": "missing" },
+      "contactName": { "state": "missing" }
+    }
+  },
+  {
+    "id": "en-03-trap-unrelated-number",
+    "note": "Fabrication trap: a phone number and a certification count sit near the guest count.",
+    "text": "This is Mark, my number is 09171234567. We are a group of certified divers (12 dives logged each) but only 2 of us are joining this trip, arriving tomorrow for 1 night.",
+    "expected": {
+      "guests": { "state": "stated", "value": 2 },
+      "nights": { "state": "stated", "value": 1 },
+      "checkIn": { "state": "stated" },
+      "contactName": { "state": "stated", "value": "Mark" }
+    }
+  },
+  {
+    "id": "en-04-agent-multiple-rooms",
+    "note": "Agent booking for a group, explicit room count.",
+    "text": "Booking on behalf of a travel agency: 8 guests, need 4 rooms, checking in this Friday, staying 2 nights, half board only, we'll arrange our own transport",
+    "expected": {
+      "guests": { "state": "stated", "value": 8 },
+      "rooms": { "state": "stated", "value": 4 },
+      "nights": { "state": "stated", "value": 2 },
+      "meals": { "state": "stated", "value": "half_board" },
+      "transport": { "state": "stated", "value": false },
+      "checkIn": { "state": "stated" }
+    }
+  },
+  {
+    "id": "en-05-relative-date-idiom",
+    "note": "Colloquial relative date the parser must not choke on.",
+    "text": "planning a trip in 5 days, party of 2, staying for 4 nights, room only is fine",
+    "expected": {
+      "guests": { "state": "stated", "value": 2 },
+      "nights": { "state": "stated", "value": 4 },
+      "meals": { "state": "stated", "value": "room_only" },
+      "checkIn": { "state": "stated" }
+    }
+  },
+  {
+    "id": "en-06-padi-open-water",
+    "note": "Diving course inquiry with roundtrip airport van from NAIA.",
+    "text": "Hi, 2 of us want to take the PADI Open Water course next month starting Oct 10th, staying 4 nights, full board and need van from NAIA airport",
+    "expected": {
+      "guests": { "state": "stated", "value": 2 },
+      "nights": { "state": "stated", "value": 4 },
+      "meals": { "state": "stated", "value": "full_board" },
+      "transport": { "state": "stated", "value": true },
+      "checkIn": { "state": "stated" }
+    }
+  },
+  {
+    "id": "en-07-fun-diving-package",
+    "note": "Certified rescue divers inquiry for diving package.",
+    "text": "3 certified rescue divers coming for 5 nights starting Nov 2, planning fun diving every day, full board please, we will arrange our own car",
+    "expected": {
+      "guests": { "state": "stated", "value": 3 },
+      "nights": { "state": "stated", "value": 5 },
+      "meals": { "state": "stated", "value": "full_board" },
+      "transport": { "state": "stated", "value": false },
+      "checkIn": { "state": "stated" }
+    }
+  },
+  {
+    "id": "en-08-family-non-divers",
+    "note": "Family with mix of divers and non-divers, explicit rooms and van.",
+    "text": "Family of 5 coming Dec 1st for 3 nights. 2 rooms needed, full board, and please arrange Manila airport transfer.",
+    "expected": {
+      "guests": { "state": "stated", "value": 5 },
+      "nights": { "state": "stated", "value": 3 },
+      "rooms": { "state": "stated", "value": 2 },
+      "meals": { "state": "stated", "value": "full_board" },
+      "transport": { "state": "stated", "value": true },
+      "checkIn": { "state": "stated" }
+    }
+  },
+  {
+    "id": "en-09-trap-price-inquiry",
+    "note": "Fabrication trap: price quote in inquiry should not be parsed as guest or night count.",
+    "text": "Is the room rate 6500 pesos per night? We are 2 people planning 2 nights on Oct 18.",
+    "expected": {
+      "guests": { "state": "stated", "value": 2 },
+      "nights": { "state": "stated", "value": 2 },
+      "checkIn": { "state": "stated" }
+    }
+  },
+  {
+    "id": "en-10-solo-diver",
+    "note": "Solo guest inquiry with explicit 1 room.",
+    "text": "Solo diver arriving this Friday for 2 nights, need 1 room, full board, no airport transfer needed.",
+    "expected": {
+      "guests": { "state": "stated", "value": 1 },
+      "nights": { "state": "stated", "value": 2 },
+      "rooms": { "state": "stated", "value": 1 },
+      "meals": { "state": "stated", "value": "full_board" },
+      "transport": { "state": "stated", "value": false },
+      "checkIn": { "state": "stated" }
+    }
+  },
+  {
+    "id": "vi-01-complete",
+    "note": "Đầy đủ thông tin, văn phong Messenger thường ngày.",
+    "text": "Chào shop, bên mình 5 người muốn qua thứ Bảy này ở 2 đêm, ăn theo gói full board, có xe đón sân bay giúp mình nhé",
+    "expected": {
+      "guests": { "state": "stated", "value": 5 },
+      "nights": { "state": "stated", "value": 2 },
+      "meals": { "state": "stated", "value": "full_board" },
+      "transport": { "state": "stated", "value": true },
+      "checkIn": { "state": "stated" },
+      "rooms": { "state": "missing" }
+    }
+  },
+  {
+    "id": "vi-02-missing-dates",
+    "note": "Có số khách, chưa có ngày cụ thể.",
+    "text": "Nhóm mình 6 bạn muốn đi lặn, chưa chốt ngày, khoảng cuối tháng này, bên mình có phòng không?",
+    "expected": {
+      "guests": { "state": "stated", "value": 6 },
+      "checkIn": { "state": "missing" },
+      "nights": { "state": "missing" }
+    }
+  },
+  {
+    "id": "vi-03-trap-price-number",
+    "note": "Bẫy bịa đặt: hỏi giá trước, số khách nhắc sau trong câu khác.",
+    "text": "Giá phòng 1 đêm bao nhiêu vậy ạ, với lại mình đi 3 người thôi, ở 1 đêm cuối tuần sau",
+    "expected": {
+      "guests": { "state": "stated", "value": 3 },
+      "nights": { "state": "stated", "value": 1 },
+      "checkIn": { "state": "stated" }
+    }
+  },
+  {
+    "id": "vi-04-khoa-hoc-lan-ow",
+    "note": "Khóa học lặn biển Open Water kèm xe đưa đón sân bay Manila.",
+    "text": "Bên mình có dạy chứng chỉ lặn biển Open Water không? Nhóm mình 4 người muốn học từ ngày 15/10, ở lại 4 đêm, ăn trọn gói và thuê xe đón từ sân bay Manila.",
+    "expected": {
+      "guests": { "state": "stated", "value": 4 },
+      "nights": { "state": "stated", "value": 4 },
+      "meals": { "state": "stated", "value": "full_board" },
+      "transport": { "state": "stated", "value": true },
+      "checkIn": { "state": "stated" }
+    }
+  },
+  {
+    "id": "vi-05-dai-ly-dat-doan",
+    "note": "Đại lý du lịch đặt đoàn nhiều phòng.",
+    "text": "Mình bên công ty du lịch cần đặt 5 phòng cho đoàn 10 khách từ ngày 20/11 đến 23/11 (ở 3 đêm). Đoàn ăn half board, tự túc xe.",
+    "expected": {
+      "guests": { "state": "stated", "value": 10 },
+      "rooms": { "state": "stated", "value": 5 },
+      "nights": { "state": "stated", "value": 3 },
+      "meals": { "state": "stated", "value": "half_board" },
+      "transport": { "state": "stated", "value": false },
+      "checkIn": { "state": "stated" }
+    }
+  },
+  {
+    "id": "vi-06-gia-dinh-nghi-duong",
+    "note": "Gia đình đi nghỉ dưỡng kết hợp lặn biển.",
+    "text": "Gia đình mình 4 người muốn đi nghỉ 3 đêm từ thứ Sáu tuần sau. Cần 2 phòng, ăn full board và xe đón sân bay nhé.",
+    "expected": {
+      "guests": { "state": "stated", "value": 4 },
+      "rooms": { "state": "stated", "value": 2 },
+      "nights": { "state": "stated", "value": 3 },
+      "meals": { "state": "stated", "value": "full_board" },
+      "transport": { "state": "stated", "value": true },
+      "checkIn": { "state": "stated" }
+    }
+  },
+  {
+    "id": "vi-07-cuoi-tuan-lan-bien",
+    "note": "Nhóm đi lặn cuối tuần, tự túc di chuyển.",
+    "text": "Nhóm 6 người muốn đi lặn cuối tuần ở 2 đêm, check in thứ Bảy tới, ăn full board, xe tụi mình tự đi.",
+    "expected": {
+      "guests": { "state": "stated", "value": 6 },
+      "nights": { "state": "stated", "value": 2 },
+      "meals": { "state": "stated", "value": "full_board" },
+      "transport": { "state": "stated", "value": false },
+      "checkIn": { "state": "stated" }
+    }
+  },
+  {
+    "id": "vi-08-hoi-gia-chung",
+    "note": "Tin nhắn hỏi thăm chung chung thiếu toàn bộ thông tin ngày tháng.",
+    "text": "Resort có nhận khách cuối tuần này không? Giá phòng và ăn uống thế nào shop?",
+    "expected": {
+      "guests": { "state": "missing" },
+      "nights": { "state": "missing" },
+      "rooms": { "state": "missing" }
+    }
+  },
+  {
+    "id": "vi-09-bay-so-dien-thoai",
+    "note": "Bẫy số điện thoại và số lượng người đi thực tế khác tổng đoàn.",
+    "text": "Alo mình là Tuấn, sđt 0988776655, nhóm mình có 8 người nhưng chỉ 4 người ở lại 2 đêm từ ngày 05/12, ăn trọn gói nhé.",
+    "expected": {
+      "guests": { "state": "stated", "value": 4 },
+      "nights": { "state": "stated", "value": 2 },
+      "meals": { "state": "stated", "value": "full_board" },
+      "checkIn": { "state": "stated" },
+      "contactName": { "state": "stated", "value": "Tuấn" }
+    }
+  },
+  {
+    "id": "vi-10-thue-xe-rieng",
+    "note": "Cặp đôi thuê xe riêng đưa đón 2 chiều.",
+    "text": "2 người ở 3 đêm từ 12/10, cần xe van riêng đưa đón 2 chiều Manila - Anilao, ăn trọn gói full board.",
+    "expected": {
+      "guests": { "state": "stated", "value": 2 },
+      "nights": { "state": "stated", "value": 3 },
+      "meals": { "state": "stated", "value": "full_board" },
+      "transport": { "state": "stated", "value": true },
+      "checkIn": { "state": "stated" }
+    }
+  },
+  {
+    "id": "zh-01-complete",
+    "note": "信息完整，常见的中文询价消息。",
+    "text": "你好，我们4个人，下周六来，住3晚，需要全包餐，不需要接机",
+    "expected": {
+      "guests": { "state": "stated", "value": 4 },
+      "nights": { "state": "stated", "value": 3 },
+      "meals": { "state": "stated", "value": "full_board" },
+      "transport": { "state": "stated", "value": false },
+      "checkIn": { "state": "stated" }
+    }
+  },
+  {
+    "id": "zh-02-missing-most",
+    "note": "只问价格，没有具体信息。",
+    "text": "请问潜水套餐多少钱一位？",
+    "expected": {
+      "checkIn": { "state": "missing" },
+      "nights": { "state": "missing" },
+      "guests": { "state": "missing" }
+    }
+  },
+  {
+    "id": "zh-03-trap-phone-wechat",
+    "note": "包含微信号与手机号的防幻觉测试。",
+    "text": "我是李明，微信号liming9988。我们一共2位持证潜水员，计划10月12日入住，住3晚，全包餐，需要马尼拉机场接送。",
+    "expected": {
+      "guests": { "state": "stated", "value": 2 },
+      "nights": { "state": "stated", "value": 3 },
+      "meals": { "state": "stated", "value": "full_board" },
+      "transport": { "state": "stated", "value": true },
+      "checkIn": { "state": "stated" },
+      "contactName": { "state": "stated", "value": "李明" }
+    }
+  },
+  {
+    "id": "zh-04-padi-ow-course",
+    "note": "中文考证预订，需要接机。",
+    "text": "你好，我们2个人想考OW潜水证，计划11月5号入住，住4晚，需要全包餐和马尼拉机场接送。",
+    "expected": {
+      "guests": { "state": "stated", "value": 2 },
+      "nights": { "state": "stated", "value": 4 },
+      "meals": { "state": "stated", "value": "full_board" },
+      "transport": { "state": "stated", "value": true },
+      "checkIn": { "state": "stated" }
+    }
+  },
+  {
+    "id": "zh-05-fun-dive-club",
+    "note": "潜水俱乐部团队预订。",
+    "text": "我们是潜水俱乐部，6位持证潜水员，想在10月20日入住，住4晚，需要2间房，全包餐，自驾前往不需要接送。",
+    "expected": {
+      "guests": { "state": "stated", "value": 6 },
+      "rooms": { "state": "stated", "value": 2 },
+      "nights": { "state": "stated", "value": 4 },
+      "meals": { "state": "stated", "value": "full_board" },
+      "transport": { "state": "stated", "value": false },
+      "checkIn": { "state": "stated" }
+    }
+  },
+  {
+    "id": "zh-06-agency-booking",
+    "note": "旅行社代理预订，半餐。",
+    "text": "您好，我们是旅行社，代预订3间房，共6位客人，11月15日入住，住2晚，半餐，不需要接送机。",
+    "expected": {
+      "guests": { "state": "stated", "value": 6 },
+      "rooms": { "state": "stated", "value": 3 },
+      "nights": { "state": "stated", "value": 2 },
+      "meals": { "state": "stated", "value": "half_board" },
+      "transport": { "state": "stated", "value": false },
+      "checkIn": { "state": "stated" }
+    }
+  },
+  {
+    "id": "zh-07-family-trip",
+    "note": "家庭度假预订，明确房间与接送。",
+    "text": "一家3口，12月10日来住2晚，需要1间房，全包餐，安排马尼拉机场接送。",
+    "expected": {
+      "guests": { "state": "stated", "value": 3 },
+      "rooms": { "state": "stated", "value": 1 },
+      "nights": { "state": "stated", "value": 2 },
+      "meals": { "state": "stated", "value": "full_board" },
+      "transport": { "state": "stated", "value": true },
+      "checkIn": { "state": "stated" }
+    }
+  },
+  {
+    "id": "zh-08-relative-date",
+    "note": "相对日期表达（大后天/下周五）。",
+    "text": "我们3个人下周五来，住2晚，全包餐，不需要接送。",
+    "expected": {
+      "guests": { "state": "stated", "value": 3 },
+      "nights": { "state": "stated", "value": 2 },
+      "meals": { "state": "stated", "value": "full_board" },
+      "transport": { "state": "stated", "value": false },
+      "checkIn": { "state": "stated" }
+    }
+  },
+  {
+    "id": "zh-09-room-only",
+    "note": "只要纯住不含餐。",
+    "text": "2位客人，10月24日入住，住2晚，只订房间不需要餐食，自己开车过去。",
+    "expected": {
+      "guests": { "state": "stated", "value": 2 },
+      "nights": { "state": "stated", "value": 2 },
+      "meals": { "state": "stated", "value": "room_only" },
+      "transport": { "state": "stated", "value": false },
+      "checkIn": { "state": "stated" }
+    }
+  },
+  {
+    "id": "zh-10-trap-price-inquiry",
+    "note": "问价陷阱：房费价格不应被解析成人数或晚数。",
+    "text": "请问房费是每晚8000比索吗？我们4个人打算11月8日来住3晚，需要全包餐。",
+    "expected": {
+      "guests": { "state": "stated", "value": 4 },
+      "nights": { "state": "stated", "value": 3 },
+      "meals": { "state": "stated", "value": "full_board" },
+      "checkIn": { "state": "stated" }
+    }
+  }
+]
