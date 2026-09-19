@@ -48,6 +48,8 @@ export interface ConversationStore {
   needsTelling(phone: string, withinMs: number): Promise<boolean>;
   /** Records that the guest has just been told (see needsTelling). */
   markTold(phone: string): Promise<void>;
+  /** Clears both the conversation transcript and any park record for this phone. */
+  clear(phone: string): Promise<void>;
 }
 
 /** A thread a human has to answer, as the reception view reads it. */
@@ -175,6 +177,12 @@ export function createInMemoryConversationStore(ttlMs = THREAD_TTL_MS): Conversa
 
     async resume(phone) {
       sweep();
+      parkedThreads.delete(phone);
+    },
+
+    async clear(phone) {
+      sweep();
+      threads.delete(phone);
       parkedThreads.delete(phone);
     },
 

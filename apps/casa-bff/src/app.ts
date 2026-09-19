@@ -128,6 +128,17 @@ function guestLanguage(history: ConversationTurn[]): GuestLanguage {
   );
 }
 
+function isResetCommand(text: string): boolean {
+  const trimmed = text.trim().toLowerCase();
+  return /^(reset|start\s*over|restart|bắt\s*đầu\s*lại|bat\s*dau\s*lai|làm\s*lại|lam\s*lai|xóa|xoa|重置|重新开始)$/i.test(trimmed);
+}
+
+const RESET_REPLY: Record<GuestLanguage, string> = {
+  en: "Conversation reset! Welcome to Casa Escondida — our dive-and-stay resort in Anilao, Batangas.\nCould you share your check-in date, how many nights, how many guests, and a name for the booking?",
+  vi: "Dạ em đã làm mới cuộc trò chuyện! Casa Escondida xin chào mình.\nĐể đội ngũ kiểm tra phòng và giá, mình cho em biết ngày nhận phòng, số đêm, tổng số khách và tên liên hệ nhé.",
+  zh: "对话已重置！欢迎来到 Casa Escondida 潜水度假村。\n请告诉我入住日期、住几晚、几位客人以及预订姓名。",
+};
+
 /**
  * Construction seams, all optional and all defaulting to the production path in
  * api/index.ts (`createApp()` with no arguments). They exist because the two
@@ -305,6 +316,16 @@ export function createApp(options: AppOptions = {}) {
 
       try {
         const turn = (async () => {
+          if (isResetCommand(message.text)) {
+            await store.clear(message.from);
+            const language = detectLanguage(message.text);
+            const text = RESET_REPLY[language] ?? RESET_REPLY.en;
+            sending = true;
+            await send({ to: message.from, body: text });
+            replied++;
+            return;
+          }
+
           await store.append(message.from, { role: "guest", text: message.text });
           const history = await store.history(message.from);
           const language = guestLanguage(history);
@@ -442,6 +463,15 @@ export function createApp(options: AppOptions = {}) {
     const phone = c.req.param("phone");
     await store.resume(phone);
     return c.json({ ok: true, phone });
+  });
+
+  app.post("/v1/channels/whatsapp/threads/:phone/reset", async (c) => {
+    if (!handoffAuthorized(c.req.header("x-verify-token"))) {
+      return c.json({ error: "unauthorized" }, 401);
+    }
+    const phone = c.req.param("phone");
+    await store.clear(phone);
+    return c.json({ ok: true, phone, reset: true });
   });
 
   // Are the credentials *this deployment* holds actually usable? The laptop

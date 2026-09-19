@@ -336,6 +336,22 @@ describe("WhatsApp webhook (Meta Cloud API)", () => {
     expect(sent).toHaveLength(1);
   });
 
+  it("clears transcript and unparks thread when guest sends a reset command", async () => {
+    const provider = providerReturning(PARTIAL_RAW);
+    const store = createInMemoryConversationStore();
+    const { app, sent } = harness(provider, store);
+
+    await post(app, textEvent("wamid.1", FIRST_TEXT));
+    expect(await store.history(GUEST)).toHaveLength(2);
+
+    const res = await (await post(app, textEvent("wamid.2", "reset"))).json();
+    expect(res).toEqual({ received: 1, replied: 1, duplicates: 0, failed: 0, handoffs: 0 });
+    expect(provider.call).toHaveBeenCalledTimes(1); // zero model call on reset!
+    expect(sent).toHaveLength(2);
+    expect(sent[1].body).toContain("Conversation reset!");
+    expect(await store.history(GUEST)).toHaveLength(0);
+  });
+
   it("apologizes rather than falling silent when the provider fails, and parks the thread for a person", async () => {
     const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
     const provider = providerReturning(PARTIAL_RAW);
