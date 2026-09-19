@@ -58,8 +58,9 @@ export function createDeepSeekProvider(
         "to null for every other state. When state is 'missing', set both value and evidence to null; " +
         "never use 0 as a placeholder for an unknown count, and never assign unlabeled " +
         "comma-separated numbers to trip fields. Nights, guests, and rooms are 'stated' only when their " +
-        "evidence quotes the exact guest wording; otherwise mark them missing. Do not resolve relative dates yourself — copy the date phrase " +
-        "as written and let the caller resolve it.";
+        "evidence quotes the exact guest wording; otherwise mark them missing. Copy a date phrase into evidence verbatim, and also put your best ISO date " +
+        "(YYYY-MM-DD) for it in that field's value, computed from today's date — the caller re-checks " +
+        "that date against the guest's own words and asks the guest whenever the two disagree.";
 
       const userParts = [`Today's date (Asia/Manila): ${today}`, `Guest message:\n${text}`];
       if (retry) {

@@ -2,7 +2,7 @@ import { zodToJsonSchema } from "zod-to-json-schema";
 import { ZodError } from "zod";
 import { Trip, HOUSE_NORM_FIELDS, type Trip as TripType, type Field, type FieldState } from "./schema.js";
 import { HOUSE_NORMS } from "./houseNorms.js";
-import { manilaToday, resolveRelativeDate, deriveCheckOut } from "./dates.js";
+import { manilaToday, resolveRelativeDate, deriveCheckOut, corroborateDatePhrase } from "./dates.js";
 import { normalize, detectLanguage, guestTextOf, maskForLogging } from "./normalize.js";
 import { generateQuestions } from "./questions.js";
 import type { ExtractProvider } from "./provider.js";
@@ -123,7 +123,9 @@ export async function extract(rawText: string, provider: ExtractProvider): Promi
 const CODE_ONLY_STATES: ReadonlyArray<FieldState> = ["default", "derived"];
 
 // Everything the model is not trusted to get right, done here instead:
-//  - relative dates resolved against Manila "today"
+//  - relative dates resolved against Manila "today" — and, for a phrase the table
+//    cannot read, a model-proposed date corroborated against that phrase first
+//    (see the checkIn block below)
 //  - checkOut always derived from checkIn + nights, never taken from the model
 //  - house norms applied to exactly the allowed fields when they come back missing
 //  - language re-checked by heuristic when the model left it missing
@@ -163,25 +165,40 @@ function postProcess(raw: unknown, today: string, sourceText: string): unknown {
     }
   }
 
+  // 1. checkIn — the model may propose a date; code decides whether it is one.
+  //
+  // The original rule ("relative dates are computed in code, never trusted from the
+  // model", dates.ts) is the first branch, and it wins whenever the resolver can read
+  // the phrase. The second branch is what used to be a bug: when the table could not
+  // read the phrase, the model's own date — often correct — was deleted along with the
+  // evidence, so a guest who wrote "下周五" or "hôm kia" was asked for a date they had
+  // already given. A date the model computed is now kept when the guest's own phrase
+  // corroborates it (weekday, month, day, week qualifier) and the calendar accepts it;
+  // otherwise the field goes back to `missing` and becomes the question it should be.
+  //
+  // Corroborated means `stated`, not `inferred`. `inferred` is the state that no code
+  // path fills and no question asks about — a money field priced from an assumption,
+  // which is the shape ADR-006 Decision 4 forbids. Here the guest *did* state the date
+  // and code did check the model's reading of it against their words, so `stated` is
+  // the honest state, and it is also what keeps the date off the question list.
   const checkIn = trip.checkIn;
   if (checkIn && (checkIn.state === "stated" || checkIn.state === "inferred") && checkIn.evidence) {
     const resolved = resolveRelativeDate(checkIn.evidence, today);
+    const proposed = typeof checkIn.value === "string" ? checkIn.value : null;
     if (resolved) {
+      // Code read the phrase itself, so this is the guest's own date whether or not the
+      // model also computed one — and `stated` is what records that (an `inferred` left
+      // here would keep its value while losing the evidence, priced and never asked).
       checkIn.value = resolved;
+      checkIn.state = "stated";
+    } else if (proposed && corroborateDatePhrase(checkIn.evidence, proposed, today) === "consistent") {
+      checkIn.value = proposed;
+      checkIn.state = "stated";
     } else {
       checkIn.value = null;
       checkIn.state = "missing";
       checkIn.evidence = null;
     }
-  }
-
-  const nights = trip.nights;
-  if (checkIn?.value && typeof nights?.value === "number") {
-    trip.checkOut = {
-      value: deriveCheckOut(checkIn.value as string, nights.value),
-      state: "derived",
-      evidence: null,
-    };
   }
 
   for (const key of HOUSE_NORM_FIELDS) {
@@ -249,6 +266,20 @@ function postProcess(raw: unknown, today: string, sourceText: string): unknown {
   }
 
   enforceVerbatimEvidence(trip, guestText);
+
+  // checkOut is arithmetic on the guest's own answers, and it runs *after* evidence
+  // enforcement on purpose: a check-in or a night count that did not survive
+  // enforcement must not leave a derived check-out behind, pointing at a source that
+  // no longer exists. (robustness.test.ts found the earlier order — the derived date
+  // was computed first and outlived the check-in it came from.)
+  const nights = trip.nights;
+  if (trip.checkIn?.value && typeof nights?.value === "number") {
+    trip.checkOut = {
+      value: deriveCheckOut(trip.checkIn.value as string, nights.value),
+      state: "derived",
+      evidence: null,
+    };
+  }
 
   return trip;
 }

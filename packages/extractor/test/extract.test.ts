@@ -267,6 +267,106 @@ describe("extract", () => {
     expect(outcome.trip.guests).toEqual({ value: 4, state: "stated", evidence: "4 of us" });
     expect(outcome.trip.checkIn.value).toBe("2026-09-26");
   });
+
+  it("takes the date phrase as written, Chinese included, instead of asking again", async () => {
+    // zh-08 of the eval set, verbatim. "下周五" is a phrase dates.ts had no entry for, so
+    // this guest's check-in was deleted even when the model had computed the right date —
+    // the same loss that hit 8 of the 10 Chinese cases. The model now contributes nothing
+    // but the phrase: dates.ts reads 下周 + 周五 itself and code fills the date in.
+    const message = "Guest: 我们3个人下周五来，住2晚，全包餐，不需要接送。";
+    const raw = {
+      ...HAPPY_RAW,
+      checkIn: { value: null, state: "inferred", evidence: "下周五" },
+      nights: { value: 2, state: "stated", evidence: "住2晚" },
+      guests: { value: 3, state: "stated", evidence: "3个人" },
+      meals: { value: "full_board", state: "stated", evidence: "全包餐" },
+      transport: { value: false, state: "stated", evidence: "不需要接送" },
+    };
+
+    const outcome = await extract(message, fakeProvider(raw));
+
+    // 2026-09-25 is a Friday, ten days out, and the phrase says 下周 (next week).
+    expect(outcome.trip.checkIn).toEqual({ value: "2026-09-25", state: "stated", evidence: "下周五" });
+    expect(outcome.trip.checkOut.value).toBe("2026-09-27"); // +2 nights, still arithmetic
+    expect(outcome.questions.map((q) => q.field)).not.toContain("checkIn");
+  });
+
+  it("accepts the model's date when the phrase itself corroborates it", async () => {
+    // The one case where the model's number is used: a phrase the table cannot read
+    // ("the coming" is not a qualifier dates.ts knows), and a date the phrase backs up —
+    // a Friday, days away, not three weeks out. The guest keeps their answer instead of
+    // being asked for a date they already gave.
+    const message = "Guest: 2 of us, arriving the coming Friday, staying 2 nights";
+    const raw = {
+      ...HAPPY_RAW,
+      nights: { value: 2, state: "stated", evidence: "staying 2 nights" },
+      checkIn: { value: "2026-09-18", state: "stated", evidence: "the coming Friday" },
+    };
+
+    const outcome = await extract(message, fakeProvider(raw));
+
+    expect(outcome.trip.checkIn.value).toBe("2026-09-18");
+    expect(outcome.trip.checkOut.value).toBe("2026-09-20"); // +2 nights
+    expect(outcome.questions.map((q) => q.field)).not.toContain("checkIn");
+  });
+
+  it("rejects a model date the guest's own phrase contradicts, and asks for it", async () => {
+    // "the coming Friday" is a qualifier the resolver has no entry for, so the model's
+    // date is the only candidate there is — and it is three weeks out. A date that
+    // disagrees with the guest's words is not evidence of anything, so the field goes back
+    // to being a question instead of a price for the wrong week.
+    const message = "Guest: 2 of us, arriving the coming Friday, staying 2 nights";
+    const raw = {
+      ...HAPPY_RAW,
+      nights: { value: 2, state: "stated", evidence: "staying 2 nights" },
+      checkIn: { value: "2026-10-09", state: "stated", evidence: "the coming Friday" },
+    };
+
+    const outcome = await extract(message, fakeProvider(raw));
+
+    expect(outcome.trip.checkIn).toEqual({ value: null, state: "missing", evidence: null });
+    expect(outcome.trip.checkOut.state).toBe("missing"); // a missing check-in derives nothing
+    expect(outcome.questions.map((q) => q.field)).toContain("checkIn");
+  });
+
+  it("overrides the model's wrong week with the phrase's own reading", async () => {
+    // 下周五 read as *this* Friday is the off-by-one-week error with money behind it.
+    // The resolver knows 下周 (dates.test.ts), so its answer is the one that gets priced.
+    const raw = {
+      ...HAPPY_RAW,
+      nights: { value: 2, state: "stated", evidence: "住2晚" },
+      checkIn: { value: "2026-09-18", state: "stated", evidence: "下周五" },
+    };
+
+    const outcome = await extract("Guest: 我们2个人下周五来，住2晚。", fakeProvider(raw));
+
+    expect(outcome.trip.checkIn.value).toBe("2026-09-25");
+    expect(outcome.trip.checkOut.value).toBe("2026-09-27"); // +2 nights
+  });
+
+  it("asks rather than accept a model's date for a phrase the guest never pinned down", async () => {
+    // eval's vi-02: "chưa chốt ngày, khoảng cuối tháng này". A model will offer 30
+    // September; a month end is not a check-in date, so the question stays.
+    const message =
+      "Guest: Nhóm mình 6 bạn muốn đi lặn, chưa chốt ngày, khoảng cuối tháng này, bên mình có phòng không?";
+    const raw = { ...HAPPY_RAW, checkIn: { value: "2026-09-30", state: "stated", evidence: "cuối tháng này" } };
+
+    const outcome = await extract(message, fakeProvider(raw));
+
+    expect(outcome.trip.checkIn).toEqual({ value: null, state: "missing", evidence: null });
+    expect(outcome.questions.map((q) => q.field)).toContain("checkIn");
+  });
+
+  it("keeps the resolver's date when the model's own differs — code wins where it can read", async () => {
+    // dates.ts resolves "next Saturday" itself, so the model's number is not consulted:
+    // two sources for one money field is how the wrong one ends up in the quote.
+    const raw = { ...HAPPY_RAW, checkIn: { value: "2099-01-01", state: "stated", evidence: "next Saturday" } };
+
+    const outcome = await extract(MESSAGE, fakeProvider(raw));
+
+    expect(outcome.trip.checkIn.value).toBe("2026-09-26"); // dates.test.ts's answer for this phrase
+    expect(outcome.trip.checkIn.state).toBe("stated");
+  });
 });
 
 

@@ -48,8 +48,10 @@ export function createGeminiProvider(apiKey: string, model = process.env.GEMINI_
         "You extract trip details from a dive-resort guest's message into the given " +
         "JSON schema. Every field needs a state: 'stated' (quote it in evidence, verbatim), " +
         "'inferred' (context implies it, no exact quote), or 'missing'. Never invent a value " +
-        "that state 'stated' cannot point to verbatim evidence for. Do not resolve relative " +
-        "dates yourself — copy the date phrase as written and let the caller resolve it.";
+        "that state 'stated' cannot point to verbatim evidence for. Copy a date phrase into " +
+        "evidence verbatim, and also put your best ISO date (YYYY-MM-DD) for it in that " +
+        "field's value, computed from today's date — the caller re-checks that date against " +
+        "the guest's own words and asks the guest whenever the two disagree.";
 
       const userParts = [`Today's date (Asia/Manila): ${today}`, `Guest message:\n${text}`];
       if (retry) {
