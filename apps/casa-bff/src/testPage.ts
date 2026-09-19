@@ -163,14 +163,17 @@ details pre{background:var(--card2);border:1px solid var(--hairline);padding:12p
       <summary>Provider override (bring your own key — sent straight from your browser to this server, never through anything else)</summary>
       <div class="override-row">
         <select id="provider-select">
-          <option value="">Server default</option>
-          <option value="gemini">Gemini</option>
-          <option value="deepseek-flash">DeepSeek Flash</option>
+          <option value="">Server default (DeepSeek Flash — primary)</option>
+          <option value="deepseek-flash">DeepSeek Flash (chính / primary)</option>
           <option value="deepseek-pro">DeepSeek Pro</option>
+          <option value="gemini-3.1-flash-lite">Gemini 3.1 Flash-Lite (Google 2026 - Mới nhất)</option>
+          <option value="gemini-3.5-flash">Gemini 3.5 Flash (Extended Reasoning)</option>
+          <option value="gemini-2.5-flash">Gemini 2.5 Flash</option>
+          <option value="gemini">Gemini (Theo biến môi trường GEMINI_MODEL)</option>
         </select>
-        <input id="api-key" type="password" placeholder="API key for the selected provider" autocomplete="off" spellcheck="false">
+        <input id="api-key" type="password" placeholder="API key override (optional)" autocomplete="off" spellcheck="false">
       </div>
-      <p class="override-note">Kept only in this tab's session storage for convenience — cleared when the tab closes, never sent anywhere except this server, never logged or echoed back.</p>
+      <p class="override-note">Kept only in this tab's session storage — cleared when the tab closes, never sent anywhere except this server, never logged.</p>
     </details>
 
     <!-- ================= CHAT MODE ================= -->
@@ -181,8 +184,9 @@ details pre{background:var(--card2);border:1px solid var(--hairline);padding:12p
       </div>
       <div class="examples">
         <button class="chip-btn" data-chat="Hi, we'd like to book for next Saturday">EN starter</button>
-        <button class="chip-btn" data-chat="Chào shop, mình muốn đặt phòng cuối tuần này">VI starter</button>
-        <button class="chip-btn" data-chat="你好，我们想预订">ZH starter</button>
+        <button class="chip-btn" data-chat="Chào shop, nhóm mình 4 người muốn đi lặn biển và ở 3 đêm">VI lặn biển</button>
+        <button class="chip-btn" data-chat="Mình bên đại lý du lịch muốn đặt 4 phòng cho đoàn 8 khách">VI đại lý</button>
+        <button class="chip-btn" data-chat="你好，我们2个人想来考OW潜水证，住4晚">ZH 考证</button>
         <button class="chip-btn" id="reset-chat">↺ reset conversation</button>
       </div>
       <div class="chat-input-row">
@@ -204,19 +208,23 @@ details pre{background:var(--card2);border:1px solid var(--hairline);padding:12p
 
     <!-- ================= SINGLE-MESSAGE MODE (original) ================= -->
     <div class="card mode" id="mode-single">
-      <p class="section-label">Guest message</p>
+      <p class="section-label">Guest message (Sample scenarios from 30-case benchmark)</p>
       <textarea id="text">Hi, we are 4 people, want to come next Saturday for 3 nights. Full board please, no need airport transfer.</textarea>
       <div class="examples">
-        <button class="chip-btn" data-text="Hi, we are 4 people, want to come next Saturday for 3 nights. Full board please, no need airport transfer.">EN example</button>
-        <button class="chip-btn" data-text="3 khách, thứ Bảy này, ở 2 đêm">VI example</button>
-        <button class="chip-btn" data-text="我们4个人，下周六来，住3晚">ZH example</button>
-        <button class="chip-btn" data-text="hi, muốn đặt phòng">missing fields</button>
+        <button class="chip-btn" data-text="Hi, we are 4 people, want to come next Saturday for 3 nights. Full board please, no need airport transfer.">EN basic</button>
+        <button class="chip-btn" data-text="3 certified rescue divers coming for 5 nights starting Nov 2, planning fun diving every day, full board please, we will arrange our own car">EN fun diving</button>
+        <button class="chip-btn" data-text="Booking on behalf of a travel agency: 8 guests, need 4 rooms, checking in this Friday, staying 2 nights, half board only, we'll arrange our own transport">EN agency (30% off)</button>
+        <button class="chip-btn" data-text="Bên mình có dạy chứng chỉ lặn biển Open Water không? Nhóm mình 4 người muốn học từ ngày 15/10, ở lại 4 đêm, ăn trọn gói và thuê xe đón từ sân bay Manila.">VI khóa học OW</button>
+        <button class="chip-btn" data-text="Mình bên công ty du lịch cần đặt 5 phòng cho đoàn 10 khách từ ngày 20/11 đến 23/11 (ở 3 đêm). Đoàn ăn half board, tự túc xe.">VI đại lý đặt đoàn</button>
+        <button class="chip-btn" data-text="你好，我们2个人想考OW潜水证，计划11月5号入住，住4晚，需要全包餐和马尼拉机场接送。">ZH 考潜水证+接送</button>
+        <button class="chip-btn" data-text="Is the room rate 6500 pesos per night? We are 2 people planning 2 nights on Oct 18.">Trap: hỏi giá (bẫy bịa đặt)</button>
       </div>
 
       <div class="actions">
         <button class="btn btn-primary" id="go">Extract</button>
         <span id="status"></span>
       </div>
+
       <div id="error"></div>
 
       <div class="card" id="result-card" style="margin-top:18px;">
