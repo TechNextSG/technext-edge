@@ -42,7 +42,8 @@ Scored automatically:
   marks `missing` that the model returned as non-null.
 - **Required fields correct** (`checkIn`/`nights`/`guests`/`rooms`, ≥95%
   threshold) — state and value both match, only counted where the ground
-  truth says the message actually stated it.
+  truth says the message actually stated it. The recorded run scored 63/87
+  (72%); the 19/09 live re-run scored **85/87 (98%)**.
 - **Priced fields correct** (`transport`, no threshold — all of them) —
   compared by *value*, because that is what reaches the quote. An airport
   transfer the guest did not ask for is a line on the estimate, and the
@@ -56,11 +57,32 @@ Scored automatically:
   `false` when they say they drive themselves / have their own vehicle / need no
   transfer, `missing` otherwise — stated as the guest's *meaning*, because
   negation ("xe tụi mình tự đi") is the one thing a keyword rule gets wrong.
-  This score is what will show whether the prompt change lands: the fixture
-  replays the old wrong answers on purpose, so a re-run is needed to see 2/2.
+  This score is what shows whether the prompt change landed, and it has: a
+  re-run on 19/09 through a local bff on deepseek-flash
+  (`results.1789801957609.json`, git-ignored) scored it **20/20**, with vi-07
+  and zh-09 both answering `false` off the guest's own sentence. The fixture
+  still replays the old wrong answers on purpose, so the offline replay keeps
+  pinning the mistake and only a live run moves this number.
 - **Evidence is a verbatim substring** (100% threshold) — re-checked
   client-side even though the server already enforces this in code.
 - **p95 latency** (≤8s threshold).
+
+Where the 19/09 live run still loses points — recorded here so the next run is
+not read as a regression, and neither is a fabricated price:
+- **vi-03's check-in comes back `inferred`, not `stated`.** The model read
+  "cuối tuần sau" to the right date (2026-09-26) but quoted no evidence, and
+  `extract.ts` only reads the guest's phrase when there is one to read, so the
+  field keeps the model's own state. The date is right; the label is the
+  difference the ground truth scores. A prompt that asks for the verbatim
+  phrase on a relative date is what would close it.
+- **vi-09's guests go to a question.** "nhóm mình có 8 người nhưng chỉ 4 người
+  ở lại" carries two numbers on one count, which is `counts.ts`'s documented
+  rule (the case it was written for) turning an ambiguity into a question
+  rather than a price. The ground truth reads the 4 as the staying count; the
+  pipeline asks. Ask-vs-read is a design decision, not a bug.
+- **The four `rooms: default 1` mismatches** (en-01, en-02, vi-01, vi-08) are
+  the house norm, byte-identical to the recorded run's, and are not counted as
+  required-field misses.
 
 Not scored — needs a human or an LLM judge, not wired up yet:
 - **Missing-field questions target the right field** (≥90% threshold). The
