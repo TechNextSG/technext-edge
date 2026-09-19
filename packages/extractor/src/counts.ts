@@ -61,7 +61,8 @@ export type CountCorroboration =
 // actually type ("4 nguoi", "3 phong", "2 dem"). normalize() collapses whitespace but
 // never strips diacritics, so both spellings reach this file as the guest typed them.
 const COUNT_NOUNS: Record<CountField, string> = {
-  guests: "người|nguoi|khách|khach|pax|of\\s+us|people|persons?|adults?|kids?|children|guests?|divers?|bạn|ban|客人|大人|小孩|位|名|人|口",
+  guests:
+    "người|nguoi|khách|khach|pax|of\\s+us|people|persons?|adults?|kids?|children|guests?|divers?|bạn|ban|客人|大人|小孩|位|名|人|口|are\\s+staying|is\\s+staying|staying|ở\\s*lại|o\\s*lai|入住",
   rooms: "phòng|phong|rooms?|房间|房間|房",
   nights: "đêm|dem|nights?|晚上|晚",
 };
@@ -180,10 +181,25 @@ export function corroborateCount(
   guestText: string,
   evidence?: string | null,
 ): CountCorroboration {
-  const stated = countNumbersIn(guestText, field);
-  // Two numbers on one count is not a chance to pick the likelier one: "8 người ... nhưng
-  // chỉ 4 người ở lại" (vi-09) is the case that produced this file, and the model that
-  // picked the 8 had the guest's own words as its evidence.
+  // In a multi-turn transcript (guest turns separated by newline), check if a
+  // later turn clarified this count: "how many guests?" followed by "3 of us"
+  // resolves the earlier "group of 6 but only 3 staying" ambiguity.
+  const turns = guestText.split("\n").map((t) => t.trim()).filter(Boolean);
+  let stated: number[] = [];
+  for (let i = turns.length - 1; i >= 0; i--) {
+    const inTurn = countNumbersIn(turns[i], field);
+    if (inTurn.length > 0) {
+      stated = inTurn;
+      break;
+    }
+  }
+  if (stated.length === 0) {
+    stated = countNumbersIn(guestText, field);
+  }
+
+  // Two numbers on one count in the same statement is not a chance to pick the likelier one:
+  // "8 người ... nhưng chỉ 4 người ở lại" (vi-09) is the case that produced this file, and the model
+  // that picked the 8 had the guest's own words as its evidence.
   if (stated.length > 1) return "conflicting";
   if (stated.length === 1) return stated[0] === proposed ? "consistent" : "conflicting";
   // The guest's words say nothing about this count, so the quote the model chose is all this

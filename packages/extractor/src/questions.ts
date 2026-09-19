@@ -31,7 +31,7 @@ export interface GuestQuestion {
 
 interface QuestionRule {
   key: keyof Trip;
-  question: Record<Lang, string>;
+  question: Record<Lang, string> | ((trip: Trip, lang: Lang) => string);
   // Field states that make this worth asking about. "missing" is the baseline:
   // nothing was recorded, so the guest is the only source left. "default" (a house
   // norm) and "derived" (code computing it from other answers) are not asked about
@@ -40,6 +40,12 @@ interface QuestionRule {
   // Tier-2 fields only exist on some trips. Asking a non-diving enquiry for a
   // dive window is noise, and it buries the questions that do matter.
   when?: (trip: Trip) => boolean;
+}
+
+function diveStayRange(trip: Trip, lang: Lang): string | null {
+  const from = typeof trip.checkIn?.value === "string" ? trip.checkIn.value : null;
+  const to = typeof trip.checkOut?.value === "string" ? trip.checkOut.value : null;
+  return from && to ? formatRange(from, to, lang) : null;
 }
 
 const BASELINE: ReadonlyArray<FieldState> = ["missing"];
@@ -63,8 +69,32 @@ const RULES: QuestionRule[] = [
   // transportType is only ever filled in by code as "roundtrip" — the guest never
   // confirmed one-way vs return, so a *derived* roundtrip is asked about rather
   // than trusted. Both are gated so neither is asked of a trip it cannot apply to.
-  { key: "diveFrom", question: { en: "Which day does your diving start?", vi: "Bạn bắt đầu lặn từ ngày nào?", zh: "潜水从哪天开始？" }, when: (trip) => trip.diver?.value === true },
-  { key: "diveTo", question: { en: "And which day does it end?", vi: "Và kết thúc vào ngày nào?", zh: "哪天结束？" }, when: (trip) => trip.diver?.value === true },
+  {
+    key: "diveFrom",
+    question: (trip, lang) => {
+      const range = diveStayRange(trip, lang);
+      if (range) {
+        if (lang === "vi") return `Bạn bắt đầu lặn từ ngày nào? (trong kỳ nghỉ: ${range})`;
+        if (lang === "zh") return `潜水从哪天开始？（在住宿期间 ${range} 内）`;
+        return `Which day does your diving start? (within your stay: ${range})`;
+      }
+      return { en: "Which day does your diving start?", vi: "Bạn bắt đầu lặn từ ngày nào?", zh: "潜水从哪天开始？" }[lang];
+    },
+    when: (trip) => trip.diver?.value === true,
+  },
+  {
+    key: "diveTo",
+    question: (trip, lang) => {
+      const range = diveStayRange(trip, lang);
+      if (range) {
+        if (lang === "vi") return `Và kết thúc vào ngày nào? (trong kỳ nghỉ: ${range})`;
+        if (lang === "zh") return `哪天结束？（在住宿期间 ${range} 内）`;
+        return `And which day does it end? (within your stay: ${range})`;
+      }
+      return { en: "And which day does it end?", vi: "Và kết thúc vào ngày nào?", zh: "哪天结束？" }[lang];
+    },
+    when: (trip) => trip.diver?.value === true,
+  },
   { key: "transportType", question: { en: "One-way or return transfer?", vi: "Bạn cần đưa đón một chiều hay khứ hồi?", zh: "需要单程还是往返接送？" }, askOn: ["missing", "default", "derived"], when: (trip) => trip.transport?.value === true },
 ];
 
@@ -83,7 +113,11 @@ export function generateQuestions(trip: Trip): GuestQuestion[] {
     // belongs in the layer that decides what to ask).
     const state = trip[rule.key]?.state ?? "missing";
     if (!(rule.askOn ?? BASELINE).includes(state)) continue;
-    questions.push({ field: rule.key, question: rule.question[language] ?? rule.question.en });
+    const qText =
+      typeof rule.question === "function"
+        ? rule.question(trip, language)
+        : rule.question[language] ?? rule.question.en;
+    questions.push({ field: rule.key, question: qText });
   }
   return questions;
 }

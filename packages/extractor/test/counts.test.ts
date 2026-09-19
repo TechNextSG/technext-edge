@@ -52,6 +52,10 @@ describe("countNumbersIn — the numbers a guest put against a count", () => {
     const text = "Alo mình là Tuấn, sđt 0988776655, nhóm mình có 8 người nhưng chỉ 4 người ở lại 2 đêm từ ngày 05/12";
     expect(countNumbersIn(text, "guests")).toEqual([4, 8]);
     expect(countNumbersIn(text, "nights")).toEqual([2]);
+
+    const enStay = "Our group has 6 people but only 3 are staying for 2 nights starting Oct 10th.";
+    expect(countNumbersIn(enStay, "guests")).toEqual([3, 6]);
+    expect(countNumbersIn(enStay, "nights")).toEqual([2]);
   });
 
   it("ignores numbers that are not counts — phone numbers, dive logs, prices", () => {

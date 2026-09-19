@@ -62,6 +62,22 @@ export function createProviderByName(name: string, apiKey: string): ExtractProvi
   throw new Error(`Unknown provider: "${name}" (expected ${KNOWN_PROVIDER_NAMES.join(", ")})`);
 }
 
+function createResilientProvider(primary: ExtractProvider, fallback?: ExtractProvider): ExtractProvider {
+  if (!fallback) return primary;
+  return {
+    id: primary.id,
+    async call(args) {
+      try {
+        return await primary.call(args);
+      } catch (err) {
+        // eslint-disable-next-line no-console
+        console.warn(`[provider] Primary ${primary.id} failed (${err instanceof Error ? err.message : String(err)}); falling over to fallback ${fallback.id}`);
+        return await fallback.call(args);
+      }
+    },
+  };
+}
+
 // The one place that turns config into a live provider.
 // Policy: DeepSeek is primary/default. Gemini is secondary/fallback.
 export function createProviderFromEnv(env: NodeJS.ProcessEnv = process.env): ExtractProvider {
@@ -74,7 +90,12 @@ export function createProviderFromEnv(env: NodeJS.ProcessEnv = process.env): Ext
       const key = env.DEEPSEEK_GATEWAY_KEY;
       const model = which === "deepseek" ? (env.DEEPSEEK_MODEL as "deepseek-flash" | "deepseek-pro" | undefined) ?? "deepseek-flash" : which;
       if (key) {
-        return createDeepSeekProvider(key, model);
+        const primary = createDeepSeekProvider(key, model);
+        if (env.GEMINI_API_KEY) {
+          const fallback = createGeminiProvider(env.GEMINI_API_KEY, env.GEMINI_MODEL);
+          return createResilientProvider(primary, fallback);
+        }
+        return primary;
       }
       // Graceful fallback to secondary provider (Gemini) if configured
       if (env.GEMINI_API_KEY) {

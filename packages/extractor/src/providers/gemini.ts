@@ -49,6 +49,7 @@ export function createGeminiProvider(apiKey: string, model = process.env.GEMINI_
         "JSON schema. Every field needs a state: 'stated' (quote it in evidence, verbatim), " +
         "'inferred' (context implies it, no exact quote), or 'missing'. Never invent a value " +
         "that state 'stated' cannot point to verbatim evidence for. " +
+        "For 'guests': when a message mentions both a party/group size and a different number of people staying (e.g. 'group of 6 but only 3 are staying' is 3; 'nhóm 8 người nhưng chỉ 4 người ở lại' is 4), extract the number of guests staying, or mark it missing if ambiguous — never use the non-staying party total. " +
         // The same transport rule as providers/deepseek.ts, word for word: this adapter is the
         // configured fallback (providerFromEnv.ts), and a rule that lives in only one prompt is
         // a money bug waiting for a missing key. See that file for why it is phrased as the
