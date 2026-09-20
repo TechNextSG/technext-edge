@@ -1,0 +1,973 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Casa Escondida Anilao — Interactive Test Scenarios</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #EFF4F3;
+      --card: #FFFFFF;
+      --card2: #F5FAF8;
+      --ink: #152321;
+      --muted: #5B6C6A;
+      --border: #D9E4E2;
+      --hairline: #E6EEEC;
+      --head: #0B2E33;
+      --head2: #123C42;
+      --teal: #1C7C82;
+      --teal-strong: #145A5F;
+      --teal-tint: #E7F2F0;
+      --coral: #DC4B33;
+      --coral-ink: #B5301C;
+      --coral-tint: #FBEAE6;
+      --gold: #C99A3B;
+      --gold-bg: #FBF2E0;
+      --gold-ink: #7E5F14;
+      --good: #059669;
+      --good-ink: #047857;
+      --good-bg: #ECFDF5;
+      --wa-bg: #EFEAE2;
+      --wa-bubble-in: #FFFFFF;
+      --wa-bubble-out: #D9FDD3;
+      --shadow: 0 6px 24px rgba(11, 46, 51, 0.08);
+      --font-d: 'Space Grotesk', ui-sans-serif, sans-serif;
+      --font-b: 'Inter', ui-sans-serif, system-ui, sans-serif;
+      --font-m: 'IBM Plex Mono', ui-monospace, monospace;
+    }
+
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --bg: #0A181B;
+        --card: #13292E;
+        --card2: #0F2125;
+        --ink: #E4EFED;
+        --muted: #94AAA7;
+        --border: #264845;
+        --hairline: #1C3A3E;
+        --teal: #43ACB3;
+        --teal-strong: #63C6CC;
+        --teal-tint: #153A3E;
+        --coral: #E86A50;
+        --coral-ink: #F0917E;
+        --coral-tint: #3A211C;
+        --gold: #C99A3B;
+        --gold-bg: #33290F;
+        --gold-ink: #E3C069;
+        --good: #10B981;
+        --good-ink: #34D399;
+        --good-bg: #064E3B;
+        --wa-bg: #0B141A;
+        --wa-bubble-in: #202C33;
+        --wa-bubble-out: #005C4B;
+        --shadow: 0 6px 24px rgba(0, 0, 0, 0.35);
+      }
+    }
+
+    * { box-sizing: border-box; }
+    html, body { margin: 0; padding: 0; }
+    body {
+      background: var(--bg);
+      color: var(--ink);
+      font-family: var(--font-b);
+      font-size: 15px;
+      line-height: 1.6;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    code {
+      font-family: var(--font-m);
+      font-size: 0.88em;
+      background: var(--card2);
+      padding: 2px 6px;
+      border-radius: 4px;
+      border: 1px solid var(--border);
+    }
+
+    /* Top Hero */
+    .topbar {
+      background: linear-gradient(135deg, var(--head) 0%, var(--head2) 100%);
+      color: #fff;
+      padding: 28px 24px 24px;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.15);
+    }
+    .topbar-inner {
+      max-width: 1100px;
+      margin: 0 auto;
+    }
+    .topbar .kicker {
+      font-family: var(--font-m);
+      font-size: 11px;
+      letter-spacing: 1.5px;
+      text-transform: uppercase;
+      color: #9FC6C9;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .topbar h1 {
+      font-family: var(--font-d);
+      color: #fff;
+      margin: 8px 0 10px;
+      font-size: 28px;
+      font-weight: 700;
+    }
+    .topbar p {
+      margin: 0 0 16px;
+      color: #CFE4E2;
+      font-size: 14.5px;
+      max-width: 80ch;
+    }
+    .badges {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-top: 14px;
+    }
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      font-family: var(--font-m);
+      font-size: 11.5px;
+      font-weight: 600;
+      padding: 4px 10px;
+      border-radius: 20px;
+      background: rgba(255,255,255,0.12);
+      color: #fff;
+      border: 1px solid rgba(255,255,255,0.2);
+    }
+    .badge.ok {
+      background: var(--good-bg);
+      color: var(--good-ink);
+      border-color: var(--good);
+    }
+
+    /* Layout Wrap */
+    .wrap {
+      max-width: 1100px;
+      margin: 0 auto;
+      padding: 24px 20px 80px;
+    }
+
+    /* Action bar */
+    .actions-bar {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: space-between;
+      align-items: center;
+      gap: 14px;
+      margin-bottom: 24px;
+      background: var(--card);
+      padding: 14px 20px;
+      border-radius: 12px;
+      border: 1px solid var(--border);
+      box-shadow: var(--shadow);
+    }
+    .search-box {
+      flex: 1;
+      min-width: 260px;
+      position: relative;
+    }
+    .search-box input {
+      width: 100%;
+      padding: 9px 14px 9px 36px;
+      border-radius: 8px;
+      border: 1px solid var(--border);
+      background: var(--card2);
+      color: var(--ink);
+      font-size: 14px;
+      outline: none;
+      font-family: var(--font-b);
+    }
+    .search-box input:focus {
+      border-color: var(--teal);
+    }
+    .search-box svg {
+      position: absolute;
+      left: 12px;
+      top: 50%;
+      transform: translateY(-50%);
+      fill: var(--muted);
+      width: 16px;
+      height: 16px;
+    }
+    .filter-tags {
+      display: flex;
+      gap: 6px;
+      flex-wrap: wrap;
+    }
+    .filter-btn {
+      background: var(--card2);
+      border: 1px solid var(--border);
+      color: var(--muted);
+      padding: 6px 12px;
+      border-radius: 6px;
+      font-size: 12.5px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.15s ease;
+    }
+    .filter-btn:hover, .filter-btn.active {
+      background: var(--teal-tint);
+      color: var(--teal-strong);
+      border-color: var(--teal);
+    }
+
+    /* Scenarios Grid */
+    .scenario-grid {
+      display: flex;
+      flex-direction: column;
+      gap: 24px;
+    }
+
+    /* Scenario Card */
+    .sc-card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      box-shadow: var(--shadow);
+      overflow: hidden;
+      transition: transform 0.2s, box-shadow 0.2s;
+    }
+    .sc-card:hover {
+      box-shadow: 0 8px 30px rgba(11, 46, 51, 0.12);
+    }
+
+    .sc-header {
+      padding: 16px 22px;
+      border-bottom: 1px solid var(--hairline);
+      background: var(--card2);
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+    }
+    .sc-title-wrap {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .sc-id {
+      font-family: var(--font-m);
+      font-size: 13px;
+      font-weight: 700;
+      background: var(--teal-tint);
+      color: var(--teal-strong);
+      padding: 4px 10px;
+      border-radius: 6px;
+      border: 1px solid var(--teal);
+    }
+    .sc-title {
+      font-family: var(--font-d);
+      font-size: 17px;
+      font-weight: 700;
+      color: var(--ink);
+      margin: 0;
+    }
+    .sc-category {
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .sc-body {
+      padding: 22px;
+    }
+    .sc-desc {
+      font-size: 14px;
+      color: var(--muted);
+      margin: 0 0 18px;
+    }
+
+    /* Turn Flow */
+    .turn-flow {
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+    }
+    .turn-step {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      border-left: 3px solid var(--teal);
+      padding-left: 16px;
+    }
+    .turn-label {
+      font-family: var(--font-m);
+      font-size: 11.5px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.8px;
+      color: var(--teal-strong);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    /* WhatsApp Simulator Box */
+    .chat-bubble {
+      position: relative;
+      padding: 12px 16px;
+      border-radius: 12px;
+      font-size: 14.5px;
+      line-height: 1.5;
+      max-width: 650px;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.04);
+    }
+    .chat-bubble.guest {
+      background: var(--wa-bubble-out);
+      align-self: flex-start;
+      border-top-left-radius: 2px;
+      border: 1px solid rgba(0,0,0,0.05);
+      position: relative;
+    }
+    .chat-bubble.bot {
+      background: var(--wa-bubble-in);
+      border-top-right-radius: 2px;
+      border: 1px solid var(--hairline);
+      white-space: pre-wrap;
+      font-family: var(--font-b);
+    }
+    .chat-bubble .msg-text {
+      margin-right: 70px;
+      word-break: break-word;
+    }
+
+    /* Copy Button */
+    .btn-copy {
+      position: absolute;
+      top: 8px;
+      right: 8px;
+      background: #ffffff;
+      color: var(--teal-strong);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 5px 10px;
+      font-size: 11.5px;
+      font-weight: 600;
+      font-family: var(--font-m);
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      transition: all 0.15s ease;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+    }
+    .btn-copy:hover {
+      background: var(--teal-tint);
+      border-color: var(--teal);
+    }
+    .btn-copy.copied {
+      background: var(--good);
+      color: #fff;
+      border-color: var(--good);
+    }
+
+    /* Core Verification Callout */
+    .verif-box {
+      margin-top: 14px;
+      padding: 10px 14px;
+      background: var(--card2);
+      border: 1px dashed var(--border);
+      border-radius: 8px;
+      font-size: 13px;
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 12px;
+    }
+    .verif-label {
+      font-family: var(--font-m);
+      font-weight: 700;
+      color: var(--good-ink);
+      font-size: 12px;
+    }
+    .verif-pill {
+      font-family: var(--font-m);
+      font-size: 11px;
+      background: var(--teal-tint);
+      color: var(--teal-strong);
+      padding: 2px 8px;
+      border-radius: 4px;
+    }
+
+    /* Toast */
+    .toast {
+      position: fixed;
+      bottom: 24px;
+      right: 24px;
+      background: var(--head);
+      color: #fff;
+      padding: 12px 20px;
+      border-radius: 8px;
+      font-size: 13.5px;
+      font-weight: 600;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+      display: none;
+      align-items: center;
+      gap: 10px;
+      z-index: 9999;
+      animation: slideUp 0.2s ease;
+    }
+    @keyframes slideUp {
+      from { transform: translateY(20px); opacity: 0; }
+      to { transform: translateY(0); opacity: 1; }
+    }
+  </style>
+</head>
+<body>
+
+  <header class="topbar">
+    <div class="topbar-inner">
+      <div class="kicker">
+        <span>TechNext Asia</span>
+        <span>•</span>
+        <span>Casa Escondida Anilao Resort & PADI IDC</span>
+      </div>
+      <h1>Interactive Business Benchmark & Test Matrix</h1>
+      <p>
+        Tập hợp các kịch bản kiểm thử nghiệp vụ thực tế được thiết kế chuyên biệt cho resort lặn biển Casa Escondida (Batangas, Philippines). 
+        Nhấn nút <strong>"Copy"</strong> ở mỗi lượt để dán trực tiếp vào WhatsApp test!
+      </p>
+      <div class="badges">
+        <div class="badge ok">✓ 8/8 SCENARIOS PASS (100%)</div>
+        <div class="badge ok">✓ 14/14 DIALOG TURNS PASS (100%)</div>
+        <div class="badge">EXTRACTOR: GEMINI 3.1 FLASH LITE</div>
+        <div class="badge">ODOO BRAIN + EDGE BFF</div>
+      </div>
+    </div>
+  </header>
+
+  <main class="wrap">
+    <!-- Action / Filter Bar -->
+    <div class="actions-bar">
+      <div class="search-box">
+        <svg viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/></svg>
+        <input type="text" id="searchInput" placeholder="Tìm kịch bản (ví dụ: diving, transfer, day visitors, Michael...)">
+      </div>
+      <div class="filter-tags">
+        <button class="filter-btn active" data-cat="all">Tất cả (8)</button>
+        <button class="filter-btn" data-cat="guests">Khách tham quan / Trẻ em</button>
+        <button class="filter-btn" data-cat="dive">Lặn biển / No-Fly</button>
+        <button class="filter-btn" data-cat="transport">Tự lái xe / Đưa đón</button>
+        <button class="filter-btn" data-cat="edge">B2B / Bẫy số</button>
+      </div>
+    </div>
+
+    <!-- Scenarios List -->
+    <div class="scenario-grid" id="scenariosContainer">
+
+      <!-- SCENARIO 1 -->
+      <article class="sc-card" data-cat="guests" data-search="michael party 6 staying 3 day visitors saturday 2 nights">
+        <div class="sc-header">
+          <div class="sc-title-wrap">
+            <span class="sc-id">AN-01</span>
+            <h2 class="sc-title">Khách tham quan trong ngày vs Lưu trú qua đêm</h2>
+          </div>
+          <span class="sc-category">Day Visitors vs Staying Guests</span>
+        </div>
+        <div class="sc-body">
+          <p class="sc-desc">
+            Nhóm 6 người nhưng chỉ 3 người ở lại phòng qua đêm, 3 người là Day Visitor (8h sáng - 5h chiều). 
+            Bot phải trích xuất đúng 3 khách ở lại, không bị nhầm lấy cả 6 người làm số phòng/giường.
+          </p>
+
+          <div class="turn-flow">
+            <!-- Turn 1 -->
+            <div class="turn-step">
+              <div class="turn-label">
+                <span>Lượt 1: Khách gửi tin nhắn đặt phòng</span>
+                <span style="color:var(--muted)">Turn 1 / 2</span>
+              </div>
+              <div class="chat-bubble guest">
+                <button class="btn-copy" onclick="copyText('Hi! Our group has 6 people coming this Saturday, but only 3 are staying for 2 nights, the others are just day visitors. My name is Michael.', this)">
+                  📋 Copy
+                </button>
+                <div class="msg-text">Hi! Our group has 6 people coming this Saturday, but only 3 are staying for 2 nights, the others are just day visitors. My name is Michael.</div>
+              </div>
+              <div class="turn-label" style="margin-top:6px; color:var(--muted);">Bot phản hồi kỳ vọng:</div>
+              <div class="chat-bubble bot">Thanks, Michael!
+I've noted down your stay starting Sep 26 for 2 nights, 3 guests and your name, Michael.
+To complete your enquiry, could you let me know:
+1. Would you like to go diving during your stay?</div>
+            </div>
+
+            <!-- Turn 2 -->
+            <div class="turn-step">
+              <div class="turn-label">
+                <span>Lượt 2: Khách trả lời lặn biển (trong kỳ nghỉ)</span>
+                <span style="color:var(--muted)">Turn 2 / 2</span>
+              </div>
+              <div class="chat-bubble guest">
+                <button class="btn-copy" onclick="copyText('We want to dive on Sep 27th.', this)">
+                  📋 Copy
+                </button>
+                <div class="msg-text">We want to dive on Sep 27th.</div>
+              </div>
+              <div class="turn-label" style="margin-top:6px; color:var(--muted);">Bot chốt đơn hoàn tất:</div>
+              <div class="chat-bubble bot">Thanks, Michael!
+Here's what I have for your stay:
+• Stay: Sep 26 – 28, 2026 (2 nights)
+• Guests: 3
+• Rooms: 1
+• Meals: full board
+• Contact name: Michael
+• Airport transfer: no
+• Diving: yes · Sep 27, 2026
+
+Someone from our team will follow up shortly to confirm availability and pricing — nothing is booked yet.</div>
+            </div>
+          </div>
+
+          <div class="verif-box">
+            <span class="verif-label">✓ KIỂM CHỨNG CỐT LÕI:</span>
+            <span class="verif-pill">guests: 3 (stayingGuestsCount)</span>
+            <span class="verif-pill">nights: 2</span>
+            <span class="verif-pill">diver: true</span>
+            <span class="verif-pill">done: true</span>
+          </div>
+        </div>
+      </article>
+
+      <!-- SCENARIO 2 -->
+      <article class="sc-card" data-cat="dive" data-search="alex dive safety dan padi no fly checkout day manila">
+        <div class="sc-header">
+          <div class="sc-title-wrap">
+            <span class="sc-id">AN-02</span>
+            <h2 class="sc-title">An toàn lặn biển (Quy tắc PADI / DAN No-Fly Interval)</h2>
+          </div>
+          <span class="sc-category">Dive Safety & No-Fly Rule</span>
+        </div>
+        <div class="sc-body">
+          <p class="sc-desc">
+            Khách lặn kết thúc vào ngày trả phòng (check-out 12/11). 
+            Bot phát hiện nguy cơ giảm áp khi bay từ sân bay Manila và lập tức kích hoạt cảnh báo an toàn y khoa.
+          </p>
+
+          <div class="turn-flow">
+            <!-- Turn 1 -->
+            <div class="turn-step">
+              <div class="turn-label">
+                <span>Lượt 1: Khách đặt phòng và báo muốn lặn</span>
+                <span style="color:var(--muted)">Turn 1 / 2</span>
+              </div>
+              <div class="chat-bubble guest">
+                <button class="btn-copy" onclick="copyText('Hi, I\'m Alex. 2 guests for 2 nights starting Nov 10th. We want to dive. No airport transfer.', this)">
+                  📋 Copy
+                </button>
+                <div class="msg-text">Hi, I'm Alex. 2 guests for 2 nights starting Nov 10th. We want to dive. No airport transfer.</div>
+              </div>
+            </div>
+
+            <!-- Turn 2 -->
+            <div class="turn-step">
+              <div class="turn-label">
+                <span>Lượt 2: Khách chọn lịch lặn trùng ngày về</span>
+                <span style="color:var(--muted)">Turn 2 / 2</span>
+              </div>
+              <div class="chat-bubble guest">
+                <button class="btn-copy" onclick="copyText('We want to dive on Nov 11 to Nov 12.', this)">
+                  📋 Copy
+                </button>
+                <div class="msg-text">We want to dive on Nov 11 to Nov 12.</div>
+              </div>
+              <div class="turn-label" style="margin-top:6px; color:var(--muted);">Bot phản hồi (kèm cảnh báo y khoa lặn):</div>
+              <div class="chat-bubble bot">Thanks, Alex!
+Here's what I have for your stay:
+• Stay: Nov 10 – 12, 2026 (2 nights)
+• Guests: 2
+• Rooms: 1
+• Meals: full board
+• Contact name: Alex
+• Airport transfer: no
+• Diving: yes · Nov 11 – 12, 2026
+
+⚠️ Dive Safety Note: PADI/DAN guidelines recommend an 18–24 hour surface interval after diving before flying out from Manila.
+
+Someone from our team will follow up shortly to confirm availability and pricing — nothing is booked yet.</div>
+            </div>
+          </div>
+
+          <div class="verif-box">
+            <span class="verif-label">✓ KIỂM CHỨNG CỐT LÕI:</span>
+            <span class="verif-pill">diveTo == checkOut</span>
+            <span class="verif-pill">trigger: getNoFlyAdvisory()</span>
+            <span class="verif-pill">done: true</span>
+          </div>
+        </div>
+      </article>
+
+      <!-- SCENARIO 3 -->
+      <article class="sc-card" data-cat="guests" data-search="david 2 adults 2 kids children family 2 rooms dec 15">
+        <div class="sc-header">
+          <div class="sc-title-wrap">
+            <span class="sc-id">AN-03</span>
+            <h2 class="sc-title">Gia đình & Trẻ em (Cộng dồn số lượng khách)</h2>
+          </div>
+          <span class="sc-category">Families & Children Policy</span>
+        </div>
+        <div class="sc-body">
+          <p class="sc-desc">
+            Gia đình gồm 2 người lớn và 2 trẻ em, cần 2 phòng. Hệ thống tự động tính tổng 2 + 2 = 4 khách lưu trú.
+          </p>
+
+          <div class="turn-flow">
+            <!-- Turn 1 -->
+            <div class="turn-step">
+              <div class="turn-label">
+                <span>Lượt 1: Khách gửi thông tin gia đình</span>
+                <span style="color:var(--muted)">Turn 1 / 2</span>
+              </div>
+              <div class="chat-bubble guest">
+                <button class="btn-copy" onclick="copyText('Hi, we are 2 adults and 2 kids coming for 3 nights from Dec 15th. We need 2 rooms and full board. Contact: David.', this)">
+                  📋 Copy
+                </button>
+                <div class="msg-text">Hi, we are 2 adults and 2 kids coming for 3 nights from Dec 15th. We need 2 rooms and full board. Contact: David.</div>
+              </div>
+            </div>
+
+            <!-- Turn 2 -->
+            <div class="turn-step">
+              <div class="turn-label">
+                <span>Lượt 2: Xác nhận không lặn</span>
+                <span style="color:var(--muted)">Turn 2 / 2</span>
+              </div>
+              <div class="chat-bubble guest">
+                <button class="btn-copy" onclick="copyText('No diving for the family, thanks!', this)">
+                  📋 Copy
+                </button>
+                <div class="msg-text">No diving for the family, thanks!</div>
+              </div>
+              <div class="turn-label" style="margin-top:6px; color:var(--muted);">Bot chốt đơn:</div>
+              <div class="chat-bubble bot">Thanks, David!
+Here's what I have for your stay:
+• Stay: Dec 15 – 18, 2026 (3 nights)
+• Guests: 4
+• Rooms: 2
+• Meals: full board
+• Contact name: David
+• Airport transfer: no
+• Diving: no
+
+Someone from our team will follow up shortly to confirm availability and pricing — nothing is booked yet.</div>
+            </div>
+          </div>
+
+          <div class="verif-box">
+            <span class="verif-label">✓ KIỂM CHỨNG CỐT LÕI:</span>
+            <span class="verif-pill">adultAndChildSum: 4</span>
+            <span class="verif-pill">rooms: 2</span>
+            <span class="verif-pill">diver: false</span>
+            <span class="verif-pill">done: true</span>
+          </div>
+        </div>
+      </article>
+
+      <!-- SCENARIO 4 -->
+      <article class="sc-card" data-cat="transport" data-search="emily drive car makati own vehicle no transfer nov 20">
+        <div class="sc-header">
+          <div class="sc-title-wrap">
+            <span class="sc-id">AN-04</span>
+            <h2 class="sc-title">Tự lái xe từ Makati (Phủ định đưa đón sân bay)</h2>
+          </div>
+          <span class="sc-category">Transport Negation & Parking</span>
+        </div>
+        <div class="sc-body">
+          <p class="sc-desc">
+            Khách tự lái xe riêng từ Makati đến resort (tận dụng bãi đỗ xe 20 chỗ). 
+            Bot phải gán transport = false và tuyệt đối không hỏi dồn "1 chiều hay khứ hồi".
+          </p>
+
+          <div class="turn-flow">
+            <div class="turn-step">
+              <div class="turn-label">
+                <span>Lượt 1: Khách thông báo tự lái xe</span>
+                <span style="color:var(--muted)">Turn 1 / 2</span>
+              </div>
+              <div class="chat-bubble guest">
+                <button class="btn-copy" onclick="copyText('Hi, 2 guests arriving Nov 20 for 2 nights. We will drive our own car from Makati, so no transfer needed. Name: Emily.', this)">
+                  📋 Copy
+                </button>
+                <div class="msg-text">Hi, 2 guests arriving Nov 20 for 2 nights. We will drive our own car from Makati, so no transfer needed. Name: Emily.</div>
+              </div>
+            </div>
+
+            <div class="turn-step">
+              <div class="turn-label">
+                <span>Lượt 2: Xác nhận chỉ nghỉ dưỡng không lặn</span>
+                <span style="color:var(--muted)">Turn 2 / 2</span>
+              </div>
+              <div class="chat-bubble guest">
+                <button class="btn-copy" onclick="copyText('No diving, just relaxing by the bay.', this)">
+                  📋 Copy
+                </button>
+                <div class="msg-text">No diving, just relaxing by the bay.</div>
+              </div>
+            </div>
+          </div>
+
+          <div class="verif-box">
+            <span class="verif-label">✓ KIỂM CHỨNG CỐT LÕI:</span>
+            <span class="verif-pill">transport: false</span>
+            <span class="verif-pill">asksTransferType: false (passed)</span>
+            <span class="verif-pill">done: true</span>
+          </div>
+        </div>
+      </article>
+
+      <!-- SCENARIO 5 -->
+      <article class="sc-card" data-cat="dive" data-search="kevin padi open water course roundtrip transfer airport nov 5">
+        <div class="sc-header">
+          <div class="sc-title-wrap">
+            <span class="sc-id">AN-05</span>
+            <h2 class="sc-title">Khóa học PADI Open Water & Đưa đón khứ hồi</h2>
+          </div>
+          <span class="sc-category">PADI Certification & Van Transfer</span>
+        </div>
+        <div class="sc-body">
+          <p class="sc-desc">
+            Đặt trọn gói khóa học lặn PADI Open Water 3 ngày kết hợp xe đưa đón sân bay Manila 2 chiều.
+          </p>
+
+          <div class="turn-flow">
+            <div class="turn-step">
+              <div class="turn-label">
+                <span>Lượt 1: Đăng ký học lặn + đón sân bay</span>
+                <span style="color:var(--muted)">Turn 1 / 2</span>
+              </div>
+              <div class="chat-bubble guest">
+                <button class="btn-copy" onclick="copyText('Hello, 2 of us want to take the PADI Open Water course starting Nov 5 for 4 nights. Full board and need airport pickup. I\'m Kevin.', this)">
+                  📋 Copy
+                </button>
+                <div class="msg-text">Hello, 2 of us want to take the PADI Open Water course starting Nov 5 for 4 nights. Full board and need airport pickup. I'm Kevin.</div>
+              </div>
+            </div>
+
+            <div class="turn-step">
+              <div class="turn-label">
+                <span>Lượt 2: Chốt ngày học lặn và xe khứ hồi</span>
+                <span style="color:var(--muted)">Turn 2 / 2</span>
+              </div>
+              <div class="chat-bubble guest">
+                <button class="btn-copy" onclick="copyText('Course from Nov 6 to Nov 8, and roundtrip pickup please.', this)">
+                  📋 Copy
+                </button>
+                <div class="msg-text">Course from Nov 6 to Nov 8, and roundtrip pickup please.</div>
+              </div>
+            </div>
+          </div>
+
+          <div class="verif-box">
+            <span class="verif-label">✓ KIỂM CHỨNG CỐT LÕI:</span>
+            <span class="verif-pill">diver: true</span>
+            <span class="verif-pill">diveFrom: 2026-11-06</span>
+            <span class="verif-pill">transportType: roundtrip</span>
+            <span class="verif-pill">done: true</span>
+          </div>
+        </div>
+      </article>
+
+      <!-- SCENARIO 6 -->
+      <article class="sc-card" data-cat="edge" data-search="sarah flight reschedule change dates oct 10 oct 25 3 nights">
+        <div class="sc-header">
+          <div class="sc-title-wrap">
+            <span class="sc-id">AN-06</span>
+            <h2 class="sc-title">Thay đổi chuyến bay & Dời ngày giữa cuộc trò chuyện</h2>
+          </div>
+          <span class="sc-category">Mid-Chat Modifications</span>
+        </div>
+        <div class="sc-body">
+          <p class="sc-desc">
+            Khách báo chuyến bay bị đổi, yêu cầu dời ngày check-in từ 10/10 sang 25/10 và tăng số đêm từ 2 lên 3. 
+            Bot phải cập nhật động mượt mà, không bị xung đột với ngày cũ.
+          </p>
+
+          <div class="turn-flow">
+            <div class="turn-step">
+              <div class="turn-label">
+                <span>Lượt 1: Đặt lịch ban đầu (Oct 10, 2 đêm)</span>
+                <span style="color:var(--muted)">Turn 1 / 2</span>
+              </div>
+              <div class="chat-bubble guest">
+                <button class="btn-copy" onclick="copyText('Booking for 2 guests, 2 nights from Oct 10. Name: Sarah. No diving, no pickup.', this)">
+                  📋 Copy
+                </button>
+                <div class="msg-text">Booking for 2 guests, 2 nights from Oct 10. Name: Sarah. No diving, no pickup.</div>
+              </div>
+            </div>
+
+            <div class="turn-step">
+              <div class="turn-label">
+                <span>Lượt 2: Dời lịch vì chuyến bay thay đổi</span>
+                <span style="color:var(--muted)">Turn 2 / 2</span>
+              </div>
+              <div class="chat-bubble guest">
+                <button class="btn-copy" onclick="copyText('Wait, our flight changed! Can we move to Oct 25 for 3 nights instead? Still 2 people, no diving.', this)">
+                  📋 Copy
+                </button>
+                <div class="msg-text">Wait, our flight changed! Can we move to Oct 25 for 3 nights instead? Still 2 people, no diving.</div>
+              </div>
+            </div>
+          </div>
+
+          <div class="verif-box">
+            <span class="verif-label">✓ KIỂM CHỨNG CỐT LÕI:</span>
+            <span class="verif-pill">updated checkIn: 2026-10-25</span>
+            <span class="verif-pill">nights: 3</span>
+            <span class="verif-pill">checkOut: 2026-10-28</span>
+            <span class="verif-pill">done: true</span>
+          </div>
+        </div>
+      </article>
+
+      <!-- SCENARIO 7 -->
+      <article class="sc-card" data-cat="edge" data-search="rachel pacific waves travel agency b2b agent 4 rooms 8 guests dec 1">
+        <div class="sc-header">
+          <div class="sc-title-wrap">
+            <span class="sc-id">AN-07</span>
+            <h2 class="sc-title">Đặt phòng Đại lý du lịch B2B (Travel Agency)</h2>
+          </div>
+          <span class="sc-category">B2B Agent Discount Policy</span>
+        </div>
+        <div class="sc-body">
+          <p class="sc-desc">
+            Công ty du lịch Pacific Waves đặt 4 phòng cho đoàn 8 khách. 
+            Bot nhận diện từ khóa "Travel Agency" và gán guestType = "agent" (áp dụng chiết khấu 30% trong Odoo).
+          </p>
+
+          <div class="turn-flow">
+            <div class="turn-step">
+              <div class="turn-label">
+                <span>Lượt 1: Yêu cầu đặt từ công ty du lịch</span>
+                <span style="color:var(--muted)">Turn 1 / 1</span>
+              </div>
+              <div class="chat-bubble guest">
+                <button class="btn-copy" onclick="copyText('Greetings from Pacific Waves Travel Agency. Booking 4 rooms for 8 guests, 3 nights starting Dec 1st. Contact: Rachel. No diving, no transfer.', this)">
+                  📋 Copy
+                </button>
+                <div class="msg-text">Greetings from Pacific Waves Travel Agency. Booking 4 rooms for 8 guests, 3 nights starting Dec 1st. Contact: Rachel. No diving, no transfer.</div>
+              </div>
+            </div>
+          </div>
+
+          <div class="verif-box">
+            <span class="verif-label">✓ KIỂM CHỨNG CỐT LÕI:</span>
+            <span class="verif-pill">guestType: agent</span>
+            <span class="verif-pill">rooms: 4</span>
+            <span class="verif-pill">guests: 8</span>
+            <span class="verif-pill">done: true</span>
+          </div>
+        </div>
+      </article>
+
+      <!-- SCENARIO 8 -->
+      <article class="sc-card" data-cat="edge" data-search="george phone trap 1 555 019 2834 1 room 2 guests nov 18">
+        <div class="sc-header">
+          <div class="sc-title-wrap">
+            <span class="sc-id">AN-08</span>
+            <h2 class="sc-title">Bẫy số điện thoại quốc tế (Anti-Hallucination)</h2>
+          </div>
+          <span class="sc-category">Phone Trap & Boundary Safety</span>
+        </div>
+        <div class="sc-body">
+          <p class="sc-desc">
+            Khách để lại số điện thoại quốc tế (+1 555 019-2834) ngay trước câu đặt phòng. 
+            Bot không được bốc nhầm các số trong SĐT gán làm số phòng hay số khách.
+          </p>
+
+          <div class="turn-flow">
+            <div class="turn-step">
+              <div class="turn-label">
+                <span>Lượt 1: Tin nhắn chứa số điện thoại</span>
+                <span style="color:var(--muted)">Turn 1 / 1</span>
+              </div>
+              <div class="chat-bubble guest">
+                <button class="btn-copy" onclick="copyText('Hello, I\'m calling from +1 (555) 019-2834. Booking 1 room for 2 guests for 2 nights starting Nov 18. Name: George. No transfer, no diving.', this)">
+                  📋 Copy
+                </button>
+                <div class="msg-text">Hello, I'm calling from +1 (555) 019-2834. Booking 1 room for 2 guests for 2 nights starting Nov 18. Name: George. No transfer, no diving.</div>
+              </div>
+            </div>
+          </div>
+
+          <div class="verif-box">
+            <span class="verif-label">✓ KIỂM CHỨNG CỐT LÕI:</span>
+            <span class="verif-pill">rooms: 1 (not 555 or 019)</span>
+            <span class="verif-pill">guests: 2</span>
+            <span class="verif-pill">nights: 2</span>
+            <span class="verif-pill">done: true</span>
+          </div>
+        </div>
+      </article>
+
+    </div>
+  </main>
+
+  <div class="toast" id="toastMsg">✓ Đã sao chép tin nhắn vào clipboard!</div>
+
+  <script>
+    function copyText(text, btn) {
+      navigator.clipboard.writeText(text).then(() => {
+        const original = btn.innerHTML;
+        btn.innerHTML = '✓ Copied!';
+        btn.classList.add('copied');
+        showToast('✓ Đã sao chép tin nhắn vào clipboard!');
+        setTimeout(() => {
+          btn.innerHTML = original;
+          btn.classList.remove('copied');
+        }, 1800);
+      }).catch(err => {
+        console.error('Failed to copy text: ', err);
+      });
+    }
+
+    function showToast(msg) {
+      const t = document.getElementById('toastMsg');
+      t.innerText = msg;
+      t.style.display = 'flex';
+      setTimeout(() => { t.style.display = 'none'; }, 2200);
+    }
+
+    // Filter by Category
+    const filterBtns = document.querySelectorAll('.filter-btn');
+    const cards = document.querySelectorAll('.sc-card');
+
+    filterBtns.forEach(btn => {
+      btn.addEventListener('click', () => {
+        filterBtns.forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        const cat = btn.getAttribute('data-cat');
+        cards.forEach(card => {
+          if (cat === 'all' || card.getAttribute('data-cat') === cat) {
+            card.style.display = 'block';
+          } else {
+            card.style.display = 'none';
+          }
+        });
+      });
+    });
+
+    // Search input
+    const searchInput = document.getElementById('searchInput');
+    searchInput.addEventListener('input', (e) => {
+      const q = e.target.value.toLowerCase().trim();
+      cards.forEach(card => {
+        const searchData = card.getAttribute('data-search') || '';
+        const title = card.querySelector('.sc-title').innerText.toLowerCase();
+        const desc = card.querySelector('.sc-desc').innerText.toLowerCase();
+        if (!q || searchData.includes(q) || title.includes(q) || desc.includes(q)) {
+          card.style.display = 'block';
+        } else {
+          card.style.display = 'none';
+        }
+      });
+    });
+  </script>
+</body>
+</html>

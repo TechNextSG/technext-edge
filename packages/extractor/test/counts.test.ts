@@ -138,6 +138,16 @@ describe("corroborateCount — what keeps a model's number", () => {
     expect(corroborateCount("nights", 2, text)).toBe("consistent");
   });
 
+  it("corroborates a bare number reply in multi-turn conversation", () => {
+    const history = [
+      "Hi! Our group has 6 people coming this Saturday, but only 3 are staying for 2 nights",
+      "I have an added person",
+      "4",
+    ].join("\n");
+    expect(corroborateCount("guests", 4, history)).toBe("consistent");
+    expect(corroborateCount("guests", 5, history)).toBe("conflicting");
+  });
+
   it("has no opinion when the guest never put a number on that count", () => {
     // A count phrased in a way this reader cannot see is still the guest's number; the
     // caller keeps whatever the rest of the pipeline decided.

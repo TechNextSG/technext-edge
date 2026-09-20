@@ -242,6 +242,14 @@ export function corroborateCount(
   // later turn clarified this count: "how many guests?" followed by "3 of us"
   // resolves the earlier "group of 6 but only 3 staying" ambiguity.
   const turns = guestText.split("\n").map((t) => t.trim()).filter(Boolean);
+  if (turns.length > 0) {
+    const lastTurn = turns[turns.length - 1];
+    const bareMatch = /^\s*(?:just|only|tầm|khoảng|chỉ|khoang)?\s*(\d{1,3})\s*(?:nhé|nha|ạ|thôi|nhe)?\s*$/iu.exec(lastTurn);
+    if (bareMatch && Number(bareMatch[1]) === proposed) {
+      return "consistent";
+    }
+  }
+
   let stated: number[] = [];
   for (let i = turns.length - 1; i >= 0; i--) {
     const inTurn = countNumbersIn(turns[i], field);
