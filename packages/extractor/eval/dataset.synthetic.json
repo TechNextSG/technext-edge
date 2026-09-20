@@ -113,5 +113,46 @@
       "meals": { "state": "stated", "value": "room_only" },
       "checkIn": { "state": "stated" }
     }
+  },
+  {
+    "id": "en-06-bare-group-vs-staying-digits",
+    "note": "2026-09-20 live-conversation finding: bare 'group of N ... only M are joining', no filler words between the two numbers. Reproduced 100% (4/4) as guests->missing against production before this case existed. en-03 has the same shape but survives because filler (certification count, phone number, name) separates the two numbers; this case isolates the bare pattern the system prompt's own example claims to handle.",
+    "text": "We are a group of 6 but only 4 of us are joining this trip, checking in this Saturday for 3 nights.",
+    "expected": {
+      "guests": { "state": "stated", "value": 4 },
+      "nights": { "state": "stated", "value": 3 },
+      "checkIn": { "state": "stated" }
+    }
+  },
+  {
+    "id": "en-07-bare-group-vs-staying-word-number",
+    "note": "Same trap as en-06 with the group size spelled out ('six') instead of a digit — rules out 'two bare digits next to each other' as the sole trigger.",
+    "text": "We are a group of six but only 4 are joining this trip, checking in this Saturday for 3 nights.",
+    "expected": {
+      "guests": { "state": "stated", "value": 4 },
+      "nights": { "state": "stated", "value": 3 },
+      "checkIn": { "state": "stated" }
+    }
+  },
+  {
+    "id": "en-08-bare-group-vs-staying-reordered",
+    "note": "Same trap as en-06 with clause order reversed (staying count stated first, group size second) — rules out sentence position as the trigger.",
+    "text": "Only 4 of us are joining this trip, out of a group of 6, checking in this Saturday for 3 nights.",
+    "expected": {
+      "guests": { "state": "stated", "value": 4 },
+      "nights": { "state": "stated", "value": 3 },
+      "checkIn": { "state": "stated" }
+    }
+  },
+  {
+    "id": "en-09-day-visitors-staying-overnight-verbatim",
+    "note": "Near-verbatim restatement of the example phrase baked into gemini.ts/deepseek.ts's own system prompt ('4 are day visitors, 2 staying overnight') — the prompt cites this exact shape as handled. If this fails, the prompt's own worked example doesn't generalize.",
+    "text": "There's a group of 6 but only 4 of us are actually staying overnight, the other 2 are just visiting for the day. Checking in this Saturday for 3 nights, driving ourselves up, no need for pickup.",
+    "expected": {
+      "guests": { "state": "stated", "value": 4 },
+      "nights": { "state": "stated", "value": 3 },
+      "transport": { "state": "stated", "value": false },
+      "checkIn": { "state": "stated" }
+    }
   }
 ]
