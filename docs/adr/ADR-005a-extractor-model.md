@@ -200,3 +200,131 @@ function limit, with no chance for the retry-once path to help. Fixed
   has no `response_format: json_schema` — confirmed against their docs —
   but does support strict schema-enforced tool calls), cutting input tokens
   that were inflating both cost and latency.
+
+## Update 2026-09-20: quality/flow check via real production conversations
+
+Ran real (non-eval) multi-turn conversations against production `/v1/converse`
+in both Vietnamese and English — greeting → dense multi-field answer → dive
+follow-up → summary — to judge the flow experientially, not just by eval
+score. Findings, all observed live:
+
+- **Held up:** per-field state model, house-norm defaults surfaced only in
+  the summary (never asked about), the No-Fly PADI/DAN advisory firing
+  correctly when `diveTo === checkOut`, transport negation (`"driving
+  ourselves, no pickup needed"` → `transport: false, stated`, not `missing`
+  or wrongly `true`), guest-count arithmetic on "2 adults and 2 kids", and
+  the closing line always disclaiming nothing is booked yet (ADR-001).
+  Latency stayed 3.8-5.1s per turn across 4 turns — no creep from resending
+  the full transcript, consistent with the 2026-09-17 update's conclusion
+  that this only matters on pathological input.
+- **Minor flow nit (not fixed, low priority):** when `diver: true` and the
+  stay is short (2-3 nights), `diveFrom`/`diveTo` are still asked as two
+  separate questions with no default to the stay's own `checkIn`/`checkOut`
+  — costs a guest an entire extra turn confirming "yes, the whole stay" on
+  what is very likely the common case. Would be a `postProcess` default
+  (state `default`, not asked, same mechanism `checkOut` already uses),
+  scoped in `questions.ts` around the `diveFrom`/`diveTo` rules
+  (`when: (trip) => trip.diver?.value === true`). Flagged, not built.
+
+## Update 2026-09-20: `guests` extraction fails on bare "group of N ... only M"
+
+The English-language test above surfaced a real, reproducible bug: a guest
+message giving both a party/group size and a smaller staying count, with no
+filler words between the two numbers, comes back `guests: missing` instead
+of extracting the staying count — even though this exact shape
+(`"4 are day visitors, 2 staying overnight"`) is the system prompt's *own*
+worked example in `gemini.ts`/`deepseek.ts`.
+
+**Reproduced 4/4 by hand, then formalized into eval** — added
+`en-06`..`en-09` to `dataset.synthetic.json` (digit vs. spelled-out group
+size, clause order reversed, near-verbatim restatement of the prompt's own
+example). All four fail identically. Pulled the required-fields score for
+the 14-case synthetic set from ~97-98% to **89%** (below the ≥95% Playbook
+threshold) — entirely attributable to these four cases; 0 fabrication
+throughout, so the failure mode is the safe one (asks again) not the
+dangerous one (wrong value shipped).
+
+**Isolated the trigger by hand-varying the sentence:**
+
+| Message shape | `guests` result |
+|---|---|
+| `"group of 6 but only 4 ... staying overnight ... 2 ... visiting for the day"` | `missing` |
+| `"group of 6 but only 4 are joining"` | `missing` |
+| `"group of six but only 4 are joining"` (word, not digit) | `missing` |
+| `"only 4 ... joining, out of a group of 6"` (reordered) | `missing` |
+| `"4 of us are joining this trip"` (no group-size number at all) | `4, stated` |
+| eval's existing `en-03`: `"group of certified divers (12 dives logged each) but only 2 ... joining"` | `2, stated` |
+
+Not "group of" in general (`en-03` has it and passes) — specifically when
+**both numbers are bare guest-count digits with nothing distinguishing them**
+does the model give up and return `missing` rather than pick either one
+(itself evidence the zero-fabrication training/prompting is working — it
+would rather ask again than guess between two candidates).
+
+**Why neither existing dataset caught this:** neither `dataset.synthetic.json`
+(10 cases, pre-fix) nor `dataset.mock-30.json` (30 cases) had a bare case in
+this shape — only variants with filler text separating the two numbers. The
+prompt's own example was never actually eval-tested. Gap in the eval, not a
+false pass by the tool.
+
+**Attempted fix: a worked example in the prompt — did not work.** Added a
+concrete input→output example to both `gemini.ts` and `deepseek.ts`'s system
+prompts (same rule, same duplication reasoning as the existing `transport`
+rule comment). Re-ran the eval against a preview deployment built from that
+commit: **all four cases failed identically**, including on `gemini-2.5-flash`
+(the preview resolved a different model than production's
+`gemini-3.1-flash-lite`, confirming this isn't one model's quirk). One more
+sentence of prose is not enough to move this behavior — logged as attempted
+and ruled out, not left silently unresolved.
+
+**Considered and rejected: a deterministic regex fallback in `postProcess`.**
+Would parse `"group of N ... only M (staying/joining/overnight)"` directly
+from the guest's text and force `guests: M` when the model returns `missing`
+and the pattern matches. Rejected for three reasons:
+
+1. It's the same category of fix the `transport` rule's own comment already
+   argues against for this class of problem: *"Negation is the one thing a
+   keyword rule cannot do and this model can, so nothing in code tries."*
+   `checkOut = checkIn + nights` (the existing `postProcess` precedent) is
+   arithmetic on already-clean structured fields — parsing free text for
+   "which number means what" is a different kind of problem, the kind this
+   pipeline uses a model specifically to avoid hand-rolling.
+2. A regex miss is worse than the current failure: `missing` today costs one
+   extra clarifying turn (safe). A wrong regex match would silently write
+   `guests: stated` with regex-derived evidence straight into the summary/
+   estimate, skipping the guest confirmation the current safe failure
+   provides.
+3. English-only pattern — would need separate regexes per language (VI/ZH
+   phrase this differently) to reach parity, and still wouldn't generalize
+   to phrasings not yet seen, unlike (in principle) the model.
+
+**Current status: known limitation, not fixed.** Safe-failure mode (asks
+again, does not fabricate), low expected frequency in real guest messages
+(two bare numbers with zero separating words). Left as `en-06`..`en-09` in
+the eval dataset so any future prompt or provider change is checked against
+it automatically instead of being re-discovered by hand.
+
+**Wanted to test DeepSeek on this before ruling out prompt-only fixes
+further — blocked by infrastructure, not the model.** The team's LiteLLM
+gateway (`https://litellm-production-7402.up.railway.app`) returns
+`404 "Application not found"` on every path including `/` and `/health` —
+a Railway "this app doesn't exist" response, not an auth failure (which
+would be 401/403). Confirmed the supplied gateway key is not the problem by
+hitting the gateway directly. **Also surfaced in the process:** production's
+`EXTRACTOR_PROVIDER` currently resolves requests through Gemini directly
+(`google:gemini-3.1-flash-lite`), not `deepseek-flash` as this document's
+own "Policy: DeepSeek is primary/default" comment in `providerFromEnv.ts`
+describes — every conversation test run against production this session
+came back with a `google:gemini-*` provider id. Plausible explanation:
+someone switched production to Gemini when the gateway went down, as a
+stopgap — not confirmed with anyone on the team, flagged here rather than
+assumed.
+
+A session-scoped monitoring check (fires every 3h, auto-expires after 7
+days from 2026-09-20 — session-only, does not survive a restart) watches
+for the gateway coming back, re-runs the eval through DeepSeek including
+`en-06`..`en-09` when it does, and reports back. Per the user's standing
+instruction, once confirmed healthy, production's `EXTRACTOR_PROVIDER`
+should be switched back to `deepseek-flash` — that step needs a live
+session (a production env var change + redeploy is not something a
+background check is permitted to do unattended).
