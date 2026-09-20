@@ -81,9 +81,9 @@ h1,h2,h3{font-family:var(--font-d);font-weight:600;text-wrap:balance;margin:0;}
 
 <div class="wrap">
 
-  <div class="status">
-    <div class="big">⏳ Go/no-go: chờ 1 kết quả</div>
-    <span>Test độ trễ 3-5 phút (cùng 1 số điện thoại, gửi 2 tin cách nhau vài phút, xem bot có nhớ tin đầu không) — <strong>chưa có kết quả</strong>. Đây là điều kiện cuối cùng trước khi coi demo là an toàn.</span>
+  <div class="status" style="border-left-color:var(--good);background:var(--good-bg);">
+    <div class="big" style="color:var(--good-ink);">✅ Go/no-go: test độ trễ ĐẠT</div>
+    <span style="color:var(--good-ink);">Test thật trên sandbox: 2 tin cách nhau <strong>7 phút</strong> (20:34 → 20:41) — bot vẫn nhớ đúng "Dec 5, 2 nights, 2 guests" từ tin đầu, gộp thêm "no transfer" đúng chỗ, không hỏi lại gì đã biết. In-memory store sống sót qua khoảng nghỉ ở lần test này. <strong>Lưu ý:</strong> đây là 1 lần test thành công, không phải đảm bảo 100% (hành vi phụ thuộc việc Vercel có tái sử dụng instance hay không) — vẫn nên giữ nhịp gõ tương đối đều trong demo, tránh khoảng trống quá dài (&gt;10-15 phút) nếu tránh được.</span>
   </div>
 
   <div class="card">
@@ -99,7 +99,7 @@ h1,h2,h3{font-family:var(--font-d);font-weight:600;text-wrap:balance;margin:0;}
     <h2>⚠️ Biết rồi nhưng chưa sửa — né trong lúc demo</h2>
     <div class="item warn"><div class="dot">!</div><div class="body"><strong>Gõ từng tin một, đợi bot trả lời rồi mới gõ tiếp</strong><span>Gõ 2 tin sát nhau (dưới ~2s) có thể khiến bot trả lời 2 lần, tin đầu hỏi lại thứ khách vừa nói ở tin sau (race condition, đã ghi roadmap L2, chưa sửa).</span></div></div>
     <div class="item warn"><div class="dot">!</div><div class="body"><strong>Đừng gộp 2 số khách trần trụi trong 1 câu</strong><span>Ví dụ tránh: "group of 6 but only 4 are staying". Bug đã xác nhận (eval <code>en-06..en-09</code>): field <code>guests</code> trả về <code>missing</code> thay vì bắt đúng số ở lại.</span></div></div>
-    <div class="item warn"><div class="dot">!</div><div class="body"><strong>Nếu có khoảng dừng dài để nói chuyện giữa các tin</strong><span>Chưa xác nhận in-memory store sống sót qua khoảng nghỉ trên Vercel — đây chính là việc đang test. Nếu chưa có kết quả tốt trước giờ demo, giữ nhịp gõ liên tục, đừng để trống quá 1-2 phút.</span></div></div>
+    <div class="item warn"><div class="dot">!</div><div class="body"><strong>Khoảng dừng dài (&gt;15 phút) vẫn chưa được test</strong><span>Đã xác nhận sống sót qua 7 phút (xem banner phía trên). Vercel có thể tái sử dụng instance khác nhau tuỳ tải thực tế, nên không có gì tuyệt đối — nếu demo có đoạn dừng rất dài để thuyết trình, tốt nhất nhắn 1 tin "giữ chỗ" trong lúc nói để giữ instance ấm.</span></div></div>
   </div>
 
   <div class="card">

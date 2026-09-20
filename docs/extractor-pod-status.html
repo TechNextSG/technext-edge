@@ -589,24 +589,30 @@
       <!-- HEADER -->
       <header class="head">
         <div class="tags">
-          <span class="tag ok">VITEST: 72/72 PASS (10 FILES)</span>
+          <span class="tag ok">VITEST: 212/212 PASS (15 FILES)</span>
           <span class="tag ok">TYPECHECK: 0 ERRORS</span>
           <span class="tag ok">ZERO HALLUCINATION: 0 FABRICATED</span>
-          <span class="tag ok">WHATSAPP 2-WAY VERIFIED</span>
-          <span class="tag warn"><span class="vi">BÁO CÁO LEAD: ĐIỀU KIỆN WHATSAPP PROD</span><span class="en">LEAD
-              BRIEFING: WHATSAPP PROD PREREQUISITES</span></span>
+          <span class="tag ok">WHATSAPP 2-WAY VERIFIED (SANDBOX THẬT)</span>
+          <span class="tag warn"><span class="vi">KNOWN LIMITATION: TRÍCH XUẤT GUESTS</span><span class="en">KNOWN
+              LIMITATION: GUESTS EXTRACTION</span></span>
+          <span class="tag warn"><span class="vi">HẠ TẦNG: GATEWAY DEEPSEEK ĐANG SẬP</span><span class="en">INFRA:
+              DEEPSEEK GATEWAY DOWN</span></span>
         </div>
         <h1>
           <span class="vi">Báo Cáo Trạng Thái AI Extractor Pod &amp; Kế Hoạch Chuẩn Hóa WhatsApp Production</span>
           <span class="en">AI Extractor Pod Corporate Status &amp; WhatsApp Production Engineering Plan</span>
         </h1>
         <p>
-          <span class="vi">Đồng bộ 100% với mã nguồn thực tế tại <code>technext-edge</code> (18/09/2026). Webhook hai
-            chiều Meta WhatsApp Cloud API đã thông mạch thật; toàn bộ 72/72 tests xanh; đã khắc phục sự cố treo turn 20s
-            và chuẩn bị đệ trình Lead điều kiện tiên quyết để vận hành WhatsApp trên số thật của Resort.</span>
-          <span class="en">100% verified against live code records in <code>technext-edge</code> (18/09/2026). 2-way
-            Meta WhatsApp Cloud API verified; 72/72 unit tests passing; resolved inbound turn stall bug (20s timeout +
-            release claim); formalized WhatsApp Production prerequisites for Tech Lead and Management.</span>
+          <span class="vi">Đồng bộ 100% với mã nguồn thực tế tại <code>technext-edge</code> (cập nhật 20/09/2026,
+            thay bản 18/09 đã cũ). Webhook hai chiều Meta WhatsApp Cloud API đã thông mạch thật, xác nhận lại bằng
+            hội thoại thật trên sandbox hôm nay; toàn bộ 212/212 tests xanh (tăng từ 72 hôm 18/09); phát hiện 1
+            known limitation ở trích xuất <code>guests</code> (đã thử sửa prompt, chưa thành công) và 1 sự cố hạ
+            tầng bên ngoài (gateway DeepSeek trên Railway đang sập) — cả hai đều không chặn demo, chi tiết ở Phần 5.</span>
+          <span class="en">100% verified against live code records in <code>technext-edge</code> (updated
+            20/09/2026, supersedes the stale 18/09 version). 2-way Meta WhatsApp Cloud API verified again today via
+            a real sandbox conversation; 212/212 unit tests passing (up from 72 on 18/09); one known limitation
+            found in <code>guests</code> extraction (prompt fix attempted, did not resolve it) and one external
+            infrastructure incident (DeepSeek's Railway gateway is down) — neither blocks the demo, see Part 5.</span>
         </p>
         <div class="meta-grid">
           <div class="meta-item">
@@ -616,7 +622,7 @@
           <div class="meta-item">
             <strong><span class="vi">Nhánh Git &amp; Trạng thái</span><span class="en">Git Branch &amp;
                 Status</span></strong>
-            <code>main</code> (72/72 Vitest · 0 TS Errors)
+            <code>main</code> (212/212 Vitest · 0 TS Errors · commit <code>10ecdbb</code>)
           </div>
           <div class="meta-item">
             <strong><span class="vi">Phạm vi Kỹ thuật</span><span class="en">Technical Scope</span></strong>
@@ -624,8 +630,8 @@
           </div>
           <div class="meta-item">
             <strong><span class="vi">Mục tiêu Sát sườn</span><span class="en">Near-term Milestone</span></strong>
-            <span class="vi">Demo Thứ Hai (Sandbox) · Chuẩn bị Go-Live Prod</span>
-            <span class="en">Monday Demo (Sandbox) · Prepare Prod Go-Live</span>
+            <span class="vi">Demo 21/09 (Sandbox) · chờ 1 kết quả test trước khi go/no-go</span>
+            <span class="en">21/09 Demo (Sandbox) · pending one test result before go/no-go</span>
           </div>
         </div>
       </header>
@@ -1152,6 +1158,71 @@
           <span class="en">Conflict between thinking mode and tool calls pushed latency to 16s. <b>Fixed:</b> Enforced
             disabled thinking mode to eliminate latency overhead.</span>
         </div>
+
+        <div class="callout danger">
+          <strong>
+            <span class="vi">BUG-EXT-07 (Mới, 20/09, CHƯA SỬA) — Trích Xuất <code>guests</code> Sai Khi Câu Có 2 Số
+              Khách Trần Trụi Cạnh Nhau:</span>
+            <span class="en">BUG-EXT-07 (New, 20/09, NOT FIXED) — <code>guests</code> Extraction Fails on Two Bare
+              Guest-Count Numbers:</span>
+          </strong>
+          <span class="vi">Câu kiểu "group of 6 but only 4 are staying" trả về <code>guests: missing</code> thay vì
+            bắt đúng số ở lại — dù đây chính là ví dụ mẫu viết sẵn trong system prompt của cả
+            <code>gemini.ts</code> và <code>deepseek.ts</code>. Tái lập 4/4 qua hội thoại thật, sau đó chính thức
+            hoá thành 4 case eval (<code>en-06..en-09</code> trong <code>dataset.synthetic.json</code>), kéo điểm
+            required-fields của bộ 14 case từ ~98% xuống 89%. <b>Đã thử sửa</b> bằng cách thêm ví dụ cụ thể vào
+            prompt — <b>không hiệu quả</b>, xác nhận lại trên 2 model Gemini khác nhau qua preview deploy. Cân nhắc
+            và <b>từ chối</b> hướng vá bằng regex (rủi ro ghi đè sai lặng lẽ tệ hơn hỏi lại 1 lượt, và chỉ vá được
+            tiếng Anh). <b>Hiện trạng: known limitation, an toàn (hỏi lại, không bịa số), tần suất thực tế thấp.</b>
+            Chi tiết đầy đủ trong ADR-005a (2 mục "Update 2026-09-20").</span>
+          <span class="en">A message like "group of 6 but only 4 are staying" returns <code>guests: missing</code>
+            instead of extracting the staying count — even though this exact shape is the system prompt's own
+            worked example in both <code>gemini.ts</code> and <code>deepseek.ts</code>. Reproduced 4/4 via real
+            conversations, then formalized into 4 eval cases (<code>en-06..en-09</code>), pulling the 14-case
+            required-fields score from ~98% to 89%. <b>Attempted a prompt fix</b> (concrete worked example) —
+            <b>did not work</b>, confirmed on two different Gemini models via a preview deploy. Considered and
+            <b>rejected</b> a regex-based fix (a silent wrong override is worse than one extra clarifying turn, and
+            it would only cover English). <b>Status: known limitation, safe failure mode (asks again, never
+            fabricates), low real-world frequency.</b> Full detail in ADR-005a ("Update 2026-09-20" entries).</span>
+        </div>
+
+        <div class="callout">
+          <strong>
+            <span class="vi">Sự cố hạ tầng (không phải bug code) — Gateway DeepSeek (Railway) Đang Sập:</span>
+            <span class="en">Infrastructure Incident (not a code bug) — DeepSeek Gateway (Railway) Is Down:</span>
+          </strong>
+          <span class="vi"><code>litellm-production-7402.up.railway.app</code> trả <code>404 "Application not
+            found"</code> trên mọi endpoint kể cả <code>/health</code> — lỗi kiểu "app không còn tồn tại" của
+            Railway, đã xác nhận không phải do sai key. Hệ quả: chưa test được DeepSeek trên bug guests ở trên, và
+            production hiện đang chạy <code>EXTRACTOR_PROVIDER=gemini</code> thay vì <code>deepseek-flash</code> như
+            policy đã ghi — nghi vấn ai đó chuyển tạm khi gateway sập, <b>chưa xác nhận với team</b>. Đang có job
+            theo dõi tự động (hết hạn sau 7 ngày) chờ gateway sống lại để báo về.</span>
+          <span class="en"><code>litellm-production-7402.up.railway.app</code> returns <code>404 "Application not
+            found"</code> on every endpoint including <code>/health</code> — a Railway "app no longer exists"
+            error, confirmed not a bad-key issue. Consequence: DeepSeek could not be tested against the guests bug
+            above, and production is currently running <code>EXTRACTOR_PROVIDER=gemini</code> instead of the
+            documented policy default <code>deepseek-flash</code> — possibly switched as a stopgap when the gateway
+            went down, <b>unconfirmed with the team</b>. A monitoring job (auto-expires in 7 days) is watching for
+            the gateway to return.</span>
+        </div>
+
+        <div class="callout info">
+          <strong>
+            <span class="vi">Xác nhận thêm 20/09 — Race Condition Khi Khách Nhắn Liên Tiếp (đã biết từ 19/09, nay
+              truy vết xong):</span>
+            <span class="en">Confirmed 20/09 — Rapid-Message Race Condition (known since 19/09, now traced):</span>
+          </strong>
+          <span class="vi">Không có mutex/queue theo số điện thoại trong <code>app.ts</code>/<code>conversationStore.ts</code>.
+            Hai webhook gần như đồng thời cho cùng 1 khách có thể chạy song song: webhook đầu đọc history khi tin
+            thứ hai chưa kịp ghi, trả lời hỏi lại đúng thứ khách vừa nói ở tin sau. Đề xuất: debounce ~1.5-2s theo
+            từng số điện thoại trước khi gọi <code>converse()</code>. Chưa sửa — cân nhắc để sau demo vì đổi timing
+            trên đúng đường chạy chính. Chi tiết trong roadmap L2.</span>
+          <span class="en">No per-phone mutex/queue in <code>app.ts</code>/<code>conversationStore.ts</code>. Two
+            near-simultaneous webhooks for the same guest can run concurrently: the first reads history before the
+            second message is appended, replying with a question the guest already answered in the second message.
+            Proposed fix: a ~1.5-2s per-phone debounce before calling <code>converse()</code>. Not fixed — deferred
+            past the demo since it changes timing on the hot path. Detail in roadmap L2.</span>
+        </div>
       </section>
 
       <!-- SECTION 6: CHECKLIST -->
@@ -1222,6 +1293,30 @@
                   hạn</span><span class="en">Prevents race conditions between concurrent or expired turns</span></div>
             </div>
           </label>
+          <label class="ckrow"><input type="checkbox" checked data-g="done">
+            <div>
+              <div class="t"><span class="vi">Test thật 20/09: hội thoại sống sót qua khoảng nghỉ 7 phút trên
+                  sandbox</span><span class="en">20/09 live test: conversation survives a 7-minute gap on
+                  sandbox</span></div>
+              <div class="d"><span class="vi">2 tin cách nhau 20:34→20:41, bot vẫn nhớ đúng ngày/số đêm/số khách từ
+                  tin đầu và gộp đúng thông tin mới — rủi ro lớn nhất cho demo 21/09 coi như đã giảm, dù không phải
+                  đảm bảo tuyệt đối (Vercel có thể đổi instance khác lần sau)</span><span class="en">Two messages
+                  7 minutes apart (20:34→20:41): the bot still remembered the date/nights/guests from turn one and
+                  correctly merged the new info — the top demo-day risk is substantially de-risked, though not an
+                  absolute guarantee (Vercel instance reuse is not deterministic)</span></div>
+            </div>
+          </label>
+          <label class="ckrow"><input type="checkbox" checked data-g="done">
+            <div>
+              <div class="t"><span class="vi">Eval mở rộng lên 14 case, bắt được 1 known limitation thật
+                  (BUG-EXT-07)</span><span class="en">Eval expanded to 14 cases, caught one real known limitation
+                  (BUG-EXT-07)</span></div>
+              <div class="d"><span class="vi">4 case mới (<code>en-06..en-09</code>) phơi bày lỗi trích xuất
+                  <code>guests</code> mà bộ 30-case cũ chưa từng chạm tới</span><span class="en">4 new cases
+                  (<code>en-06..en-09</code>) exposed a <code>guests</code> extraction bug the old 30-case set never
+                  hit</span></div>
+            </div>
+          </label>
         </div>
 
         <div class="ck">
@@ -1280,14 +1375,37 @@
                   pricing endpoints</span></div>
             </div>
           </label>
+          <label class="ckrow"><input type="checkbox" data-g="lead">
+            <div>
+              <div class="t"><span class="vi">[Ai đang quản Railway] Xác nhận/khôi phục gateway DeepSeek đã sập
+                  &amp; xác nhận chủ ý chuyển production sang Gemini</span><span class="en">[Whoever owns Railway]
+                  Confirm/restore the downed DeepSeek gateway &amp; confirm whether switching production to Gemini
+                  was intentional</span></div>
+              <div class="d"><span class="vi">Gateway 404 từ Railway, không phải lỗi key. Production đang chạy
+                  Gemini thay vì DeepSeek như policy — cần ai đó xác nhận đây là chủ ý hay lệch cấu hình</span><span
+                  class="en">Railway gateway returns 404, not a key error. Production currently runs Gemini instead
+                  of the policy default DeepSeek — needs someone to confirm this was intentional, not
+                  drift</span></div>
+            </div>
+          </label>
+          <label class="ckrow"><input type="checkbox" data-g="lead">
+            <div>
+              <div class="t"><span class="vi">[Pod, sau demo] Ưu tiên debounce cho race condition WhatsApp và claim
+                  TTL 24h→60s</span><span class="en">[Pod, post-demo] Prioritize the WhatsApp debounce fix and the
+                  24h→60s claim TTL fix</span></div>
+              <div class="d"><span class="vi">Cả hai đã ghi trong roadmap L2, cố tình chưa làm trước demo để không
+                  đụng đường chạy chính giờ chót</span><span class="en">Both logged in roadmap L2, deliberately
+                  deferred past the demo to avoid touching the hot path at the last minute</span></div>
+            </div>
+          </label>
         </div>
       </section>
 
       <footer>
         <span class="vi">Báo cáo chuẩn TechNext Corporate Status Report · Biên soạn tự động từ mã nguồn thực tế tại
-          <code>technext-edge</code> · Cập nhật ngày 18/09/2026.</span>
+          <code>technext-edge</code> · Cập nhật ngày 20/09/2026 (thay bản 18/09/2026).</span>
         <span class="en">Standard TechNext Corporate Status Report · Compiled directly from live codebase records in
-          <code>technext-edge</code> · Updated 18/09/2026.</span>
+          <code>technext-edge</code> · Updated 20/09/2026 (supersedes the 18/09/2026 version).</span>
       </footer>
 
     </main>
