@@ -328,3 +328,54 @@ instruction, once confirmed healthy, production's `EXTRACTOR_PROVIDER`
 should be switched back to `deepseek-flash` — that step needs a live
 session (a production env var change + redeploy is not something a
 background check is permitted to do unattended).
+
+## Update 2026-09-20: BUG-EXT-07 is worse than first scoped — it regresses an already-stated field, not just a fresh message
+
+Real WhatsApp testing (sandbox, live) surfaced a second trigger for the same
+underlying weakness, and this one is more concerning than the original
+bare-count phrasing:
+
+**Sequence, verbatim from the sandbox log:**
+1. Guest states everything up front, `guests` comes back `3, stated`
+   correctly. Bot renders a full summary.
+2. Guest follows up: *"Baby for not fee, isn't? I have an added person"*
+   (asking whether an infant is free, mentioning one more person, no exact
+   final count given).
+3. Bot's next reply **drops back to asking "How many guests in total?"** —
+   `guests` is no longer 3, it is `missing`.
+
+**Reproduced via `/v1/converse` directly** (not just observed once on
+WhatsApp) — same history, same follow-up message, `guests` comes back
+`{value: null, state: "missing"}` even though "3 guests" is still verbatim
+present in the guest's own first message, unchanged, in the same
+transcript passed to the model.
+
+**Why this is worse than the original bare-count case:** that one failed
+to extract a number on the *first* attempt (guest never had a confirmed
+value to lose). This one **discards an already-`stated`, already-confirmed
+value** because a later message introduces an unresolved arithmetic
+question (3, plus an unspecified "added person" — is that 4? does a baby
+count at all?) that the model can't reconcile against the earlier number,
+and instead of keeping 3 and asking a targeted follow-up ("so is it 4 with
+the extra person?"), it wipes the field back to `missing` entirely, forcing
+the guest to restate a number they already gave.
+
+**Why this is a bigger real-world risk than `en-06`..`en-09`:** the
+original trigger ("group of 6 but only 4 are staying") is an unusual
+sentence shape guests rarely produce unprompted. "Does my baby count as a
+guest" / "I have one more person now" is an extremely ordinary follow-up
+question at a family resort — far more likely to occur in a live demo or
+real guest conversation than the original bare-count phrasing.
+
+**Same root cause, same disposition:** this is the same class of failure
+already documented above (model can't reconcile two guest-count signals,
+resolves the conflict by discarding rather than asking a targeted
+clarifying question) — not a new bug, but evidence the known limitation is
+broader and more likely to surface than first scoped. Flagged in
+`docs/demo-checklist.html` as a phrase to avoid during the 2026-09-21
+demo. Not fixed pre-demo, same reasoning as the original case (regex
+fallback rejected for the same three reasons above; prompt-only fix
+already failed once on the simpler case). Worth a dedicated eval case
+(a `stated` guest count followed by an ambiguous addendum, in a second
+turn) once there is time to design one properly — not added tonight to
+avoid rushing eval-dataset changes right before the demo.

@@ -1173,8 +1173,14 @@
             required-fields của bộ 14 case từ ~98% xuống 89%. <b>Đã thử sửa</b> bằng cách thêm ví dụ cụ thể vào
             prompt — <b>không hiệu quả</b>, xác nhận lại trên 2 model Gemini khác nhau qua preview deploy. Cân nhắc
             và <b>từ chối</b> hướng vá bằng regex (rủi ro ghi đè sai lặng lẽ tệ hơn hỏi lại 1 lượt, và chỉ vá được
-            tiếng Anh). <b>Hiện trạng: known limitation, an toàn (hỏi lại, không bịa số), tần suất thực tế thấp.</b>
-            Chi tiết đầy đủ trong ADR-005a (2 mục "Update 2026-09-20").</span>
+            tiếng Anh). <b>Cập nhật cùng ngày, phát hiện nghiêm trọng hơn:</b> test thật trên WhatsApp cho thấy
+            cùng lỗi gốc có thể <b>xoá luôn một field đã được xác nhận</b> — khách đã cho biết 3 khách (stated),
+            hỏi thêm "does the baby count? I have an added person" ở lượt sau → <code>guests</code> bị xoá về
+            <code>missing</code>, phải khai lại. Tái lập được qua API. Câu kích hoạt này **rất tự nhiên** (khách
+            hay hỏi về trẻ em/thêm người), tự nhiên hơn nhiều so với câu mẫu ban đầu — nên rủi ro gặp phải trong
+            demo/thực tế **cao hơn đánh giá lúc đầu**. <b>Hiện trạng: known limitation, an toàn (hỏi lại, không
+            bịa số, chỉ mất 1 lượt bổ sung), nhưng dễ gặp hơn dự kiến — đã thêm vào danh sách câu tránh dùng khi
+            demo.</b> Chi tiết đầy đủ trong ADR-005a (3 mục "Update 2026-09-20").</span>
           <span class="en">A message like "group of 6 but only 4 are staying" returns <code>guests: missing</code>
             instead of extracting the staying count — even though this exact shape is the system prompt's own
             worked example in both <code>gemini.ts</code> and <code>deepseek.ts</code>. Reproduced 4/4 via real
@@ -1182,8 +1188,15 @@
             required-fields score from ~98% to 89%. <b>Attempted a prompt fix</b> (concrete worked example) —
             <b>did not work</b>, confirmed on two different Gemini models via a preview deploy. Considered and
             <b>rejected</b> a regex-based fix (a silent wrong override is worse than one extra clarifying turn, and
-            it would only cover English). <b>Status: known limitation, safe failure mode (asks again, never
-            fabricates), low real-world frequency.</b> Full detail in ADR-005a ("Update 2026-09-20" entries).</span>
+            it would only cover English). <b>Same-day update, a more concerning trigger found:</b> live WhatsApp
+            testing showed the same root cause can <b>wipe an already-confirmed field</b> — a guest who already
+            gave 3 guests (stated), then asked "does the baby count? I have an added person" in a follow-up turn,
+            had <code>guests</code> reset to <code>missing</code> and had to restate it. Reproduced via direct API
+            calls. This trigger is **far more natural** than the original phrasing (guests commonly ask about
+            children/extra people), so the real-world risk is **higher than first assessed**. <b>Status: known
+            limitation, safe failure mode (asks again, never fabricates, costs one extra turn), but more likely to
+            occur than initially scoped</b> — added to the demo's phrases-to-avoid list. Full detail in ADR-005a
+            (3 "Update 2026-09-20" entries).</span>
         </div>
 
         <div class="callout">
