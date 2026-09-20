@@ -1,0 +1,117 @@
+<meta charset="utf-8">
+<title>Demo Checklist — 21/09</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  color-scheme:light;
+  --bg:#EFF4F3; --card:#FFFFFF; --card2:#F5FAF8; --ink:#152321; --muted:#5B6C6A;
+  --border:#D9E4E2; --hairline:#E6EEEC;
+  --head:#0B2E33; --head2:#123C42;
+  --teal:#1C7C82; --teal-strong:#145A5F; --teal-tint:#E7F2F0;
+  --coral:#DC4B33; --coral-ink:#B5301C; --coral-tint:#FBEAE6;
+  --gold:#C99A3B; --gold-bg:#FBF2E0; --gold-ink:#7E5F14;
+  --good:#0ca30c; --good-ink:#0A6E0A; --good-bg:#E7F5E7;
+  --shadow:0 4px 16px rgba(11,46,51,.08);
+  --font-d:'Space Grotesk',ui-sans-serif,sans-serif;
+  --font-b:'Inter',ui-sans-serif,system-ui,sans-serif;
+  --font-m:'IBM Plex Mono',ui-monospace,monospace;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    color-scheme:dark;
+    --bg:#0A181B; --card:#13292E; --card2:#0F2125; --ink:#E4EFED; --muted:#94AAA7;
+    --border:#264845; --hairline:#1C3A3E;
+    --teal:#43ACB3; --teal-strong:#63C6CC; --teal-tint:#153A3E;
+    --coral:#E86A50; --coral-ink:#F0917E; --coral-tint:#3A211C;
+    --gold:#C99A3B; --gold-bg:#33290F; --gold-ink:#E3C069;
+    --good:#0ca30c; --good-ink:#4CC94C; --good-bg:#123212;
+    --shadow:0 4px 16px rgba(0,0,0,.35);
+  }
+}
+:root[data-theme="dark"]{
+  color-scheme:dark;
+  --bg:#0A181B; --card:#13292E; --card2:#0F2125; --ink:#E4EFED; --muted:#94AAA7;
+  --border:#264845; --hairline:#1C3A3E;
+  --teal:#43ACB3; --teal-strong:#63C6CC; --teal-tint:#153A3E;
+  --coral:#E86A50; --coral-ink:#F0917E; --coral-tint:#3A211C;
+  --gold:#C99A3B; --gold-bg:#33290F; --gold-ink:#E3C069;
+  --good:#0ca30c; --good-ink:#4CC94C; --good-bg:#123212;
+  --shadow:0 4px 16px rgba(0,0,0,.35);
+}
+*{box-sizing:border-box;}
+html,body{margin:0;padding:0;}
+body{background:var(--bg);color:var(--ink);font-family:var(--font-b);font-size:15.5px;line-height:1.6;-webkit-font-smoothing:antialiased;}
+code{font-family:var(--font-m);font-size:.88em;background:var(--card2);padding:1px 5px;border-radius:4px;}
+h1,h2,h3{font-family:var(--font-d);font-weight:600;text-wrap:balance;margin:0;}
+
+.topbar{background:linear-gradient(135deg,var(--head) 0%,var(--head2) 100%);color:#fff;padding:22px 24px;}
+.topbar .kicker{font-family:var(--font-m);font-size:10.5px;letter-spacing:1.2px;text-transform:uppercase;color:#9FC6C9;}
+.topbar h1{color:#fff;margin:5px 0 8px;font-size:27px;}
+.topbar p{margin:0;color:#CFE4E2;font-size:14px;max-width:65ch;}
+
+.wrap{max-width:820px;margin:0 auto;padding:26px 20px 70px;}
+.card{background:var(--card);border:1px solid var(--border);border-radius:12px;box-shadow:var(--shadow);padding:22px 26px;margin-bottom:20px;}
+.card h2{font-size:18px;color:var(--teal-strong);margin-bottom:12px;}
+
+.status{border-left:4px solid var(--gold);background:var(--gold-bg);border-radius:0 10px 10px 0;padding:14px 18px;margin-bottom:20px;}
+.status strong{color:var(--gold-ink);}
+.status .big{font-family:var(--font-d);font-size:17px;color:var(--gold-ink);}
+
+.item{display:grid;grid-template-columns:22px 1fr;gap:10px;padding:9px 0;border-bottom:1px solid var(--hairline);}
+.item:last-child{border-bottom:none;}
+.item .dot{font-size:15px;line-height:1.5;}
+.item .body strong{display:block;font-size:14.5px;margin-bottom:1px;}
+.item .body span{color:var(--muted);font-size:13px;}
+
+.good .dot{color:var(--good);}
+.warn .dot{color:var(--gold);}
+.pending .dot{color:var(--coral);}
+
+.script{background:var(--card2);border:1px solid var(--hairline);border-radius:8px;padding:12px 14px;font-family:var(--font-m);font-size:12.8px;margin:8px 0;color:var(--ink);}
+.avoid{border-left:3px solid var(--coral);background:var(--coral-tint);border-radius:0 8px 8px 0;padding:10px 14px;margin:8px 0;font-size:13.5px;color:var(--coral-ink);}
+.tag{font-family:var(--font-m);font-size:10px;letter-spacing:.4px;text-transform:uppercase;padding:2px 7px;border-radius:999px;background:var(--teal-tint);color:var(--teal-strong);}
+</style>
+
+<div class="topbar">
+  <div class="kicker">technext-edge · Extractor pod</div>
+  <h1>Demo Checklist — 21/09</h1>
+  <p>1 trang, đọc trước khi demo. Không thay ADR-005a hay roadmap — chỉ là bản tóm tắt thao tác cho đúng ngày mai.</p>
+</div>
+
+<div class="wrap">
+
+  <div class="status">
+    <div class="big">⏳ Go/no-go: chờ 1 kết quả</div>
+    <span>Test độ trễ 3-5 phút (cùng 1 số điện thoại, gửi 2 tin cách nhau vài phút, xem bot có nhớ tin đầu không) — <strong>chưa có kết quả</strong>. Đây là điều kiện cuối cùng trước khi coi demo là an toàn.</span>
+  </div>
+
+  <div class="card">
+    <h2>✅ Đã xác nhận hoạt động tốt (test thật hôm nay)</h2>
+    <div class="item good"><div class="dot">✓</div><div class="body"><strong>Webhook WhatsApp end-to-end</strong><span>Chữ ký HMAC, dedupe theo wamid, gửi trả lời — đã test qua sandbox thật (ảnh chụp Alex).</span></div></div>
+    <div class="item good"><div class="dot">✓</div><div class="body"><strong>Trích xuất + trả lời đúng</strong><span>Ngày tương đối, gộp người lớn/trẻ em, phủ định vận chuyển ("driving ourselves"), tên liên hệ, tóm tắt cuối cùng đều đúng.</span></div></div>
+    <div class="item good"><div class="dot">✓</div><div class="body"><strong>Cảnh báo an toàn lặn (No-Fly)</strong><span>Tự bắn đúng khi ngày lặn cuối trùng ngày trả phòng — không cần hỏi thêm.</span></div></div>
+    <div class="item good"><div class="dot">✓</div><div class="body"><strong>Không bao giờ im lặng khi lỗi</strong><span>Provider lỗi/quá hạn → câu xin lỗi tĩnh + chuyển người thật, không rơi vào im lặng.</span></div></div>
+    <div class="item good"><div class="dot">✓</div><div class="body"><strong>Backend production khoẻ mạnh</strong><span><code>/healthz</code> → 200 OK, check lúc chuẩn bị tài liệu này.</span></div></div>
+  </div>
+
+  <div class="card">
+    <h2>⚠️ Biết rồi nhưng chưa sửa — né trong lúc demo</h2>
+    <div class="item warn"><div class="dot">!</div><div class="body"><strong>Gõ từng tin một, đợi bot trả lời rồi mới gõ tiếp</strong><span>Gõ 2 tin sát nhau (dưới ~2s) có thể khiến bot trả lời 2 lần, tin đầu hỏi lại thứ khách vừa nói ở tin sau (race condition, đã ghi roadmap L2, chưa sửa).</span></div></div>
+    <div class="item warn"><div class="dot">!</div><div class="body"><strong>Đừng gộp 2 số khách trần trụi trong 1 câu</strong><span>Ví dụ tránh: "group of 6 but only 4 are staying". Bug đã xác nhận (eval <code>en-06..en-09</code>): field <code>guests</code> trả về <code>missing</code> thay vì bắt đúng số ở lại.</span></div></div>
+    <div class="item warn"><div class="dot">!</div><div class="body"><strong>Nếu có khoảng dừng dài để nói chuyện giữa các tin</strong><span>Chưa xác nhận in-memory store sống sót qua khoảng nghỉ trên Vercel — đây chính là việc đang test. Nếu chưa có kết quả tốt trước giờ demo, giữ nhịp gõ liên tục, đừng để trống quá 1-2 phút.</span></div></div>
+  </div>
+
+  <div class="card">
+    <h2>🗣️ Câu mẫu an toàn cho demo (né cả 2 landmine trên)</h2>
+    <div class="script">Turn 1 (guest): "Hi, checking in this Saturday for 2 nights, 2 guests, no airport transfer."</div>
+    <div class="script">Turn 2 (guest, sau khi bot trả lời): "We'd like to dive, and put the booking under Alex."</div>
+    <div class="avoid">Tránh: bất kỳ câu nào có 2 số khách cạnh nhau ("group of N ... only M"), và đừng gửi 2 tin cách nhau dưới 2 giây.</div>
+  </div>
+
+  <div class="card">
+    <h2>🆘 Kịch bản dự phòng nếu WhatsApp trục trặc live</h2>
+    <div class="item pending"><div class="dot">→</div><div class="body"><strong>Test console tại BFF</strong><span><code>https://technext-edge-casa-bff.vercel.app/</code> — cùng pipeline, không qua Meta, chạy được ngay nếu WhatsApp lỗi mạng/sandbox.</span></div></div>
+  </div>
+
+</div>
