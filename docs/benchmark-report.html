@@ -44,11 +44,17 @@ html,body{margin:0;padding:0;}
 body{background:var(--bg);color:var(--ink);font-family:var(--font-b);font-size:15.5px;line-height:1.6;-webkit-font-smoothing:antialiased;}
 code{font-family:var(--font-m);font-size:.88em;background:var(--card2);padding:1px 5px;border-radius:4px;}
 h1,h2,h3{font-family:var(--font-d);font-weight:600;text-wrap:balance;margin:0;}
+body[data-lang="vi"] .en{display:none;}
+body[data-lang="en"] .vi{display:none;}
 
 .topbar{background:linear-gradient(135deg,var(--head) 0%,var(--head2) 100%);color:#fff;padding:22px 24px;}
+.topbar-top{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap;}
 .topbar .kicker{font-family:var(--font-m);font-size:10.5px;letter-spacing:1.2px;text-transform:uppercase;color:#9FC6C9;}
 .topbar h1{color:#fff;margin:5px 0 8px;font-size:27px;}
 .topbar p{margin:0;color:#CFE4E2;font-size:14px;max-width:75ch;}
+.seg{display:inline-flex;border:1px solid rgba(255,255,255,.25);border-radius:20px;overflow:hidden;background:rgba(255,255,255,.08);flex-shrink:0;}
+.seg button{border:0;background:transparent;color:#CFE4E2;font:700 12px var(--font-b);padding:7px 16px;cursor:pointer;}
+.seg button.active{background:var(--teal);color:#fff;}
 
 .wrap{max-width:960px;margin:0 auto;padding:26px 20px 70px;}
 .card{background:var(--card);border:1px solid var(--border);border-radius:12px;box-shadow:var(--shadow);padding:22px 26px;margin-bottom:20px;}
@@ -76,88 +82,180 @@ td.bold{font-weight:700;}
 .stat{background:var(--card2);border:1px solid var(--hairline);border-radius:8px;padding:12px 14px;text-align:center;}
 .stat .v{font-family:var(--font-d);font-size:22px;font-weight:700;color:var(--teal-strong);}
 .stat .l{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.04em;margin-top:2px;}
+
+.legend3{display:flex;gap:14px;flex-wrap:wrap;margin:10px 0 4px;font-size:12.5px;color:var(--muted);}
+.legend3 b{color:var(--ink);}
 </style>
 
+<body data-lang="vi">
+
 <div class="topbar">
-  <div class="kicker">technext-edge · Extractor pod</div>
-  <h1>Benchmark Report — 21/09/2026</h1>
-  <p>Hai bộ số liệu tách biệt: (1) 213 test tự động chạy trên mọi lần đổi code, dùng provider giả lập — kiểm code logic; (2) eval 14 case chạy qua model AI thật (Gemini/DeepSeek) — kiểm chất lượng trích xuất thật. Không thay thế nhau được, xem giải thích trong mỗi phần.</p>
+  <div class="topbar-top">
+    <div>
+      <div class="kicker">technext-edge · Extractor pod</div>
+      <h1>Benchmark Report — 21/09/2026</h1>
+    </div>
+    <div class="seg">
+      <button id="btnVi" class="active">TIẾNG VIỆT</button>
+      <button id="btnEn">ENGLISH</button>
+    </div>
+  </div>
+  <p>
+    <span class="vi">Ba loại bằng chứng tách biệt, không thay thế nhau: (1) <b>unit test</b> — code logic, dùng provider giả lập; (2) <b>eval</b> — model AI thật, 14 câu giả lập, có số liệu lặp lại được; (3) <b>test tay trên WhatsApp</b> — hội thoại thật/gần thật, không có số liệu lặp lại, nhưng là nơi tìm ra hầu hết bug thật hôm nay.</span>
+    <span class="en">Three separate kinds of evidence, none a substitute for another: (1) <b>unit tests</b> — code logic, mocked providers; (2) <b>eval</b> — real AI models, 14 synthetic messages, repeatable numbers; (3) <b>manual WhatsApp testing</b> — real/near-real conversations, no repeatable score, but where most of today's real bugs were actually found.</span>
+  </p>
 </div>
 
 <div class="wrap">
 
   <div class="card">
-    <h2>1 · Test tự động (213/213 pass)</h2>
-    <p class="sub">Chạy bằng <code>npm test</code>, dùng provider giả lập (<code>fakeProvider</code>) tự trả về JSON đã ghi sẵn — kiểm tra <b>code xử lý đúng logic không</b>, không kiểm tra model AI có hiểu đúng câu khách không (việc đó thuộc phần 2).</p>
+    <h2><span class="vi">1 · Unit test (213/213 pass)</span><span class="en">1 · Unit tests (213/213 pass)</span></h2>
+    <p class="sub">
+      <span class="vi">Chạy bằng <code>npm test</code> (Vitest), dùng provider giả lập (<code>fakeProvider</code>) tự trả về JSON đã ghi sẵn — kiểm tra <b>code xử lý đúng logic không</b>. Không gọi model AI thật, nên không kiểm tra được model có hiểu đúng câu khách không — việc đó thuộc phần 2 và 3.</span>
+      <span class="en">Run via <code>npm test</code> (Vitest), using a mocked provider (<code>fakeProvider</code>) that returns pre-written JSON — checks whether <b>the code's own logic is correct</b>. No real AI model is called, so this cannot verify whether a model actually understood a guest's message — that's Parts 2 and 3.</span>
+    </p>
     <div class="tw">
       <table>
-        <thead><tr><th>File</th><th>Số test</th><th>Kiểm tra gì</th></tr></thead>
+        <thead><tr>
+          <th><span class="vi">File</span><span class="en">File</span></th>
+          <th><span class="vi">Số test</span><span class="en">Tests</span></th>
+          <th><span class="vi">Kiểm tra gì</span><span class="en">What it checks</span></th>
+        </tr></thead>
         <tbody>
-          <tr><td class="bold"><code>robustness.test.ts</code></td><td class="num">48</td><td>200 payload giả lập ngẫu nhiên (fuzz) — extract() luôn resolve/reject đúng cách, không crash</td></tr>
-          <tr><td class="bold"><code>whatsapp.test.ts</code></td><td class="num">38</td><td>Chữ ký HMAC, dedupe wamid, claim/release, xin lỗi khi lỗi, handoff, reset command</td></tr>
-          <tr><td class="bold"><code>dates.test.ts</code></td><td class="num">31</td><td>Phân giải ngày tuyệt đối/tương đối 3 ngôn ngữ, mốc <code>TODAY</code> cố định</td></tr>
-          <tr><td class="bold"><code>extract.test.ts</code></td><td class="num">20</td><td>Retry-once, phân loại lỗi transport/validation, enforceVerbatimEvidence, postProcess</td></tr>
-          <tr><td class="bold"><code>questions.test.ts</code></td><td class="num">16</td><td>3 loại reply (greeting/questions/summary), nhãn (assumed), câu hỏi theo ngôn ngữ</td></tr>
-          <tr><td class="bold"><code>counts.test.ts</code></td><td class="num">14</td><td>Đối chiếu số khách/đêm/phòng với văn bản gốc</td></tr>
-          <tr><td class="bold"><code>evalReplay.test.ts</code></td><td class="num">12</td><td>Bộ chấm điểm eval offline khớp đúng logic scorer</td></tr>
-          <tr><td class="bold"><code>conversationStore.test.ts</code></td><td class="num">9</td><td>Split TTL, fencing, pause/resume/handoff</td></tr>
-          <tr><td class="bold"><code>normalize.test.ts</code></td><td class="num">7</td><td>Nhận diện ngôn ngữ, che PII khi log</td></tr>
-          <tr><td class="bold"><code>converse.test.ts</code></td><td class="num">6</td><td>Giới hạn transcript, luồng hội thoại nhiều lượt</td></tr>
-          <tr><td class="bold"><code>providers/providerFromEnv.test.ts</code></td><td class="num">4</td><td>Chọn đúng provider theo env var, wrapper resilient fallback</td></tr>
-          <tr><td class="bold"><code>bff.test.ts</code></td><td class="num">3</td><td>Route cơ bản của BFF</td></tr>
-          <tr><td class="bold"><code>providers/gemini.test.ts</code>, <code>deepseek.test.ts</code></td><td class="num">4</td><td>Timeout, prompt transport có đủ rule 2 ngôn ngữ</td></tr>
-          <tr><td class="bold"><code>dataset.test.ts</code></td><td class="num">1</td><td>File dataset eval là JSON hợp lệ</td></tr>
+          <tr><td class="bold"><code>robustness.test.ts</code></td><td class="num">48</td><td><span class="vi">200 payload giả lập ngẫu nhiên (fuzz) — extract() luôn resolve/reject đúng cách, không crash</span><span class="en">200 randomly generated (fuzz) payloads — extract() always resolves/rejects correctly, never crashes</span></td></tr>
+          <tr><td class="bold"><code>whatsapp.test.ts</code></td><td class="num">38</td><td><span class="vi">Chữ ký HMAC, dedupe wamid, claim/release, xin lỗi khi lỗi, handoff, lệnh reset</span><span class="en">HMAC signature, wamid dedupe, claim/release, apology on failure, handoff, reset command</span></td></tr>
+          <tr><td class="bold"><code>dates.test.ts</code></td><td class="num">31</td><td><span class="vi">Phân giải ngày tuyệt đối/tương đối 3 ngôn ngữ, mốc <code>TODAY</code> cố định</span><span class="en">Absolute/relative date parsing in 3 languages, fixed <code>TODAY</code> anchor</span></td></tr>
+          <tr><td class="bold"><code>extract.test.ts</code></td><td class="num">20</td><td><span class="vi">Retry-once, phân loại lỗi transport/validation, enforceVerbatimEvidence, postProcess</span><span class="en">Retry-once, transport-vs-validation error classification, enforceVerbatimEvidence, postProcess</span></td></tr>
+          <tr><td class="bold"><code>questions.test.ts</code></td><td class="num">16</td><td><span class="vi">3 loại reply (greeting/questions/summary), nhãn (assumed), câu hỏi theo ngôn ngữ</span><span class="en">3 reply kinds (greeting/questions/summary), the (assumed) label, per-language questions</span></td></tr>
+          <tr><td class="bold"><code>counts.test.ts</code></td><td class="num">14</td><td><span class="vi">Đối chiếu số khách/đêm/phòng với văn bản gốc</span><span class="en">Corroborates guests/nights/rooms counts against the source text</span></td></tr>
+          <tr><td class="bold"><code>evalReplay.test.ts</code></td><td class="num">12</td><td><span class="vi">Bộ chấm điểm eval offline khớp đúng logic scorer</span><span class="en">Offline eval replay matches the scorer's own logic</span></td></tr>
+          <tr><td class="bold"><code>conversationStore.test.ts</code></td><td class="num">9</td><td><span class="vi">Split TTL, fencing token, pause/resume/handoff</span><span class="en">Split TTL, fencing token, pause/resume/handoff</span></td></tr>
+          <tr><td class="bold"><code>normalize.test.ts</code></td><td class="num">7</td><td><span class="vi">Nhận diện ngôn ngữ, che PII khi log</span><span class="en">Language detection, PII masking for logs</span></td></tr>
+          <tr><td class="bold"><code>converse.test.ts</code></td><td class="num">6</td><td><span class="vi">Giới hạn transcript, luồng hội thoại nhiều lượt</span><span class="en">Transcript cap, multi-turn conversation flow</span></td></tr>
+          <tr><td class="bold"><code>providers/providerFromEnv.test.ts</code></td><td class="num">4</td><td><span class="vi">Chọn đúng provider theo env var, wrapper resilient fallback</span><span class="en">Correct provider selection by env var, resilient fallback wrapper</span></td></tr>
+          <tr><td class="bold"><code>bff.test.ts</code></td><td class="num">3</td><td><span class="vi">Route cơ bản của BFF</span><span class="en">Basic BFF routes</span></td></tr>
+          <tr><td class="bold"><code>providers/gemini.test.ts</code>, <code>deepseek.test.ts</code></td><td class="num">4</td><td><span class="vi">Timeout, prompt transport có đủ rule 2 ngôn ngữ</span><span class="en">Timeout, transport prompt carries both languages' rules</span></td></tr>
+          <tr><td class="bold"><code>dataset.test.ts</code></td><td class="num">1</td><td><span class="vi">File dataset eval là JSON hợp lệ</span><span class="en">Eval dataset file is valid JSON</span></td></tr>
         </tbody>
       </table>
     </div>
     <div class="stat-row">
-      <div class="stat"><div class="v">213/213</div><div class="l">test pass</div></div>
-      <div class="stat"><div class="v">15</div><div class="l">file test</div></div>
-      <div class="stat"><div class="v">0</div><div class="l">lỗi typecheck</div></div>
+      <div class="stat"><div class="v">213/213</div><div class="l"><span class="vi">test pass</span><span class="en">tests passing</span></div></div>
+      <div class="stat"><div class="v">15</div><div class="l"><span class="vi">file test</span><span class="en">test files</span></div></div>
+      <div class="stat"><div class="v">0</div><div class="l"><span class="vi">lỗi typecheck</span><span class="en">typecheck errors</span></div></div>
     </div>
   </div>
 
   <div class="card">
-    <h2>2 · Eval benchmark — Gemini vs DeepSeek (14 case, model AI thật)</h2>
-    <p class="sub">Chạy qua <code>eval/runner.mjs</code>, gọi thật <code>/v1/extract</code> trên production. 14 case gồm 10 case gốc (đa ngôn ngữ, có bẫy bịa đặt) + 4 case <code>en-06..en-09</code> thêm hôm 20/09 sau khi phát hiện bug <code>guests</code>.</p>
+    <h2><span class="vi">2 · Eval benchmark — Gemini vs DeepSeek (14 case, model AI thật)</span><span class="en">2 · Eval benchmark — Gemini vs DeepSeek (14 cases, real AI models)</span></h2>
+    <p class="sub">
+      <span class="vi">Chạy qua <code>eval/runner.mjs</code>, gọi thật <code>/v1/extract</code> trên production. 14 case gồm 10 case gốc (đa ngôn ngữ, có bẫy bịa đặt) + 4 case <code>en-06..en-09</code> thêm hôm 20/09 sau khi phát hiện bug <code>guests</code>.</span>
+      <span class="en">Run via <code>eval/runner.mjs</code>, calling real <code>/v1/extract</code> on production. 14 cases: 10 original (multilingual, with fabrication traps) + 4 cases <code>en-06..en-09</code> added 20/09 after the <code>guests</code> bug was found.</span>
+    </p>
     <div class="tw">
       <table>
-        <thead><tr><th>Thời điểm</th><th>Provider</th><th>Required fields</th><th>Fabrication</th><th>Evidence</th><th>p95 latency</th></tr></thead>
+        <thead><tr>
+          <th><span class="vi">Thời điểm</span><span class="en">When</span></th>
+          <th>Provider</th>
+          <th><span class="vi">Required fields</span><span class="en">Required fields</span></th>
+          <th>Fabrication</th>
+          <th>Evidence</th>
+          <th><span class="vi">p95 latency</span><span class="en">p95 latency</span></th>
+        </tr></thead>
         <tbody>
-          <tr><td>20/09, trước khi sửa bug</td><td><code>google:gemini-3.1-flash-lite</code></td><td class="num">31/35 (89%)</td><td class="num">0</td><td class="num">100%</td><td class="num">6.5s</td></tr>
-          <tr><td>21/09, Gemini sau fix <code>guests</code>+<code>diveTo</code></td><td><code>google:gemini-3.1-flash-lite</code></td><td class="num">34-35/35 (97-100%)</td><td class="num">0</td><td class="num">100%</td><td class="num">~4s</td></tr>
-          <tr><td>21/09, DeepSeek ngay khi gateway sống lại (chưa qua wrapper)</td><td><code>deepseek-gateway:deepseek-flash</code></td><td class="num">34/35 (97%)</td><td class="num">0</td><td class="num">100%</td><td class="num">5.2s</td></tr>
-          <tr><td>21/09, DeepSeek vừa lên provider chính (bug wrapper)</td><td><code>deepseek-gateway:deepseek-flash</code></td><td class="num">32/35 (91%)</td><td class="num">0</td><td class="num">100%</td><td class="num">5.0s</td></tr>
-          <tr style="background:var(--good-bg);"><td class="bold">21/09, DeepSeek sau khi sửa hết (wrapper + checkIn cô lập)</td><td><code>deepseek-gateway:deepseek-flash</code></td><td class="num bold">35/35 (100%)</td><td class="num bold">0</td><td class="num bold">100%</td><td class="num bold">5.7s</td></tr>
+          <tr><td><span class="vi">20/09, trước khi sửa bug</span><span class="en">20/09, before the bug fix</span></td><td><code>google:gemini-3.1-flash-lite</code></td><td class="num">31/35 (89%)</td><td class="num">0</td><td class="num">100%</td><td class="num">6.5s</td></tr>
+          <tr><td><span class="vi">21/09, Gemini sau fix <code>guests</code>+<code>diveTo</code></span><span class="en">21/09, Gemini after the <code>guests</code>+<code>diveTo</code> fix</span></td><td><code>google:gemini-3.1-flash-lite</code></td><td class="num">34-35/35 (97-100%)</td><td class="num">0</td><td class="num">100%</td><td class="num">~4s</td></tr>
+          <tr><td><span class="vi">21/09, DeepSeek ngay khi gateway sống lại (chưa qua wrapper)</span><span class="en">21/09, DeepSeek right after the gateway came back (bare, no wrapper)</span></td><td><code>deepseek-gateway:deepseek-flash</code></td><td class="num">34/35 (97%)</td><td class="num">0</td><td class="num">100%</td><td class="num">5.2s</td></tr>
+          <tr><td><span class="vi">21/09, DeepSeek vừa lên provider chính (bug wrapper)</span><span class="en">21/09, DeepSeek just switched to primary (wrapper bug active)</span></td><td><code>deepseek-gateway:deepseek-flash</code></td><td class="num">32/35 (91%)</td><td class="num">0</td><td class="num">100%</td><td class="num">5.0s</td></tr>
+          <tr style="background:var(--good-bg);"><td class="bold"><span class="vi">21/09, DeepSeek sau khi sửa hết (wrapper + checkIn cô lập)</span><span class="en">21/09, DeepSeek after every fix (wrapper + isolated checkIn)</span></td><td><code>deepseek-gateway:deepseek-flash</code></td><td class="num bold">35/35 (100%)</td><td class="num bold">0</td><td class="num bold">100%</td><td class="num bold">5.7s</td></tr>
         </tbody>
       </table>
     </div>
     <div class="callout">
-      <strong>Kết luận:</strong> DeepSeek (provider chính hiện tại) đạt đủ cả 4 ngưỡng Playbook (fabrication=0, required≥95%, evidence=100%, p95≤8s) sau khi sửa 2 bug thật tìm được trong ngày — cả hai đều do cùng 1 cơ chế: model tự hạ độ tin cậy khi phải xử lý nhiều rule cùng lúc trong 1 lệnh gọi, sửa bằng cách tách riêng field yếu ra 1 cuộc gọi nhỏ chạy song song.
+      <strong><span class="vi">Kết luận:</span><span class="en">Conclusion:</span></strong>
+      <span class="vi">DeepSeek (provider chính hiện tại) đạt đủ cả 4 ngưỡng Playbook (fabrication=0, required≥95%, evidence=100%, p95≤8s) sau khi sửa 2 bug thật tìm được trong ngày — cả hai đều do cùng 1 cơ chế: model tự hạ độ tin cậy khi phải xử lý nhiều rule cùng lúc trong 1 lệnh gọi, sửa bằng cách tách riêng field yếu ra 1 cuộc gọi nhỏ chạy song song.</span>
+      <span class="en">DeepSeek (current primary) now clears all 4 Playbook thresholds (fabrication=0, required≥95%, evidence=100%, p95≤8s) after fixing two real bugs found today — both from the same mechanism: the model lowers its own confidence when classifying many rules in one call, fixed by isolating the weak field into its own small call run in parallel.</span>
     </div>
     <div class="callout warn">
-      <strong>Lưu ý về mẫu số liệu:</strong> 14 case là bộ dữ liệu giả lập (synthetic), không phải tin nhắn khách thật — dùng để rà bug và theo dõi hồi quy, không phải cơ sở quyết định model cuối cùng (quyết định thật chờ 30 tin thật từ Eloa, theo ADR-005a).
+      <strong><span class="vi">Lưu ý về mẫu số liệu:</span><span class="en">Note on the sample:</span></strong>
+      <span class="vi">14 case là bộ dữ liệu giả lập (synthetic), không phải tin nhắn khách thật — dùng để rà bug và theo dõi hồi quy, không phải cơ sở quyết định model cuối cùng (quyết định thật chờ 30 tin thật từ Eloa, theo ADR-005a).</span>
+      <span class="en">These 14 cases are synthetic, not real guest messages — used to hunt bugs and track regressions, not the basis for a final model decision (that waits on Eloa's 30 real messages, per ADR-005a).</span>
     </div>
   </div>
 
   <div class="card">
-    <h2>3 · Bug tìm được &amp; đã sửa trong ngày 21/09</h2>
+    <h2><span class="vi">3 · Test tay trên WhatsApp — không phải benchmark, là dò tìm (exploratory)</span><span class="en">3 · Manual WhatsApp testing — not a benchmark, exploratory</span></h2>
+    <p class="sub">
+      <span class="vi">Không có số liệu lặp lại được, không chạy tự động, không có tiêu chí pass/fail cố định — đây là hội thoại thật/gần thật do người gõ tay, mỗi lần đổi 1 chi tiết để dò lỗi. Giá trị: <b>tìm ra phần lớn bug thật trong ngày</b>, những bug mà unit test (giả lập) và eval (câu ngắn) không chạm tới.</span>
+      <span class="en">No repeatable score, not automated, no fixed pass/fail bar — these are real/near-real conversations typed by hand, changing one detail each time to probe for issues. Value: <b>found most of today's real bugs</b>, ones unit tests (mocked) and eval (short messages) never touched.</span>
+    </p>
     <div class="tw">
       <table>
-        <thead><tr><th>Bug</th><th>Nguyên nhân</th><th>Cách sửa</th><th>Trạng thái</th></tr></thead>
+        <thead><tr>
+          <th><span class="vi">Kịch bản</span><span class="en">Scenario</span></th>
+          <th><span class="vi">Kênh</span><span class="en">Channel</span></th>
+          <th><span class="vi">Kết quả</span><span class="en">Result</span></th>
+        </tr></thead>
         <tbody>
-          <tr><td><code>guests</code> bị bỏ về <code>missing</code></td><td>Model quá tải khi phân loại nhiều field cùng lúc trong 1 prompt</td><td>Cô lập <code>guests</code> ra 1 cuộc gọi riêng, chạy song song</td><td><span class="badge pass">Đã sửa</span></td></tr>
-          <tr><td><code>diveTo</code> bỏ sót ngày thứ 2 ("16th and 17th")</td><td>Thiếu rule cho cú pháp "ngày X and ngày Y"</td><td>Thêm rule + ví dụ vào prompt chính</td><td><span class="badge pass">Đã sửa</span></td></tr>
-          <tr><td><code>extractGuests</code> không chạy trên production</td><td>Wrapper resilient (Gemini↔DeepSeek fallback) không forward optional method</td><td>Sửa wrapper forward đúng <code>extractGuests</code>/<code>extractCheckIn</code></td><td><span class="badge pass">Đã sửa</span></td></tr>
-          <tr><td><code>checkIn</code> ngày tương đối tiếng Anh không ổn định trên DeepSeek</td><td>Cùng cơ chế quá tải như bug <code>guests</code></td><td>Cô lập <code>checkIn</code> ra 1 cuộc gọi riêng</td><td><span class="badge pass">Đã sửa</span></td></tr>
-          <tr><td>Fabrication ngày ("cuối tháng này" → bịa ngày cụ thể)</td><td>Phát sinh khi viết prompt cô lập lần đầu, chưa dạy tôn trọng "chưa chốt ngày"</td><td>Bắt được trước khi deploy, sửa prompt trước khi lên production</td><td><span class="badge pass">Đã sửa, chưa từng lên production</span></td></tr>
+          <tr><td><span class="vi">Hội thoại 4 lượt tiếng Việt (chào → trả lời dồn → lặn → tóm tắt)</span><span class="en">4-turn Vietnamese conversation (greeting → dense answer → dive → summary)</span></td><td>API (<code>/v1/converse</code>)</td><td><span class="badge pass">OK</span></td></tr>
+          <tr><td><span class="vi">Booking thật "Alex" — cửa sổ lặn hẹp hơn cả kỳ nghỉ</span><span class="en">Real "Alex" booking — dive window narrower than the whole stay</span></td><td>WhatsApp sandbox</td><td><span class="badge pass">OK — <span class="vi">phân biệt đúng, No-Fly advisory bắn đúng</span><span class="en">correctly distinguished, No-Fly advisory fired correctly</span></span></td></tr>
+          <tr><td><span class="vi">Test độ trễ 7 phút giữa 2 tin (rủi ro lớn nhất cho demo)</span><span class="en">7-minute gap test between two messages (top demo-day risk)</span></td><td>WhatsApp sandbox</td><td><span class="badge pass">OK — <span class="vi">nhớ đúng context</span><span class="en">context retained correctly</span></span></td></tr>
+          <tr><td><span class="vi">Thread "Michael" — hỏi về baby/thêm người sau khi đã cho số khách</span><span class="en">"Michael" thread — asked about a baby/extra person after guests was already given</span></td><td>WhatsApp sandbox</td><td><span class="badge fail"><span class="vi">Tìm ra 2 bug</span><span class="en">Found 2 bugs</span></span> — <span class="vi">nhãn (assumed) mất, guests bị xoá về missing</span><span class="en">(assumed) tag lost, guests wiped to missing</span></td></tr>
+          <tr><td><span class="vi">Email dài kiểu gia đình có con (Jennifer) — số tổng + chi tiết lặn của 1 người</span><span class="en">Long family-style email (Jennifer) — a stated total plus one person's diving detail</span></td><td>API + WhatsApp sandbox</td><td><span class="badge fail"><span class="vi">Tìm ra 2 bug</span><span class="en">Found 2 bugs</span></span> — guests, diveTo (<span class="vi">cả hai đã sửa</span><span class="en">both since fixed</span>)</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="legend3">
+      <span><b>OK</b> = <span class="vi">chạy đúng như kỳ vọng</span><span class="en">behaved as expected</span></span>
+      <span><b><span class="vi">Tìm ra bug</span><span class="en">Found bug(s)</span></b> = <span class="vi">test tay bắt được lỗi mà unit test/eval không bắt được</span><span class="en">manual testing caught something unit tests/eval missed</span></span>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2><span class="vi">4 · Bug tìm được &amp; đã sửa trong ngày 21/09</span><span class="en">4 · Bugs found &amp; fixed on 21/09</span></h2>
+    <div class="tw">
+      <table>
+        <thead><tr>
+          <th>Bug</th>
+          <th><span class="vi">Nguyên nhân</span><span class="en">Root cause</span></th>
+          <th><span class="vi">Cách sửa</span><span class="en">Fix</span></th>
+          <th><span class="vi">Trạng thái</span><span class="en">Status</span></th>
+        </tr></thead>
+        <tbody>
+          <tr><td><code>guests</code> <span class="vi">bị bỏ về</span><span class="en">wiped to</span> <code>missing</code></td><td><span class="vi">Model quá tải khi phân loại nhiều field cùng lúc trong 1 prompt</span><span class="en">Model overloaded classifying many fields at once in one prompt</span></td><td><span class="vi">Cô lập <code>guests</code> ra 1 cuộc gọi riêng, chạy song song</span><span class="en">Isolated <code>guests</code> into its own call, run in parallel</span></td><td><span class="badge pass"><span class="vi">Đã sửa</span><span class="en">Fixed</span></span></td></tr>
+          <tr><td><code>diveTo</code> <span class="vi">bỏ sót ngày thứ 2 ("16th and 17th")</span><span class="en">missed the second date ("16th and 17th")</span></td><td><span class="vi">Thiếu rule cho cú pháp "ngày X and ngày Y"</span><span class="en">Missing rule for the "date X and date Y" pattern</span></td><td><span class="vi">Thêm rule + ví dụ vào prompt chính</span><span class="en">Added rule + example to the main prompt</span></td><td><span class="badge pass"><span class="vi">Đã sửa</span><span class="en">Fixed</span></span></td></tr>
+          <tr><td><code>extractGuests</code> <span class="vi">không chạy trên production</span><span class="en">didn't run in production</span></td><td><span class="vi">Wrapper resilient (Gemini↔DeepSeek fallback) không forward optional method</span><span class="en">Resilient (Gemini↔DeepSeek fallback) wrapper didn't forward the optional method</span></td><td><span class="vi">Sửa wrapper forward đúng</span><span class="en">Fixed the wrapper to forward</span> <code>extractGuests</code>/<code>extractCheckIn</code></td><td><span class="badge pass"><span class="vi">Đã sửa</span><span class="en">Fixed</span></span></td></tr>
+          <tr><td><code>checkIn</code> <span class="vi">ngày tương đối tiếng Anh không ổn định trên DeepSeek</span><span class="en">English relative-date unstable on DeepSeek</span></td><td><span class="vi">Cùng cơ chế quá tải như bug guests</span><span class="en">Same overload mechanism as the guests bug</span></td><td><span class="vi">Cô lập <code>checkIn</code> ra 1 cuộc gọi riêng</span><span class="en">Isolated <code>checkIn</code> into its own call</span></td><td><span class="badge pass"><span class="vi">Đã sửa</span><span class="en">Fixed</span></span></td></tr>
+          <tr><td><span class="vi">Fabrication ngày ("cuối tháng này" → bịa ngày cụ thể)</span><span class="en">Date fabrication ("end of this month" → invented a specific day)</span></td><td><span class="vi">Phát sinh khi viết prompt cô lập lần đầu, chưa dạy tôn trọng "chưa chốt ngày"</span><span class="en">Introduced while first writing the isolated prompt, which hadn't yet been taught to respect "not decided yet"</span></td><td><span class="vi">Bắt được trước khi deploy, sửa prompt trước khi lên production</span><span class="en">Caught before deploying, fixed the prompt before it reached production</span></td><td><span class="badge pass"><span class="vi">Đã sửa, chưa từng lên production</span><span class="en">Fixed, never reached production</span></span></td></tr>
         </tbody>
       </table>
     </div>
   </div>
 
   <footer style="text-align:center;color:var(--muted);font-size:12px;margin-top:10px;">
-    Biên soạn từ số liệu chạy thật trong ngày 21/09/2026 · technext-edge · production https://technext-edge-casa-bff.vercel.app
+    <span class="vi">Biên soạn từ số liệu chạy thật trong ngày 21/09/2026 · technext-edge · production</span>
+    <span class="en">Compiled from real runs on 21/09/2026 · technext-edge · production</span>
+    https://technext-edge-casa-bff.vercel.app
   </footer>
 
 </div>
+
+<script>
+(function(){
+  var body = document.body;
+  var btnVi = document.getElementById('btnVi');
+  var btnEn = document.getElementById('btnEn');
+  function setLang(l){
+    body.setAttribute('data-lang', l);
+    btnVi.classList.toggle('active', l === 'vi');
+    btnEn.classList.toggle('active', l === 'en');
+    try { localStorage.setItem('technext.benchmark.lang', l); } catch(e){}
+  }
+  btnVi.addEventListener('click', function(){ setLang('vi'); });
+  btnEn.addEventListener('click', function(){ setLang('en'); });
+  var saved = 'vi';
+  try { saved = localStorage.getItem('technext.benchmark.lang') || 'vi'; } catch(e){}
+  setLang(saved === 'en' ? 'en' : 'vi');
+})();
+</script>
+</body>
