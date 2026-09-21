@@ -22,6 +22,16 @@ import {
   type GuestLanguage,
 } from "../../../packages/extractor/src/index.js";
 import { TEST_PAGE_HTML } from "./testPage.js";
+import {
+  getIndexHtml,
+  getBenchmarkHtml,
+  getScenariosHtml,
+  getStatusHtml,
+  getRoadmapHtml,
+  getChecklistHtml,
+  getTeamGuideHtml,
+  getDiagramHtml,
+} from "./reportsHtml.js";
 import { createInMemoryConversationStore, type ConversationStore } from "./conversationStore.js";
 import {
   checkSenderCredentials,
@@ -500,9 +510,35 @@ export function createApp(options: AppOptions = {}) {
   app.get("/v1/health", (c) => c.json({ ok: true }));
   app.get("/healthz", (c) => c.json({ ok: true }));
 
-  // Not the real estimator UI (Edge UI pod owns that) — a plain test page so
-  // anyone can try extraction without curl or Postman.
-  app.get("/", (c) => c.html(TEST_PAGE_HTML));
+  // Central documentation & architecture hub
+  app.get("/", (c) => c.html(getIndexHtml()));
+  app.get("/index.html", (c) => c.html(getIndexHtml()));
+  app.get("/hub", (c) => c.html(getIndexHtml()));
+  app.get("/docs", (c) => c.html(getIndexHtml()));
+
+  // Interactive AI Extractor Test Console
+  app.get("/test", (c) => c.html(TEST_PAGE_HTML));
+  app.get("/test-console", (c) => c.html(TEST_PAGE_HTML));
+  app.get("/console", (c) => c.html(TEST_PAGE_HTML));
+
+  // Corporate reports, status briefing & test scenario matrix
+  app.get("/benchmark-report.html", (c) => c.html(getBenchmarkHtml()));
+  app.get("/benchmark", (c) => c.html(getBenchmarkHtml()));
+  app.get("/casa-anilao-test-scenarios.html", (c) => c.html(getScenariosHtml()));
+  app.get("/scenarios", (c) => c.html(getScenariosHtml()));
+  app.get("/extractor-pod-status.html", (c) => c.html(getStatusHtml()));
+  app.get("/status", (c) => c.html(getStatusHtml()));
+  app.get("/roadmap-next.html", (c) => c.html(getRoadmapHtml()));
+  app.get("/roadmap", (c) => c.html(getRoadmapHtml()));
+  app.get("/demo-checklist.html", (c) => c.html(getChecklistHtml()));
+  app.get("/checklist", (c) => c.html(getChecklistHtml()));
+  app.get("/team-guide.html", (c) => c.html(getTeamGuideHtml()));
+  app.get("/guide", (c) => c.html(getTeamGuideHtml()));
+
+  // Architecture diagrams (Archify interactive view)
+  app.get("/diagrams/extractor-pod.html", (c) => c.html(getDiagramHtml()));
+  app.get("/diagrams/extractor-pod", (c) => c.html(getDiagramHtml()));
+  app.get("/architecture", (c) => c.html(getDiagramHtml()));
 
   return app;
 }

@@ -1,0 +1,303 @@
+<meta charset="utf-8">
+<title>Team Guide</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  color-scheme:light;
+  --bg:#EFF4F3; --card:#FFFFFF; --card2:#F5FAF8; --ink:#152321; --muted:#5B6C6A;
+  --border:#D9E4E2; --hairline:#E6EEEC;
+  --head:#0B2E33; --head2:#123C42;
+  --teal:#1C7C82; --teal-strong:#145A5F; --teal-tint:#E7F2F0;
+  --coral:#DC4B33; --coral-hover:#C8422D; --coral-tint:#FBEAE6; --coral-ink:#B5301C;
+  --gold:#C99A3B; --gold-bg:#FBF2E0; --gold-ink:#7E5F14;
+  --good:#0ca30c; --good-ink:#0A6E0A; --good-bg:#E7F5E7;
+  --warn:#fab219; --warn-ink:#8A6206; --warn-bg:#FBF2DC;
+  --crit:#d03b3b; --crit-ink:#B32E2E; --crit-bg:#FAE5E5;
+  --shadow:0 4px 16px rgba(11,46,51,.08);
+  --font-d:'Space Grotesk',ui-sans-serif,sans-serif;
+  --font-b:'Inter',ui-sans-serif,system-ui,sans-serif;
+  --font-m:'IBM Plex Mono',ui-monospace,monospace;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    color-scheme:dark;
+    --bg:#0A181B; --card:#13292E; --card2:#0F2125; --ink:#E4EFED; --muted:#94AAA7;
+    --border:#264845; --hairline:#1C3A3E;
+    --teal:#43ACB3; --teal-strong:#63C6CC; --teal-tint:#153A3E;
+    --coral:#E86A50; --coral-hover:#F07E66; --coral-tint:#3A211C; --coral-ink:#F0917E;
+    --gold:#C99A3B; --gold-bg:#33290F; --gold-ink:#E3C069;
+    --good:#0ca30c; --good-ink:#4CC94C; --good-bg:#123212;
+    --warn:#fab219; --warn-ink:#F3C14C; --warn-bg:#33290F;
+    --crit:#d03b3b; --crit-ink:#E66767; --crit-bg:#3A1A1A;
+    --shadow:0 4px 16px rgba(0,0,0,.35);
+  }
+}
+:root[data-theme="dark"]{
+  color-scheme:dark;
+  --bg:#0A181B; --card:#13292E; --card2:#0F2125; --ink:#E4EFED; --muted:#94AAA7;
+  --border:#264845; --hairline:#1C3A3E;
+  --teal:#43ACB3; --teal-strong:#63C6CC; --teal-tint:#153A3E;
+  --coral:#E86A50; --coral-hover:#F07E66; --coral-tint:#3A211C; --coral-ink:#F0917E;
+  --gold:#C99A3B; --gold-bg:#33290F; --gold-ink:#E3C069;
+  --good:#0ca30c; --good-ink:#4CC94C; --good-bg:#123212;
+  --warn:#fab219; --warn-ink:#F3C14C; --warn-bg:#33290F;
+  --crit:#d03b3b; --crit-ink:#E66767; --crit-bg:#3A1A1A;
+  --shadow:0 4px 16px rgba(0,0,0,.35);
+}
+*{box-sizing:border-box;}
+html,body{margin:0;padding:0;}
+body{background:var(--bg);color:var(--ink);font-family:var(--font-b);font-size:15.5px;line-height:1.65;-webkit-font-smoothing:antialiased;}
+a{color:var(--teal-strong);}
+code{font-family:var(--font-m);font-size:0.88em;background:var(--card2);padding:1px 5px;border-radius:4px;}
+pre{background:var(--card2);border:1px solid var(--border);border-radius:8px;padding:14px 16px;overflow-x:auto;font-size:13px;font-family:var(--font-m);line-height:1.6;}
+pre code{background:none;padding:0;}
+h1,h2,h3{font-family:var(--font-d);font-weight:600;line-height:1.25;text-wrap:balance;}
+table{width:100%;border-collapse:collapse;font-size:14px;}
+th,td{text-align:left;padding:8px 12px;border-bottom:1px solid var(--hairline);vertical-align:top;}
+th{font-family:var(--font-m);font-size:10.5px;letter-spacing:.7px;text-transform:uppercase;color:var(--muted);}
+:target{scroll-margin-top:20px;}
+
+.topbar{background:linear-gradient(135deg,var(--head) 0%,var(--head2) 100%);color:#fff;padding:20px 24px;}
+.topbar .kicker{font-family:var(--font-m);font-size:10.5px;letter-spacing:1.2px;text-transform:uppercase;color:#9FC6C9;}
+.topbar h1{color:#fff;margin:4px 0 6px;font-size:26px;}
+.topbar p{margin:0;color:#CFE4E2;font-size:14px;max-width:60ch;}
+
+.layout{max-width:1100px;margin:0 auto;padding:28px 20px 80px;display:grid;grid-template-columns:220px 1fr;gap:36px;}
+.layout > *{min-width:0;} /* grid items default to min-width:auto — a long unwrapped code line in <pre> would otherwise force the whole grid (and the page) wider than the viewport instead of scrolling inside its own <pre overflow-x:auto> */
+@media (max-width:820px){ .layout{grid-template-columns:1fr;} nav.toc{position:static !important;} }
+
+nav.toc{position:sticky;top:20px;align-self:start;font-size:13px;}
+nav.toc .toc-label{font-family:var(--font-m);font-size:10.5px;letter-spacing:1px;text-transform:uppercase;color:var(--muted);margin-bottom:10px;}
+nav.toc ol{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:2px;counter-reset:toc;}
+nav.toc li{counter-increment:toc;}
+nav.toc a{display:block;padding:6px 10px;border-radius:6px;color:var(--muted);text-decoration:none;}
+nav.toc a:before{content:counter(toc) ". ";font-family:var(--font-m);color:var(--teal);}
+nav.toc a:hover{background:var(--card2);color:var(--teal-strong);}
+
+main section{background:var(--card);border:1px solid var(--border);border-radius:12px;box-shadow:var(--shadow);padding:22px 26px;margin-bottom:18px;}
+main section h2{font-size:19px;margin:0 0 14px;color:var(--teal-strong);}
+main section > p:first-of-type{margin-top:0;}
+.section-num{font-family:var(--font-m);color:var(--teal);margin-right:6px;}
+
+.callout{border-radius:8px;padding:12px 16px;margin:14px 0;font-size:14px;border:1px solid;}
+.callout-warn{background:var(--warn-bg);border-color:var(--warn);color:var(--warn-ink);}
+.callout-info{background:var(--teal-tint);border-color:var(--teal);color:var(--teal-strong);}
+
+.gotcha{border-left:3px solid var(--coral);background:var(--card2);border-radius:0 8px 8px 0;padding:12px 16px;margin-bottom:12px;}
+.gotcha strong{color:var(--coral-ink);}
+
+.badge{font-family:var(--font-m);font-size:10.5px;letter-spacing:.4px;text-transform:uppercase;padding:2px 9px;border-radius:999px;background:var(--gold-bg);color:var(--gold-ink);white-space:nowrap;}
+
+.lang-toggle{display:inline-flex;border:1px solid rgba(255,255,255,.3);border-radius:999px;padding:2px;margin-top:14px;background:rgba(255,255,255,.08);}
+.lang-toggle button{font-family:var(--font-m);font-size:11.5px;letter-spacing:.5px;padding:5px 14px;border-radius:999px;border:none;background:none;color:#CFE4E2;cursor:pointer;}
+.lang-toggle button[aria-pressed="true"]{background:#fff;color:var(--head);font-weight:600;}
+</style>
+
+<div class="topbar">
+  <div class="kicker">technext-edge · internal</div>
+  <h1>Team Guide</h1>
+  <p>
+    <span class="lang-en">Full handoff for anyone touching this repo: what it is, how to run it, how to test it, how to deploy it, and the gotchas that already cost an afternoon once.</span>
+    <span class="lang-vi" hidden>Hướng dẫn đầy đủ cho bất kỳ ai đụng vào repo này: nó là gì, chạy sao, test sao, deploy sao, và những cái bẫy đã tốn một buổi chiều thật rồi.</span>
+  </p>
+  <div class="lang-toggle" role="group" aria-label="Language">
+    <button type="button" data-lang-btn="en" aria-pressed="true">EN</button>
+    <button type="button" data-lang-btn="vi" aria-pressed="false">VI</button>
+  </div>
+</div>
+
+<div class="layout">
+  <nav class="toc">
+    <div class="toc-label"><span class="lang-en">On this page</span><span class="lang-vi" hidden>Trong trang này</span></div>
+    <ol>
+      <li><a href="#what-is-this"><span class="lang-en">What this is</span><span class="lang-vi" hidden>Đây là gì</span></a></li>
+      <li><a href="#prereqs"><span class="lang-en">Prerequisites</span><span class="lang-vi" hidden>Yêu cầu trước</span></a></li>
+      <li><a href="#local"><span class="lang-en">Running locally</span><span class="lang-vi" hidden>Chạy local</span></a></li>
+      <li><a href="#console"><span class="lang-en">Test console</span><span class="lang-vi" hidden>Trang test</span></a></li>
+      <li><a href="#deploy"><span class="lang-en">Deploying</span><span class="lang-vi" hidden>Deploy</span></a></li>
+      <li><a href="#env"><span class="lang-en">Env variables</span><span class="lang-vi" hidden>Biến môi trường</span></a></li>
+      <li><a href="#eval"><span class="lang-en">Eval harness</span><span class="lang-vi" hidden>Eval harness</span></a></li>
+      <li><a href="#gotchas"><span class="lang-en">Known gotchas</span><span class="lang-vi" hidden>Các bẫy đã gặp</span></a></li>
+      <li><a href="#before-real"><span class="lang-en">Before it's real</span><span class="lang-vi" hidden>Trước khi thành thật</span></a></li>
+    </ol>
+  </nav>
+
+  <main>
+    <section id="what-is-this">
+      <h2><span class="section-num">1</span><span class="lang-en">What this is</span><span class="lang-vi" hidden>Đây là gì</span></h2>
+      <p class="lang-en">This is the <strong>Edge</strong> layer from the <a href="https://casa-escondida-estimator-tools.vercel.app/" target="_blank" rel="noopener">Core &amp; Edge Blueprint</a>: Odoo owns prices, folios, invoices; this repo is everything outside that. Today it holds exactly one working piece — the <strong>AI Extractor</strong> (<code>packages/extractor/</code>) behind a minimal BFF (<code>apps/casa-bff/</code>), exposed as <code>POST /v1/extract</code>.</p>
+      <p class="lang-vi" hidden>Đây là lớp <strong>Edge</strong> theo <a href="https://casa-escondida-estimator-tools.vercel.app/" target="_blank" rel="noopener">Core &amp; Edge Blueprint</a>: Odoo giữ giá, folio, hóa đơn; repo này là mọi thứ nằm ngoài đó. Hiện tại chỉ có đúng một mảnh chạy được — <strong>AI Extractor</strong> (<code>packages/extractor/</code>) đứng sau một BFF tối giản (<code>apps/casa-bff/</code>), lộ ra qua <code>POST /v1/extract</code>.</p>
+      <p class="lang-en">The Draft store, the Contract pod's generated Odoo client, and the rest of the BFF endpoints from the Playbook do not exist here yet. See <code>docs/adr/</code> for the decisions this build is actually based on — the Blueprint and Playbook sites hold the reasoning behind them.</p>
+      <p class="lang-vi" hidden>Draft store, Odoo client do Contract pod sinh ra, và các endpoint BFF còn lại trong Playbook chưa tồn tại ở đây. Xem <code>docs/adr/</code> để biết những quyết định bản này thực sự dựa vào — 2 trang Blueprint và Playbook giữ lý do đằng sau chúng.</p>
+    </section>
+
+    <section id="prereqs">
+      <h2><span class="section-num">2</span><span class="lang-en">Prerequisites</span><span class="lang-vi" hidden>Yêu cầu trước</span></h2>
+      <ul class="lang-en">
+        <li>Node ≥ 18 (developed against Node 22)</li>
+        <li>The Vercel CLI (<code>npm i -g vercel</code>) — keep it current; an old CLI talking to a newer backend silently breaks <code>vercel inspect</code>/<code>vercel logs</code> (see §8).</li>
+        <li>Access to the <code>aidev1-technexts-projects</code> Vercel scope, or your own scope for a separate deployment.</li>
+        <li>A Gemini API key from <a href="https://aistudio.google.com/" target="_blank" rel="noopener">Google AI Studio</a> for local runs.</li>
+      </ul>
+      <ul class="lang-vi" hidden>
+        <li>Node ≥ 18 (đang phát triển trên Node 22)</li>
+        <li>Vercel CLI (<code>npm i -g vercel</code>) — giữ bản mới nhất; CLI cũ nói chuyện với backend mới sẽ âm thầm làm hỏng <code>vercel inspect</code>/<code>vercel logs</code> (xem mục 8).</li>
+        <li>Quyền truy cập scope Vercel <code>aidev1-technexts-projects</code>, hoặc scope riêng của bạn nếu deploy độc lập.</li>
+        <li>Một Gemini API key từ <a href="https://aistudio.google.com/" target="_blank" rel="noopener">Google AI Studio</a> để chạy local.</li>
+      </ul>
+      <div class="callout callout-warn lang-en"><strong>Free tier caps at 20 requests/day</strong> and a tight per-minute burst limit. Fine for a handful of manual tests, not enough for a real eval run — see ADR-005a.</div>
+      <div class="callout callout-warn lang-vi" hidden><strong>Free tier giới hạn 20 request/ngày</strong>, kèm giới hạn burst theo phút khá chặt. Đủ để test tay vài lần, không đủ để chạy eval thật — xem ADR-005a.</div>
+    </section>
+
+    <section id="local">
+      <h2><span class="section-num">3</span><span class="lang-en">Running it locally</span><span class="lang-vi" hidden>Chạy local</span></h2>
+      <pre><code>git clone https://github.com/TechNextSG/technext-edge.git
+cd technext-edge
+npm install
+npm test                     # extractor unit tests — no API key needed, no network</code></pre>
+      <p class="lang-en">To actually call a model:</p>
+      <p class="lang-vi" hidden>Để thật sự gọi model:</p>
+      <pre><code>cp .env.example .env.local   # fill in GEMINI_API_KEY
+npm run dev:bff              # http://localhost:8787</code></pre>
+      <p class="lang-en">Open <code>http://localhost:8787/</code> for the test console (see §4), or curl it:</p>
+      <p class="lang-vi" hidden>Mở <code>http://localhost:8787/</code> để vào trang test (xem mục 4), hoặc gọi bằng curl:</p>
+      <pre><code>curl -s localhost:8787/v1/extract -H 'content-type: application/json' \
+  -d '{"text":"4 of us, next Saturday, 3 nights"}'</code></pre>
+    </section>
+
+    <section id="console">
+      <h2><span class="section-num">4</span><span class="lang-en">The test console</span><span class="lang-vi" hidden>Trang test</span></h2>
+      <p class="lang-en">A plain page at <code>GET /</code> — <strong>not the real estimator UI</strong> (that belongs to the Edge UI pod) — for trying extraction without curl or Postman. Live at <a href="https://technext-edge-casa-bff.vercel.app/" target="_blank" rel="noopener">technext-edge-casa-bff.vercel.app</a>. Visual identity matches <code>apps/estimate-tool</code> in <code>casa-escondida-tools</code> on purpose.</p>
+      <p class="lang-vi" hidden>Một trang đơn giản ở <code>GET /</code> — <strong>không phải UI estimator thật</strong> (cái đó thuộc Edge UI pod) — để thử bóc tách mà không cần curl hay Postman. Chạy tại <a href="https://technext-edge-casa-bff.vercel.app/" target="_blank" rel="noopener">technext-edge-casa-bff.vercel.app</a>. Nhận diện thị giác cố tình khớp với <code>apps/estimate-tool</code> trong <code>casa-escondida-tools</code>.</p>
+      <p class="lang-en">It's behind Vercel's Deployment Protection (SSO wall) — anyone hitting the bare URL without a session sees a login page, not the app. To get in, open this once per browser (sets a cookie):</p>
+      <p class="lang-vi" hidden>Trang này đứng sau tường SSO của Vercel — ai mở URL trần mà chưa có session sẽ thấy trang đăng nhập, không phải app. Để vào được, mở link này một lần cho mỗi trình duyệt (sẽ gắn cookie):</p>
+      <pre><code>https://technext-edge-casa-bff.vercel.app/?x-vercel-protection-bypass=&lt;secret&gt;&x-vercel-set-bypass-cookie=true</code></pre>
+      <div class="callout callout-info lang-en">Ask in the team channel for the current bypass secret. It's an infra token, not a user credential, but still don't paste it somewhere public — rotate it if it ever looks exposed.</div>
+      <div class="callout callout-info lang-vi" hidden>Hỏi trong kênh chat team để lấy bypass secret hiện tại. Đây là token hạ tầng, không phải credential cá nhân, nhưng vẫn không nên dán ra chỗ công khai — xoay vòng nếu thấy có vẻ đã lộ.</div>
+      <p class="lang-en">The <strong>provider override</strong> panel on the page lets you paste your own key and pick a different provider (Gemini / DeepSeek Flash / DeepSeek Pro) for one request, without touching any Vercel config. The key goes straight from your browser to this server and nowhere else — session storage only, cleared when the tab closes.</p>
+      <p class="lang-vi" hidden>Bảng <strong>provider override</strong> trên trang cho phép bạn dán key riêng và chọn provider khác (Gemini / DeepSeek Flash / DeepSeek Pro) cho một request, không cần đụng cấu hình Vercel. Key đi thẳng từ trình duyệt của bạn tới server này và không đi đâu khác — chỉ lưu trong session storage, mất khi đóng tab.</p>
+    </section>
+
+    <section id="deploy">
+      <h2><span class="section-num">5</span><span class="lang-en">Deploying</span><span class="lang-vi" hidden>Deploy</span></h2>
+      <p class="lang-en"><strong>Always run Vercel commands from the repo root</strong>, never from <code>apps/casa-bff/</code>. The deploy entry point is <code>api/index.ts</code> at the root — it imports <code>packages/extractor</code> by relative path, so a deploy triggered from inside <code>apps/casa-bff/</code> uploads only that subtree and 404s on the extractor package during install.</p>
+      <p class="lang-vi" hidden><strong>Luôn chạy lệnh Vercel từ gốc repo</strong>, không bao giờ từ <code>apps/casa-bff/</code>. Entry point deploy là <code>api/index.ts</code> ở gốc — nó import <code>packages/extractor</code> theo đường dẫn tương đối, nên deploy chạy từ trong <code>apps/casa-bff/</code> chỉ upload đúng nhánh đó và 404 khi cài package extractor.</p>
+      <pre><code>vercel link                       # first time only
+vercel env add GEMINI_API_KEY production
+vercel env add GEMINI_API_KEY preview
+
+rm -rf .vercel/output
+vercel build --yes --target production
+vercel deploy --prebuilt --prod --yes</code></pre>
+      <p class="lang-en">Building locally first (<code>vercel build</code> then <code>--prebuilt</code>) is the reliable path — a plain <code>vercel deploy --prod</code> works too but gives you nothing to inspect if something goes wrong mid-build. If a deploy sits at "Building…" for what feels like too long, check <code>vercel logs &lt;deployment-url&gt;</code> first — a 429/quota error, a bad commit-author check, and a genuine hang all look identical from the outside.</p>
+      <p class="lang-vi" hidden>Build local trước (<code>vercel build</code> rồi <code>--prebuilt</code>) là cách đáng tin cậy hơn — <code>vercel deploy --prod</code> trơn cũng chạy được nhưng không cho gì để kiểm tra nếu build giữa chừng bị lỗi. Nếu deploy đứng ở "Building…" lâu bất thường, kiểm tra <code>vercel logs &lt;deployment-url&gt;</code> trước — lỗi 429/quota, lỗi quyền tác giả commit, và treo thật đều trông giống hệt nhau từ bên ngoài.</p>
+    </section>
+
+    <section id="env">
+      <h2><span class="section-num">6</span><span class="lang-en">Environment variables</span><span class="lang-vi" hidden>Biến môi trường</span></h2>
+      <table class="lang-en">
+        <thead><tr><th>Variable</th><th>Where</th><th>Required</th><th>Notes</th></tr></thead>
+        <tbody>
+          <tr><td><code>GEMINI_API_KEY</code></td><td>Prod + Preview</td><td>if provider is gemini (default)</td><td>Free tier isn't enough for a real eval run — see ADR-005a.</td></tr>
+          <tr><td><code>GEMINI_MODEL</code></td><td>optional</td><td>no</td><td>Defaults to <code>gemini-2.5-flash</code>. Verify against ai.google.dev before changing.</td></tr>
+          <tr><td><code>EXTRACTOR_PROVIDER</code></td><td>optional</td><td>no</td><td><code>gemini</code> (default) · <code>deepseek-flash</code> · <code>deepseek-pro</code></td></tr>
+          <tr><td><code>DEEPSEEK_GATEWAY_KEY</code></td><td>optional</td><td>if provider is a DeepSeek value</td><td>Personal LiteLLM gateway key — ask Anthony. $12 budget, shared across everything you use it for.</td></tr>
+          <tr><td><code>DEBUG_EXTRACT</code></td><td>optional, dev only</td><td>no</td><td><code>1</code> includes zod issues / stack traces in error responses. Remove after debugging.</td></tr>
+        </tbody>
+      </table>
+      <table class="lang-vi" hidden>
+        <thead><tr><th>Biến</th><th>Ở đâu</th><th>Bắt buộc</th><th>Ghi chú</th></tr></thead>
+        <tbody>
+          <tr><td><code>GEMINI_API_KEY</code></td><td>Prod + Preview</td><td>nếu provider là gemini (mặc định)</td><td>Free tier không đủ cho eval thật — xem ADR-005a.</td></tr>
+          <tr><td><code>GEMINI_MODEL</code></td><td>tùy chọn</td><td>không</td><td>Mặc định <code>gemini-2.5-flash</code>. Kiểm tra lại trên ai.google.dev trước khi đổi.</td></tr>
+          <tr><td><code>EXTRACTOR_PROVIDER</code></td><td>tùy chọn</td><td>không</td><td><code>gemini</code> (mặc định) · <code>deepseek-flash</code> · <code>deepseek-pro</code></td></tr>
+          <tr><td><code>DEEPSEEK_GATEWAY_KEY</code></td><td>tùy chọn</td><td>nếu provider là DeepSeek</td><td>Key gateway LiteLLM cá nhân — hỏi Anthony. Ngân sách $12, dùng chung cho mọi việc bạn dùng key đó.</td></tr>
+          <tr><td><code>DEBUG_EXTRACT</code></td><td>tùy chọn, chỉ dev</td><td>không</td><td><code>1</code> đưa thêm lỗi zod/stack trace vào response lỗi. Tắt sau khi debug xong.</td></tr>
+        </tbody>
+      </table>
+      <p class="lang-en">You don't need to touch env vars to try a different provider for one request — see the per-request override in §4 and §7.</p>
+      <p class="lang-vi" hidden>Bạn không cần đụng biến môi trường để thử provider khác cho 1 request — xem phần override theo từng request ở mục 4 và 7.</p>
+    </section>
+
+    <section id="eval">
+      <h2><span class="section-num">7</span><span class="lang-en">Eval harness</span><span class="lang-vi" hidden>Eval harness</span></h2>
+      <p class="lang-en"><code>packages/extractor/eval/</code> scores against the Playbook's five thresholds (fabrication, required-field accuracy, verbatim evidence, latency; question-targeting needs a human pass, not wired up). Two rules that matter most:</p>
+      <p class="lang-vi" hidden><code>packages/extractor/eval/</code> chấm điểm theo đúng 5 ngưỡng của Playbook (bịa đặt, độ chính xác field bắt buộc, evidence nguyên văn, latency; riêng độ chính xác câu hỏi cần người chấm tay, chưa nối tự động). Hai quy tắc quan trọng nhất:</p>
+      <ul class="lang-en">
+        <li><strong><code>dataset.synthetic.json</code> decides nothing.</strong> Researched but made up. Real decisions wait for <code>dataset.real.json</code> — Eloa's 30 real, name-masked messages.</li>
+        <li><strong>Every result gets read against the actual thresholds, not vibes.</strong> A fabricated field is an automatic disqualifier regardless of how good everything else looks.</li>
+      </ul>
+      <ul class="lang-vi" hidden>
+        <li><strong><code>dataset.synthetic.json</code> không quyết định gì cả.</strong> Có nghiên cứu nhưng vẫn là tự bịa. Quyết định thật chờ <code>dataset.real.json</code> — 30 tin nhắn thật, đã che tên, từ Eloa.</li>
+        <li><strong>Mọi kết quả đọc theo đúng ngưỡng, không theo cảm tính.</strong> Một field bịa đặt là loại ngay lập tức, bất kể phần còn lại tốt thế nào.</li>
+      </ul>
+      <pre><code>export EVAL_BYPASS_SECRET=&lt;bypass secret from §4&gt;
+node packages/extractor/eval/runner.mjs                    # server's default provider
+
+# test a specific provider without touching Vercel config:
+export EVAL_PROVIDER_API_KEY=&lt;your key for that provider&gt;
+node packages/extractor/eval/runner.mjs --provider deepseek-flash</code></pre>
+      <p class="lang-en">PowerShell: <code>$env:EVAL_BYPASS_SECRET="..."</code> instead of <code>export</code>.</p>
+      <p class="lang-vi" hidden>PowerShell: dùng <code>$env:EVAL_BYPASS_SECRET="..."</code> thay vì <code>export</code>.</p>
+    </section>
+
+    <section id="gotchas">
+      <h2><span class="section-num">8</span><span class="lang-en">Known gotchas</span><span class="lang-vi" hidden>Các bẫy đã gặp</span> <span class="badge lang-en">read before debugging</span><span class="badge lang-vi" hidden>đọc trước khi debug</span></h2>
+      <div class="gotcha lang-en"><strong><code>vercel.json</code> needs <code>"framework": null</code>.</strong> Without it, Vercel's Hono auto-detection expects an entrypoint at the repo root or <code>src/</code> and fails with "No entrypoint found" — conflicts with the <code>api/</code> + rewrites layout used here.</div>
+      <div class="gotcha lang-en"><strong>Root <code>package.json</code> needs <code>"type": "module"</code>.</strong> Without it, the deployed function's ESM <code>import</code> syntax gets loaded as CommonJS and crashes — even on <code>GET /healthz</code>, which doesn't touch the extractor at all.</div>
+      <div class="gotcha lang-en"><strong>Vercel's function bundler doesn't reliably resolve the npm-workspace symlink at runtime.</strong> <code>@technext-edge/extractor</code> typechecks and builds locally, then 404s in the deployed Lambda with <code>ERR_MODULE_NOT_FOUND</code>. <code>app.ts</code> imports the package by relative path instead.</div>
+      <div class="gotcha lang-en"><strong>The git commit's author matters, even for a plain <code>vercel deploy</code>.</strong> Vercel checks commit-author permissions against the project owner on Hobby plans; a mismatched local git identity gets silently stuck ("Deployment Blocked"), which looks identical to a hung build from the outside.</div>
+      <div class="gotcha lang-en"><strong>A transport failure and a validation failure are different problems.</strong> <code>extract()</code> throws different error types for each; <code>app.ts</code> maps them to different HTTP statuses (429 vs 422). Collapsing them back into one generic error is what made a Gemini quota error read as "the model can't parse this message" during the eval dry run.</div>
+
+      <div class="gotcha lang-vi" hidden><strong><code>vercel.json</code> cần <code>"framework": null</code>.</strong> Thiếu nó, Vercel tự nhận diện "Hono framework", đòi entrypoint ở gốc repo hoặc <code>src/</code>, báo lỗi "No entrypoint found" — xung đột với cấu trúc <code>api/</code> + rewrites đang dùng.</div>
+      <div class="gotcha lang-vi" hidden><strong>Root <code>package.json</code> cần <code>"type": "module"</code>.</strong> Thiếu nó, function deploy đọc nhầm cú pháp ESM <code>import</code> thành CommonJS rồi crash — kể cả <code>GET /healthz</code>, vốn không đụng gì tới extractor.</div>
+      <div class="gotcha lang-vi" hidden><strong>Bộ đóng gói function của Vercel không resolve chắc chắn symlink npm workspace lúc runtime.</strong> <code>@technext-edge/extractor</code> build/typecheck local đều ổn, rồi 404 thật trên Lambda với <code>ERR_MODULE_NOT_FOUND</code>. <code>app.ts</code> import package theo đường dẫn tương đối để né hẳn việc này.</div>
+      <div class="gotcha lang-vi" hidden><strong>Tác giả commit git quan trọng, kể cả deploy CLI trơn.</strong> Vercel kiểm tra quyền tác giả commit so với chủ project trên gói Hobby; danh tính git local không khớp sẽ bị kẹt âm thầm ("Deployment Blocked"), trông y hệt build bị treo thật từ bên ngoài.</div>
+      <div class="gotcha lang-vi" hidden><strong>Lỗi vận chuyển và lỗi validate là 2 vấn đề khác nhau.</strong> <code>extract()</code> ném loại lỗi khác nhau cho từng trường hợp; <code>app.ts</code> map sang HTTP status khác nhau (429 vs 422). Gộp chung thành 1 lỗi là lý do lỗi hết quota Gemini từng bị đọc nhầm thành "model không hiểu tin nhắn này" trong lần chạy eval thử.</div>
+    </section>
+
+    <section id="before-real">
+      <h2><span class="section-num">9</span><span class="lang-en">Before this becomes the real deliverable</span><span class="lang-vi" hidden>Trước khi thành sản phẩm thật</span></h2>
+      <ol class="lang-en">
+        <li>Swap <code>packages/extractor/src/schema.ts</code> for the type generated from Phillip's frozen <code>contracts/casa/estimate-api.v1.yaml</code> — it's a placeholder guess right now, flagged inline.</li>
+        <li>Confirm the real 4 house-norm fields and their default values with Jett/Eloa — <code>houseNorms.ts</code> is guessed.</li>
+        <li>Get billing enabled on the Gemini API key — the free tier cannot run a 30-message × multiple-provider bake-off at all.</li>
+        <li>Once Eloa's 30 real messages exist, drop them into <code>packages/extractor/eval/dataset.real.json</code> and run the same harness — the result becomes ADR-005b.</li>
+      </ol>
+      <ol class="lang-vi" hidden>
+        <li>Thay <code>packages/extractor/src/schema.ts</code> bằng type sinh ra từ <code>contracts/casa/estimate-api.v1.yaml</code> đã đóng băng của Phillip — hiện chỉ là đoán, đã ghi chú ngay trong file.</li>
+        <li>Xác nhận đúng 4 field house-norm và giá trị mặc định với Jett/Eloa — <code>houseNorms.ts</code> hiện là đoán.</li>
+        <li>Bật billing cho Gemini API key — free tier không chạy nổi bake-off 30 tin × nhiều provider.</li>
+        <li>Khi có 30 tin thật từ Eloa, bỏ vào <code>packages/extractor/eval/dataset.real.json</code> rồi chạy lại đúng harness này — kết quả trở thành ADR-005b.</li>
+      </ol>
+    </section>
+  </main>
+</div>
+
+<script>
+(function () {
+  var STORAGE_KEY = 'team-guide-lang';
+  var buttons = document.querySelectorAll('[data-lang-btn]');
+
+  function apply(lang) {
+    document.querySelectorAll('.lang-en').forEach(function (el) { el.hidden = lang !== 'en'; });
+    document.querySelectorAll('.lang-vi').forEach(function (el) { el.hidden = lang !== 'vi'; });
+    buttons.forEach(function (btn) {
+      btn.setAttribute('aria-pressed', String(btn.dataset.langBtn === lang));
+    });
+  }
+
+  buttons.forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      var lang = btn.dataset.langBtn;
+      apply(lang);
+      try { localStorage.setItem(STORAGE_KEY, lang); } catch (e) {}
+    });
+  });
+
+  var saved;
+  try { saved = localStorage.getItem(STORAGE_KEY); } catch (e) {}
+  if (saved === 'vi') apply('vi');
+})();
+</script>

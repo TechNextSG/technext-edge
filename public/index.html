@@ -1,0 +1,262 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Casa Escondida Edge &amp; Extractor Tools — Documentation &amp; Architecture Hub</title>
+<meta name="description" content="Architecture diagrams, benchmark evaluations, test scenario matrix, and operational playbooks for the Casa Escondida Edge Extractor Pod.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700;12..96,800&family=Source+Serif+4:opsz,wght@8..60,400;8..60,600&family=IBM+Plex+Mono:wght@400;500;600&family=DM+Sans:wght@400;500;600&display=swap">
+<style>
+:root{
+  --bg:#f5f7f6; --paper:#ffffff; --ink:#132129; --ink-2:#3f5059; --ink-3:#6c7c84; --line:#d8dfdd;
+  --flag:#c0182f; --sea:#0f5e6b; --sea-soft:#e3f0f1; --teal:#1c7c82; --teal-soft:#e7f2f0;
+  --gold:#c99a3b; --gold-soft:#fbf2e0;
+  --display:"Bricolage Grotesque",ui-sans-serif,system-ui,"Segoe UI",Helvetica,Arial,sans-serif;
+  --body:"Source Serif 4",Georgia,"Times New Roman",serif;
+  --mono:"IBM Plex Mono",ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+}
+@media (prefers-color-scheme: dark){
+  :root{
+    --bg:#0f171b; --paper:#152026; --ink:#e8eeef; --ink-2:#b8c5ca; --ink-3:#86969d; --line:#2a3940;
+    --flag:#ff5a6e; --sea:#5fc1cf; --sea-soft:#10333a; --teal:#43acb3; --teal-soft:#153a3e;
+    --gold:#e3c069; --gold-soft:#33290f;
+  }
+}
+*{box-sizing:border-box}
+body{
+  margin:0;min-height:100vh;background:var(--bg);color:var(--ink);
+  font-family:var(--body);font-size:17px;line-height:1.5;
+  padding-inline:clamp(16px,4vw,48px);padding-block:0 64px;
+}
+.wrap{max-width:980px;margin:0 auto}
+header{padding-block:56px 20px}
+.flag{
+  display:inline-block;width:44px;height:30px;
+  background:linear-gradient(135deg,var(--flag) 0 42%,#fff 42% 58%,var(--flag) 58% 100%);
+  border:1px solid var(--line);margin-bottom:20px;
+}
+.eyebrow{font-family:var(--mono);font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:var(--ink-3)}
+h1{
+  font-family:var(--display);font-size:clamp(32px,5.5vw,56px);font-weight:800;
+  letter-spacing:-.02em;line-height:1.06;margin:10px 0 0;text-wrap:balance;
+}
+.lede{font-size:18.5px;color:var(--ink-2);max-width:62ch;margin:14px 0 0;line-height:1.45}
+
+.hub-section{margin-top:40px}
+.section-title{
+  font-family:var(--display);font-size:15px;font-weight:800;letter-spacing:.08em;
+  text-transform:uppercase;color:var(--sea);margin-bottom:14px;
+  display:flex;align-items:center;gap:12px;
+}
+.section-title::after{content:"";flex:1;height:1px;background:var(--line)}
+
+.cards{
+  display:grid;grid-template-columns:repeat(auto-fit,minmax(295px,1fr));gap:16px;
+}
+a.card{
+  display:flex;flex-direction:column;gap:10px;padding:22px 24px;
+  background:var(--paper);border:1px solid var(--line);color:inherit;
+  text-decoration:none;min-height:205px;border-radius:6px;
+  transition:border-color .15s,box-shadow .15s,transform .15s;
+}
+a.card:hover,a.card:focus-visible{
+  border-color:var(--sea);outline:none;
+  box-shadow:0 6px 20px rgba(15,94,107,.1);
+  transform:translateY(-2px);
+}
+a.card:focus-visible{box-shadow:0 0 0 2px var(--sea)}
+.card .kind{
+  font-family:var(--mono);font-size:11px;letter-spacing:.12em;
+  text-transform:uppercase;color:var(--sea);display:flex;justify-content:space-between;align-items:center;
+}
+.card h2{
+  font-family:var(--display);font-size:21px;font-weight:700;
+  letter-spacing:-.015em;line-height:1.2;margin:2px 0 0;
+}
+.card p{margin:0;color:var(--ink-2);font-size:15px;flex:1;line-height:1.48}
+.card .meta{
+  display:flex;justify-content:space-between;align-items:center;
+  font-family:var(--mono);font-size:12px;color:var(--ink-3);margin-top:10px;
+  padding-top:10px;border-top:1px dashed var(--line);
+}
+.card .go{font-family:var(--display);font-weight:700;color:var(--sea)}
+
+.badge{
+  display:inline-block;font-family:var(--display);font-size:10.5px;font-weight:700;
+  padding:2px 7px;border-radius:999px;background:var(--sea-soft);color:var(--sea);
+  letter-spacing:.04em;text-transform:none;
+}
+.badge.gold{background:var(--gold-soft);color:var(--gold)}
+
+footer{
+  margin-top:56px;padding-top:18px;border-top:1px solid var(--line);
+  font-family:var(--mono);font-size:12px;color:var(--ink-3);
+  display:flex;justify-content:space-between;flex-wrap:wrap;gap:12px;
+}
+.lang-toggle{
+  position:fixed;top:16px;right:16px;z-index:100;min-height:42px;min-width:44px;
+  padding:0 14px;font-family:var(--display);font-size:13px;font-weight:700;
+  letter-spacing:.08em;line-height:1;color:var(--ink);background:var(--paper);
+  border:1px solid var(--line);border-radius:6px;cursor:pointer;
+  box-shadow:0 2px 8px rgba(0,0,0,.08);transition:border-color .15s;
+  -webkit-appearance:none;appearance:none;
+}
+.lang-toggle:hover{border-color:var(--ink)}
+.lang-toggle:focus-visible{outline:2px solid var(--flag);outline-offset:2px}
+</style>
+</head>
+<body>
+<button type="button" id="cce-lang-toggle" class="lang-toggle" aria-pressed="false" aria-label="Chuyển sang tiếng Việt">VI</button>
+
+<div class="wrap">
+  <header>
+    <div class="flag" aria-hidden="true"></div>
+    <div class="eyebrow">TechNext · Casa Escondida, Anilao</div>
+    <h1 data-vi="Công cụ Biên &amp; Trích xuất Casa Escondida" data-en="Casa Escondida Edge &amp; Extractor Tools">Casa Escondida Edge &amp; Extractor Tools</h1>
+    <p class="lede" data-vi="Trung tâm kiến trúc, báo cáo đo lường mô hình, ma trận kịch bản kiểm thử WhatsApp và sổ tay vận hành cho tầng biên của Casa Escondida." data-en="Central documentation hub: architecture diagrams, LLM benchmark evaluations, WhatsApp test scenario matrix, and engineering playbooks for the Casa Escondida Edge layer.">Central documentation hub: architecture diagrams, LLM benchmark evaluations, WhatsApp test scenario matrix, and engineering playbooks for the Casa Escondida Edge layer.</p>
+  </header>
+
+  <!-- SECTION 1: ARCHITECTURE & DIAGRAMS -->
+  <section class="hub-section">
+    <div class="section-title">
+      <span data-vi="1. Kiến trúc &amp; Sơ đồ Hệ thống" data-en="1. Architecture &amp; Diagrams">1. Architecture &amp; Diagrams</span>
+    </div>
+    <nav class="cards" aria-label="Architecture and Diagrams">
+      <a class="card" href="/diagrams/extractor-pod.html">
+        <span class="kind"><span data-vi="Sơ đồ Kiến trúc" data-en="Architecture Diagram">Architecture Diagram</span> <span class="badge">Archify · Interactive</span></span>
+        <h2 data-vi="Kiến trúc Extractor Pod &amp; Ba Vùng Tin Cậy" data-en="Extractor Pod Architecture &amp; Trust Boundaries">Extractor Pod Architecture &amp; Trust Boundaries</h2>
+        <p data-vi="Sơ đồ kiến trúc tương tác Archify mô tả 3 vùng tin cậy: Webhook WhatsApp, Hono BFF biên, dịch vụ trích xuất LLM failover, và ranh giới bảo vệ Odoo ERP." data-en="Interactive Archify diagram detailing the 3 trust zones: WhatsApp webhook ingress, TypeScript Hono BFF, LLM extractor service with failover, and the Odoo ERP boundary.">Interactive Archify diagram detailing the 3 trust zones: WhatsApp webhook ingress, TypeScript Hono BFF, LLM extractor service with failover, and the Odoo ERP boundary.</p>
+        <span class="meta"><span data-vi="Extractor Pod · Sep 2026" data-en="Extractor Pod · Sep 2026">Extractor Pod · Sep 2026</span><span class="go" data-vi="Xem sơ đồ →" data-en="View diagram →">View diagram →</span></span>
+      </a>
+
+      <a class="card" href="https://casa-escondida-estimator-tools.vercel.app/casa-core-edge-blueprint" target="_blank" rel="noopener">
+        <span class="kind"><span data-vi="Bản Lập Trường Toàn Dự Án" data-en="Project Blueprint">Project Blueprint</span> <span class="badge gold">Odoo Brain ↗</span></span>
+        <h2 data-vi="Odoo là bộ não, mọi thứ khác là biên" data-en="Odoo is the brain, everything else is the edge">Odoo is the brain, everything else is the edge</h2>
+        <p data-vi="Bản lập trường kiến trúc Core &amp; Edge của Anthony: sơ đồ 4 hình, luồng một báo giá, ranh giới giữa tầng biên nháp và lõi Odoo ERP." data-en="Anthony's Core &amp; Edge stance paper: system diagram, journey of one quotation, fishbone pain points, and the hard boundary between Edge drafts and Odoo ERP.">Anthony's Core &amp; Edge stance paper: system diagram, journey of one quotation, fishbone pain points, and the hard boundary between Edge drafts and Odoo ERP.</p>
+        <span class="meta"><span>Anthony · 15 Sep 2026</span><span class="go" data-vi="Mở Blueprint ↗" data-en="Open Blueprint ↗">Open Blueprint ↗</span></span>
+      </a>
+    </nav>
+  </section>
+
+  <!-- SECTION 2: BENCHMARK & STATUS REPORTS -->
+  <section class="hub-section">
+    <div class="section-title">
+      <span data-vi="2. Đo lường &amp; Báo cáo Tiến độ" data-en="2. Benchmark &amp; Status Reports">2. Benchmark &amp; Status Reports</span>
+    </div>
+    <nav class="cards" aria-label="Benchmark and Reports">
+      <a class="card" href="/benchmark-report.html">
+        <span class="kind"><span data-vi="Báo cáo Đo Lường" data-en="Evaluation Report">Evaluation Report</span> <span class="badge">VI · EN</span></span>
+        <h2 data-vi="LLM Benchmark: Gemini 3.1 Flash-Lite vs Đối Thủ" data-en="LLM Benchmark: Gemini 3.1 Flash-Lite vs Competitors">LLM Benchmark: Gemini 3.1 Flash-Lite vs Competitors</h2>
+        <p data-vi="Đo lường 4 mô hình (Gemini 3.1 Flash-Lite, DeepSeek Chat, Grok 3, Claude 3.5 Sonnet) qua 10 tình huống Anilao. Gemini đạt 100% độ chính xác, P95 1.56s, chi phí $0.15/1k lượt." data-en="Evaluation of 4 LLMs across 10 Anilao booking cases. Gemini 3.1 Flash-Lite achieves 100% precision, 1.56s P95 latency, and $0.15/1k calls.">Evaluation of 4 LLMs across 10 Anilao booking cases. Gemini 3.1 Flash-Lite achieves 100% precision, 1.56s P95 latency, and $0.15/1k calls.</p>
+        <span class="meta"><span>TechNext AI · Sep 2026</span><span class="go" data-vi="Xem báo cáo →" data-en="Open report →">Open report →</span></span>
+      </a>
+
+      <a class="card" href="/extractor-pod-status.html">
+        <span class="kind"><span data-vi="Báo cáo Quản Trị" data-en="Status Briefing">Status Briefing</span> <span class="badge">VI · EN</span></span>
+        <h2 data-vi="Báo cáo Tiến độ &amp; Tóm tắt Kỹ thuật Extractor Pod" data-en="Extractor Pod Status Report &amp; Technical Briefing">Extractor Pod Status Report &amp; Technical Briefing</h2>
+        <p data-vi="Bản tóm tắt chuẩn 2 cột TechNext kèm thanh tiến độ 100%, lưới KPI, 6 cổng kiểm soát, tích hợp WhatsApp thực tế và danh sách deliverables." data-en="Official TechNext 2-column briefing with executive progress bar, KPI grid, 6 control gates, live WhatsApp integration status, and deliverables.">Official TechNext 2-column briefing with executive progress bar, KPI grid, 6 control gates, live WhatsApp integration status, and deliverables.</p>
+        <span class="meta"><span data-vi="Team VN · 21 Sep 2026" data-en="VN Team · 21 Sep 2026">Team VN · 21 Sep 2026</span><span class="go" data-vi="Xem chi tiết →" data-en="Open briefing →">Open briefing →</span></span>
+      </a>
+    </nav>
+  </section>
+
+  <!-- SECTION 3: TESTING, SCENARIOS & CONSOLE -->
+  <section class="hub-section">
+    <div class="section-title">
+      <span data-vi="3. Kiểm thử &amp; Công cụ Trực tiếp" data-en="3. Testing &amp; Interactive Tools">3. Testing &amp; Interactive Tools</span>
+    </div>
+    <nav class="cards" aria-label="Testing and Tools">
+      <a class="card" href="/casa-anilao-test-scenarios.html">
+        <span class="kind"><span data-vi="Ma Trận Kiểm Thử" data-en="Test Catalog">Test Catalog</span> <span class="badge">12 Scenarios · VI · EN</span></span>
+        <h2 data-vi="Ma trận 12 Kịch bản Kiểm thử Toàn diện WhatsApp" data-en="12 End-to-End WhatsApp Test Scenarios Matrix">12 End-to-End WhatsApp Test Scenarios Matrix</h2>
+        <p data-vi="Bộ 12 kịch bản chuẩn hóa: ngày ở, khách ở qua đêm vs trong ngày, ngày bắt đầu lặn, số trần không đơn vị, chính sách em bé và đối soát hội thoại thực tế." data-en="12 production test scenarios: dates, stay guests vs day visitors, dive start date constraints, bare number answers, infant policy, and live WhatsApp transcripts.">12 production test scenarios: dates, stay guests vs day visitors, dive start date constraints, bare number answers, infant policy, and live WhatsApp transcripts.</p>
+        <span class="meta"><span>QA Pod · Sep 2026</span><span class="go" data-vi="Xem ma trận →" data-en="Open matrix →">Open matrix →</span></span>
+      </a>
+
+      <a class="card" href="/demo-checklist.html">
+        <span class="kind"><span data-vi="Danh Mục Kiểm Tra" data-en="Demo Checklist">Demo Checklist</span> <span class="badge">Live WhatsApp</span></span>
+        <h2 data-vi="Checklist Kiểm tra Demo: Inbound, Extractor &amp; WhatsApp" data-en="Demo Checklist: Inbound, Extractor &amp; WhatsApp Loop">Demo Checklist: Inbound, Extractor &amp; WhatsApp Loop</h2>
+        <p data-vi="Quy trình kiểm tra từng bước cho số WhatsApp trực tiếp +1 (555) 150-6595, lưu vết hội thoại, xác thực webhook và bàn giao nhân viên." data-en="Step-by-step verification checklist for live WhatsApp number +1 (555) 150-6595, conversation memory, webhook signature, and human staff handoff.">Step-by-step verification checklist for live WhatsApp number +1 (555) 150-6595, conversation memory, webhook signature, and human staff handoff.</p>
+        <span class="meta"><span data-vi="TechNext Edge · 21 Sep 2026" data-en="TechNext Edge · 21 Sep 2026">TechNext Edge · 21 Sep 2026</span><span class="go" data-vi="Xem checklist →" data-en="Open checklist →">Open checklist →</span></span>
+      </a>
+
+      <a class="card" href="/test">
+        <span class="kind"><span data-vi="Bảng Điều Khiển" data-en="Live Console">Live Console</span> <span class="badge">Interactive Tool</span></span>
+        <h2 data-vi="Bảng Điều khiển Kiểm thử Trích xuất Trực tiếp" data-en="Interactive AI Extractor Test Console">Interactive AI Extractor Test Console</h2>
+        <p data-vi="Thử nghiệm trực tiếp trên trình duyệt: trích xuất tin nhắn đơn lẻ hoặc trò chuyện nhiều lượt với AI, đổi provider linh hoạt và kiểm tra JSON kết quả." data-en="In-browser test console: run single-shot extraction or multi-turn dialogues, switch LLM providers on the fly, and inspect validated JSON output.">In-browser test console: run single-shot extraction or multi-turn dialogues, switch LLM providers on the fly, and inspect validated JSON output.</p>
+        <span class="meta"><span data-vi="BFF Tool · Live Edge" data-en="BFF Tool · Live Edge">BFF Tool · Live Edge</span><span class="go" data-vi="Mở Console →" data-en="Open console →">Open console →</span></span>
+      </a>
+    </nav>
+  </section>
+
+  <!-- SECTION 4: ROADMAP & PLAYBOOKS -->
+  <section class="hub-section">
+    <div class="section-title">
+      <span data-vi="4. Lộ trình &amp; Sổ tay Kỹ thuật" data-en="4. Roadmap &amp; Engineering Playbooks">4. Roadmap &amp; Engineering Playbooks</span>
+    </div>
+    <nav class="cards" aria-label="Roadmap and Playbooks">
+      <a class="card" href="/roadmap-next.html">
+        <span class="kind"><span data-vi="Kế Hoạch Triển Khai" data-en="Delivery Plan">Delivery Plan</span> <span class="badge">4 Phases</span></span>
+        <h2 data-vi="Lộ trình Triển khai &amp; Cột mốc Extractor Pod" data-en="Extractor Pod Delivery Roadmap &amp; Milestones">Extractor Pod Delivery Roadmap &amp; Milestones</h2>
+        <p data-vi="Lộ trình 4 giai đoạn chi tiết: Phase 1 Lõi Extractor, Phase 2 Đa provider &amp; WhatsApp, Phase 3 Odoo BFF, Phase 4 Đưa vào vận hành sản xuất." data-en="Four-phase execution timeline: Phase 1 Extractor core, Phase 2 Multi-provider fallback &amp; WhatsApp, Phase 3 Odoo BFF, Phase 4 Production hardening.">Four-phase execution timeline: Phase 1 Extractor core, Phase 2 Multi-provider fallback &amp; WhatsApp, Phase 3 Odoo BFF, Phase 4 Production hardening.</p>
+        <span class="meta"><span>Engineering · Sep 2026</span><span class="go" data-vi="Xem lộ trình →" data-en="Open roadmap →">Open roadmap →</span></span>
+      </a>
+
+      <a class="card" href="/team-guide.html">
+        <span class="kind"><span data-vi="Sổ Tay Kỹ Thuật" data-en="Team Playbook">Team Playbook</span> <span class="badge">Onboarding</span></span>
+        <h2 data-vi="Sổ tay Kỹ thuật: Kiến trúc, Hợp đồng &amp; Cài đặt" data-en="Team Playbook: Architecture, Contracts &amp; Setup">Team Playbook: Architecture, Contracts &amp; Setup</h2>
+        <p data-vi="Hướng dẫn toàn diện cho kỹ sư team VN: biến môi trường, cài đặt máy trạm, chạy test tự động, schema Zod, chuẩn logging và checklist deploy." data-en="Comprehensive guide for VN engineers: environment configuration, test runner, Zod schemas, logging rules, and deployment checklist.">Comprehensive guide for VN engineers: environment configuration, test runner, Zod schemas, logging rules, and deployment checklist.</p>
+        <span class="meta"><span>Engineering Pod · Sep 2026</span><span class="go" data-vi="Xem sổ tay →" data-en="Open playbook →">Open playbook →</span></span>
+      </a>
+
+      <a class="card" href="https://casa-escondida-estimator-tools.vercel.app/" target="_blank" rel="noopener">
+        <span class="kind"><span data-vi="Tài Liệu Toàn Cục" data-en="Ecosystem Hub">Ecosystem Hub</span> <span class="badge gold">Estimator Tools ↗</span></span>
+        <h2 data-vi="Kho Tài liệu Kiến trúc Dự án Casa Escondida" data-en="Casa Escondida Estimator Tools Portal">Casa Escondida Estimator Tools Portal</h2>
+        <p data-vi="Cổng tài liệu tổng thể của toàn dự án Casa: Core &amp; Edge Blueprint, Edge Playbook, Delivery Plan, Product Business Map và Odoo API Guide." data-en="Master documentation portal for the entire Casa project: Core &amp; Edge Blueprint, Edge Playbook, Delivery Plan, Product Business Map, and Odoo API Guide.">Master documentation portal for the entire Casa project: Core &amp; Edge Blueprint, Edge Playbook, Delivery Plan, Product Business Map, and Odoo API Guide.</p>
+        <span class="meta"><span>TechNext Global Hub</span><span class="go" data-vi="Mở cổng tổng ↗" data-en="Open portal ↗">Open portal ↗</span></span>
+      </a>
+    </nav>
+  </section>
+
+  <footer>
+    <div data-vi="Dự án TechNext Edge · Casa Escondida Anilao · Triển khai trên Vercel Edge Network." data-en="TechNext Edge Project · Casa Escondida Anilao · Deployed on Vercel Edge Network.">TechNext Edge Project · Casa Escondida Anilao · Deployed on Vercel Edge Network.</div>
+    <div>Production Domain: <code style="color:var(--sea);font-weight:600">technext-edge-casa-bff.vercel.app</code></div>
+  </footer>
+</div>
+
+<script>
+(function(){
+  var KEY = 'cce-lang';
+  var btn = document.getElementById('cce-lang-toggle');
+  var els = document.querySelectorAll('[data-vi][data-en]');
+  function apply(lang){
+    var attr = lang === 'en' ? 'data-en' : 'data-vi';
+    for(var i = 0; i < els.length; i++){
+      var el = els[i], v = el.getAttribute(attr);
+      if(v !== null) el.innerHTML = v;
+    }
+    document.documentElement.lang = lang;
+    if(btn){
+      btn.textContent = lang === 'en' ? 'VI' : 'EN';
+      btn.setAttribute('aria-pressed', lang === 'en' ? 'false' : 'true');
+      btn.setAttribute('aria-label', lang === 'en' ? 'Chuyển sang tiếng Việt' : 'Switch to English');
+    }
+  }
+  var lang = 'en';
+  try {
+    var s = localStorage.getItem(KEY);
+    if(s === 'en' || s === 'vi') lang = s;
+  } catch(e){}
+  apply(lang);
+  if(btn){
+    btn.addEventListener('click', function(){
+      lang = lang === 'en' ? 'vi' : 'en';
+      try { localStorage.setItem(KEY, lang); } catch(e){}
+      apply(lang);
+    });
+  }
+})();
+</script>
+</body>
+</html>

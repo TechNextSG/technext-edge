@@ -18,12 +18,28 @@ describe("BFF Endpoints", () => {
     expect(body).toEqual({ ok: true });
   });
 
-  it("serves HTML on GET / (test console page)", async () => {
+  it("serves HTML on GET / (documentation & architecture hub)", async () => {
     const res = await app.request("/");
+    expect(res.status).toBe(200);
+    expect(res.headers.get("content-type")).toContain("text/html");
+    const html = await res.text();
+    expect(html).toContain("Casa Escondida Edge &amp; Extractor Tools");
+    expect(html).toContain("Extractor Pod Architecture &amp; Trust Boundaries");
+  });
+
+  it("serves HTML on GET /test (interactive test console)", async () => {
+    const res = await app.request("/test");
     expect(res.status).toBe(200);
     expect(res.headers.get("content-type")).toContain("text/html");
     const html = await res.text();
     expect(html).toContain("DeepSeek Flash");
     expect(html).toContain("Gemini 2.5 Flash");
+  });
+
+  it("serves benchmark report on GET /benchmark and scenarios on /scenarios", async () => {
+    const resBench = await app.request("/benchmark");
+    expect(resBench.status).toBe(200);
+    const resScen = await app.request("/scenarios");
+    expect(resScen.status).toBe(200);
   });
 });
