@@ -1,0 +1,65 @@
+<!doctype html>
+<html lang="en" data-lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Extractor Pod — Architecture Diagram</title>
+<style>
+  :root{
+    --bg:#0A181B; --ink:#E4EFED; --muted:#94AAA7;
+    --teal:#43ACB3; --teal-strong:#63C6CC;
+    --border:#264845;
+    --font-b:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif;
+    --font-m:Consolas,"Courier New",monospace;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;height:100%;}
+  body{background:var(--bg);color:var(--ink);font-family:var(--font-b);display:flex;flex-direction:column;}
+  .bar{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:10px 16px;border-bottom:1px solid var(--border);flex-wrap:wrap;}
+  .bar .title{font-weight:700;font-size:14px;}
+  .bar .title .sub{color:var(--muted);font-weight:400;font-size:12px;margin-left:8px;}
+  .seg{display:inline-flex;border:1px solid rgba(255,255,255,.2);border-radius:20px;overflow:hidden;background:rgba(255,255,255,.06);}
+  .seg button{border:0;background:transparent;color:var(--muted);font:700 12px var(--font-b);padding:7px 16px;cursor:pointer;}
+  .seg button.active{background:var(--teal);color:#0A181B;}
+  .stage{flex:1;position:relative;}
+  .stage iframe{position:absolute;inset:0;width:100%;height:100%;border:0;display:none;}
+  .stage iframe.active{display:block;}
+  .note{font-family:var(--font-m);font-size:11px;color:var(--muted);padding:6px 16px;border-top:1px solid var(--border);}
+</style>
+</head>
+<body>
+  <div class="bar">
+    <div class="title">Extractor Pod — Architecture Diagram<span class="sub">technext-edge · Casa Escondida</span></div>
+    <div class="seg">
+      <button type="button" id="btnEn" class="active">ENGLISH</button>
+      <button type="button" id="btnVi">TIẾNG VIỆT</button>
+    </div>
+  </div>
+  <div class="stage">
+    <iframe id="frameEn" class="active" src="extractor-pod.html" title="Architecture diagram, English"></iframe>
+    <iframe id="frameVi" src="extractor-pod.vi.html" title="Sơ đồ kiến trúc, tiếng Việt"></iframe>
+  </div>
+  <div class="note">Wrapper trang bọc ngoài, không sửa skill archify — mỗi ngôn ngữ là 1 file archify riêng, nhúng qua iframe.</div>
+  <script>
+    var btnEn = document.getElementById('btnEn');
+    var btnVi = document.getElementById('btnVi');
+    var frameEn = document.getElementById('frameEn');
+    var frameVi = document.getElementById('frameVi');
+    function setLang(lang){
+      var isEn = lang === 'en';
+      document.documentElement.setAttribute('lang', lang);
+      document.body.setAttribute('data-lang', lang);
+      btnEn.classList.toggle('active', isEn);
+      btnVi.classList.toggle('active', !isEn);
+      frameEn.classList.toggle('active', isEn);
+      frameVi.classList.toggle('active', !isEn);
+      try { localStorage.setItem('extractor-pod-diagram-lang', lang); } catch(e){}
+    }
+    btnEn.addEventListener('click', function(){ setLang('en'); });
+    btnVi.addEventListener('click', function(){ setLang('vi'); });
+    var saved = 'en';
+    try { saved = localStorage.getItem('extractor-pod-diagram-lang') || 'en'; } catch(e){}
+    setLang(saved === 'vi' ? 'vi' : 'en');
+  </script>
+</body>
+</html>
