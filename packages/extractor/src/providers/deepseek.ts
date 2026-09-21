@@ -5,7 +5,7 @@
 // on DeepSeek's own infrastructure (data residency in the PRC — this is what
 // disqualified DeepSeek at Gate A), and the gateway itself logs every prompt
 // and response to the team's spend dashboard.
-import type { ExtractCall, ExtractProvider, ExtractResult, GuestsReadResult } from "../provider.js";
+import type { ExtractCall, ExtractProvider, ExtractResult, GuestsReadResult, CheckInReadResult } from "../provider.js";
 
 const GATEWAY_BASE_URL = "https://litellm-production-7402.up.railway.app/v1";
 const TOOL_NAME = "extract_trip";
@@ -66,6 +66,36 @@ const GUESTS_TOOL_SCHEMA = {
   required: ["value", "state", "evidence"],
 };
 
+// Isolated checkIn-only prompt/schema (2026-09-21, ADR-005a) — same pattern
+// as GUESTS_ONLY_PROMPT: DeepSeek sometimes downgrades a clear relative-date
+// phrase to 'inferred' with evidence nulled, which also disables
+// postProcess's own resolveRelativeDate safety net (it only runs when
+// evidence is present). Isolated, with nothing else competing for
+// attention, this resolved correctly 5/5 against the exact phrase that
+// failed in the full multi-field prompt.
+const CHECKIN_ONLY_PROMPT =
+  "You extract ONE fact from a dive-resort guest's message: their check-in date. Find any phrase " +
+  "— absolute or relative, like 'in 5 days', 'next Saturday', 'this weekend', a specific date — " +
+  "that names a specific enough day to check in on. If found, compute your best ISO date " +
+  "(YYYY-MM-DD) from today's date, and call record_checkin with state 'stated' and a verbatim " +
+  "quote of that phrase as evidence. If the guest explicitly says they have not decided or not " +
+  "confirmed a date yet (e.g. 'chưa chốt ngày', 'not sure yet', 'haven't decided'), or only gives " +
+  "a vague range too wide to pin to one day (e.g. 'end of this month', 'cuối tháng này', " +
+  "'sometime next month'), that is 'missing' — do not invent a specific day for a vague range, " +
+  "even one that sounds plausible. Only use 'inferred' if a specific day is implied with no " +
+  "expressible phrase at all, and 'missing' if there is truly no timing information. Never invent " +
+  "a date the guest has not actually pinned down.";
+
+const CHECKIN_TOOL_SCHEMA = {
+  type: "object",
+  properties: {
+    value: { type: "string" },
+    state: { type: "string", enum: ["stated", "inferred", "missing"] },
+    evidence: { type: "string" },
+  },
+  required: ["value", "state", "evidence"],
+};
+
 export function createDeepSeekProvider(
   apiKey: string,
   model: "deepseek-flash" | "deepseek-pro" = (process.env.DEEPSEEK_MODEL as "deepseek-flash" | "deepseek-pro") ?? "deepseek-flash",
@@ -100,6 +130,44 @@ export function createDeepSeekProvider(
         const state: GuestsReadResult["state"] = parsed.state === "stated" || parsed.state === "inferred" ? parsed.state : "missing";
         return {
           value: state === "missing" ? null : (typeof parsed.value === "number" ? parsed.value : null),
+          state,
+          evidence: state === "stated" && typeof parsed.evidence === "string" && parsed.evidence.length > 0 ? parsed.evidence : null,
+          tokensIn: usage.prompt_tokens ?? 0,
+          tokensOut: usage.completion_tokens ?? 0,
+          ms: Date.now() - started,
+        };
+      } finally {
+        clearTimeout(timer);
+      }
+    },
+    async extractCheckIn(text: string, today: string): Promise<CheckInReadResult> {
+      const started = Date.now();
+      const controller = new AbortController();
+      const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
+      try {
+        const res = await fetch(`${GATEWAY_BASE_URL}/chat/completions`, {
+          method: "POST",
+          headers: { "content-type": "application/json", authorization: `Bearer ${apiKey}` },
+          signal: controller.signal,
+          body: JSON.stringify({
+            model,
+            thinking: { type: "disabled" },
+            messages: [
+              { role: "system", content: CHECKIN_ONLY_PROMPT },
+              { role: "user", content: `Today's date (Asia/Manila): ${today}\n\nGuest message:\n${text}` },
+            ],
+            tools: [{ type: "function", function: { name: "record_checkin", description: "Record the check-in date.", parameters: CHECKIN_TOOL_SCHEMA } }],
+            tool_choice: { type: "function", function: { name: "record_checkin" } },
+          }),
+        });
+        if (!res.ok) throw new Error(`DeepSeek extractCheckIn failed: ${res.status} ${await res.text()}`);
+        const body = await res.json();
+        const usage = body.usage ?? {};
+        const args = body.choices?.[0]?.message?.tool_calls?.[0]?.function?.arguments ?? "{}";
+        const parsed = JSON.parse(args);
+        const state: CheckInReadResult["state"] = parsed.state === "stated" || parsed.state === "inferred" ? parsed.state : "missing";
+        return {
+          value: state === "missing" ? null : (typeof parsed.value === "string" ? parsed.value : null),
           state,
           evidence: state === "stated" && typeof parsed.evidence === "string" && parsed.evidence.length > 0 ? parsed.evidence : null,
           tokensIn: usage.prompt_tokens ?? 0,

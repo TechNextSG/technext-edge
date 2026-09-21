@@ -97,6 +97,25 @@ function createResilientProvider(primary: ExtractProvider, fallback?: ExtractPro
       : fallback.extractGuests
         ? { extractGuests: (text: string) => fallback.extractGuests!(text) }
         : {}),
+    // Same forwarding, same reason, added same day for extractCheckIn — see
+    // the extractGuests comment above; this wrapper drops any optional
+    // capability it doesn't explicitly forward, so a second one added
+    // without updating this function would silently do nothing in exactly
+    // production's configuration.
+    ...(primary.extractCheckIn
+      ? {
+          async extractCheckIn(text: string, today: string) {
+            try {
+              return await primary.extractCheckIn!(text, today);
+            } catch (err) {
+              if (fallback.extractCheckIn) return await fallback.extractCheckIn(text, today);
+              throw err;
+            }
+          },
+        }
+      : fallback.extractCheckIn
+        ? { extractCheckIn: (text: string, today: string) => fallback.extractCheckIn!(text, today) }
+        : {}),
   };
 }
 

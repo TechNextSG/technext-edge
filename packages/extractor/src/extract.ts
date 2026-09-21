@@ -65,6 +65,14 @@ export async function extract(rawText: string, provider: ExtractProvider): Promi
     ? provider.extractGuests(text).catch(() => null)
     : Promise.resolve(null);
 
+  // Same pattern, same day, for checkIn — see provider.ts's CheckInReadResult
+  // doc for why (DeepSeek downgrading a clear relative-date phrase to
+  // 'inferred' with evidence nulled, disabling postProcess's own
+  // resolveRelativeDate safety net below).
+  const checkInPromise: Promise<Awaited<ReturnType<NonNullable<ExtractProvider["extractCheckIn"]>>> | null> = provider.extractCheckIn
+    ? provider.extractCheckIn(text, today).catch(() => null)
+    : Promise.resolve(null);
+
   type Attempt = { parsed: TripType; result: Awaited<ReturnType<ExtractProvider["call"]>> };
 
   const attempt = async (retry?: { previousRaw: unknown; error: string }): Promise<Attempt> => {
@@ -131,6 +139,35 @@ export async function extract(rawText: string, provider: ExtractProvider): Promi
     }
   }
 
+  // Same safety-net discipline as guests: only fills a gap (main pass not
+  // already 'stated'), never overrules a 'stated' the main pass already
+  // committed to. 'stated' still needs verbatim evidence in the guest's own
+  // words, and the resulting date still has to be a plausible stay date —
+  // this does not get to skip the checks any other date takes.
+  const checkInRead = await checkInPromise;
+  let checkInTokensIn = 0;
+  let checkInTokensOut = 0;
+  let checkInMs = 0;
+  if (checkInRead) {
+    checkInTokensIn = checkInRead.tokensIn;
+    checkInTokensOut = checkInRead.tokensOut;
+    checkInMs = checkInRead.ms;
+    if (outcome.parsed.checkIn.state !== "stated" && checkInRead.state !== "missing" && typeof checkInRead.value === "string") {
+      const guestText = guestTextOf(text).toLowerCase();
+      const evidenceOk = checkInRead.state !== "stated" || (!!checkInRead.evidence && guestText.includes(checkInRead.evidence.toLowerCase()));
+      if (evidenceOk && isPlausibleStayDate(checkInRead.value, today)) {
+        outcome.parsed.checkIn = { value: checkInRead.value, state: checkInRead.state, evidence: checkInRead.state === "stated" ? checkInRead.evidence : null };
+        // checkOut was derived from whatever checkIn the main pass had — stale
+        // now that checkIn changed, and robustness.test.ts is explicit that a
+        // derived date must never outlive the check-in it came from.
+        const nights = outcome.parsed.nights;
+        if (typeof nights.value === "number") {
+          outcome.parsed.checkOut = { value: deriveCheckOut(checkInRead.value, nights.value), state: "derived", evidence: null };
+        }
+      }
+    }
+  }
+
   const questions = generateQuestions(outcome.parsed);
 
   return {
@@ -138,10 +175,10 @@ export async function extract(rawText: string, provider: ExtractProvider): Promi
     questions,
     meta: {
       provider: provider.id,
-      tokensIn: outcome.result.tokensIn + guestsTokensIn,
-      tokensOut: outcome.result.tokensOut + guestsTokensOut,
+      tokensIn: outcome.result.tokensIn + guestsTokensIn + checkInTokensIn,
+      tokensOut: outcome.result.tokensOut + guestsTokensOut + checkInTokensOut,
       cacheReadTokens: outcome.result.cacheReadTokens,
-      ms: Math.max(outcome.result.ms, guestsMs), // ran in parallel, not sequentially
+      ms: Math.max(outcome.result.ms, guestsMs, checkInMs), // ran in parallel, not sequentially
       retried,
     },
   };

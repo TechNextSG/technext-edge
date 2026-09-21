@@ -31,6 +31,15 @@ export interface GuestsReadResult {
   ms: number;
 }
 
+export interface CheckInReadResult {
+  value: string | null; // ISO date (YYYY-MM-DD), the isolated call's own best guess
+  state: "stated" | "inferred" | "missing";
+  evidence: string | null;
+  tokensIn: number;
+  tokensOut: number;
+  ms: number;
+}
+
 export interface ExtractProvider {
   id: string;
   call(input: ExtractCall): Promise<ExtractResult>;
@@ -44,4 +53,12 @@ export interface ExtractProvider {
   // overrides 'guests' with this result when it succeeds. A provider that
   // omits this keeps the single call() path exactly as before.
   extractGuests?(text: string): Promise<GuestsReadResult>;
+  // Same pattern, same day, for 'checkIn': DeepSeek (now primary) sometimes
+  // downgrades a clear relative-date phrase ("in 5 days") to 'inferred' with
+  // evidence nulled out — which also disables postProcess's own
+  // resolveRelativeDate safety net, since that only runs when evidence is
+  // present. Isolated, this same phrase resolved 'stated' 5/5. extract.ts
+  // runs this in parallel with call() and only fills a gap (main pass not
+  // already 'stated'), same merge discipline as extractGuests.
+  extractCheckIn?(text: string, today: string): Promise<CheckInReadResult>;
 }

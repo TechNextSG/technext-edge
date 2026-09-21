@@ -7,7 +7,7 @@
 // Verify GEMINI_MODEL against https://ai.google.dev/gemini-api/docs/models
 // before a real deploy — model names in this family change often and the
 // value below is a placeholder, not a confirmed-current id.
-import type { ExtractCall, ExtractProvider, ExtractResult, GuestsReadResult } from "../provider.js";
+import type { ExtractCall, ExtractProvider, ExtractResult, GuestsReadResult, CheckInReadResult } from "../provider.js";
 
 const API_BASE = "https://generativelanguage.googleapis.com/v1beta/models";
 
@@ -66,6 +66,35 @@ const GUESTS_SCHEMA = {
   required: ["value", "state", "evidence"],
 };
 
+// Isolated checkIn-only prompt (2026-09-21, ADR-005a) — same reasoning as
+// GUESTS_ONLY_PROMPT, added after DeepSeek (now primary) sometimes
+// downgraded a clear relative-date phrase to 'inferred' with evidence
+// nulled, disabling postProcess's own resolveRelativeDate safety net (it
+// only runs when evidence is present). Kept in gemini.ts too for the same
+// duplication reasoning as the other rules.
+const CHECKIN_ONLY_PROMPT =
+  "You extract ONE fact from a dive-resort guest's message: their check-in date. Find any phrase " +
+  "— absolute or relative, like 'in 5 days', 'next Saturday', 'this weekend', a specific date — " +
+  "that names a specific enough day to check in on. If found, compute your best ISO date " +
+  "(YYYY-MM-DD) from today's date, and return state 'stated' with a verbatim quote of that phrase " +
+  "as evidence. If the guest explicitly says they have not decided or not confirmed a date yet " +
+  "(e.g. 'chưa chốt ngày', 'not sure yet', 'haven't decided'), or only gives a vague range too " +
+  "wide to pin to one day (e.g. 'end of this month', 'cuối tháng này', 'sometime next month'), " +
+  "that is 'missing' — do not invent a specific day for a vague range, even one that sounds " +
+  "plausible. Only use 'inferred' if a specific day is implied with no expressible phrase at all, " +
+  "and 'missing' if there is truly no timing information. Never invent a date the guest has not " +
+  "actually pinned down.";
+
+const CHECKIN_SCHEMA = {
+  type: "object",
+  properties: {
+    value: { type: "string" },
+    state: { type: "string", enum: ["stated", "inferred", "missing"] },
+    evidence: { type: "string" },
+  },
+  required: ["value", "state", "evidence"],
+};
+
 export function createGeminiProvider(apiKey: string, model = process.env.GEMINI_MODEL ?? "gemini-2.5-flash"): ExtractProvider {
   return {
     id: "google:" + model,
@@ -91,6 +120,38 @@ export function createGeminiProvider(apiKey: string, model = process.env.GEMINI_
         const state: GuestsReadResult["state"] = parsed.state === "stated" || parsed.state === "inferred" ? parsed.state : "missing";
         return {
           value: state === "missing" ? null : (typeof parsed.value === "number" ? parsed.value : null),
+          state,
+          evidence: state === "stated" && typeof parsed.evidence === "string" && parsed.evidence.length > 0 ? parsed.evidence : null,
+          tokensIn: usage.promptTokenCount ?? 0,
+          tokensOut: usage.candidatesTokenCount ?? 0,
+          ms: Date.now() - started,
+        };
+      } finally {
+        clearTimeout(timer);
+      }
+    },
+    async extractCheckIn(text: string, today: string): Promise<CheckInReadResult> {
+      const started = Date.now();
+      const controller = new AbortController();
+      const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
+      try {
+        const res = await fetch(`${API_BASE}/${model}:generateContent?key=${apiKey}`, {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          signal: controller.signal,
+          body: JSON.stringify({
+            systemInstruction: { parts: [{ text: CHECKIN_ONLY_PROMPT }] },
+            contents: [{ role: "user", parts: [{ text: `Today's date (Asia/Manila): ${today}\n\nGuest message:\n${text}` }] }],
+            generationConfig: { responseMimeType: "application/json", responseSchema: CHECKIN_SCHEMA },
+          }),
+        });
+        if (!res.ok) throw new Error(`Gemini extractCheckIn failed: ${res.status} ${await res.text()}`);
+        const body = await res.json();
+        const usage = body.usageMetadata ?? {};
+        const parsed = JSON.parse(body.candidates?.[0]?.content?.parts?.[0]?.text ?? "{}");
+        const state: CheckInReadResult["state"] = parsed.state === "stated" || parsed.state === "inferred" ? parsed.state : "missing";
+        return {
+          value: state === "missing" ? null : (typeof parsed.value === "string" ? parsed.value : null),
           state,
           evidence: state === "stated" && typeof parsed.evidence === "string" && parsed.evidence.length > 0 ? parsed.evidence : null,
           tokensIn: usage.promptTokenCount ?? 0,
