@@ -57,6 +57,14 @@ export async function extract(rawText: string, provider: ExtractProvider): Promi
   // maskForLogging is for whatever calls this and logs `text` — not applied here.
   void maskForLogging;
 
+  // Isolated guests pass (2026-09-21, ADR-005a), started now so it runs in
+  // parallel with the main call below rather than adding latency after it.
+  // A provider without extractGuests, or a call that throws, just means no
+  // override later — never a hard failure over this safety net.
+  const guestsPromise: Promise<Awaited<ReturnType<NonNullable<ExtractProvider["extractGuests"]>>> | null> = provider.extractGuests
+    ? provider.extractGuests(text).catch(() => null)
+    : Promise.resolve(null);
+
   type Attempt = { parsed: TripType; result: Awaited<ReturnType<ExtractProvider["call"]>> };
 
   const attempt = async (retry?: { previousRaw: unknown; error: string }): Promise<Attempt> => {
@@ -99,6 +107,30 @@ export async function extract(rawText: string, provider: ExtractProvider): Promi
     }
   }
 
+  // Apply the isolated guests pass as a safety net only: it fills in a gap
+  // (main pass came back 'missing') rather than overriding an answer the
+  // main pass already committed to — the dedicated call has only been
+  // verified against the case it was built for, not the full eval suite,
+  // so it should not get to overrule a pass that already succeeded.
+  // 'stated' still goes through the same verbatim-evidence check every
+  // other 'stated' claim does, against the guest's own words only.
+  const guestsRead = await guestsPromise;
+  let guestsTokensIn = 0;
+  let guestsTokensOut = 0;
+  let guestsMs = 0;
+  if (guestsRead) {
+    guestsTokensIn = guestsRead.tokensIn;
+    guestsTokensOut = guestsRead.tokensOut;
+    guestsMs = guestsRead.ms;
+    if (outcome.parsed.guests.state === "missing" && guestsRead.state !== "missing" && typeof guestsRead.value === "number") {
+      const guestText = guestTextOf(text).toLowerCase();
+      const evidenceOk = guestsRead.state !== "stated" || (!!guestsRead.evidence && guestText.includes(guestsRead.evidence.toLowerCase()));
+      if (evidenceOk) {
+        outcome.parsed.guests = { value: guestsRead.value, state: guestsRead.state, evidence: guestsRead.state === "stated" ? guestsRead.evidence : null };
+      }
+    }
+  }
+
   const questions = generateQuestions(outcome.parsed);
 
   return {
@@ -106,10 +138,10 @@ export async function extract(rawText: string, provider: ExtractProvider): Promi
     questions,
     meta: {
       provider: provider.id,
-      tokensIn: outcome.result.tokensIn,
-      tokensOut: outcome.result.tokensOut,
+      tokensIn: outcome.result.tokensIn + guestsTokensIn,
+      tokensOut: outcome.result.tokensOut + guestsTokensOut,
       cacheReadTokens: outcome.result.cacheReadTokens,
-      ms: outcome.result.ms,
+      ms: Math.max(outcome.result.ms, guestsMs), // ran in parallel, not sequentially
       retried,
     },
   };

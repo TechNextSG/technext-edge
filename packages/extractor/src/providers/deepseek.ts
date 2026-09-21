@@ -5,7 +5,7 @@
 // on DeepSeek's own infrastructure (data residency in the PRC — this is what
 // disqualified DeepSeek at Gate A), and the gateway itself logs every prompt
 // and response to the team's spend dashboard.
-import type { ExtractCall, ExtractProvider, ExtractResult } from "../provider.js";
+import type { ExtractCall, ExtractProvider, ExtractResult, GuestsReadResult } from "../provider.js";
 
 const GATEWAY_BASE_URL = "https://litellm-production-7402.up.railway.app/v1";
 const TOOL_NAME = "extract_trip";
@@ -41,12 +41,75 @@ function toDeepSeekSchema(node: unknown): unknown {
 // schema-enforced tool calling, so a single forced tool call gets the same
 // guarantee (the API rejects/repairs non-conforming arguments server-side)
 // for a fraction of the input tokens — no schema text in the prompt at all.
+// Isolated guests-only prompt/schema (2026-09-21, ADR-005a) — same prompt
+// intent as gemini.ts's GUESTS_ONLY_PROMPT, kept in sync with it. Via forced
+// tool-calling since DeepSeek has no schema-constrained plain generation.
+const GUESTS_ONLY_PROMPT =
+  "You extract ONE fact from a dive-resort guest's message: the total number of guests staying. " +
+  "Work in two steps. Step 1: find the single clause that states a total or sum of people staying, " +
+  "and use that number — when adults and children are specified (e.g. '2 adults and 2 kids'), the " +
+  "total is their sum. When a message mentions both a party/group size and a different, smaller " +
+  "number of people actually staying (e.g. 'group of 6 but only 3 are staying'), the smaller staying " +
+  "number is the total, not the group size. Step 2: ignore every other detail about one specific " +
+  "person — their age, name, or whether they personally are diving — it never changes the total " +
+  "found in step 1. Call record_guests with state 'stated' and a verbatim quote as evidence when " +
+  "step 1 found a clear total, 'inferred' if implied but not stated outright, or 'missing' if the " +
+  "message gives no way to determine how many are staying. Never invent a number.";
+
+const GUESTS_TOOL_SCHEMA = {
+  type: "object",
+  properties: {
+    value: { type: "number" },
+    state: { type: "string", enum: ["stated", "inferred", "missing"] },
+    evidence: { type: "string" },
+  },
+  required: ["value", "state", "evidence"],
+};
+
 export function createDeepSeekProvider(
   apiKey: string,
   model: "deepseek-flash" | "deepseek-pro" = (process.env.DEEPSEEK_MODEL as "deepseek-flash" | "deepseek-pro") ?? "deepseek-flash",
 ): ExtractProvider {
   return {
     id: "deepseek-gateway:" + model,
+    async extractGuests(text: string): Promise<GuestsReadResult> {
+      const started = Date.now();
+      const controller = new AbortController();
+      const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
+      try {
+        const res = await fetch(`${GATEWAY_BASE_URL}/chat/completions`, {
+          method: "POST",
+          headers: { "content-type": "application/json", authorization: `Bearer ${apiKey}` },
+          signal: controller.signal,
+          body: JSON.stringify({
+            model,
+            thinking: { type: "disabled" },
+            messages: [
+              { role: "system", content: GUESTS_ONLY_PROMPT },
+              { role: "user", content: `Guest message:\n${text}` },
+            ],
+            tools: [{ type: "function", function: { name: "record_guests", description: "Record the total guest count.", parameters: GUESTS_TOOL_SCHEMA } }],
+            tool_choice: { type: "function", function: { name: "record_guests" } },
+          }),
+        });
+        if (!res.ok) throw new Error(`DeepSeek extractGuests failed: ${res.status} ${await res.text()}`);
+        const body = await res.json();
+        const usage = body.usage ?? {};
+        const args = body.choices?.[0]?.message?.tool_calls?.[0]?.function?.arguments ?? "{}";
+        const parsed = JSON.parse(args);
+        const state: GuestsReadResult["state"] = parsed.state === "stated" || parsed.state === "inferred" ? parsed.state : "missing";
+        return {
+          value: state === "missing" ? null : (typeof parsed.value === "number" ? parsed.value : null),
+          state,
+          evidence: state === "stated" && typeof parsed.evidence === "string" && parsed.evidence.length > 0 ? parsed.evidence : null,
+          tokensIn: usage.prompt_tokens ?? 0,
+          tokensOut: usage.completion_tokens ?? 0,
+          ms: Date.now() - started,
+        };
+      } finally {
+        clearTimeout(timer);
+      }
+    },
     async call({ text, jsonSchema, today, retry }: ExtractCall): Promise<ExtractResult> {
       const started = Date.now();
       const systemPrompt =
