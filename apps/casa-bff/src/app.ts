@@ -34,7 +34,7 @@ import {
   getDiagramViewerHtml,
   getDiagramViHtml,
 } from "./reportsHtml.js";
-import { createConversationStoreFromEnv, createInMemoryConversationStore, type ConversationStore } from "./conversationStore.js";
+import { createConversationStoreFromEnv, type ConversationStore } from "./conversationStore.js";
 import {
   checkSenderCredentials,
   createWhatsAppSender,

@@ -25,7 +25,6 @@ interface StoredClaim {
 
 export function createRedisConversationStore(config: RedisConfig, ttlMs = THREAD_TTL_MS): ConversationStore {
   const ttlSeconds = Math.ceil(ttlMs / 1000);
-  const inFlightSeconds = Math.ceil(IN_FLIGHT_CLAIM_TTL_MS / 1000);
 
   // In-process phone mutex so overlapping requests within the same container execute sequentially
   const phoneLocks = new Map<string, Promise<void>>();
