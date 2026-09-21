@@ -379,3 +379,67 @@ already failed once on the simpler case). Worth a dedicated eval case
 (a `stated` guest count followed by an ambiguous addendum, in a second
 turn) once there is time to design one properly — not added tonight to
 avoid rushing eval-dataset changes right before the demo.
+
+## Update 2026-09-21: a third trigger (long email), and proof the model itself is not the bottleneck
+
+**Third independent real-world trigger, same failure class.** Tested a long,
+realistic multi-paragraph booking email (not a short chat message) against
+production `/v1/extract`. The email states *"We are a group of five in
+total: myself, my husband, and our three children (two teenagers and one
+who is only 6 years old, so she won't be diving with us...)"* — an
+unambiguous total, no split between staying/visiting. `guests` still came
+back `missing`. Same email also lost `diveTo` (stated "October 16th and
+17th", only the 16th was captured). Reproduced identically on real WhatsApp
+(sandbox), not just via the API. Three independent triggers now confirmed
+for the same weakness: bare group-vs-staying counts (`en-06`..`en-09`), a
+follow-up question about an added person/baby, and a family booking email
+that mentions children's ages/diving eligibility near the guest total. The
+common thread: any second signal that touches "how many people" or "who
+counts," even when not actually in conflict with the stated total, risks
+the model discarding `guests` back to `missing`.
+
+**Diagnostic: is this the model's limitation, or ours?** Called Gemini
+directly (same model, `gemini-3.1-flash-lite`, same API key) with the
+Jennifer email and a plain unconstrained question — no JSON schema, no
+`stated/inferred/missing` framework, no verbatim-evidence requirement, just
+*"how many total guests are in this booking?"* — and got a correct, instant
+**"5"**, no hesitation.
+
+**Conclusion: the model's reading comprehension is not the bottleneck.**
+The failure is induced by this pipeline's own extraction contract — the
+requirement that every field be classified into one of three states with
+verbatim evidence for `stated`, evaluated inside a long, multi-rule system
+prompt covering dates/transport/diver/guests all at once. Under that
+constraint, the model appears to become more conservative around a
+nested/complex sentence than it is when simply asked to answer a direct
+question in free text — plausibly because reconciling "5 in total" against
+"one won't be diving" *inside a rigid classification task* reads as an
+inconsistency worth flagging as `missing`, where the same content read as
+a plain comprehension question does not require that reconciliation at
+all.
+
+**Answering the standing question this raises for the project's direction:**
+this is not evidence that structuring the model's output was a mistake.
+The zero-fabrication contract exists for a reason no free-form answer can
+give: a verifiable, machine-checkable claim about *why* the model believes
+something (verbatim evidence), a field-by-field confidence level the
+pipeline's own code can act on deterministically (ask vs. default vs.
+trust), and a guarantee — enforced in code, not just prompted for — that a
+guessed value can never reach a guest or an estimate silently. A free-form
+"5" has none of that: it cannot be traced, corroborated, or defaulted, and
+a wrong free-form answer looks identical to a right one. Losing that would
+be the real regression.
+
+What this finding does show: the *specific shape* of today's contract (one
+long multi-field system prompt, one classification pass, evidence required
+up front) has a real, now three-times-confirmed blind spot on nested
+guest-count phrasing. The fix belongs at the contract-design level, not by
+discarding the contract — candidates worth trying later (not attempted
+tonight, pre-demo freeze in effect): a two-pass approach (a plain
+comprehension read first, then a second pass that maps the model's own
+free-form understanding into the strict schema with evidence), splitting
+the single do-everything system prompt into smaller per-field passes, or a
+few-shot example built from exactly this email shape. None of these are a
+step back from structured extraction — they are ways to get the model's
+demonstrated comprehension *through* the same verifiable contract instead
+of working around it.
