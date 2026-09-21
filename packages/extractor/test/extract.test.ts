@@ -182,6 +182,19 @@ describe("extract", () => {
     expect(outcome.trip.diveTo?.state).toBe("missing");
   });
 
+  it("derives transportType as an assumption and asks the guest when transfer is requested without specifying type", async () => {
+    const raw = {
+      ...HAPPY_RAW,
+      transport: { value: true, state: "stated", evidence: "need airport transfer" },
+      transportType: { value: null, state: "missing", evidence: null },
+    };
+    const outcome = await extract("We need airport transfer", fakeProvider(raw));
+    expect(outcome.trip.transport?.value).toBe(true);
+    expect(outcome.trip.transportType?.state).toBe("derived");
+    expect(outcome.trip.transportType?.value).toBe("roundtrip");
+    expect(outcome.questions.map((q) => q.field)).toContain("transportType");
+  });
+
   // The live WhatsApp run of 2026-09-19 that sent the team looking: the same guest
   // message produced "Would you like to go diving during your stay?" on one turn and
   // no diving question at all on the next, because the provider returned `diver` on

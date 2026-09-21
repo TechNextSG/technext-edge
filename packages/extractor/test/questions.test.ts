@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { converse } from "../src/converse.js";
-import { fallbackReply, generateQuestions, wantsHuman } from "../src/questions.js";
+import { fallbackReply, generateQuestions, renderReply, wantsHuman } from "../src/questions.js";
 import type { ConversationTurn } from "../src/converse.js";
 import type { ExtractProvider } from "../src/provider.js";
 import type { Trip } from "../src/schema.js";
@@ -205,6 +205,24 @@ describe("the reply the guest gets back", () => {
     expect(outcome.reply).not.toContain("Guest type:");
     // And the bot never confirms what only a human can confirm.
     expect(outcome.reply).toMatch(/nothing is booked yet/);
+  });
+
+  it("flags derived return trip as assumed in summary when transport was stated but transportType was derived", () => {
+    const trip = {
+      language: { value: "en" as const, state: "default" as const, evidence: null },
+      checkIn: { value: "2026-09-26", state: "stated" as const, evidence: "next Saturday" },
+      checkOut: { value: "2026-09-29", state: "derived" as const, evidence: null },
+      nights: { value: 3, state: "stated" as const, evidence: "3 nights" },
+      guests: { value: 2, state: "stated" as const, evidence: "2 of us" },
+      rooms: { value: 1, state: "default" as const, evidence: null },
+      meals: { value: "full_board" as const, state: "default" as const, evidence: null },
+      transport: { value: true, state: "stated" as const, evidence: "need pickup" },
+      transportType: { value: "roundtrip" as const, state: "derived" as const, evidence: null },
+      diver: { value: false, state: "stated" as const, evidence: "no diving" },
+      contactName: { value: "Nhat", state: "stated" as const, evidence: "Nhat" },
+    };
+    const reply = renderReply(trip, []);
+    expect(reply.text).toContain("• Airport transfer: yes · return trip (assumed)");
   });
 
   it("summarizes in the guest's own language, dates and all", async () => {

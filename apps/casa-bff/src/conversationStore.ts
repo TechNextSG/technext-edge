@@ -5,24 +5,40 @@
 // name) and the guest is asked to start over. This is the same reason the test
 // console sends its own `history` field instead of a bare `message`.
 import type { ConversationTurn } from "../../../packages/extractor/src/index.js";
+import { randomUUID } from "node:crypto";
+import { createRedisConversationStore } from "./redisStore.js";
+
+export interface ClaimResult {
+  claimed: boolean;
+  fenceToken: string;
+}
 
 export interface ConversationStore {
   history(phone: string): Promise<ConversationTurn[]>;
   append(phone: string, ...turns: ConversationTurn[]): Promise<void>;
+
   /**
-   * Returns true the first time a given provider message id is seen. Meta's
-   * webhook is at-least-once: it redelivers whenever our ack is slow or
-   * non-2xx, so without this claim the guest gets the same reply twice.
+   * Claims a message id with an in-flight timeout (default 60s) and returns a unique fenceToken.
+   * If already marked done (24h) or currently in-flight, returns claimed: false.
    */
-  claimMessage(messageId: string): Promise<boolean>;
+  claimMessage(messageId: string, inFlightMs?: number): Promise<ClaimResult>;
+
   /**
-   * Gives a claim back after a turn failed — but only while nothing was sent
-   * (see the call site in app.ts). Without this a stalled turn keeps the id
-   * forever, and Meta's redelivery of that same message is answered
-   * `duplicates: 1`: no reply, no status webhook, and a guest waiting for an
-   * answer that already decided not to come.
+   * Releases an in-flight claim if the fenceToken matches (or if omitted for cleanup).
+   * Allows retries if the turn failed before sending any reply.
    */
-  releaseMessage(messageId: string): Promise<void>;
+  releaseMessage(messageId: string, fenceToken?: string): Promise<void>;
+
+  /**
+   * Marks a message as permanently completed (24h TTL) once an answer or apology has been sent.
+   */
+  markDone(messageId: string, fenceToken?: string): Promise<void>;
+
+  /**
+   * Executes an async operation with a mutex lock for a specific phone number.
+   * Prevents concurrent webhook executions for the same guest from clobbering each other.
+   */
+  withPhoneLock<T>(phone: string, op: () => Promise<T>): Promise<T>;
 
   /**
    * Parks the thread for a human. While it is parked no model is called at all:
@@ -74,18 +90,22 @@ export const MAX_TURNS = 20;
 // cannot be answered at all, so holding it costs nothing.
 export const THREAD_TTL_MS = 24 * 60 * 60 * 1000;
 
-/**
- * POC/dev implementation, NOT sufficient for the deployed BFF: api/index.ts
- * runs as a Vercel Node function, where consecutive deliveries are not
- * guaranteed to land on the same instance (and every deploy starts cold), so a
- * Map here means "sometimes the bot forgets the conversation mid-enquiry".
- * Production needs this same interface backed by Redis / Key Value — documented
- * as an open item in docs/01-team-guide.md §6, with no ADR yet.
- */
+// In-flight claim timeout: if a serverless worker crashes or is terminated midway
+// before completing or releasing, the claim expires after 60s so Meta's subsequent
+// redelivery can retry instead of being blocked for 24h.
+export const IN_FLIGHT_CLAIM_TTL_MS = 60_000;
+
+interface InternalClaimEntry {
+  state: "in_flight" | "done";
+  fenceToken: string;
+  expiresAt: number;
+}
+
 export function createInMemoryConversationStore(ttlMs = THREAD_TTL_MS): ConversationStore {
   const threads = new Map<string, { turns: ConversationTurn[]; expiresAt: number }>();
-  const claimed = new Map<string, number>();
+  const claimed = new Map<string, InternalClaimEntry>();
   const parkedThreads = new Map<string, PausedThread & { expiresAt: number }>();
+  const phoneLocks = new Map<string, Promise<void>>();
 
   // Expiry is enforced lazily on access instead of with an interval: a
   // background timer would keep a serverless instance alive and leak into
@@ -93,7 +113,7 @@ export function createInMemoryConversationStore(ttlMs = THREAD_TTL_MS): Conversa
   function sweep(): void {
     const now = Date.now();
     for (const [phone, entry] of threads) if (entry.expiresAt <= now) threads.delete(phone);
-    for (const [id, expiresAt] of claimed) if (expiresAt <= now) claimed.delete(id);
+    for (const [id, entry] of claimed) if (entry.expiresAt <= now) claimed.delete(id);
     for (const [phone, entry] of parkedThreads) if (entry.expiresAt <= now) parkedThreads.delete(phone);
   }
 
@@ -130,8 +150,6 @@ export function createInMemoryConversationStore(ttlMs = THREAD_TTL_MS): Conversa
   return {
     async history(phone) {
       sweep();
-      // A copy: callers hand this straight to converse(), and a shared array
-      // reference would let a later append mutate a transcript already in use.
       return [...(live(phone)?.turns ?? [])];
     },
 
@@ -143,18 +161,74 @@ export function createInMemoryConversationStore(ttlMs = THREAD_TTL_MS): Conversa
       threads.set(phone, entry);
     },
 
-    async claimMessage(messageId) {
+    async claimMessage(messageId, inFlightMs = IN_FLIGHT_CLAIM_TTL_MS): Promise<ClaimResult> {
       sweep();
-      if (claimed.has(messageId)) return false;
-      claimed.set(messageId, Date.now() + ttlMs);
-      return true;
+      const now = Date.now();
+      const existing = claimed.get(messageId);
+
+      if (existing) {
+        if (existing.state === "done") {
+          return { claimed: false, fenceToken: existing.fenceToken };
+        }
+        if (existing.state === "in_flight" && existing.expiresAt > now) {
+          return { claimed: false, fenceToken: existing.fenceToken };
+        }
+      }
+
+      const fenceToken = randomUUID();
+      claimed.set(messageId, {
+        state: "in_flight",
+        fenceToken,
+        expiresAt: now + inFlightMs,
+      });
+      return { claimed: true, fenceToken };
     },
 
-    async releaseMessage(messageId) {
+    async releaseMessage(messageId, fenceToken) {
       sweep();
-      // Deleting an id nobody claimed is deliberately a no-op: releasing is a
-      // best-effort cleanup on the failure path and must never throw there.
-      claimed.delete(messageId);
+      const existing = claimed.get(messageId);
+      if (!existing) return;
+      if (existing.state === "in_flight") {
+        if (!fenceToken || existing.fenceToken === fenceToken) {
+          claimed.delete(messageId);
+        }
+      }
+    },
+
+    async markDone(messageId, fenceToken) {
+      sweep();
+      const existing = claimed.get(messageId);
+      if (!existing) {
+        claimed.set(messageId, {
+          state: "done",
+          fenceToken: fenceToken ?? randomUUID(),
+          expiresAt: Date.now() + ttlMs,
+        });
+        return;
+      }
+      if (!fenceToken || existing.fenceToken === fenceToken) {
+        existing.state = "done";
+        existing.expiresAt = Date.now() + ttlMs;
+      }
+    },
+
+    async withPhoneLock<T>(phone: string, op: () => Promise<T>): Promise<T> {
+      const current = phoneLocks.get(phone) ?? Promise.resolve();
+      let release!: () => void;
+      const next = new Promise<void>((resolve) => {
+        release = resolve;
+      });
+      phoneLocks.set(phone, next);
+
+      try {
+        await current;
+        return await op();
+      } finally {
+        release();
+        if (phoneLocks.get(phone) === next) {
+          phoneLocks.delete(phone);
+        }
+      }
     },
 
     async pause(phone, reason) {
@@ -163,13 +237,7 @@ export function createInMemoryConversationStore(ttlMs = THREAD_TTL_MS): Conversa
       parkedThreads.set(phone, {
         phone,
         reason,
-        // `since` is when a person was first needed, so re-parking an already
-        // parked thread (a guest asking for a human twice) does not reset the
-        // clock the reception view sorts by.
         since: existing?.since ?? Date.now(),
-        // Nobody has been told yet: the caller says so with markTold() once the
-        // holding message is actually on its way. Assuming it here would leave a
-        // guest who never received it waiting in silence.
         toldAt: existing?.toldAt ?? 0,
         expiresAt: Date.now() + ttlMs,
       });
@@ -194,8 +262,6 @@ export function createInMemoryConversationStore(ttlMs = THREAD_TTL_MS): Conversa
 
     async pausedThreads() {
       sweep();
-      // Oldest first: the enquiry that has been waiting longest is the one a
-      // person should pick up.
       return [...parkedThreads.values()].sort((a, b) => a.since - b.since).map(publicPause);
     },
 
@@ -209,9 +275,23 @@ export function createInMemoryConversationStore(ttlMs = THREAD_TTL_MS): Conversa
     async markTold(phone) {
       sweep();
       const entry = livePause(phone);
-      // A thread resumed (or expired) between the send and this call has nothing
-      // to record, and inventing an entry here would park a thread nobody parked.
       if (entry) entry.toldAt = Date.now();
     },
   };
+}
+
+/**
+ * Creates conversation store based on environment configuration:
+ * Uses Redis REST store if KV_REST_API_URL / UPSTASH_REDIS_REST_URL is configured,
+ * otherwise falls back to the in-memory store.
+ */
+export function createConversationStoreFromEnv(): ConversationStore {
+  const kvUrl = process.env.KV_REST_API_URL || process.env.UPSTASH_REDIS_REST_URL;
+  const kvToken = process.env.KV_REST_API_TOKEN || process.env.UPSTASH_REDIS_REST_TOKEN;
+
+  if (kvUrl && kvToken) {
+    return createRedisConversationStore({ url: kvUrl, token: kvToken });
+  }
+
+  return createInMemoryConversationStore();
 }

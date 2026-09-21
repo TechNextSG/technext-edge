@@ -81,6 +81,34 @@ function textEvent(id: string, text: string, from = GUEST): string {
   });
 }
 
+function textBatchEvent(messages: Array<{ id: string; text: string }>, from = GUEST): string {
+  return JSON.stringify({
+    object: "whatsapp_business_account",
+    entry: [
+      {
+        id: "WABA_ID",
+        changes: [
+          {
+            field: "messages",
+            value: {
+              messaging_product: "whatsapp",
+              metadata: { display_phone_number: "15551234567", phone_number_id: "PHONE_ID" },
+              contacts: [{ profile: { name: "Minh" }, wa_id: from }],
+              messages: messages.map((m) => ({
+                from,
+                id: m.id,
+                timestamp: "1789700000",
+                type: "text",
+                text: { body: m.text },
+              })),
+            },
+          },
+        ],
+      },
+    ],
+  });
+}
+
 type App = ReturnType<typeof createApp>;
 
 function post(app: App, body: string, signature = sign(body)) {
@@ -334,6 +362,54 @@ describe("WhatsApp webhook (Meta Cloud API)", () => {
     expect(await res.json()).toEqual({ received: 1, replied: 0, duplicates: 1, failed: 0, handoffs: 0 });
     expect(provider.call).toHaveBeenCalledTimes(1);
     expect(sent).toHaveLength(1);
+  });
+
+  it("processes concurrent messages from the same phone sequentially without race conditions", async () => {
+    const provider = providerReturning(PARTIAL_RAW);
+    const store = createInMemoryConversationStore();
+    const { app, sent } = harness(provider, store);
+
+    // Two messages from the same phone sent sequentially
+    const res1 = await post(app, textEvent("wamid.1", FIRST_TEXT));
+    const res2 = await post(app, textEvent("wamid.2", "2 guests"));
+
+    expect((await res1.json()).replied).toBe(1);
+    expect((await res2.json()).replied).toBe(1);
+    expect(sent).toHaveLength(2);
+
+    const history = await store.history(GUEST);
+    expect(history).toHaveLength(4);
+    expect(history[0].role).toBe("guest");
+    expect(history[0].text).toBe(FIRST_TEXT);
+    expect(history[1].role).toBe("assistant");
+    expect(history[2].role).toBe("guest");
+    expect(history[2].text).toBe("2 guests");
+    expect(history[3].role).toBe("assistant");
+  });
+
+  it("coalesces multiple rapid messages in the same delivery batch into a single model call", async () => {
+    const provider = providerReturning(PARTIAL_RAW);
+    const store = createInMemoryConversationStore();
+    const { app, sent } = harness(provider, store);
+
+    const body = textBatchEvent([
+      { id: "wamid.A", text: "Hi Casa Escondida" },
+      { id: "wamid.B", text: "We are 2 guests for 3 nights" },
+    ]);
+
+    const res = await post(app, body);
+    expect(res.status).toBe(200);
+    expect(await res.json()).toEqual({ received: 2, replied: 1, duplicates: 0, failed: 0, handoffs: 0 });
+
+    // Exactly ONE model call is made with the combined text!
+    expect(provider.call).toHaveBeenCalledTimes(1);
+    expect(sent).toHaveLength(1);
+
+    const history = await store.history(GUEST);
+    expect(history).toHaveLength(2);
+    expect(history[0].role).toBe("guest");
+    expect(history[0].text).toBe("Hi Casa Escondida\nWe are 2 guests for 3 nights");
+    expect(history[1].role).toBe("assistant");
   });
 
   it("clears transcript and unparks thread when guest sends a reset command", async () => {

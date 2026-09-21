@@ -34,7 +34,7 @@ import {
   getDiagramViewerHtml,
   getDiagramViHtml,
 } from "./reportsHtml.js";
-import { createInMemoryConversationStore, type ConversationStore } from "./conversationStore.js";
+import { createConversationStoreFromEnv, createInMemoryConversationStore, type ConversationStore } from "./conversationStore.js";
 import {
   checkSenderCredentials,
   createWhatsAppSender,
@@ -42,6 +42,7 @@ import {
   sameSecret,
   verifySignature,
   whatsAppConfig,
+  type InboundTextMessage,
   type WhatsAppSendText,
 } from "./whatsapp.js";
 
@@ -168,7 +169,7 @@ export function createApp(options: AppOptions = {}) {
   const app = new Hono();
   // Per-app, so a warm serverless instance keeps the thread; see the caveat in
   // conversationStore.ts on why this is a POC store and not the real one.
-  const store = options.store ?? createInMemoryConversationStore();
+  const store = options.store ?? createConversationStoreFromEnv();
 
   app.post("/v1/extract", async (c) => {
     const body = await c.req.json().catch(() => null);
@@ -301,139 +302,160 @@ export function createApp(options: AppOptions = {}) {
     // whether the guest got an answer or a holding message.
     let handoffs = 0;
 
+    const claimedInbound: Array<{ message: InboundTextMessage; fenceToken: string }> = [];
+
     for (const message of inbound) {
-      if (!(await store.claimMessage(message.id))) {
+      const claim = await store.claimMessage(message.id);
+      if (!claim.claimed) {
         duplicates++;
         continue;
       }
+      claimedInbound.push({ message, fenceToken: claim.fenceToken });
+    }
 
-      // Meta waits only a moment for our 200 before it treats a delivery as
-      // unanswered and redelivers the same message (measured 2026-09-18:
-      // delivered 15:33:38, redelivered 15:34:01). On that first delivery the
-      // turn never returned at all, so the redelivery was answered
-      // `duplicates: 1` and the guest got nothing, silently. Hence one turn, one
-      // deadline: past it the claim goes back, so the redelivery can answer for
-      // real instead of being swallowed.
-      let expired = false;
-      // Set as the reply starts leaving. From then on the claim has to stay
-      // taken, because redelivery during an in-flight send would reply twice.
-      let sending = false;
-      let timer: ReturnType<typeof setTimeout> | undefined;
-      const deadline = new Promise<never>((_, reject) => {
-        timer = setTimeout(() => {
-          expired = true;
-          reject(new Error(`WhatsApp turn exceeded ${config.turnTimeoutMs}ms`));
-        }, config.turnTimeoutMs);
-      });
+    // Group inbound messages by sender phone so multiple rapid messages in the same
+    // webhook delivery coalesce into a single turn and a single model call.
+    const byPhone = new Map<string, Array<{ message: InboundTextMessage; fenceToken: string }>>();
+    for (const item of claimedInbound) {
+      const list = byPhone.get(item.message.from) ?? [];
+      list.push(item);
+      byPhone.set(item.message.from, list);
+    }
 
-      try {
-        const turn = (async () => {
-          if (isResetCommand(message.text)) {
-            await store.clear(message.from);
-            const language = detectLanguage(message.text);
-            const text = RESET_REPLY[language] ?? RESET_REPLY.en;
-            sending = true;
-            await send({ to: message.from, body: text });
-            replied++;
-            return;
+    for (const [phone, batch] of byPhone) {
+      await store.withPhoneLock(phone, async () => {
+        const combinedText = batch.map((b) => b.message.text).join("\n");
+        const batchIds = batch.map((b) => b.message.id);
+        const batchTokens = batch.map((b) => b.fenceToken);
+
+        const markAllDone = async () => {
+          for (let i = 0; i < batchIds.length; i++) {
+            await store.markDone(batchIds[i], batchTokens[i]);
           }
+        };
 
-          await store.append(message.from, { role: "guest", text: message.text });
-          const history = await store.history(message.from);
-          const language = guestLanguage(history);
-
-          // Both handoff flags are read *before* anything expensive is spent. A
-          // thread a person already owns — or one the guest has just asked a
-          // person for — gets a static holding reply and no model call at all: a
-          // model answering here would be talking over the human.
-          const parked = await store.paused(message.from);
-          if (parked || wantsHuman(message.text)) {
-            // Parked and told a moment ago (HOLD_REPEAT_MS): nothing is repeated
-            // at every "ok" the guest types. Not silence either — they were told
-            // a person is on it, and that is still true.
-            if (parked && !(await store.needsTelling(message.from, HOLD_REPEAT_MS))) return;
-            const text = fallbackReply("handoff", language);
-            await store.pause(message.from, parked?.reason ?? "guest_asked_for_human");
-            await store.append(message.from, { role: "assistant", text });
-            sending = true;
-            await send({ to: message.from, body: text });
-            await store.markTold(message.from);
-            replied++;
-            handoffs++;
-            return;
+        const releaseAll = async () => {
+          for (let i = 0; i < batchIds.length; i++) {
+            await store.releaseMessage(batchIds[i], batchTokens[i]);
           }
+        };
 
-          // The same call the test console makes: full history in, one reply out.
-          const outcome = await converse(history, model);
-          // Abandoned while the provider was still thinking: Meta already has its
-          // answer for this wamid, so stop here rather than appending and sending
-          // behind the redelivery's back. This is what keeps "one guest message,
-          // at most one reply" true even when the deadline fires mid-turn.
-          if (expired) return;
-
-          // Asking has stopped being progress: the guest is stuck, or the
-          // extractor is, and one more round of the same questions is where an
-          // enquiry dies. A person now is worth more than a ninth question.
-          if (!outcome.done && assistantTurns(history) >= ASK_LIMIT) {
-            const text = fallbackReply("handoff", language);
-            await store.pause(message.from, "asking_limit");
-            await store.append(message.from, { role: "assistant", text });
-            sending = true;
-            await send({ to: message.from, body: text });
-            await store.markTold(message.from);
-            replied++;
-            handoffs++;
-            return;
-          }
-
-          await store.append(message.from, { role: "assistant", text: outcome.reply });
-          sending = true;
-          await send({ to: message.from, body: outcome.reply });
-          replied++;
-        })();
+        let expired = false;
+        let sending = false;
+        let timer: ReturnType<typeof setTimeout> | undefined;
+        const deadline = new Promise<never>((_, reject) => {
+          timer = setTimeout(() => {
+            expired = true;
+            reject(new Error(`WhatsApp turn exceeded ${config.turnTimeoutMs}ms`));
+          }, config.turnTimeoutMs);
+        });
 
         try {
-          await Promise.race([turn, deadline]);
-        } finally {
-          // Cleared on both paths — a `finally` block rather than
-          // `Promise.prototype.finally`, which the deployment build's TypeScript
-          // does not have in its lib (Vercel type-checks without this repo's
-          // tsconfig). A live timer would otherwise keep a serverless instance
-          // awake, and a test process open, long after the turn is done with.
-          clearTimeout(timer);
-        }
-      } catch (err) {
-        failed++;
-        // A guest who has heard nothing cannot tell "busy" from "broken", and has
-        // no reason to write again — so this path speaks instead of only logging:
-        // a static apology, the thread parked for a person, and a line in the
-        // handoff view. That silence is the failure this release exists to end.
-        let apologized = false;
-        if (!sending) {
-          try {
-            const text = fallbackReply("apology", guestLanguage(await store.history(message.from)));
-            await store.pause(message.from, "turn_failed");
-            await store.append(message.from, { role: "assistant", text });
-            await send({ to: message.from, body: text });
-            await store.markTold(message.from);
-            apologized = true;
+          const turn = (async () => {
+            if (isResetCommand(combinedText)) {
+              await store.clear(phone);
+              const language = detectLanguage(combinedText);
+              const text = RESET_REPLY[language] ?? RESET_REPLY.en;
+              sending = true;
+              await send({ to: phone, body: text });
+              replied++;
+              await markAllDone();
+              return;
+            }
+
+            await store.append(phone, { role: "guest", text: combinedText });
+            const history = await store.history(phone);
+            const language = guestLanguage(history);
+
+            // Both handoff flags are read *before* anything expensive is spent. A
+            // thread a person already owns — or one the guest has just asked a
+            // person for — gets a static holding reply and no model call at all: a
+            // model answering here would be talking over the human.
+            const parked = await store.paused(phone);
+            if (parked || wantsHuman(combinedText)) {
+              // Parked and told a moment ago (HOLD_REPEAT_MS): nothing is repeated
+              // at every "ok" the guest types. Not silence either — they were told
+              // a person is on it, and that is still true.
+              if (parked && !(await store.needsTelling(phone, HOLD_REPEAT_MS))) {
+                await markAllDone();
+                return;
+              }
+              const text = fallbackReply("handoff", language);
+              await store.pause(phone, parked?.reason ?? "guest_asked_for_human");
+              await store.append(phone, { role: "assistant", text });
+              sending = true;
+              await send({ to: phone, body: text });
+              await store.markTold(phone);
+              replied++;
+              handoffs++;
+              await markAllDone();
+              return;
+            }
+
+            // The same call the test console makes: full history in, one reply out.
+            const outcome = await converse(history, model);
+            // Abandoned while the provider was still thinking: Meta already has its
+            // answer for this wamid, so stop here rather than appending and sending
+            // behind the redelivery's back. This is what keeps "one guest message,
+            // at most one reply" true even when the deadline fires mid-turn.
+            if (expired) return;
+
+            // Asking has stopped being progress: the guest is stuck, or the
+            // extractor is, and one more round of the same questions is where an
+            // enquiry dies. A person now is worth more than a ninth question.
+            if (!outcome.done && assistantTurns(history) >= ASK_LIMIT) {
+              const text = fallbackReply("handoff", language);
+              await store.pause(phone, "asking_limit");
+              await store.append(phone, { role: "assistant", text });
+              sending = true;
+              await send({ to: phone, body: text });
+              await store.markTold(phone);
+              replied++;
+              handoffs++;
+              await markAllDone();
+              return;
+            }
+
+            await store.append(phone, { role: "assistant", text: outcome.reply });
+            sending = true;
+            await send({ to: phone, body: outcome.reply });
             replied++;
-            handoffs++;
-          } catch (apologyErr) {
-            // eslint-disable-next-line no-console
-            console.error("whatsapp apology failed", maskForLogging(message.from), apologyErr);
+            await markAllDone();
+          })();
+
+          try {
+            await Promise.race([turn, deadline]);
+          } finally {
+            clearTimeout(timer);
           }
+        } catch (err) {
+          failed++;
+          let apologized = false;
+          if (!sending) {
+            try {
+              const text = fallbackReply("apology", guestLanguage(await store.history(phone)));
+              await store.pause(phone, "turn_failed");
+              await store.append(phone, { role: "assistant", text });
+              await send({ to: phone, body: text });
+              await store.markTold(phone);
+              apologized = true;
+              replied++;
+              handoffs++;
+              await markAllDone();
+            } catch (apologyErr) {
+              // eslint-disable-next-line no-console
+              console.error("whatsapp apology failed", maskForLogging(phone), apologyErr);
+            }
+          }
+          if (!sending && !apologized) {
+            await releaseAll();
+          } else {
+            await markAllDone();
+          }
+          // eslint-disable-next-line no-console
+          console.error("whatsapp turn failed", maskForLogging(phone), maskForLogging(combinedText), err);
         }
-        // The claim goes back only when the guest really did hear nothing (nothing
-        // sent, and no apology): then Meta's redelivery is a retry rather than a
-        // duplicate nobody answers. Otherwise it stays taken, because a redelivery
-        // would only repeat a message they already have. (A send that failed
-        // *after* Meta accepted it still costs the guest a second message either
-        // way; the opposite guess — silence — is the failure this release ends.)
-        if (!sending && !apologized) await store.releaseMessage(message.id);
-        // eslint-disable-next-line no-console
-        console.error("whatsapp turn failed", maskForLogging(message.from), maskForLogging(message.text), err);
-      }
+      });
     }
 
     // Always 2xx once the signature checks out. Meta retries a non-2xx for days,

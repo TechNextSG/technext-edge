@@ -464,9 +464,12 @@ function summaryLines(trip: Trip, lang: Lang): string[] {
       wantsTransfer && transportType?.value && transportType.value !== "none"
         ? formatValue("transportType", transportType.value, lang)
         : null;
+    const isAssumed =
+      transport.state === "default" ||
+      (wantsTransfer && transportType && (transportType.state === "derived" || transportType.state === "default"));
     lines.push(
       `• ${LABELS.transport[lang]}: ${YES_NO[lang][wantsTransfer ? 0 : 1]}${typeLabel ? ` · ${typeLabel}` : ""}${
-        transport.state === "default" ? ASSUMED_NOTE[lang] : ""
+        isAssumed ? ASSUMED_NOTE[lang] : ""
       }`,
     );
   }

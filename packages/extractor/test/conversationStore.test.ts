@@ -3,6 +3,7 @@ import {
   createInMemoryConversationStore,
   MAX_TURNS,
   THREAD_TTL_MS,
+  IN_FLIGHT_CLAIM_TTL_MS,
 } from "../../../apps/casa-bff/src/conversationStore.js";
 
 afterEach(() => {
@@ -56,29 +57,112 @@ describe("createInMemoryConversationStore", () => {
 
   it("claims a message id exactly once, so a Meta redelivery is a no-op", async () => {
     const store = createInMemoryConversationStore();
-    expect(await store.claimMessage("wamid.AAA")).toBe(true);
-    expect(await store.claimMessage("wamid.AAA")).toBe(false);
-    expect(await store.claimMessage("wamid.BBB")).toBe(true);
+    const c1 = await store.claimMessage("wamid.AAA");
+    expect(c1.claimed).toBe(true);
+    expect(c1.fenceToken).toBeTruthy();
+
+    const c2 = await store.claimMessage("wamid.AAA");
+    expect(c2.claimed).toBe(false);
+
+    const c3 = await store.claimMessage("wamid.BBB");
+    expect(c3.claimed).toBe(true);
   });
 
   it("gives a claim back when a turn failed, so Meta's redelivery becomes a retry", async () => {
     const store = createInMemoryConversationStore();
-    expect(await store.claimMessage("wamid.AAA")).toBe(true);
+    const c1 = await store.claimMessage("wamid.AAA");
+    expect(c1.claimed).toBe(true);
 
-    await store.releaseMessage("wamid.AAA");
+    await store.releaseMessage("wamid.AAA", c1.fenceToken);
 
     // Taken again by the retry — and still deduped from there, so releasing
     // cannot turn every redelivery into another model call.
-    expect(await store.claimMessage("wamid.AAA")).toBe(true);
-    expect(await store.claimMessage("wamid.AAA")).toBe(false);
+    const c2 = await store.claimMessage("wamid.AAA");
+    expect(c2.claimed).toBe(true);
+
+    const c3 = await store.claimMessage("wamid.AAA");
+    expect(c3.claimed).toBe(false);
     // Other ids are untouched by the release.
-    expect(await store.claimMessage("wamid.BBB")).toBe(true);
+    expect((await store.claimMessage("wamid.BBB")).claimed).toBe(true);
   });
 
-  it("releases an id it never claimed without throwing, because the failure path calls it blind", async () => {
+  it("does NOT release claim if fenceToken does not match (protects newer retries from older slow retries)", async () => {
     const store = createInMemoryConversationStore();
-    await store.releaseMessage("wamid.never");
-    expect(await store.claimMessage("wamid.never")).toBe(true);
+    const c1 = await store.claimMessage("wamid.AAA");
+    expect(c1.claimed).toBe(true);
+
+    // Attempt release with wrong token
+    await store.releaseMessage("wamid.AAA", "wrong-fence-token");
+
+    // Claim should still be held
+    const c2 = await store.claimMessage("wamid.AAA");
+    expect(c2.claimed).toBe(false);
+
+    // Now release with correct token
+    await store.releaseMessage("wamid.AAA", c1.fenceToken);
+    const c3 = await store.claimMessage("wamid.AAA");
+    expect(c3.claimed).toBe(true);
+  });
+
+  it("expires in-flight claim after IN_FLIGHT_CLAIM_TTL_MS (60s), allowing redelivery without waiting 24h", async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-09-15T00:00:00Z"));
+
+    const store = createInMemoryConversationStore();
+    const c1 = await store.claimMessage("wamid.AAA");
+    expect(c1.claimed).toBe(true);
+
+    // Immediate second claim should be rejected
+    expect((await store.claimMessage("wamid.AAA")).claimed).toBe(false);
+
+    // Advance 65 seconds (past in-flight timeout, far before 24h)
+    vi.setSystemTime(new Date(Date.now() + IN_FLIGHT_CLAIM_TTL_MS + 5_000));
+
+    // Can reclaim now because worker was assumed dead/timed out
+    const c2 = await store.claimMessage("wamid.AAA");
+    expect(c2.claimed).toBe(true);
+    expect(c2.fenceToken).not.toBe(c1.fenceToken);
+  });
+
+  it("permanently marks message done for 24h when markDone is called", async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-09-15T00:00:00Z"));
+
+    const store = createInMemoryConversationStore();
+    const c1 = await store.claimMessage("wamid.AAA");
+    await store.markDone("wamid.AAA", c1.fenceToken);
+
+    // Even after 65 seconds, message remains done and cannot be reclaimed
+    vi.setSystemTime(new Date(Date.now() + IN_FLIGHT_CLAIM_TTL_MS + 5_000));
+    expect((await store.claimMessage("wamid.AAA")).claimed).toBe(false);
+
+    // After 24h, it finally expires
+    vi.setSystemTime(new Date(Date.now() + THREAD_TTL_MS + 1));
+    expect((await store.claimMessage("wamid.AAA")).claimed).toBe(true);
+  });
+
+  it("executes operations for the same phone sequentially using withPhoneLock", async () => {
+    const store = createInMemoryConversationStore();
+    const executionOrder: string[] = [];
+
+    const op1 = store.withPhoneLock("639170001", async () => {
+      executionOrder.push("op1:start");
+      await new Promise((res) => setTimeout(res, 50));
+      executionOrder.push("op1:end");
+      return "res1";
+    });
+
+    const op2 = store.withPhoneLock("639170001", async () => {
+      executionOrder.push("op2:start");
+      executionOrder.push("op2:end");
+      return "res2";
+    });
+
+    const [r1, r2] = await Promise.all([op1, op2]);
+    expect(r1).toBe("res1");
+    expect(r2).toBe("res2");
+    // op2 must not start before op1 has finished
+    expect(executionOrder).toEqual(["op1:start", "op1:end", "op2:start", "op2:end"]);
   });
 
   it("forgets a thread once the 24h WhatsApp service window has passed", async () => {
@@ -91,17 +175,5 @@ describe("createInMemoryConversationStore", () => {
 
     vi.setSystemTime(new Date(Date.now() + THREAD_TTL_MS + 1));
     expect(await store.history("111")).toEqual([]);
-  });
-
-  it("expires the dedupe claim too, so a much older event is not swallowed forever", async () => {
-    vi.useFakeTimers();
-    vi.setSystemTime(new Date("2026-09-15T00:00:00Z"));
-
-    const store = createInMemoryConversationStore();
-    await store.claimMessage("wamid.AAA");
-    expect(await store.claimMessage("wamid.AAA")).toBe(false);
-
-    vi.setSystemTime(new Date(Date.now() + THREAD_TTL_MS + 1));
-    expect(await store.claimMessage("wamid.AAA")).toBe(true);
   });
 });
