@@ -75,6 +75,28 @@ function createResilientProvider(primary: ExtractProvider, fallback?: ExtractPro
         return await fallback.call(args);
       }
     },
+    // Found 2026-09-21: this wrapper used to define only `id`/`call`, which
+    // silently dropped extractGuests (and any other optional capability)
+    // whenever a resilient (primary+fallback) provider was in play — exactly
+    // production's shape, since DEEPSEEK_GATEWAY_KEY and GEMINI_API_KEY are
+    // both set there. The isolated-guests fix (this same day) worked in every
+    // direct test and then did nothing in production until this was fixed,
+    // because provider.extractGuests was undefined on the wrapped object even
+    // though primary.extractGuests existed underneath it.
+    ...(primary.extractGuests
+      ? {
+          async extractGuests(text: string) {
+            try {
+              return await primary.extractGuests!(text);
+            } catch (err) {
+              if (fallback.extractGuests) return await fallback.extractGuests(text);
+              throw err;
+            }
+          },
+        }
+      : fallback.extractGuests
+        ? { extractGuests: (text: string) => fallback.extractGuests!(text) }
+        : {}),
   };
 }
 
