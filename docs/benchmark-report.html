@@ -1,0 +1,163 @@
+<meta charset="utf-8">
+<title>Extractor Benchmark Report — 21/09</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  color-scheme:light;
+  --bg:#EFF4F3; --card:#FFFFFF; --card2:#F5FAF8; --ink:#152321; --muted:#5B6C6A;
+  --border:#D9E4E2; --hairline:#E6EEEC;
+  --head:#0B2E33; --head2:#123C42;
+  --teal:#1C7C82; --teal-strong:#145A5F; --teal-tint:#E7F2F0;
+  --coral:#DC4B33; --coral-ink:#B5301C; --coral-tint:#FBEAE6;
+  --gold:#C99A3B; --gold-bg:#FBF2E0; --gold-ink:#7E5F14;
+  --good:#0ca30c; --good-ink:#0A6E0A; --good-bg:#E7F5E7;
+  --shadow:0 4px 16px rgba(11,46,51,.08);
+  --font-d:'Space Grotesk',ui-sans-serif,sans-serif;
+  --font-b:'Inter',ui-sans-serif,system-ui,sans-serif;
+  --font-m:'IBM Plex Mono',ui-monospace,monospace;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    color-scheme:dark;
+    --bg:#0A181B; --card:#13292E; --card2:#0F2125; --ink:#E4EFED; --muted:#94AAA7;
+    --border:#264845; --hairline:#1C3A3E;
+    --teal:#43ACB3; --teal-strong:#63C6CC; --teal-tint:#153A3E;
+    --coral:#E86A50; --coral-ink:#F0917E; --coral-tint:#3A211C;
+    --gold:#C99A3B; --gold-bg:#33290F; --gold-ink:#E3C069;
+    --good:#0ca30c; --good-ink:#4CC94C; --good-bg:#123212;
+    --shadow:0 4px 16px rgba(0,0,0,.35);
+  }
+}
+:root[data-theme="dark"]{
+  color-scheme:dark;
+  --bg:#0A181B; --card:#13292E; --card2:#0F2125; --ink:#E4EFED; --muted:#94AAA7;
+  --border:#264845; --hairline:#1C3A3E;
+  --teal:#43ACB3; --teal-strong:#63C6CC; --teal-tint:#153A3E;
+  --coral:#E86A50; --coral-ink:#F0917E; --coral-tint:#3A211C;
+  --gold:#C99A3B; --gold-bg:#33290F; --gold-ink:#E3C069;
+  --good:#0ca30c; --good-ink:#4CC94C; --good-bg:#123212;
+  --shadow:0 4px 16px rgba(0,0,0,.35);
+}
+*{box-sizing:border-box;}
+html,body{margin:0;padding:0;}
+body{background:var(--bg);color:var(--ink);font-family:var(--font-b);font-size:15.5px;line-height:1.6;-webkit-font-smoothing:antialiased;}
+code{font-family:var(--font-m);font-size:.88em;background:var(--card2);padding:1px 5px;border-radius:4px;}
+h1,h2,h3{font-family:var(--font-d);font-weight:600;text-wrap:balance;margin:0;}
+
+.topbar{background:linear-gradient(135deg,var(--head) 0%,var(--head2) 100%);color:#fff;padding:22px 24px;}
+.topbar .kicker{font-family:var(--font-m);font-size:10.5px;letter-spacing:1.2px;text-transform:uppercase;color:#9FC6C9;}
+.topbar h1{color:#fff;margin:5px 0 8px;font-size:27px;}
+.topbar p{margin:0;color:#CFE4E2;font-size:14px;max-width:75ch;}
+
+.wrap{max-width:960px;margin:0 auto;padding:26px 20px 70px;}
+.card{background:var(--card);border:1px solid var(--border);border-radius:12px;box-shadow:var(--shadow);padding:22px 26px;margin-bottom:20px;}
+.card h2{font-size:19px;color:var(--teal-strong);margin-bottom:4px;}
+.card .sub{color:var(--muted);font-size:13.5px;margin:0 0 14px;}
+
+.tw{overflow-x:auto;border:1px solid var(--hairline);border-radius:10px;margin:10px 0;}
+table{width:100%;border-collapse:collapse;min-width:560px;background:var(--card);font-size:13.5px;}
+th{text-align:left;font:700 10.5px var(--font-m);letter-spacing:.05em;text-transform:uppercase;color:var(--muted);padding:9px 12px;background:var(--card2);border-bottom:1px solid var(--hairline);}
+td{padding:9px 12px;border-bottom:1px solid var(--hairline);vertical-align:top;}
+tr:last-child td{border-bottom:none;}
+td.num{font-family:var(--font-m);}
+td.bold{font-weight:700;}
+
+.badge{display:inline-block;padding:2px 8px;border-radius:999px;font:700 10.5px var(--font-m);text-transform:uppercase;}
+.badge.pass{background:var(--good-bg);color:var(--good-ink);}
+.badge.warn{background:var(--gold-bg);color:var(--gold-ink);}
+.badge.fail{background:var(--coral-tint);color:var(--coral-ink);}
+
+.callout{border-left:4px solid var(--teal);background:var(--teal-tint);border-radius:0 8px 8px 0;padding:12px 16px;margin:14px 0;font-size:13.5px;}
+.callout.warn{border-left-color:var(--gold);background:var(--gold-bg);}
+.callout strong{display:block;margin-bottom:3px;}
+
+.stat-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;margin:12px 0;}
+.stat{background:var(--card2);border:1px solid var(--hairline);border-radius:8px;padding:12px 14px;text-align:center;}
+.stat .v{font-family:var(--font-d);font-size:22px;font-weight:700;color:var(--teal-strong);}
+.stat .l{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.04em;margin-top:2px;}
+</style>
+
+<div class="topbar">
+  <div class="kicker">technext-edge · Extractor pod</div>
+  <h1>Benchmark Report — 21/09/2026</h1>
+  <p>Hai bộ số liệu tách biệt: (1) 213 test tự động chạy trên mọi lần đổi code, dùng provider giả lập — kiểm code logic; (2) eval 14 case chạy qua model AI thật (Gemini/DeepSeek) — kiểm chất lượng trích xuất thật. Không thay thế nhau được, xem giải thích trong mỗi phần.</p>
+</div>
+
+<div class="wrap">
+
+  <div class="card">
+    <h2>1 · Test tự động (213/213 pass)</h2>
+    <p class="sub">Chạy bằng <code>npm test</code>, dùng provider giả lập (<code>fakeProvider</code>) tự trả về JSON đã ghi sẵn — kiểm tra <b>code xử lý đúng logic không</b>, không kiểm tra model AI có hiểu đúng câu khách không (việc đó thuộc phần 2).</p>
+    <div class="tw">
+      <table>
+        <thead><tr><th>File</th><th>Số test</th><th>Kiểm tra gì</th></tr></thead>
+        <tbody>
+          <tr><td class="bold"><code>robustness.test.ts</code></td><td class="num">48</td><td>200 payload giả lập ngẫu nhiên (fuzz) — extract() luôn resolve/reject đúng cách, không crash</td></tr>
+          <tr><td class="bold"><code>whatsapp.test.ts</code></td><td class="num">38</td><td>Chữ ký HMAC, dedupe wamid, claim/release, xin lỗi khi lỗi, handoff, reset command</td></tr>
+          <tr><td class="bold"><code>dates.test.ts</code></td><td class="num">31</td><td>Phân giải ngày tuyệt đối/tương đối 3 ngôn ngữ, mốc <code>TODAY</code> cố định</td></tr>
+          <tr><td class="bold"><code>extract.test.ts</code></td><td class="num">20</td><td>Retry-once, phân loại lỗi transport/validation, enforceVerbatimEvidence, postProcess</td></tr>
+          <tr><td class="bold"><code>questions.test.ts</code></td><td class="num">16</td><td>3 loại reply (greeting/questions/summary), nhãn (assumed), câu hỏi theo ngôn ngữ</td></tr>
+          <tr><td class="bold"><code>counts.test.ts</code></td><td class="num">14</td><td>Đối chiếu số khách/đêm/phòng với văn bản gốc</td></tr>
+          <tr><td class="bold"><code>evalReplay.test.ts</code></td><td class="num">12</td><td>Bộ chấm điểm eval offline khớp đúng logic scorer</td></tr>
+          <tr><td class="bold"><code>conversationStore.test.ts</code></td><td class="num">9</td><td>Split TTL, fencing, pause/resume/handoff</td></tr>
+          <tr><td class="bold"><code>normalize.test.ts</code></td><td class="num">7</td><td>Nhận diện ngôn ngữ, che PII khi log</td></tr>
+          <tr><td class="bold"><code>converse.test.ts</code></td><td class="num">6</td><td>Giới hạn transcript, luồng hội thoại nhiều lượt</td></tr>
+          <tr><td class="bold"><code>providers/providerFromEnv.test.ts</code></td><td class="num">4</td><td>Chọn đúng provider theo env var, wrapper resilient fallback</td></tr>
+          <tr><td class="bold"><code>bff.test.ts</code></td><td class="num">3</td><td>Route cơ bản của BFF</td></tr>
+          <tr><td class="bold"><code>providers/gemini.test.ts</code>, <code>deepseek.test.ts</code></td><td class="num">4</td><td>Timeout, prompt transport có đủ rule 2 ngôn ngữ</td></tr>
+          <tr><td class="bold"><code>dataset.test.ts</code></td><td class="num">1</td><td>File dataset eval là JSON hợp lệ</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="stat-row">
+      <div class="stat"><div class="v">213/213</div><div class="l">test pass</div></div>
+      <div class="stat"><div class="v">15</div><div class="l">file test</div></div>
+      <div class="stat"><div class="v">0</div><div class="l">lỗi typecheck</div></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>2 · Eval benchmark — Gemini vs DeepSeek (14 case, model AI thật)</h2>
+    <p class="sub">Chạy qua <code>eval/runner.mjs</code>, gọi thật <code>/v1/extract</code> trên production. 14 case gồm 10 case gốc (đa ngôn ngữ, có bẫy bịa đặt) + 4 case <code>en-06..en-09</code> thêm hôm 20/09 sau khi phát hiện bug <code>guests</code>.</p>
+    <div class="tw">
+      <table>
+        <thead><tr><th>Thời điểm</th><th>Provider</th><th>Required fields</th><th>Fabrication</th><th>Evidence</th><th>p95 latency</th></tr></thead>
+        <tbody>
+          <tr><td>20/09, trước khi sửa bug</td><td><code>google:gemini-3.1-flash-lite</code></td><td class="num">31/35 (89%)</td><td class="num">0</td><td class="num">100%</td><td class="num">6.5s</td></tr>
+          <tr><td>21/09, Gemini sau fix <code>guests</code>+<code>diveTo</code></td><td><code>google:gemini-3.1-flash-lite</code></td><td class="num">34-35/35 (97-100%)</td><td class="num">0</td><td class="num">100%</td><td class="num">~4s</td></tr>
+          <tr><td>21/09, DeepSeek ngay khi gateway sống lại (chưa qua wrapper)</td><td><code>deepseek-gateway:deepseek-flash</code></td><td class="num">34/35 (97%)</td><td class="num">0</td><td class="num">100%</td><td class="num">5.2s</td></tr>
+          <tr><td>21/09, DeepSeek vừa lên provider chính (bug wrapper)</td><td><code>deepseek-gateway:deepseek-flash</code></td><td class="num">32/35 (91%)</td><td class="num">0</td><td class="num">100%</td><td class="num">5.0s</td></tr>
+          <tr style="background:var(--good-bg);"><td class="bold">21/09, DeepSeek sau khi sửa hết (wrapper + checkIn cô lập)</td><td><code>deepseek-gateway:deepseek-flash</code></td><td class="num bold">35/35 (100%)</td><td class="num bold">0</td><td class="num bold">100%</td><td class="num bold">5.7s</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="callout">
+      <strong>Kết luận:</strong> DeepSeek (provider chính hiện tại) đạt đủ cả 4 ngưỡng Playbook (fabrication=0, required≥95%, evidence=100%, p95≤8s) sau khi sửa 2 bug thật tìm được trong ngày — cả hai đều do cùng 1 cơ chế: model tự hạ độ tin cậy khi phải xử lý nhiều rule cùng lúc trong 1 lệnh gọi, sửa bằng cách tách riêng field yếu ra 1 cuộc gọi nhỏ chạy song song.
+    </div>
+    <div class="callout warn">
+      <strong>Lưu ý về mẫu số liệu:</strong> 14 case là bộ dữ liệu giả lập (synthetic), không phải tin nhắn khách thật — dùng để rà bug và theo dõi hồi quy, không phải cơ sở quyết định model cuối cùng (quyết định thật chờ 30 tin thật từ Eloa, theo ADR-005a).
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>3 · Bug tìm được &amp; đã sửa trong ngày 21/09</h2>
+    <div class="tw">
+      <table>
+        <thead><tr><th>Bug</th><th>Nguyên nhân</th><th>Cách sửa</th><th>Trạng thái</th></tr></thead>
+        <tbody>
+          <tr><td><code>guests</code> bị bỏ về <code>missing</code></td><td>Model quá tải khi phân loại nhiều field cùng lúc trong 1 prompt</td><td>Cô lập <code>guests</code> ra 1 cuộc gọi riêng, chạy song song</td><td><span class="badge pass">Đã sửa</span></td></tr>
+          <tr><td><code>diveTo</code> bỏ sót ngày thứ 2 ("16th and 17th")</td><td>Thiếu rule cho cú pháp "ngày X and ngày Y"</td><td>Thêm rule + ví dụ vào prompt chính</td><td><span class="badge pass">Đã sửa</span></td></tr>
+          <tr><td><code>extractGuests</code> không chạy trên production</td><td>Wrapper resilient (Gemini↔DeepSeek fallback) không forward optional method</td><td>Sửa wrapper forward đúng <code>extractGuests</code>/<code>extractCheckIn</code></td><td><span class="badge pass">Đã sửa</span></td></tr>
+          <tr><td><code>checkIn</code> ngày tương đối tiếng Anh không ổn định trên DeepSeek</td><td>Cùng cơ chế quá tải như bug <code>guests</code></td><td>Cô lập <code>checkIn</code> ra 1 cuộc gọi riêng</td><td><span class="badge pass">Đã sửa</span></td></tr>
+          <tr><td>Fabrication ngày ("cuối tháng này" → bịa ngày cụ thể)</td><td>Phát sinh khi viết prompt cô lập lần đầu, chưa dạy tôn trọng "chưa chốt ngày"</td><td>Bắt được trước khi deploy, sửa prompt trước khi lên production</td><td><span class="badge pass">Đã sửa, chưa từng lên production</span></td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <footer style="text-align:center;color:var(--muted);font-size:12px;margin-top:10px;">
+    Biên soạn từ số liệu chạy thật trong ngày 21/09/2026 · technext-edge · production https://technext-edge-casa-bff.vercel.app
+  </footer>
+
+</div>
