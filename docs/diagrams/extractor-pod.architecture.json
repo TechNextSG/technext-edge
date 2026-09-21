@@ -7,19 +7,21 @@
     "quality_profile": "showcase",
     "views": [
       { "id": "request-path", "label": "Guest message to reply", "focus": ["guest", "whatsapp", "bff", "store", "converse", "provider", "postprocess", "renderreply"], "note": "Follow one guest message from WhatsApp in to a guest-facing reply out." },
-      { "id": "no-llm-boundary", "label": "No LLM writes guest text", "focus": ["provider", "postprocess", "renderreply"], "note": "The model only produces structured fields; renderReply() picks a fixed template, never model prose." },
-      { "id": "provider-seam", "label": "Swappable AI provider", "focus": ["converse", "provider"], "note": "converse() calls one ExtractProvider interface; which model runs behind it is an env var, not a code change." }
+      { "id": "no-llm-boundary", "label": "No LLM writes guest text", "focus": ["provider", "isolated", "postprocess", "renderreply"], "note": "The model only produces structured fields; renderReply() picks a fixed template, never model prose." },
+      { "id": "provider-seam", "label": "Swappable AI provider", "focus": ["converse", "provider", "isolated"], "note": "converse() calls one ExtractProvider interface; which model runs behind it is an env var, not a code change." },
+      { "id": "isolated-passes", "label": "Isolated-field safety net", "focus": ["converse", "isolated", "postprocess"], "note": "guests/checkIn/diveWindow each get a small parallel call, added after the main call dropped them under multi-field load." }
     ]
   },
   "components": [
     { "id": "guest", "type": "external", "label": "Guest", "sublabel": "WhatsApp msg", "pos": [20, 300], "size": [120, 64] },
     { "id": "whatsapp", "type": "external", "label": "Meta WhatsApp", "sublabel": "Graph API", "pos": [175, 300], "size": [130, 64] },
     { "id": "bff", "type": "backend", "label": "Casa BFF", "sublabel": "Hono webhook", "pos": [330, 300], "size": [130, 64] },
-    { "id": "store", "type": "database", "label": "Conv. Store", "sublabel": "dedupe + history", "tag": "in-memory", "pos": [485, 300], "size": [130, 64] },
-    { "id": "converse", "type": "backend", "label": "converse()", "sublabel": "re-extract transcript", "pos": [640, 300], "size": [130, 64] },
-    { "id": "provider", "type": "cloud", "label": "AI Provider", "sublabel": "Gemini (swap)", "tag": "EXTRACTOR_PROVIDER", "pos": [795, 300], "size": [130, 64] },
-    { "id": "postprocess", "type": "backend", "label": "postProcess()", "sublabel": "dates, norms, evidence", "pos": [950, 300], "size": [140, 64] },
-    { "id": "renderreply", "type": "security", "label": "renderReply()", "sublabel": "3 fixed templates", "tag": "no LLM text", "pos": [1130, 300], "size": [140, 64] }
+    { "id": "store", "type": "database", "label": "Conv. Store", "sublabel": "dedupe + history + lock", "tag": "in-memory", "pos": [485, 300], "size": [140, 64] },
+    { "id": "converse", "type": "backend", "label": "converse()", "sublabel": "re-extract transcript", "pos": [660, 300], "size": [130, 64] },
+    { "id": "provider", "type": "cloud", "label": "AI Provider", "sublabel": "DeepSeek (primary)", "tag": "+ Gemini fallback", "pos": [815, 300], "size": [140, 64] },
+    { "id": "isolated", "type": "cloud", "label": "Isolated passes", "sublabel": "guests, dates, dive", "tag": "parallel, fills gaps only", "pos": [815, 560], "size": [140, 64] },
+    { "id": "postprocess", "type": "backend", "label": "postProcess()", "sublabel": "dates, norms, evidence", "pos": [995, 300], "size": [140, 64] },
+    { "id": "renderreply", "type": "security", "label": "renderReply()", "sublabel": "3 fixed templates", "tag": "no LLM text", "pos": [1175, 300], "size": [140, 64] }
   ],
   "boundaries": [
     { "kind": "security-group", "label": "Deterministic — no model output reaches the guest", "wraps": ["postprocess", "renderreply"] }
@@ -30,15 +32,17 @@
     { "id": "bff-to-store", "from": "bff", "to": "store", "label": "dedupe + append", "labelDy": -26 },
     { "id": "store-to-converse", "from": "store", "to": "converse", "label": "history", "labelDy": -26 },
     { "id": "converse-to-provider", "from": "converse", "to": "provider", "label": "extract()", "labelDy": -26 },
-    { "id": "provider-to-postprocess", "from": "provider", "to": "postprocess", "label": "raw fields", "variant": "dashed", "labelAt": [937, 405] },
-    { "id": "postprocess-to-renderreply", "from": "postprocess", "to": "renderreply", "label": "Trip", "labelAt": [1112, 405] },
-    { "id": "renderreply-to-bff", "from": "renderreply", "to": "bff", "label": "reply", "variant": "emphasis", "fromSide": "bottom", "toSide": "bottom" },
+    { "id": "converse-to-isolated", "from": "converse", "to": "isolated", "label": "same transcript, in parallel", "variant": "dashed", "fromSide": "bottom", "toSide": "top" },
+    { "id": "isolated-to-postprocess", "from": "isolated", "to": "postprocess", "label": "fills gaps only", "variant": "dashed", "fromSide": "top", "toSide": "bottom" },
+    { "id": "provider-to-postprocess", "from": "provider", "to": "postprocess", "label": "raw fields", "variant": "dashed", "labelAt": [972, 405] },
+    { "id": "postprocess-to-renderreply", "from": "postprocess", "to": "renderreply", "label": "Trip", "labelAt": [1157, 405] },
+    { "id": "renderreply-to-bff", "from": "renderreply", "to": "bff", "label": "reply", "variant": "emphasis", "fromSide": "top", "toSide": "top" },
     { "id": "bff-to-whatsapp", "from": "bff", "to": "whatsapp", "label": "send reply", "fromSide": "bottom", "toSide": "bottom" },
     { "id": "whatsapp-to-guest", "from": "whatsapp", "to": "guest", "label": "reply", "variant": "emphasis", "fromSide": "bottom", "toSide": "bottom" }
   ],
   "cards": [
-    { "dot": "cyan", "title": "Zero-fabrication boundary", "items": ["Every field is stated / inferred / missing with verbatim evidence", "No LLM ever writes a sentence a guest reads — renderReply() picks a fixed template"] },
-    { "dot": "emerald", "title": "Provider seam", "items": ["converse() -> extract() calls one ExtractProvider interface", "Gemini or DeepSeek (via a Railway gateway) — an env var, not a code change"] },
-    { "dot": "rose", "title": "Known gap", "items": ["Conversation store is in-memory — not yet Redis/KV", "A serverless cold start or instance swap can lose an in-flight thread"] }
+    { "dot": "cyan", "title": "Zero-fabrication boundary", "items": ["Every field is stated / inferred / missing with verbatim evidence", "No LLM ever writes a sentence a guest reads — renderReply() picks a fixed template", "Isolated passes only fill a gap — never overrule a field the main call already stated"] },
+    { "dot": "emerald", "title": "Provider seam", "items": ["converse() -> extract() calls one ExtractProvider interface", "DeepSeek (Railway gateway) is primary, Gemini is the fallback — an env var, not a code change"] },
+    { "dot": "rose", "title": "Known gap", "items": ["Conversation store defaults to in-memory", "A Redis/KV adapter now exists in code (redisStore.ts) but isn't wired in production — env vars not set yet"] }
   ]
 }

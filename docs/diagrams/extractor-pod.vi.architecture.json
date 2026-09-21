@@ -7,19 +7,21 @@
     "quality_profile": "showcase",
     "views": [
       { "id": "request-path", "label": "Tin nhắn khách đến câu trả lời", "focus": ["guest", "whatsapp", "bff", "store", "converse", "provider", "postprocess", "renderreply"], "note": "Theo dõi 1 tin nhắn khách từ WhatsApp vào đến câu trả lời ra." },
-      { "id": "no-llm-boundary", "label": "Không AI nào viết câu cho khách", "focus": ["provider", "postprocess", "renderreply"], "note": "Model chỉ tạo ra dữ liệu có cấu trúc; renderReply() chọn 1 mẫu câu định sẵn, không bao giờ dùng văn bản của model." },
-      { "id": "provider-seam", "label": "Đổi provider AI dễ dàng", "focus": ["converse", "provider"], "note": "converse() gọi qua 1 interface ExtractProvider duy nhất; model nào chạy phía sau là 1 biến môi trường, không phải sửa code." }
+      { "id": "no-llm-boundary", "label": "Không AI nào viết câu cho khách", "focus": ["provider", "isolated", "postprocess", "renderreply"], "note": "Model chỉ tạo ra dữ liệu có cấu trúc; renderReply() chọn 1 mẫu câu định sẵn, không bao giờ dùng văn bản của model." },
+      { "id": "provider-seam", "label": "Đổi provider AI dễ dàng", "focus": ["converse", "provider", "isolated"], "note": "converse() gọi qua 1 interface ExtractProvider duy nhất; model nào chạy phía sau là 1 biến môi trường, không phải sửa code." },
+      { "id": "isolated-passes", "label": "Lớp bảo hiểm trích xuất riêng lẻ", "focus": ["converse", "isolated", "postprocess"], "note": "guests/checkIn/diveWindow mỗi field có 1 lượt gọi nhỏ song song, thêm sau khi lượt chính bỏ sót khi tải nhiều field." }
     ]
   },
   "components": [
     { "id": "guest", "type": "external", "label": "Khách", "sublabel": "Tin nhắn WhatsApp", "pos": [20, 300], "size": [120, 64] },
     { "id": "whatsapp", "type": "external", "label": "Meta WhatsApp", "sublabel": "Graph API", "pos": [175, 300], "size": [130, 64] },
     { "id": "bff", "type": "backend", "label": "Casa BFF", "sublabel": "Webhook Hono", "pos": [330, 300], "size": [130, 64] },
-    { "id": "store", "type": "database", "label": "Bộ nhớ hội thoại", "sublabel": "lọc trùng + lưu lịch sử", "tag": "in-memory", "pos": [485, 300], "size": [130, 64] },
-    { "id": "converse", "type": "backend", "label": "converse()", "sublabel": "trích xuất lại toàn bộ", "pos": [640, 300], "size": [130, 64] },
-    { "id": "provider", "type": "cloud", "label": "AI Provider", "sublabel": "DeepSeek (có thể đổi)", "tag": "EXTRACTOR_PROVIDER", "pos": [795, 300], "size": [130, 64] },
-    { "id": "postprocess", "type": "backend", "label": "postProcess()", "sublabel": "ngày, chuẩn, bằng chứng", "pos": [950, 300], "size": [140, 64] },
-    { "id": "renderreply", "type": "security", "label": "renderReply()", "sublabel": "3 mẫu câu cố định", "tag": "không AI viết lời", "pos": [1130, 300], "size": [140, 64] }
+    { "id": "store", "type": "database", "label": "Bộ nhớ hội thoại", "sublabel": "lọc trùng + lịch sử", "tag": "in-memory", "pos": [485, 300], "size": [140, 64] },
+    { "id": "converse", "type": "backend", "label": "converse()", "sublabel": "trích xuất lại toàn bộ", "pos": [660, 300], "size": [130, 64] },
+    { "id": "provider", "type": "cloud", "label": "AI Provider", "sublabel": "DeepSeek (chính)", "tag": "+ Gemini dự phòng", "pos": [815, 300], "size": [140, 64] },
+    { "id": "isolated", "type": "cloud", "label": "Trích xuất riêng lẻ", "sublabel": "guests, ngày, lặn", "tag": "song song, chỉ bù chỗ thiếu", "pos": [815, 560], "size": [140, 64] },
+    { "id": "postprocess", "type": "backend", "label": "postProcess()", "sublabel": "ngày, chuẩn, bằng chứng", "pos": [995, 300], "size": [140, 64] },
+    { "id": "renderreply", "type": "security", "label": "renderReply()", "sublabel": "3 mẫu câu cố định", "tag": "không AI viết lời", "pos": [1175, 300], "size": [140, 64] }
   ],
   "boundaries": [
     { "kind": "security-group", "label": "Tất định — không kết quả model nào đến tay khách", "wraps": ["postprocess", "renderreply"] }
@@ -30,15 +32,17 @@
     { "id": "bff-to-store", "from": "bff", "to": "store", "label": "lọc trùng + lưu", "labelDy": -26 },
     { "id": "store-to-converse", "from": "store", "to": "converse", "label": "lịch sử", "labelDy": -26 },
     { "id": "converse-to-provider", "from": "converse", "to": "provider", "label": "extract()", "labelDy": -26 },
-    { "id": "provider-to-postprocess", "from": "provider", "to": "postprocess", "label": "dữ liệu thô", "variant": "dashed", "labelAt": [937, 405] },
-    { "id": "postprocess-to-renderreply", "from": "postprocess", "to": "renderreply", "label": "Trip", "labelAt": [1112, 405] },
-    { "id": "renderreply-to-bff", "from": "renderreply", "to": "bff", "label": "câu trả lời", "variant": "emphasis", "fromSide": "bottom", "toSide": "bottom" },
+    { "id": "converse-to-isolated", "from": "converse", "to": "isolated", "label": "cùng hội thoại, song song", "variant": "dashed", "fromSide": "bottom", "toSide": "top" },
+    { "id": "isolated-to-postprocess", "from": "isolated", "to": "postprocess", "label": "chỉ bù chỗ thiếu", "variant": "dashed", "fromSide": "top", "toSide": "bottom" },
+    { "id": "provider-to-postprocess", "from": "provider", "to": "postprocess", "label": "dữ liệu thô", "variant": "dashed", "labelAt": [972, 405] },
+    { "id": "postprocess-to-renderreply", "from": "postprocess", "to": "renderreply", "label": "Trip", "labelAt": [1157, 405] },
+    { "id": "renderreply-to-bff", "from": "renderreply", "to": "bff", "label": "câu trả lời", "variant": "emphasis", "fromSide": "top", "toSide": "top" },
     { "id": "bff-to-whatsapp", "from": "bff", "to": "whatsapp", "label": "gửi trả lời", "fromSide": "bottom", "toSide": "bottom" },
     { "id": "whatsapp-to-guest", "from": "whatsapp", "to": "guest", "label": "trả lời", "variant": "emphasis", "fromSide": "bottom", "toSide": "bottom" }
   ],
   "cards": [
-    { "dot": "cyan", "title": "Ranh giới chống bịa đặt", "items": ["Mỗi field đều có trạng thái stated/inferred/missing kèm bằng chứng nguyên văn", "Không AI nào viết câu cho khách — renderReply() chọn 1 mẫu câu định sẵn"] },
-    { "dot": "emerald", "title": "Điểm đổi provider", "items": ["converse() -> extract() gọi qua 1 interface ExtractProvider duy nhất", "Gemini hoặc DeepSeek (qua gateway Railway) — chỉ là 1 biến môi trường, không sửa code"] },
-    { "dot": "rose", "title": "Điểm yếu đã biết", "items": ["Bộ nhớ hội thoại đang lưu trong RAM — chưa dùng Redis/KV", "Cold start hoặc đổi instance serverless có thể làm mất 1 thread đang dở"] }
+    { "dot": "cyan", "title": "Ranh giới chống bịa đặt", "items": ["Mỗi field đều có trạng thái stated/inferred/missing kèm bằng chứng nguyên văn", "Không AI nào viết câu cho khách — renderReply() chọn 1 mẫu câu định sẵn", "Lượt trích xuất riêng lẻ chỉ bù chỗ thiếu — không bao giờ đè lên field lượt chính đã xác nhận"] },
+    { "dot": "emerald", "title": "Điểm đổi provider", "items": ["converse() -> extract() gọi qua 1 interface ExtractProvider duy nhất", "DeepSeek (qua gateway Railway) là chính, Gemini là dự phòng — chỉ là 1 biến môi trường, không sửa code"] },
+    { "dot": "rose", "title": "Điểm yếu đã biết", "items": ["Bộ nhớ hội thoại mặc định vẫn dùng RAM", "Đã có adapter Redis/KV trong code (redisStore.ts) nhưng chưa gắn ở production — chưa cấu hình biến môi trường"] }
   ]
 }
