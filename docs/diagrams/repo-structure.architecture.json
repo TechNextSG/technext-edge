@@ -1,0 +1,43 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {
+    "title": "technext-edge — Bản đồ thư mục & code",
+    "output": "repo-structure.html",
+    "quality_profile": "showcase",
+    "views": [
+      { "id": "deploy-chain", "label": "Đường deploy chính", "focus": ["root", "extractor", "bff", "apientry", "vercel"], "note": "Code nằm ở đâu, đóng gói qua đâu, deploy lên đâu." },
+      { "id": "dev-tools", "label": "Công cụ dev & kiểm thử", "focus": ["scripts", "eval", "extractor", "bff"], "note": "scripts/ và eval/ gọi vào code thật để test, không phải chạy production." },
+      { "id": "docs-side", "label": "Tài liệu, không phải code chạy", "focus": ["root", "docs"], "note": "docs/ chỉ là văn bản (ADR, sơ đồ, báo cáo) — không được import, không ảnh hưởng runtime." }
+    ]
+  },
+  "components": [
+    { "id": "root", "type": "backend", "label": "technext-edge", "sublabel": "repo root · npm workspaces", "pos": [20, 260], "size": [140, 64] },
+    { "id": "extractor", "type": "backend", "label": "packages/extractor", "sublabel": "Trip schema, extract(), providers", "pos": [230, 260], "size": [160, 64] },
+    { "id": "eval", "type": "database", "label": "extractor/eval", "sublabel": "dataset, runner, scorer", "pos": [230, 410], "size": [150, 64] },
+    { "id": "bff", "type": "backend", "label": "apps/casa-bff", "sublabel": "Hono: webhook, test console", "pos": [460, 260], "size": [160, 64] },
+    { "id": "scripts", "type": "backend", "label": "scripts/", "sublabel": "sim webhook, test-anilao-*", "pos": [460, 110], "size": [150, 64] },
+    { "id": "apientry", "type": "backend", "label": "api/index.ts", "sublabel": "entry point Vercel function", "pos": [680, 260], "size": [150, 64] },
+    { "id": "vercel", "type": "cloud", "label": "Vercel", "sublabel": "serverless deploy", "pos": [890, 260], "size": [130, 64] },
+    { "id": "docs", "type": "external", "label": "docs/", "sublabel": "ADR, roadmap, sơ đồ, báo cáo", "pos": [20, 110], "size": [140, 64] }
+  ],
+  "boundaries": [
+    { "kind": "region", "label": "Code chạy thật (import lẫn nhau)", "wraps": ["extractor", "eval", "bff", "scripts", "apientry"] }
+  ],
+  "connections": [
+    { "id": "root-to-extractor", "from": "root", "to": "extractor", "label": "chứa", "labelDy": -26 },
+    { "id": "root-to-docs", "from": "root", "to": "docs", "label": "chứa (chỉ đọc)", "variant": "dashed", "fromSide": "top", "toSide": "bottom" },
+    { "id": "extractor-to-eval", "from": "extractor", "to": "eval", "label": "chứa", "fromSide": "bottom", "toSide": "top" },
+    { "id": "bff-to-extractor", "from": "bff", "to": "extractor", "label": "import tương đối", "labelAt": [425, 338] },
+    { "id": "scripts-to-extractor", "from": "scripts", "to": "extractor", "label": "gọi trực tiếp", "variant": "dashed", "fromSide": "left", "toSide": "top" },
+    { "id": "scripts-to-bff", "from": "scripts", "to": "bff", "label": "gọi qua HTTP", "variant": "dashed", "fromSide": "bottom", "toSide": "top" },
+    { "id": "eval-to-bff", "from": "eval", "to": "bff", "label": "gọi /v1/extract", "variant": "dashed", "fromSide": "right", "toSide": "bottom" },
+    { "id": "bff-to-apientry", "from": "bff", "to": "apientry", "label": "createApp()", "labelDy": -26 },
+    { "id": "apientry-to-vercel", "from": "apientry", "to": "vercel", "label": "deploy", "labelDy": -26 }
+  ],
+  "cards": [
+    { "dot": "cyan", "title": "packages/extractor — bộ não AI", "items": ["Trip schema (zod), extract() + postProcess(), providers Gemini/DeepSeek", "Không phụ thuộc apps/casa-bff — có thể test độc lập"] },
+    { "dot": "emerald", "title": "apps/casa-bff — máy chủ webhook", "items": ["Import extractor bằng đường dẫn tương đối (../../../packages/extractor/src), không phải tên package workspace", "1 file app.ts, dùng Hono, deploy qua api/index.ts"] },
+    { "dot": "rose", "title": "Không phải code chạy", "items": ["docs/ chỉ là văn bản — ADR, roadmap, sơ đồ, báo cáo benchmark", "scripts/ và eval/ là công cụ dev/test, không nằm trong đường deploy production"] }
+  ]
+}
