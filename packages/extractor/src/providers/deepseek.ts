@@ -5,7 +5,7 @@
 // on DeepSeek's own infrastructure (data residency in the PRC — this is what
 // disqualified DeepSeek at Gate A), and the gateway itself logs every prompt
 // and response to the team's spend dashboard.
-import type { ExtractCall, ExtractProvider, ExtractResult, GuestsReadResult, CheckInReadResult } from "../provider.js";
+import type { ExtractCall, ExtractProvider, ExtractResult, GuestsReadResult, CheckInReadResult, DiveWindowReadResult } from "../provider.js";
 
 const GATEWAY_BASE_URL = "https://litellm-production-7402.up.railway.app/v1";
 const TOOL_NAME = "extract_trip";
@@ -96,6 +96,34 @@ const CHECKIN_TOOL_SCHEMA = {
   required: ["value", "state", "evidence"],
 };
 
+// Isolated dive-window prompt/schema (2026-09-21, ADR-005a) — same pattern
+// as CHECKIN_ONLY_PROMPT, found via scripts/test-anilao-real-matrix.ts's
+// AN-01 scenario: a guest confirming "diving on Oct 11th" in a follow-up
+// turn came back diveFrom:null 4/4 in the full multi-field prompt, isolated
+// 5/5 correct. diveFrom/diveTo travel together (one day mention sets both).
+const DIVE_WINDOW_ONLY_PROMPT =
+  "You extract TWO facts from a dive-resort guest's message: the date they start diving " +
+  "(diveFrom) and the date they end diving (diveTo). Find any phrase that indicates diving " +
+  "dates. If only one day is mentioned (e.g. 'diving on Oct 11th'), that single day is both " +
+  "diveFrom and diveTo. If a range is given (e.g. 'Oct 11 to Oct 12' or 'Oct 16th and 17th'), " +
+  "use the first date as diveFrom and the last as diveTo. Compute your best ISO date " +
+  "(YYYY-MM-DD) for each from today's date. Call record_dive_window with state 'stated' and a " +
+  "verbatim quote as evidence for each field when found; 'missing' if the guest has not " +
+  "mentioned diving or given no date for it. Never invent a date.";
+
+const DIVE_WINDOW_TOOL_SCHEMA = {
+  type: "object",
+  properties: {
+    diveFromValue: { type: "string" },
+    diveFromState: { type: "string", enum: ["stated", "inferred", "missing"] },
+    diveFromEvidence: { type: "string" },
+    diveToValue: { type: "string" },
+    diveToState: { type: "string", enum: ["stated", "inferred", "missing"] },
+    diveToEvidence: { type: "string" },
+  },
+  required: ["diveFromValue", "diveFromState", "diveFromEvidence", "diveToValue", "diveToState", "diveToEvidence"],
+};
+
 export function createDeepSeekProvider(
   apiKey: string,
   model: "deepseek-flash" | "deepseek-pro" = (process.env.DEEPSEEK_MODEL as "deepseek-flash" | "deepseek-pro") ?? "deepseek-flash",
@@ -170,6 +198,52 @@ export function createDeepSeekProvider(
           value: state === "missing" ? null : (typeof parsed.value === "string" ? parsed.value : null),
           state,
           evidence: state === "stated" && typeof parsed.evidence === "string" && parsed.evidence.length > 0 ? parsed.evidence : null,
+          tokensIn: usage.prompt_tokens ?? 0,
+          tokensOut: usage.completion_tokens ?? 0,
+          ms: Date.now() - started,
+        };
+      } finally {
+        clearTimeout(timer);
+      }
+    },
+    async extractDiveWindow(text: string, today: string): Promise<DiveWindowReadResult> {
+      const started = Date.now();
+      const controller = new AbortController();
+      const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
+      try {
+        const res = await fetch(`${GATEWAY_BASE_URL}/chat/completions`, {
+          method: "POST",
+          headers: { "content-type": "application/json", authorization: `Bearer ${apiKey}` },
+          signal: controller.signal,
+          body: JSON.stringify({
+            model,
+            thinking: { type: "disabled" },
+            messages: [
+              { role: "system", content: DIVE_WINDOW_ONLY_PROMPT },
+              { role: "user", content: `Today's date (Asia/Manila): ${today}\n\nConversation so far:\n${text}` },
+            ],
+            tools: [{ type: "function", function: { name: "record_dive_window", description: "Record the diving date window.", parameters: DIVE_WINDOW_TOOL_SCHEMA } }],
+            tool_choice: { type: "function", function: { name: "record_dive_window" } },
+          }),
+        });
+        if (!res.ok) throw new Error(`DeepSeek extractDiveWindow failed: ${res.status} ${await res.text()}`);
+        const body = await res.json();
+        const usage = body.usage ?? {};
+        const args = body.choices?.[0]?.message?.tool_calls?.[0]?.function?.arguments ?? "{}";
+        const parsed = JSON.parse(args);
+        const fromState: DiveWindowReadResult["diveFrom"]["state"] = parsed.diveFromState === "stated" || parsed.diveFromState === "inferred" ? parsed.diveFromState : "missing";
+        const toState: DiveWindowReadResult["diveTo"]["state"] = parsed.diveToState === "stated" || parsed.diveToState === "inferred" ? parsed.diveToState : "missing";
+        return {
+          diveFrom: {
+            value: fromState === "missing" ? null : (typeof parsed.diveFromValue === "string" ? parsed.diveFromValue : null),
+            state: fromState,
+            evidence: fromState === "stated" && typeof parsed.diveFromEvidence === "string" && parsed.diveFromEvidence.length > 0 ? parsed.diveFromEvidence : null,
+          },
+          diveTo: {
+            value: toState === "missing" ? null : (typeof parsed.diveToValue === "string" ? parsed.diveToValue : null),
+            state: toState,
+            evidence: toState === "stated" && typeof parsed.diveToEvidence === "string" && parsed.diveToEvidence.length > 0 ? parsed.diveToEvidence : null,
+          },
           tokensIn: usage.prompt_tokens ?? 0,
           tokensOut: usage.completion_tokens ?? 0,
           ms: Date.now() - started,

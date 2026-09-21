@@ -40,6 +40,14 @@ export interface CheckInReadResult {
   ms: number;
 }
 
+export interface DiveWindowReadResult {
+  diveFrom: { value: string | null; state: "stated" | "inferred" | "missing"; evidence: string | null };
+  diveTo: { value: string | null; state: "stated" | "inferred" | "missing"; evidence: string | null };
+  tokensIn: number;
+  tokensOut: number;
+  ms: number;
+}
+
 export interface ExtractProvider {
   id: string;
   call(input: ExtractCall): Promise<ExtractResult>;
@@ -61,4 +69,11 @@ export interface ExtractProvider {
   // runs this in parallel with call() and only fills a gap (main pass not
   // already 'stated'), same merge discipline as extractGuests.
   extractCheckIn?(text: string, today: string): Promise<CheckInReadResult>;
+  // Same pattern, same day, for the dive window: found via the pre-existing
+  // scripts/test-anilao-real-matrix.ts scenario matrix (AN-01) — a guest
+  // confirming "diving on Oct 11th" in a follow-up turn came back
+  // diveFrom:null 4/4 times in the full multi-field prompt, isolated 5/5
+  // correct. diveFrom/diveTo travel together (a single day mention sets
+  // both to that day), so one call covers both fields.
+  extractDiveWindow?(text: string, today: string): Promise<DiveWindowReadResult>;
 }

@@ -116,6 +116,22 @@ function createResilientProvider(primary: ExtractProvider, fallback?: ExtractPro
       : fallback.extractCheckIn
         ? { extractCheckIn: (text: string, today: string) => fallback.extractCheckIn!(text, today) }
         : {}),
+    // Same forwarding, same reason, added same day for extractDiveWindow —
+    // see the extractGuests comment above.
+    ...(primary.extractDiveWindow
+      ? {
+          async extractDiveWindow(text: string, today: string) {
+            try {
+              return await primary.extractDiveWindow!(text, today);
+            } catch (err) {
+              if (fallback.extractDiveWindow) return await fallback.extractDiveWindow(text, today);
+              throw err;
+            }
+          },
+        }
+      : fallback.extractDiveWindow
+        ? { extractDiveWindow: (text: string, today: string) => fallback.extractDiveWindow!(text, today) }
+        : {}),
   };
 }
 

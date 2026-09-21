@@ -73,6 +73,14 @@ export async function extract(rawText: string, provider: ExtractProvider): Promi
     ? provider.extractCheckIn(text, today).catch(() => null)
     : Promise.resolve(null);
 
+  // Same pattern, same day, for the dive window (diveFrom/diveTo) — found
+  // via scripts/test-anilao-real-matrix.ts's AN-01 scenario: "diving on
+  // Oct 11th" in a follow-up turn came back diveFrom:null 4/4 in the full
+  // prompt, isolated 5/5 correct.
+  const diveWindowPromise: Promise<Awaited<ReturnType<NonNullable<ExtractProvider["extractDiveWindow"]>>> | null> = provider.extractDiveWindow
+    ? provider.extractDiveWindow(text, today).catch(() => null)
+    : Promise.resolve(null);
+
   type Attempt = { parsed: TripType; result: Awaited<ReturnType<ExtractProvider["call"]>> };
 
   const attempt = async (retry?: { previousRaw: unknown; error: string }): Promise<Attempt> => {
@@ -168,6 +176,33 @@ export async function extract(rawText: string, provider: ExtractProvider): Promi
     }
   }
 
+  // Same safety-net discipline again, for diveFrom/diveTo together. Gated on
+  // diver already being true: a dive window has no business appearing on a
+  // trip that isn't a diving trip, regardless of what an isolated call
+  // guesses.
+  const diveWindowRead = await diveWindowPromise;
+  let diveWindowTokensIn = 0;
+  let diveWindowTokensOut = 0;
+  let diveWindowMs = 0;
+  if (diveWindowRead) {
+    diveWindowTokensIn = diveWindowRead.tokensIn;
+    diveWindowTokensOut = diveWindowRead.tokensOut;
+    diveWindowMs = diveWindowRead.ms;
+    if (outcome.parsed.diver?.value === true) {
+      const guestText = guestTextOf(text).toLowerCase();
+      for (const key of ["diveFrom", "diveTo"] as const) {
+        const current = outcome.parsed[key];
+        const read = diveWindowRead[key];
+        if (current?.state !== "stated" && read.state !== "missing" && typeof read.value === "string") {
+          const evidenceOk = read.state !== "stated" || (!!read.evidence && guestText.includes(read.evidence.toLowerCase()));
+          if (evidenceOk && isPlausibleStayDate(read.value, today)) {
+            outcome.parsed[key] = { value: read.value, state: read.state, evidence: read.state === "stated" ? read.evidence : null };
+          }
+        }
+      }
+    }
+  }
+
   const questions = generateQuestions(outcome.parsed);
 
   return {
@@ -175,10 +210,10 @@ export async function extract(rawText: string, provider: ExtractProvider): Promi
     questions,
     meta: {
       provider: provider.id,
-      tokensIn: outcome.result.tokensIn + guestsTokensIn + checkInTokensIn,
-      tokensOut: outcome.result.tokensOut + guestsTokensOut + checkInTokensOut,
+      tokensIn: outcome.result.tokensIn + guestsTokensIn + checkInTokensIn + diveWindowTokensIn,
+      tokensOut: outcome.result.tokensOut + guestsTokensOut + checkInTokensOut + diveWindowTokensOut,
       cacheReadTokens: outcome.result.cacheReadTokens,
-      ms: Math.max(outcome.result.ms, guestsMs, checkInMs), // ran in parallel, not sequentially
+      ms: Math.max(outcome.result.ms, guestsMs, checkInMs, diveWindowMs), // ran in parallel, not sequentially
       retried,
     },
   };

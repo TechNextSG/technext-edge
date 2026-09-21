@@ -7,7 +7,7 @@
 // Verify GEMINI_MODEL against https://ai.google.dev/gemini-api/docs/models
 // before a real deploy — model names in this family change often and the
 // value below is a placeholder, not a confirmed-current id.
-import type { ExtractCall, ExtractProvider, ExtractResult, GuestsReadResult, CheckInReadResult } from "../provider.js";
+import type { ExtractCall, ExtractProvider, ExtractResult, GuestsReadResult, CheckInReadResult, DiveWindowReadResult } from "../provider.js";
 
 const API_BASE = "https://generativelanguage.googleapis.com/v1beta/models";
 
@@ -95,6 +95,31 @@ const CHECKIN_SCHEMA = {
   required: ["value", "state", "evidence"],
 };
 
+// Isolated dive-window prompt (2026-09-21, ADR-005a) — same pattern and
+// reasoning as deepseek.ts's DIVE_WINDOW_ONLY_PROMPT, kept in sync with it.
+const DIVE_WINDOW_ONLY_PROMPT =
+  "You extract TWO facts from a dive-resort guest's message: the date they start diving " +
+  "(diveFrom) and the date they end diving (diveTo). Find any phrase that indicates diving " +
+  "dates. If only one day is mentioned (e.g. 'diving on Oct 11th'), that single day is both " +
+  "diveFrom and diveTo. If a range is given (e.g. 'Oct 11 to Oct 12' or 'Oct 16th and 17th'), " +
+  "use the first date as diveFrom and the last as diveTo. Compute your best ISO date " +
+  "(YYYY-MM-DD) for each from today's date. Return state 'stated' with a verbatim quote as " +
+  "evidence for each field when found; 'missing' if the guest has not mentioned diving or given " +
+  "no date for it. Never invent a date.";
+
+const DIVE_WINDOW_SCHEMA = {
+  type: "object",
+  properties: {
+    diveFromValue: { type: "string" },
+    diveFromState: { type: "string", enum: ["stated", "inferred", "missing"] },
+    diveFromEvidence: { type: "string" },
+    diveToValue: { type: "string" },
+    diveToState: { type: "string", enum: ["stated", "inferred", "missing"] },
+    diveToEvidence: { type: "string" },
+  },
+  required: ["diveFromValue", "diveFromState", "diveFromEvidence", "diveToValue", "diveToState", "diveToEvidence"],
+};
+
 export function createGeminiProvider(apiKey: string, model = process.env.GEMINI_MODEL ?? "gemini-2.5-flash"): ExtractProvider {
   return {
     id: "google:" + model,
@@ -154,6 +179,46 @@ export function createGeminiProvider(apiKey: string, model = process.env.GEMINI_
           value: state === "missing" ? null : (typeof parsed.value === "string" ? parsed.value : null),
           state,
           evidence: state === "stated" && typeof parsed.evidence === "string" && parsed.evidence.length > 0 ? parsed.evidence : null,
+          tokensIn: usage.promptTokenCount ?? 0,
+          tokensOut: usage.candidatesTokenCount ?? 0,
+          ms: Date.now() - started,
+        };
+      } finally {
+        clearTimeout(timer);
+      }
+    },
+    async extractDiveWindow(text: string, today: string): Promise<DiveWindowReadResult> {
+      const started = Date.now();
+      const controller = new AbortController();
+      const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
+      try {
+        const res = await fetch(`${API_BASE}/${model}:generateContent?key=${apiKey}`, {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          signal: controller.signal,
+          body: JSON.stringify({
+            systemInstruction: { parts: [{ text: DIVE_WINDOW_ONLY_PROMPT }] },
+            contents: [{ role: "user", parts: [{ text: `Today's date (Asia/Manila): ${today}\n\nConversation so far:\n${text}` }] }],
+            generationConfig: { responseMimeType: "application/json", responseSchema: DIVE_WINDOW_SCHEMA },
+          }),
+        });
+        if (!res.ok) throw new Error(`Gemini extractDiveWindow failed: ${res.status} ${await res.text()}`);
+        const body = await res.json();
+        const usage = body.usageMetadata ?? {};
+        const parsed = JSON.parse(body.candidates?.[0]?.content?.parts?.[0]?.text ?? "{}");
+        const fromState: DiveWindowReadResult["diveFrom"]["state"] = parsed.diveFromState === "stated" || parsed.diveFromState === "inferred" ? parsed.diveFromState : "missing";
+        const toState: DiveWindowReadResult["diveTo"]["state"] = parsed.diveToState === "stated" || parsed.diveToState === "inferred" ? parsed.diveToState : "missing";
+        return {
+          diveFrom: {
+            value: fromState === "missing" ? null : (typeof parsed.diveFromValue === "string" ? parsed.diveFromValue : null),
+            state: fromState,
+            evidence: fromState === "stated" && typeof parsed.diveFromEvidence === "string" && parsed.diveFromEvidence.length > 0 ? parsed.diveFromEvidence : null,
+          },
+          diveTo: {
+            value: toState === "missing" ? null : (typeof parsed.diveToValue === "string" ? parsed.diveToValue : null),
+            state: toState,
+            evidence: toState === "stated" && typeof parsed.diveToEvidence === "string" && parsed.diveToEvidence.length > 0 ? parsed.diveToEvidence : null,
+          },
           tokensIn: usage.promptTokenCount ?? 0,
           tokensOut: usage.candidatesTokenCount ?? 0,
           ms: Date.now() - started,
