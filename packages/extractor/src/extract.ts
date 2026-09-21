@@ -138,11 +138,17 @@ export async function extract(rawText: string, provider: ExtractProvider): Promi
     guestsTokensIn = guestsRead.tokensIn;
     guestsTokensOut = guestsRead.tokensOut;
     guestsMs = guestsRead.ms;
-    if (outcome.parsed.guests.state === "missing" && guestsRead.state !== "missing" && typeof guestsRead.value === "number") {
+    // Requires 'stated' specifically, not just "not missing" — found live on
+    // production the same day this shipped (via the sibling diveWindow
+    // override, same bug pattern): an unevidenced 'inferred' sailed straight
+    // through the old check below, since it only required verbatim evidence
+    // for 'stated'. An 'inferred' guest count with no real phrase behind it
+    // is exactly the fabrication this whole pipeline exists to block.
+    if (outcome.parsed.guests.state === "missing" && guestsRead.state === "stated" && typeof guestsRead.value === "number") {
       const guestText = guestTextOf(text).toLowerCase();
-      const evidenceOk = guestsRead.state !== "stated" || (!!guestsRead.evidence && guestText.includes(guestsRead.evidence.toLowerCase()));
+      const evidenceOk = !!guestsRead.evidence && guestText.includes(guestsRead.evidence.toLowerCase());
       if (evidenceOk) {
-        outcome.parsed.guests = { value: guestsRead.value, state: guestsRead.state, evidence: guestsRead.state === "stated" ? guestsRead.evidence : null };
+        outcome.parsed.guests = { value: guestsRead.value, state: "stated", evidence: guestsRead.evidence };
       }
     }
   }
@@ -160,11 +166,13 @@ export async function extract(rawText: string, provider: ExtractProvider): Promi
     checkInTokensIn = checkInRead.tokensIn;
     checkInTokensOut = checkInRead.tokensOut;
     checkInMs = checkInRead.ms;
-    if (outcome.parsed.checkIn.state !== "stated" && checkInRead.state !== "missing" && typeof checkInRead.value === "string") {
+    // Requires 'stated' specifically — see the same fix on guests just above
+    // for why an unevidenced 'inferred' must never pass this check.
+    if (outcome.parsed.checkIn.state !== "stated" && checkInRead.state === "stated" && typeof checkInRead.value === "string") {
       const guestText = guestTextOf(text).toLowerCase();
-      const evidenceOk = checkInRead.state !== "stated" || (!!checkInRead.evidence && guestText.includes(checkInRead.evidence.toLowerCase()));
+      const evidenceOk = !!checkInRead.evidence && guestText.includes(checkInRead.evidence.toLowerCase());
       if (evidenceOk && isPlausibleStayDate(checkInRead.value, today)) {
-        outcome.parsed.checkIn = { value: checkInRead.value, state: checkInRead.state, evidence: checkInRead.state === "stated" ? checkInRead.evidence : null };
+        outcome.parsed.checkIn = { value: checkInRead.value, state: "stated", evidence: checkInRead.evidence };
         // checkOut was derived from whatever checkIn the main pass had — stale
         // now that checkIn changed, and robustness.test.ts is explicit that a
         // derived date must never outlive the check-in it came from.
@@ -193,10 +201,19 @@ export async function extract(rawText: string, provider: ExtractProvider): Promi
       for (const key of ["diveFrom", "diveTo"] as const) {
         const current = outcome.parsed[key];
         const read = diveWindowRead[key];
-        if (current?.state !== "stated" && read.state !== "missing" && typeof read.value === "string") {
-          const evidenceOk = read.state !== "stated" || (!!read.evidence && guestText.includes(read.evidence.toLowerCase()));
+        // Unlike guests/checkIn, 'inferred' is never accepted here: a dive
+        // date has no legitimate basis to guess from context the way a
+        // guest count can (adults + kids summed). Found live on production
+        // (2026-09-21): "we'd like to dive" with no date at all came back
+        // diveFrom/diveTo 'inferred' with evidence:null 4/5 runs, and the
+        // old check only required verbatim evidence for 'stated' — an
+        // unevidenced 'inferred' sailed straight through. Require 'stated'
+        // with real evidence, full stop; anything else is treated the same
+        // as 'missing'.
+        if (current?.state !== "stated" && read.state === "stated" && typeof read.value === "string") {
+          const evidenceOk = !!read.evidence && guestText.includes(read.evidence.toLowerCase());
           if (evidenceOk && isPlausibleStayDate(read.value, today)) {
-            outcome.parsed[key] = { value: read.value, state: read.state, evidence: read.state === "stated" ? read.evidence : null };
+            outcome.parsed[key] = { value: read.value, state: "stated", evidence: read.evidence };
           }
         }
       }
