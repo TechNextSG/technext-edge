@@ -272,7 +272,18 @@ export function createGeminiProvider(apiKey: string, model = process.env.GEMINI_
         );
       }
 
-      const maxRetries = 3;
+      // 2026-09-21: was maxRetries=3 with exponential backoff (5s/10s/20s) and
+      // no ceiling on the API's own suggested retryDelay — under real
+      // quota exhaustion this stacked to 35-90s+ *inside a single call*,
+      // long enough that Vercel's own function timeout killed the whole
+      // invocation before extract.ts's retry-once/apology-fallback path
+      // ever got a turn. Confirmed live: a plain /v1/extract call hung
+      // 25s+ with no response while this was in effect. A guest getting a
+      // fast, honest failure (which extract.ts turns into an apology, not
+      // silence) is better than one long enough to get killed with no
+      // reply at all. See MAX_RETRY_WAIT_MS below.
+      const maxRetries = 1;
+      const MAX_RETRY_WAIT_MS = 3_000;
       let res: Response | undefined;
       for (let attempt = 0; attempt <= maxRetries; attempt++) {
         const controller = new AbortController();
@@ -306,7 +317,13 @@ export function createGeminiProvider(apiKey: string, model = process.env.GEMINI_
 
         if (res.status === 429 && attempt < maxRetries) {
           const errText = await res.text();
-          let waitMs = 5000 * Math.pow(2, attempt);
+          // Deliberately short and capped — see MAX_RETRY_WAIT_MS's comment
+          // above. Still honors the API's own suggested delay as a *signal*
+          // (worth a short pause rather than hammering immediately), but
+          // never trusts it enough to wait the full amount, since that
+          // suggested delay is exactly what stacked to 51s+ in the incident
+          // this replaced.
+          let waitMs = 1_500;
           try {
             const parsed = JSON.parse(errText);
             const retryInfo = parsed.error?.details?.find(
@@ -315,13 +332,14 @@ export function createGeminiProvider(apiKey: string, model = process.env.GEMINI_
             if (retryInfo?.retryDelay) {
               const match = String(retryInfo.retryDelay).match(/(\d+(?:\.\d+)?)/);
               if (match) {
-                waitMs = Math.ceil(parseFloat(match[1]) * 1000) + 1000;
+                waitMs = Math.ceil(parseFloat(match[1]) * 1000);
               }
             }
           } catch {
-            // fallback to exponential waitMs
+            // fallback to the 1.5s default
           }
-          console.warn(`[gemini] Rate limited (429), waiting ${waitMs}ms before retry ${attempt + 1}/${maxRetries}...`);
+          waitMs = Math.min(waitMs, MAX_RETRY_WAIT_MS);
+          console.warn(`[gemini] Rate limited (429), waiting ${waitMs}ms before retry ${attempt + 1}/${maxRetries} (capped at ${MAX_RETRY_WAIT_MS}ms)...`);
           await new Promise((resolve) => setTimeout(resolve, waitMs));
           continue;
         }
