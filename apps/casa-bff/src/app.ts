@@ -31,6 +31,8 @@ import {
   getChecklistHtml,
   getTeamGuideHtml,
   getDiagramHtml,
+  getDiagramViewerHtml,
+  getDiagramViHtml,
 } from "./reportsHtml.js";
 import { createInMemoryConversationStore, type ConversationStore } from "./conversationStore.js";
 import {
@@ -536,9 +538,12 @@ export function createApp(options: AppOptions = {}) {
   app.get("/guide", (c) => c.html(getTeamGuideHtml()));
 
   // Architecture diagrams (Archify interactive view)
+  app.get("/diagrams/extractor-pod.viewer.html", (c) => c.html(getDiagramViewerHtml()));
+  app.get("/diagrams/extractor-pod.vi.html", (c) => c.html(getDiagramViHtml()));
   app.get("/diagrams/extractor-pod.html", (c) => c.html(getDiagramHtml()));
-  app.get("/diagrams/extractor-pod", (c) => c.html(getDiagramHtml()));
-  app.get("/architecture", (c) => c.html(getDiagramHtml()));
+  app.get("/diagrams/extractor-pod", (c) => c.html(getDiagramViewerHtml()));
+  app.get("/diagrams", (c) => c.html(getDiagramViewerHtml()));
+  app.get("/architecture", (c) => c.html(getDiagramViewerHtml()));
 
   return app;
 }

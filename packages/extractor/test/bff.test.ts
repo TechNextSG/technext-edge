@@ -23,7 +23,7 @@ describe("BFF Endpoints", () => {
     expect(res.status).toBe(200);
     expect(res.headers.get("content-type")).toContain("text/html");
     const html = await res.text();
-    expect(html).toContain("Casa Escondida Edge &amp; Extractor Tools");
+    expect(html).toContain("technext-edge");
     expect(html).toContain("Extractor Pod Architecture &amp; Trust Boundaries");
   });
 

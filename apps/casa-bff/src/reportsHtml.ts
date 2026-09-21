@@ -53,3 +53,11 @@ export function getTeamGuideHtml(): string {
 export function getDiagramHtml(): string {
   return loadHtmlFile("diagrams/extractor-pod.html");
 }
+
+export function getDiagramViewerHtml(): string {
+  return loadHtmlFile("diagrams/extractor-pod.viewer.html");
+}
+
+export function getDiagramViHtml(): string {
+  return loadHtmlFile("diagrams/extractor-pod.vi.html");
+}

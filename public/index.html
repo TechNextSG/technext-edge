@@ -3,15 +3,14 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Casa Escondida Edge &amp; Extractor Tools — Documentation &amp; Architecture Hub</title>
-<meta name="description" content="Architecture diagrams, benchmark evaluations, test scenario matrix, and operational playbooks for the Casa Escondida Edge Extractor Pod.">
+<title>technext-edge — Documentation &amp; Diagrams</title>
+<meta name="description" content="System architecture diagrams, LLM benchmark evaluations, WhatsApp test scenario matrices, and engineering playbooks for technext-edge.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700;12..96,800&family=Source+Serif+4:opsz,wght@8..60,400;8..60,600&family=IBM+Plex+Mono:wght@400;500;600&family=DM+Sans:wght@400;500;600&display=swap">
 <style>
 :root{
   --bg:#f5f7f6; --paper:#ffffff; --ink:#132129; --ink-2:#3f5059; --ink-3:#6c7c84; --line:#d8dfdd;
   --flag:#c0182f; --sea:#0f5e6b; --sea-soft:#e3f0f1; --teal:#1c7c82; --teal-soft:#e7f2f0;
-  --gold:#c99a3b; --gold-soft:#fbf2e0;
   --display:"Bricolage Grotesque",ui-sans-serif,system-ui,"Segoe UI",Helvetica,Arial,sans-serif;
   --body:"Source Serif 4",Georgia,"Times New Roman",serif;
   --mono:"IBM Plex Mono",ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
@@ -20,7 +19,6 @@
   :root{
     --bg:#0f171b; --paper:#152026; --ink:#e8eeef; --ink-2:#b8c5ca; --ink-3:#86969d; --line:#2a3940;
     --flag:#ff5a6e; --sea:#5fc1cf; --sea-soft:#10333a; --teal:#43acb3; --teal-soft:#153a3e;
-    --gold:#e3c069; --gold-soft:#33290f;
   }
 }
 *{box-sizing:border-box}
@@ -38,10 +36,10 @@ header{padding-block:56px 20px}
 }
 .eyebrow{font-family:var(--mono);font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:var(--ink-3)}
 h1{
-  font-family:var(--display);font-size:clamp(32px,5.5vw,56px);font-weight:800;
-  letter-spacing:-.02em;line-height:1.06;margin:10px 0 0;text-wrap:balance;
+  font-family:var(--display);font-size:clamp(36px,6vw,60px);font-weight:800;
+  letter-spacing:-.025em;line-height:1.05;margin:10px 0 0;text-wrap:balance;
 }
-.lede{font-size:18.5px;color:var(--ink-2);max-width:62ch;margin:14px 0 0;line-height:1.45}
+.lede{font-size:19px;color:var(--ink-2);max-width:64ch;margin:14px 0 0;line-height:1.45}
 
 .hub-section{margin-top:40px}
 .section-title{
@@ -87,7 +85,6 @@ a.card:focus-visible{box-shadow:0 0 0 2px var(--sea)}
   padding:2px 7px;border-radius:999px;background:var(--sea-soft);color:var(--sea);
   letter-spacing:.04em;text-transform:none;
 }
-.badge.gold{background:var(--gold-soft);color:var(--gold)}
 
 footer{
   margin-top:56px;padding-top:18px;border-top:1px solid var(--line);
@@ -112,29 +109,22 @@ footer{
 <div class="wrap">
   <header>
     <div class="flag" aria-hidden="true"></div>
-    <div class="eyebrow">TechNext · Casa Escondida, Anilao</div>
-    <h1 data-vi="Công cụ Biên &amp; Trích xuất Casa Escondida" data-en="Casa Escondida Edge &amp; Extractor Tools">Casa Escondida Edge &amp; Extractor Tools</h1>
-    <p class="lede" data-vi="Trung tâm kiến trúc, báo cáo đo lường mô hình, ma trận kịch bản kiểm thử WhatsApp và sổ tay vận hành cho tầng biên của Casa Escondida." data-en="Central documentation hub: architecture diagrams, LLM benchmark evaluations, WhatsApp test scenario matrix, and engineering playbooks for the Casa Escondida Edge layer.">Central documentation hub: architecture diagrams, LLM benchmark evaluations, WhatsApp test scenario matrix, and engineering playbooks for the Casa Escondida Edge layer.</p>
+    <div class="eyebrow">TechNext · technext-edge</div>
+    <h1 data-vi="technext-edge — Tài liệu &amp; Sơ đồ" data-en="technext-edge — Docs &amp; Diagrams">technext-edge — Docs &amp; Diagrams</h1>
+    <p class="lede" data-vi="Trung tâm quản lý toàn bộ sơ đồ kiến trúc hệ thống, báo cáo đo lường mô hình LLM, ma trận kịch bản kiểm thử WhatsApp và sổ tay kỹ thuật của kho mã nguồn technext-edge." data-en="Master repository documentation: system architecture diagrams, LLM benchmark evaluations, WhatsApp test scenario matrices, and engineering playbooks for technext-edge.">Master repository documentation: system architecture diagrams, LLM benchmark evaluations, WhatsApp test scenario matrices, and engineering playbooks for technext-edge.</p>
   </header>
 
   <!-- SECTION 1: ARCHITECTURE & DIAGRAMS -->
   <section class="hub-section">
     <div class="section-title">
-      <span data-vi="1. Kiến trúc &amp; Sơ đồ Hệ thống" data-en="1. Architecture &amp; Diagrams">1. Architecture &amp; Diagrams</span>
+      <span data-vi="1. Sơ đồ Kiến trúc Hệ thống" data-en="1. Architecture &amp; System Diagrams">1. Architecture &amp; System Diagrams</span>
     </div>
     <nav class="cards" aria-label="Architecture and Diagrams">
-      <a class="card" href="/diagrams/extractor-pod.html">
-        <span class="kind"><span data-vi="Sơ đồ Kiến trúc" data-en="Architecture Diagram">Architecture Diagram</span> <span class="badge">Archify · Interactive</span></span>
-        <h2 data-vi="Kiến trúc Extractor Pod &amp; Ba Vùng Tin Cậy" data-en="Extractor Pod Architecture &amp; Trust Boundaries">Extractor Pod Architecture &amp; Trust Boundaries</h2>
-        <p data-vi="Sơ đồ kiến trúc tương tác Archify mô tả 3 vùng tin cậy: Webhook WhatsApp, Hono BFF biên, dịch vụ trích xuất LLM failover, và ranh giới bảo vệ Odoo ERP." data-en="Interactive Archify diagram detailing the 3 trust zones: WhatsApp webhook ingress, TypeScript Hono BFF, LLM extractor service with failover, and the Odoo ERP boundary.">Interactive Archify diagram detailing the 3 trust zones: WhatsApp webhook ingress, TypeScript Hono BFF, LLM extractor service with failover, and the Odoo ERP boundary.</p>
-        <span class="meta"><span data-vi="Extractor Pod · Sep 2026" data-en="Extractor Pod · Sep 2026">Extractor Pod · Sep 2026</span><span class="go" data-vi="Xem sơ đồ →" data-en="View diagram →">View diagram →</span></span>
-      </a>
-
-      <a class="card" href="https://casa-escondida-estimator-tools.vercel.app/casa-core-edge-blueprint" target="_blank" rel="noopener">
-        <span class="kind"><span data-vi="Bản Lập Trường Toàn Dự Án" data-en="Project Blueprint">Project Blueprint</span> <span class="badge gold">Odoo Brain ↗</span></span>
-        <h2 data-vi="Odoo là bộ não, mọi thứ khác là biên" data-en="Odoo is the brain, everything else is the edge">Odoo is the brain, everything else is the edge</h2>
-        <p data-vi="Bản lập trường kiến trúc Core &amp; Edge của Anthony: sơ đồ 4 hình, luồng một báo giá, ranh giới giữa tầng biên nháp và lõi Odoo ERP." data-en="Anthony's Core &amp; Edge stance paper: system diagram, journey of one quotation, fishbone pain points, and the hard boundary between Edge drafts and Odoo ERP.">Anthony's Core &amp; Edge stance paper: system diagram, journey of one quotation, fishbone pain points, and the hard boundary between Edge drafts and Odoo ERP.</p>
-        <span class="meta"><span>Anthony · 15 Sep 2026</span><span class="go" data-vi="Mở Blueprint ↗" data-en="Open Blueprint ↗">Open Blueprint ↗</span></span>
+      <a class="card" href="/diagrams/extractor-pod.viewer.html">
+        <span class="kind"><span data-vi="Sơ đồ Kiến trúc" data-en="Architecture Diagram">Architecture Diagram</span> <span class="badge">Song ngữ EN · VI</span></span>
+        <h2 data-vi="Kiến trúc Extractor Pod &amp; 3 Vùng Tin Cậy" data-en="Extractor Pod Architecture &amp; Trust Boundaries">Extractor Pod Architecture &amp; Trust Boundaries</h2>
+        <p data-vi="Sơ đồ tương tác Archify tích hợp nút chuyển đổi tiếng Anh và tiếng Việt. Mô tả 3 vùng tin cậy: Webhook WhatsApp, Hono BFF biên, dịch vụ trích xuất LLM failover, và ranh giới Odoo ERP." data-en="Interactive Archify diagram with bilingual toggle (EN / VI). Details 3 trust zones: WhatsApp webhook ingress, TypeScript Hono BFF, LLM extractor failover, and Odoo ERP boundaries.">Interactive Archify diagram with bilingual toggle (EN / VI). Details 3 trust zones: WhatsApp webhook ingress, TypeScript Hono BFF, LLM extractor failover, and Odoo ERP boundaries.</p>
+        <span class="meta"><span>Archify 2.17 · Dual-View</span><span class="go" data-vi="Xem sơ đồ →" data-en="View diagram →">View diagram →</span></span>
       </a>
     </nav>
   </section>
@@ -149,7 +139,7 @@ footer{
         <span class="kind"><span data-vi="Báo cáo Đo Lường" data-en="Evaluation Report">Evaluation Report</span> <span class="badge">VI · EN</span></span>
         <h2 data-vi="LLM Benchmark: Gemini 3.1 Flash-Lite vs Đối Thủ" data-en="LLM Benchmark: Gemini 3.1 Flash-Lite vs Competitors">LLM Benchmark: Gemini 3.1 Flash-Lite vs Competitors</h2>
         <p data-vi="Đo lường 4 mô hình (Gemini 3.1 Flash-Lite, DeepSeek Chat, Grok 3, Claude 3.5 Sonnet) qua 10 tình huống Anilao. Gemini đạt 100% độ chính xác, P95 1.56s, chi phí $0.15/1k lượt." data-en="Evaluation of 4 LLMs across 10 Anilao booking cases. Gemini 3.1 Flash-Lite achieves 100% precision, 1.56s P95 latency, and $0.15/1k calls.">Evaluation of 4 LLMs across 10 Anilao booking cases. Gemini 3.1 Flash-Lite achieves 100% precision, 1.56s P95 latency, and $0.15/1k calls.</p>
-        <span class="meta"><span>TechNext AI · Sep 2026</span><span class="go" data-vi="Xem báo cáo →" data-en="Open report →">Open report →</span></span>
+        <span class="meta"><span>TechNext AI · 21 Sep 2026</span><span class="go" data-vi="Xem báo cáo →" data-en="Open report →">Open report →</span></span>
       </a>
 
       <a class="card" href="/extractor-pod-status.html">
@@ -209,18 +199,11 @@ footer{
         <p data-vi="Hướng dẫn toàn diện cho kỹ sư team VN: biến môi trường, cài đặt máy trạm, chạy test tự động, schema Zod, chuẩn logging và checklist deploy." data-en="Comprehensive guide for VN engineers: environment configuration, test runner, Zod schemas, logging rules, and deployment checklist.">Comprehensive guide for VN engineers: environment configuration, test runner, Zod schemas, logging rules, and deployment checklist.</p>
         <span class="meta"><span>Engineering Pod · Sep 2026</span><span class="go" data-vi="Xem sổ tay →" data-en="Open playbook →">Open playbook →</span></span>
       </a>
-
-      <a class="card" href="https://casa-escondida-estimator-tools.vercel.app/" target="_blank" rel="noopener">
-        <span class="kind"><span data-vi="Tài Liệu Toàn Cục" data-en="Ecosystem Hub">Ecosystem Hub</span> <span class="badge gold">Estimator Tools ↗</span></span>
-        <h2 data-vi="Kho Tài liệu Kiến trúc Dự án Casa Escondida" data-en="Casa Escondida Estimator Tools Portal">Casa Escondida Estimator Tools Portal</h2>
-        <p data-vi="Cổng tài liệu tổng thể của toàn dự án Casa: Core &amp; Edge Blueprint, Edge Playbook, Delivery Plan, Product Business Map và Odoo API Guide." data-en="Master documentation portal for the entire Casa project: Core &amp; Edge Blueprint, Edge Playbook, Delivery Plan, Product Business Map, and Odoo API Guide.">Master documentation portal for the entire Casa project: Core &amp; Edge Blueprint, Edge Playbook, Delivery Plan, Product Business Map, and Odoo API Guide.</p>
-        <span class="meta"><span>TechNext Global Hub</span><span class="go" data-vi="Mở cổng tổng ↗" data-en="Open portal ↗">Open portal ↗</span></span>
-      </a>
     </nav>
   </section>
 
   <footer>
-    <div data-vi="Dự án TechNext Edge · Casa Escondida Anilao · Triển khai trên Vercel Edge Network." data-en="TechNext Edge Project · Casa Escondida Anilao · Deployed on Vercel Edge Network.">TechNext Edge Project · Casa Escondida Anilao · Deployed on Vercel Edge Network.</div>
+    <div data-vi="Kho mã nguồn TechNext · technext-edge · Triển khai trên Vercel Edge Network." data-en="TechNext Repository · technext-edge · Deployed on Vercel Edge Network.">TechNext Repository · technext-edge · Deployed on Vercel Edge Network.</div>
     <div>Production Domain: <code style="color:var(--sea);font-weight:600">technext-edge-casa-bff.vercel.app</code></div>
   </footer>
 </div>
