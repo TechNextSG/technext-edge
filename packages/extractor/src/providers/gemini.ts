@@ -266,6 +266,7 @@ export function createGeminiProvider(apiKey: string, model = process.env.GEMINI_
         "'diver' is true (stated) when the guest asks to dive, take a dive course, or are divers. Set it to false (stated) when they say they are not diving, do not want to dive, or have no diving plans — 'no diving', 'không lặn', 'không có nhu cầu lặn', '不潜水'. Otherwise mark it missing. " +
         "For 'diveNotes': when the guest mentions specific diver schedules, splits, or arrangements (e.g. 'one person will dive on the first day and five will dive on both'), extract that breakdown as a concise string (state 'stated', evidence quoting the phrase). Otherwise missing. " +
         "For 'specialRequests': when the guest mentions special arrangements or requirements (e.g. 'day visitors joining', 'rollaway bed', 'photographer guide'), extract that as a concise string (state 'stated', evidence quoting the phrase). Otherwise missing. " +
+        "For 'guestNames': when the guest mentions names of companions or members in their party (e.g. 'with Sarah, David and John'), extract them as an array of names (state 'stated', evidence quoting the phrase). Otherwise missing. " +
         "Copy a date phrase into " +
         "evidence verbatim, and also put your best ISO date (YYYY-MM-DD) for it in that " +
         "field's value, computed from today's date — the caller re-checks that date against " +

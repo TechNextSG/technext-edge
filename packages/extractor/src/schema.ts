@@ -55,6 +55,7 @@ export const Trip = z.object({
   diver: field(z.boolean()).optional(), // true if group includes certified divers or dive courses
   diveNotes: field(z.string()).optional(), // specific notes about diver schedule / breakdown (e.g. "1 diver day 1, 5 divers both days")
   specialRequests: field(z.string()).optional(), // special requirements or custom notes (e.g. "3 day visitors")
+  guestNames: field(z.array(z.string())).optional(), // optional voluntary guest roster if provided by booker
 });
 export type Trip = z.infer<typeof Trip>;
 

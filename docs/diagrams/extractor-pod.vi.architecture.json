@@ -6,8 +6,8 @@
     "output": "extractor-pod.vi.html",
     "quality_profile": "showcase",
     "views": [
-      { "id": "request-path", "label": "Tin nhắn khách đến câu trả lời", "focus": ["guest", "whatsapp", "bff", "store", "converse", "provider", "postprocess", "renderreply"], "note": "Theo dõi 1 tin nhắn khách từ WhatsApp vào đến câu trả lời ra." },
-      { "id": "no-llm-boundary", "label": "Không AI nào viết câu cho khách", "focus": ["provider", "isolated", "postprocess", "renderreply"], "note": "Model chỉ tạo ra dữ liệu có cấu trúc; renderReply() chọn 1 mẫu câu định sẵn, không bao giờ dùng văn bản của model." },
+      { "id": "request-path", "label": "Tin nhắn khách đến câu trả lời", "focus": ["guest", "whatsapp", "bff", "store", "converse", "provider", "postprocess", "renderreply"], "note": "Theo dõi 1 tin nhắn khách từ WhatsApp vào đến câu trả lời hiếu khách chuẩn mực." },
+      { "id": "hybrid-boundary", "label": "Ranh giới Neuro-Symbolic lai", "focus": ["postprocess", "renderreply"], "note": "Code kiểm soát sự thật Trip và an toàn; tầng tổng hợp tạo lời văn hiếu khách kèm cơ chế fallback tất định." },
       { "id": "provider-seam", "label": "Đổi provider AI dễ dàng", "focus": ["converse", "provider", "isolated"], "note": "converse() gọi qua 1 interface ExtractProvider duy nhất; model nào chạy phía sau là 1 biến môi trường, không phải sửa code." },
       { "id": "isolated-passes", "label": "Lớp bảo hiểm trích xuất riêng lẻ", "focus": ["converse", "isolated", "postprocess"], "note": "guests/checkIn/diveWindow mỗi field có 1 lượt gọi nhỏ song song, thêm sau khi lượt chính bỏ sót khi tải nhiều field." }
     ]
@@ -21,10 +21,10 @@
     { "id": "provider", "type": "cloud", "label": "AI Provider", "sublabel": "DeepSeek (chính)", "tag": "+ Gemini dự phòng", "pos": [815, 300], "size": [140, 64] },
     { "id": "isolated", "type": "cloud", "label": "Trích xuất riêng lẻ", "sublabel": "guests, ngày, lặn", "tag": "song song, chỉ bù chỗ thiếu", "pos": [815, 560], "size": [140, 64] },
     { "id": "postprocess", "type": "backend", "label": "postProcess()", "sublabel": "ngày, chuẩn, bằng chứng", "pos": [995, 300], "size": [140, 64] },
-    { "id": "renderreply", "type": "security", "label": "renderReply()", "sublabel": "3 mẫu câu cố định", "tag": "không AI viết lời", "pos": [1175, 300], "size": [140, 64] }
+    { "id": "renderreply", "type": "security", "label": "Phản hồi hiếu khách", "sublabel": "tổng hợp + fallback", "tag": "giọng có kiểm soát", "pos": [1175, 300], "size": [140, 64] }
   ],
   "boundaries": [
-    { "kind": "security-group", "label": "Tất định — không kết quả model nào đến tay khách", "wraps": ["postprocess", "renderreply"] }
+    { "kind": "security-group", "label": "Ranh giới Neuro-symbolic — sự thật kiểm chứng bằng code", "wraps": ["postprocess", "renderreply"] }
   ],
   "connections": [
     { "id": "guest-to-whatsapp", "from": "guest", "to": "whatsapp", "label": "tin nhắn", "variant": "emphasis", "labelDy": -26 },
@@ -41,8 +41,8 @@
     { "id": "whatsapp-to-guest", "from": "whatsapp", "to": "guest", "label": "trả lời", "variant": "emphasis", "fromSide": "bottom", "toSide": "bottom" }
   ],
   "cards": [
-    { "dot": "cyan", "title": "Ranh giới chống bịa đặt", "items": ["Mỗi field đều có trạng thái stated/inferred/missing kèm bằng chứng nguyên văn", "Không AI nào viết câu cho khách — renderReply() chọn 1 mẫu câu định sẵn", "Lượt trích xuất riêng lẻ chỉ bù chỗ thiếu — không bao giờ đè lên field lượt chính đã xác nhận"] },
-    { "dot": "emerald", "title": "Điểm đổi provider", "items": ["converse() -> extract() gọi qua 1 interface ExtractProvider duy nhất", "DeepSeek (qua gateway Railway) là chính, Gemini là dự phòng — chỉ là 1 biến môi trường, không sửa code"] },
-    { "dot": "rose", "title": "Điểm yếu đã biết", "items": ["Bộ nhớ hội thoại mặc định vẫn dùng RAM", "Đã có adapter Redis/KV trong code (redisStore.ts) nhưng chưa gắn ở production — chưa cấu hình biến môi trường"] }
+    { "dot": "cyan", "title": "Ranh giới Neuro-Symbolic lai", "items": ["Mỗi field đều có trạng thái stated/inferred/missing kèm bằng chứng trong Trip", "Code kiểm soát sự thật, khoảng cách bay DAN/PADI, và cảnh báo minh bạch", "NLG hiếu khách tạo lời văn thấu cảm ghi nhận chi tiết của khách mà không bịa đặt"] },
+    { "dot": "emerald", "title": "Điểm đổi provider & Fallback", "items": ["converse() -> extract() gọi qua 1 interface ExtractProvider duy nhất (DeepSeek chính, Gemini dự phòng)", "Tự động kích hoạt mẫu câu tất định renderReply() ngay khi tầng sinh lời văn quá hạn hoặc lỗi"] },
+    { "dot": "rose", "title": "Chính sách danh sách khách", "items": ["Bước hỏi giá: chỉ hỏi contactName đại diện để giảm ma sát rớt khách WhatsApp (chuẩn theo web resort)", "Bước trước khi đến: thu thập toàn bộ danh sách đoàn sau khi cọc để nộp Batangas Coast Guard & PADI", "Trích xuất thụ động: tự động ghi nhận guestNames vào Trip nếu khách chủ động cung cấp"] }
   ]
 }

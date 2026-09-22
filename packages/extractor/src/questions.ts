@@ -157,6 +157,7 @@ const LABELS: Record<keyof Trip, Record<Lang, string>> = {
   diver: { en: "Diving", vi: "Có lặn", zh: "是否潜水" },
   diveNotes: { en: "Dive breakdown", vi: "Chi tiết lịch lặn", zh: "潜水安排详情" },
   specialRequests: { en: "Special notes", vi: "Yêu cầu đặc biệt", zh: "特别要求" },
+  guestNames: { en: "Guest names", vi: "Danh sách khách", zh: "客人名单" },
 };
 
 // The stay is not a field but a range of two of them, so it gets its own label
@@ -496,6 +497,11 @@ function summaryLines(trip: Trip, lang: Lang): string[] {
     lines.push(`• ${LABELS.specialRequests[lang]}: ${special}`);
   }
 
+  const guestNames = trip.guestNames?.value;
+  if (guestNames && guestNames.length > 0 && trip.guestNames?.state !== "missing") {
+    lines.push(`• ${LABELS.guestNames[lang]}: ${guestNames.join(", ")}`);
+  }
+
   return lines;
 }
 
@@ -519,6 +525,7 @@ function renderSummary(trip: Trip, lang: Lang): string {
   const noFly = getNoFlyAdvisory(trip, lang);
   const diveNotes = statedValue<string>(trip, "diveNotes");
   const specialRequests = statedValue<string>(trip, "specialRequests");
+  const guestNames = statedValue<string[]>(trip, "guestNames");
 
   const notesAck: string[] = [];
   if (diveNotes) {
@@ -530,6 +537,11 @@ function renderSummary(trip: Trip, lang: Lang): string {
     if (lang === "vi") notesAck.push(`Yêu cầu đặc biệt: ${specialRequests}.`);
     else if (lang === "zh") notesAck.push(`特别要求：${specialRequests}。`);
     else notesAck.push(`Special note: ${specialRequests}.`);
+  }
+  if (guestNames && guestNames.length > 0) {
+    if (lang === "vi") notesAck.push(`Danh sách thành viên: ${guestNames.join(", ")}.`);
+    else if (lang === "zh") notesAck.push(`同行成员：${guestNames.join(", ")}。`);
+    else notesAck.push(`Party members noted: ${guestNames.join(", ")}.`);
   }
 
   return [

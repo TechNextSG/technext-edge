@@ -6,8 +6,8 @@
     "output": "extractor-pod.html",
     "quality_profile": "showcase",
     "views": [
-      { "id": "request-path", "label": "Guest message to reply", "focus": ["guest", "whatsapp", "bff", "store", "converse", "provider", "postprocess", "renderreply"], "note": "Follow one guest message from WhatsApp in to a guest-facing reply out." },
-      { "id": "no-llm-boundary", "label": "No LLM writes guest text", "focus": ["provider", "isolated", "postprocess", "renderreply"], "note": "The model only produces structured fields; renderReply() picks a fixed template, never model prose." },
+      { "id": "request-path", "label": "Guest message to reply", "focus": ["guest", "whatsapp", "bff", "store", "converse", "provider", "postprocess", "renderreply"], "note": "Follow one guest message from WhatsApp in to a grounded hospitality reply out." },
+      { "id": "hybrid-boundary", "label": "Hybrid Neuro-Symbolic boundary", "focus": ["postprocess", "renderreply"], "note": "Code validates Trip facts and safety rules; hospitality synthesis crafts empathetic tone with deterministic fallback." },
       { "id": "provider-seam", "label": "Swappable AI provider", "focus": ["converse", "provider", "isolated"], "note": "converse() calls one ExtractProvider interface; which model runs behind it is an env var, not a code change." },
       { "id": "isolated-passes", "label": "Isolated-field safety net", "focus": ["converse", "isolated", "postprocess"], "note": "guests/checkIn/diveWindow each get a small parallel call, added after the main call dropped them under multi-field load." }
     ]
@@ -21,10 +21,10 @@
     { "id": "provider", "type": "cloud", "label": "AI Provider", "sublabel": "DeepSeek (primary)", "tag": "+ Gemini fallback", "pos": [815, 300], "size": [140, 64] },
     { "id": "isolated", "type": "cloud", "label": "Isolated passes", "sublabel": "guests, dates, dive", "tag": "parallel, fills gaps only", "pos": [815, 560], "size": [140, 64] },
     { "id": "postprocess", "type": "backend", "label": "postProcess()", "sublabel": "dates, norms, evidence", "pos": [995, 300], "size": [140, 64] },
-    { "id": "renderreply", "type": "security", "label": "renderReply()", "sublabel": "3 fixed templates", "tag": "no LLM text", "pos": [1175, 300], "size": [140, 64] }
+    { "id": "renderreply", "type": "security", "label": "Hospitality Reply", "sublabel": "synthesis + fallback", "tag": "grounded voice", "pos": [1175, 300], "size": [140, 64] }
   ],
   "boundaries": [
-    { "kind": "security-group", "label": "Deterministic — no model output reaches the guest", "wraps": ["postprocess", "renderreply"] }
+    { "kind": "security-group", "label": "Neuro-symbolic guardrail — code-verified facts", "wraps": ["postprocess", "renderreply"] }
   ],
   "connections": [
     { "id": "guest-to-whatsapp", "from": "guest", "to": "whatsapp", "label": "message", "variant": "emphasis", "labelDy": -26 },
@@ -41,8 +41,8 @@
     { "id": "whatsapp-to-guest", "from": "whatsapp", "to": "guest", "label": "reply", "variant": "emphasis", "fromSide": "bottom", "toSide": "bottom" }
   ],
   "cards": [
-    { "dot": "cyan", "title": "Zero-fabrication boundary", "items": ["Every field is stated / inferred / missing with verbatim evidence", "No LLM ever writes a sentence a guest reads — renderReply() picks a fixed template", "Isolated passes only fill a gap — never overrule a field the main call already stated"] },
-    { "dot": "emerald", "title": "Provider seam", "items": ["converse() -> extract() calls one ExtractProvider interface", "DeepSeek (Railway gateway) is primary, Gemini is the fallback — an env var, not a code change"] },
-    { "dot": "rose", "title": "Known gap", "items": ["Conversation store defaults to in-memory", "A Redis/KV adapter now exists in code (redisStore.ts) but isn't wired in production — env vars not set yet"] }
+    { "dot": "cyan", "title": "Hybrid Neuro-Symbolic boundary", "items": ["Every field is stated / inferred / missing with verbatim evidence in Trip schema", "Code controls facts, DAN/PADI No-Fly safety intervals, and transparency guardrails", "Hospitality NLG crafts empathetic voice acknowledging guest nuance, with zero hallucination"] },
+    { "dot": "emerald", "title": "Provider seam & Fallback", "items": ["converse() -> extract() calls one ExtractProvider interface (DeepSeek primary, Gemini fallback)", "Instant automatic fallback to deterministic renderReply() if generative synthesis times out"] },
+    { "dot": "rose", "title": "Guest manifest policy", "items": ["Inquiry stage: primary contactName only to eliminate WhatsApp drop-off friction (matching official web)", "Pre-arrival stage: full passenger manifest collected after deposit for Batangas Coast Guard & PADI", "Passive extraction: captures voluntary guestNames in Trip schema if provided in chat"] }
   ]
 }
