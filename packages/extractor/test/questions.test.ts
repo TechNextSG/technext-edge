@@ -306,6 +306,7 @@ describe("the reply the guest gets back", () => {
       nights: { value: 2, state: "stated", evidence: "2 đêm" },
       guests: { value: 4, state: "stated", evidence: "4 người" },
       diver: { value: true, state: "stated", evidence: "có lặn" },
+      divers: { value: 4, state: "stated", evidence: "4 người lặn" },
       diveFrom: { value: "2026-09-26", state: "stated", evidence: "từ 26/09" },
       diveTo: { value: "2026-09-27", state: "stated", evidence: "đến 27/09" },
       contactName: { value: "Nhat", state: "stated", evidence: "Nhat" },
@@ -314,7 +315,7 @@ describe("the reply the guest gets back", () => {
       [
         {
           role: "guest",
-          text: "Chào em, 4 người, thứ 7 tuần sau 2 đêm, có lặn từ 26/09 đến 27/09, tên Nhat",
+          text: "Chào em, 4 người, thứ 7 tuần sau 2 đêm, có lặn, 4 người lặn từ 26/09 đến 27/09, tên Nhat",
         },
       ],
       providerReturning(raw),
@@ -324,7 +325,7 @@ describe("the reply the guest gets back", () => {
     expect(outcome.reply).toContain("Cảm ơn Nhat!");
     // "thứ 7 tuần sau" resolves through WEEKDAYS' Vietnamese digit form.
     expect(outcome.reply).toContain("• Kỳ nghỉ: 26–28/09/2026 (2 đêm)");
-    expect(outcome.reply).toContain("• Có lặn: có · 26–27/09/2026");
+    expect(outcome.reply).toContain("• Có lặn: có · 4 người lặn · 26–27/09/2026");
     expect(outcome.reply).toContain("Đội ngũ Casa sẽ sớm liên hệ");
     expect(outcome.reply).not.toContain("Thanks");
   });
@@ -467,12 +468,13 @@ describe("fallbacks", () => {
       nights: { value: 2, state: "stated", evidence: "2 nights" },
       guests: { value: 2, state: "stated", evidence: "2 of us" },
       diver: { value: true, state: "stated", evidence: "we dive" },
+      divers: { value: 2, state: "stated", evidence: "2 divers" },
       diveFrom: { value: "2026-10-11", state: "stated", evidence: "Oct 11" },
       diveTo: { value: "2026-10-12", state: "stated", evidence: "Oct 12" }, // checkout is Oct 12!
       contactName: { value: "Tom", state: "stated", evidence: "Tom" },
     };
     const outcome = await converse(
-      [{ role: "guest", text: "2 of us Oct 10 for 2 nights, Tom. Diving Oct 11 to Oct 12. we dive" }],
+      [{ role: "guest", text: "2 of us Oct 10 for 2 nights, Tom. Diving Oct 11 to Oct 12. we dive, 2 divers" }],
       providerReturning(raw),
     );
 

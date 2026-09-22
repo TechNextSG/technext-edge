@@ -821,7 +821,7 @@ Here's what I have for your stay:
 • Meals: full board
 • Contact name: Marianne Hastings
 • Airport transfer: no
-• Diving: yes · Dec 5 – 6, 2026
+• Diving: yes · 2 divers · Dec 5 – 6, 2026
 
 Someone from our team will follow up shortly to confirm availability and pricing — nothing is booked yet.</div>
           </div>
@@ -833,8 +833,13 @@ Someone from our team will follow up shortly to confirm availability and pricing
             <span class="assertion-pill">guests = 5 (all family members)</span>
             <span class="assertion-pill">rooms = 2</span>
             <span class="assertion-pill">diver = true (Dec 5–6)</span>
+            <span class="assertion-pill">divers = 2 (not 5 — see note below)</span>
             <span class="assertion-pill">transfer = false (own car)</span>
             <span class="assertion-pill">done = true</span>
+          </div>
+          <div style="background:#fff7ed; border:1px solid #fed7aa; border-radius:8px; padding:10px 14px; margin-top:10px; font-size:13px; color:#9a3412;">
+            <span class="en"><strong>2026-09-22 note:</strong> this scenario was marked PASS before the pipeline had a <code>divers</code> field at all — the reply used to end at "Diving: yes · Dec 5 – 6, 2026" with no head count, and the assertion list above never checked for one. That is a real pricing bug: the dive line is charged per diver, and with only <code>guests=5</code> and no <code>divers</code>, the estimate could not tell 2 divers from 5. The scenario passed because the test only checked fields the pipeline already had, not the one it was missing. Fixed by adding <code>divers</code> as its own field, corroborated the same way <code>guests</code> is.</span>
+            <span class="vi"><strong>Ghi chú 22/09/2026:</strong> kịch bản này từng được đánh PASS khi pipeline còn chưa có field <code>divers</code> — câu trả lời trước đây dừng ở "Diving: yes · Dec 5 – 6, 2026", không có số người lặn, và danh sách kiểm tra phía trên chưa từng kiểm tra điều đó. Đây là lỗi tính giá thật: dòng lặn tính theo đầu người, mà chỉ có <code>guests=5</code> không có <code>divers</code> thì không phân biệt được 2 hay 5 người lặn. Bài test PASS vì chỉ kiểm những field pipeline đã có, không kiểm field đang thiếu. Đã sửa bằng cách thêm field <code>divers</code> riêng, được đối chiếu cùng cơ chế đang bảo vệ <code>guests</code>.</span>
           </div>
         </div>
       </div>

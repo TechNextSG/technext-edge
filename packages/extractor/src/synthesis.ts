@@ -57,6 +57,7 @@ export async function synthesizeHospitalityReply(
       `- Rooms: ${input.trip.rooms?.value ?? "1"}\n` +
       `- Meals: ${input.trip.meals?.value ?? "full board"}\n` +
       `- Diving: ${input.trip.diver?.value ? `yes (${input.trip.diveFrom?.value ?? ""} to ${input.trip.diveTo?.value ?? ""})` : input.trip.diver?.value === false ? "no" : "unconfirmed"}\n` +
+      (typeof input.trip.divers?.value === "number" ? `- Divers in the party: ${input.trip.divers.value}\n` : "") +
       (input.trip.diveNotes?.value ? `- Diving breakdown: ${input.trip.diveNotes.value}\n` : "") +
       (input.trip.specialRequests?.value ? `- Special notes: ${input.trip.specialRequests.value}\n` : "") +
       (input.trip.guestNames?.value && input.trip.guestNames.value.length > 0 ? `- Guest names in party: ${input.trip.guestNames.value.join(", ")}\n` : "") +

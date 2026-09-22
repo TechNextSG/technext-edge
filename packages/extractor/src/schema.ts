@@ -53,6 +53,12 @@ export const Trip = z.object({
   diveFrom: field(z.string()).optional(), // ISO date start of dive window (vital for dive charges)
   diveTo: field(z.string()).optional(), // ISO date end of dive window (vital for dive charges)
   diver: field(z.boolean()).optional(), // true if group includes certified divers or dive courses
+  // How many of the party actually dive — routinely fewer than `guests` ("2 certified divers
+  // + grandma + 2 snorkelling kids" is 5 guests and 2 divers). `diver` only answers whether
+  // anyone dives at all, which is not a number the dive line can be priced from: without this
+  // the estimate has to guess between 2 and 5, and guessing 5 overcharges by 150%. `diveNotes`
+  // keeps the guest's own wording when the plan varies per person; this keeps the number.
+  divers: field(z.number().int().positive()).optional(),
   diveNotes: field(z.string()).optional(), // specific notes about diver schedule / breakdown (e.g. "1 diver day 1, 5 divers both days")
   specialRequests: field(z.string()).optional(), // special requirements or custom notes (e.g. "3 day visitors")
   guestNames: field(z.array(z.string())).optional(), // optional voluntary guest roster if provided by booker

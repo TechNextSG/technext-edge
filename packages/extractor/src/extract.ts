@@ -269,7 +269,7 @@ function postProcess(raw: unknown, today: string, sourceText: string): unknown {
   // Some structured-output providers use 0 as a stand-in for an unknown
   // positive count. It is recoverable missing information: ask the guest
   // instead of failing the entire conversation turn.
-  for (const key of ["nights", "guests", "rooms"] as const) {
+  for (const key of ["nights", "guests", "rooms", "divers"] as const) {
     const field = trip[key];
     if (field?.state === "inferred" || (typeof field?.value === "number" && field.value <= 0)) {
       trip[key] = { value: null, state: "missing", evidence: null };
@@ -377,7 +377,7 @@ function postProcess(raw: unknown, today: string, sourceText: string): unknown {
   // about, which is the same money bug through a different door. ADR-006 Decision 4
   // is "ask what money depends on; never infer it", so an unconfirmed answer becomes
   // `missing` again and the guest's own reply is the only thing that fills it.
-  for (const key of ["diver", "diveFrom", "diveTo"] as const) {
+  for (const key of ["diver", "diveFrom", "diveTo", "divers"] as const) {
     if (trip[key]?.state !== "stated") {
       trip[key] = { value: null, state: "missing", evidence: null };
     }
@@ -411,7 +411,7 @@ function postProcess(raw: unknown, today: string, sourceText: string): unknown {
   // count, the quote the model chose is the only thing behind the number, so it has to be a
   // quote about *this* count — "cần 3 phòng" offered as the evidence for `guests: 3` is a room
   // count wearing a guest label, and counts.ts turns it into a question too.
-  for (const key of ["nights", "guests", "rooms"] as const) {
+  for (const key of ["nights", "guests", "rooms", "divers"] as const) {
     const field = trip[key];
     if (field?.state !== "stated" || typeof field.value !== "number") continue;
     if (corroborateCount(key, field.value, guestText, field.evidence) === "conflicting") {

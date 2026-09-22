@@ -360,6 +360,7 @@ describe("structure-aware fuzz — 200 generated payloads, seeded", () => {
     diveFrom: [null, "2026-09-26"],
     diveTo: [null, "2026-09-29"],
     diver: [true, false],
+    divers: [null, 1, 2],
     diveNotes: [null, "1 diver day 1, 5 on both days"],
     specialRequests: [null, "3 day visitors"],
     guestNames: [null, ["Alice", "Bob"]],

@@ -404,6 +404,62 @@ describe("extract", () => {
     expect(outcome.trip.checkOut.value).toBe("2026-10-15"); // +3 nights
     expect(outcome.questions.map((q) => q.field)).not.toContain("checkIn");
   });
+
+  // Money-bug regression: the dive line is priced per head, and `diver` alone only says
+  // someone dives — a family of 5 with 2 certified divers used to report `divers` nowhere,
+  // leaving the estimate to guess between 2 and 5. This is docs/casa-anilao-test-scenarios.html's
+  // EN-LONG-02 shape, previously marked PASS while silently dropping this number.
+  it("keeps the diver head count separate from the guest count", async () => {
+    const message =
+      "Family of 5 arriving Dec 4, 2026 for 3 nights: 2 certified divers + grandma relaxing " +
+      "and 2 snorkelling kids. Request 2 rooms, full board, boat diving Dec 5-6.";
+    const raw = {
+      ...HAPPY_RAW,
+      checkIn: { value: "2026-12-04", state: "stated", evidence: "Dec 4, 2026" },
+      nights: { value: 3, state: "stated", evidence: "3 nights" },
+      guests: { value: 5, state: "stated", evidence: "Family of 5" },
+      rooms: { value: 2, state: "stated", evidence: "2 rooms" },
+      diver: { value: true, state: "stated", evidence: "2 certified divers" },
+      divers: { value: 2, state: "stated", evidence: "2 certified divers" },
+      diveFrom: { value: "2026-12-05", state: "stated", evidence: "Dec 5-6" },
+      diveTo: { value: "2026-12-06", state: "stated", evidence: "Dec 5-6" },
+    };
+
+    const outcome = await extract(message, fakeProvider(raw));
+
+    expect(outcome.trip.guests).toEqual({ value: 5, state: "stated", evidence: "Family of 5" });
+    expect(outcome.trip.divers).toEqual({ value: 2, state: "stated", evidence: "2 certified divers" });
+    expect(outcome.questions.map((q) => q.field)).not.toContain("divers");
+  });
+
+  // The other half of the same bug: a plan that genuinely has no single head count ("one
+  // person on the first day, five on both") must not be flattened into a guess. `divers`
+  // stays missing and becomes a question instead of a silently wrong price.
+  it("never invents a diver count when the guest's plan varies per person", async () => {
+    const message =
+      "Our group has 6 people coming this Saturday, but only 3 are staying for 2 nights. " +
+      "One person will dive on the first day and five will dive on both. My name is Michael.";
+    const raw = {
+      ...HAPPY_RAW,
+      checkIn: { value: null, state: "stated", evidence: "this Saturday" },
+      nights: { value: 2, state: "stated", evidence: "for 2 nights" },
+      guests: { value: 3, state: "stated", evidence: "only 3 are staying" },
+      diver: { value: true, state: "stated", evidence: "will dive" },
+      divers: { value: null, state: "missing", evidence: null },
+      diveNotes: {
+        value: "one person will dive on the first day and five will dive on both",
+        state: "stated",
+        evidence: "One person will dive on the first day and five will dive on both",
+      },
+      contactName: { value: "Michael", state: "stated", evidence: "My name is Michael" },
+    };
+
+    const outcome = await extract(message, fakeProvider(raw));
+
+    expect(outcome.trip.guests).toEqual({ value: 3, state: "stated", evidence: "only 3 are staying" });
+    expect(outcome.trip.divers).toEqual({ value: null, state: "missing", evidence: null });
+    expect(outcome.questions.map((q) => q.field)).toContain("divers");
+  });
 });
 
 

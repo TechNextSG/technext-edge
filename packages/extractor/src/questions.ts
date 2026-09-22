@@ -69,6 +69,16 @@ const RULES: QuestionRule[] = [
   // transportType is only ever filled in by code as "roundtrip" — the guest never
   // confirmed one-way vs return, so a *derived* roundtrip is asked about rather
   // than trusted. Both are gated so neither is asked of a trip it cannot apply to.
+  // The dive line is charged per head, and `diver` only says somebody dives: a party of
+  // five with two certified divers reads exactly like a party of five who all dive, so
+  // without this number the estimate has to guess and a wrong guess is a wrong quote.
+  // Asked before the dates because it is the one that cannot be defaulted, and only of a
+  // trip that has already said it dives.
+  {
+    key: "divers",
+    question: { en: "How many of you will be diving?", vi: "Có bao nhiêu người sẽ lặn?", zh: "有几位客人潜水？" },
+    when: (trip) => trip.diver?.value === true,
+  },
   {
     key: "diveFrom",
     question: (trip, lang) => {
@@ -155,6 +165,7 @@ const LABELS: Record<keyof Trip, Record<Lang, string>> = {
   diveFrom: { en: "Diving from", vi: "Lặn từ ngày", zh: "潜水开始" },
   diveTo: { en: "Diving to", vi: "Lặn đến ngày", zh: "潜水结束" },
   diver: { en: "Diving", vi: "Có lặn", zh: "是否潜水" },
+  divers: { en: "Divers", vi: "Số người lặn", zh: "潜水人数" },
   diveNotes: { en: "Dive breakdown", vi: "Chi tiết lịch lặn", zh: "潜水安排详情" },
   specialRequests: { en: "Special notes", vi: "Yêu cầu đặc biệt", zh: "特别要求" },
   guestNames: { en: "Guest names", vi: "Danh sách khách", zh: "客人名单" },
@@ -250,6 +261,12 @@ function nightsText(nights: number, lang: Lang): string {
   if (lang === "vi") return `${nights} đêm`;
   if (lang === "zh") return `${nights} 晚`;
   return `${nights} ${nights === 1 ? "night" : "nights"}`;
+}
+
+function diversText(divers: number, lang: Lang): string {
+  if (lang === "vi") return `${divers} người lặn`;
+  if (lang === "zh") return `${divers} 位潜水`;
+  return `${divers} ${divers === 1 ? "diver" : "divers"}`;
 }
 
 const DATE_KEYS = new Set<keyof Trip>(["checkIn", "checkOut", "diveFrom", "diveTo"]);
@@ -489,7 +506,10 @@ function summaryLines(trip: Trip, lang: Lang): string[] {
     const diveTo = (trip.diveTo?.value as string | null) ?? null;
     const window = diveFrom && diveTo ? ` · ${formatRange(diveFrom, diveTo, lang)}` : "";
     const notes = trip.diveNotes?.value ? ` (${trip.diveNotes.value})` : "";
-    lines.push(`• ${LABELS.diver[lang]}: ${YES_NO[lang][diver.value ? 0 : 1]}${window}${notes}`);
+    // The head count sits on the same line as the window: a guest reads one dive line, and
+    // the number only means anything once diving is happening at all.
+    const divers = typeof trip.divers?.value === "number" ? ` · ${diversText(trip.divers.value, lang)}` : "";
+    lines.push(`• ${LABELS.diver[lang]}: ${YES_NO[lang][diver.value ? 0 : 1]}${divers}${window}${notes}`);
   }
 
   const special = trip.specialRequests?.value;

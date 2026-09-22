@@ -128,6 +128,28 @@ describe("corroborateCount — what keeps a model's number", () => {
     expect(corroborateCount("guests", 6, "chúng tôi đi cả gia đình", "cả gia đình")).toBe("no-opinion");
   });
 
+  it("reads divers as its own count, separate from guests", () => {
+    // "2 divers" must not also read as a guest count: a family of 5 with 2 divers has two
+    // different, real numbers, and conflating them is the EN-LONG-02 bug (guests=5, divers
+    // vanished — see docs/casa-anilao-test-scenarios.html).
+    const text = "We have 2 divers in our group, staying 3 nights";
+    expect(countNumbersIn(text, "divers")).toEqual([2]);
+    expect(countNumbersIn(text, "guests")).toEqual([]);
+    expect(corroborateCount("divers", 2, text)).toBe("consistent");
+  });
+
+  it("lets a divers quote support guests, but not the reverse", () => {
+    // "6 AOW divers" does not sit directly against a guests noun, so corroboration falls
+    // back to what the model's own quote names. Every diver is a guest, so that quote is
+    // real support for a guests count that happens to equal it (en-01: the whole party
+    // dives) — not "conflicting" the way an unrelated quote would be.
+    const text = "International group diving Anilao";
+    expect(corroborateCount("guests", 6, text, "6 AOW divers")).toBe("no-opinion");
+    // The relationship is one-way: a quote naming guests says nothing about how many of
+    // them dive, so it is not support for `divers`.
+    expect(corroborateCount("divers", 6, text, "6 guests confirmed")).toBe("conflicting");
+  });
+
   it("refuses both numbers when the guest's own message states two (vi-09)", () => {
     // Not "the largest" and not "the first": the message does not identify a total, so
     // only the guest can. Picking either one is a 100% error on the biggest line.

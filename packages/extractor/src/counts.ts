@@ -48,7 +48,7 @@
 // decides nothing, exactly like a vague phrase in dates.ts. Only the quote is read this way,
 // never the whole message: what the guest wrote still decides whenever it says anything.
 
-export type CountField = "nights" | "guests" | "rooms";
+export type CountField = "nights" | "guests" | "rooms" | "divers";
 
 /** The verdict on a number the model proposed for one of the three counts. */
 export type CountCorroboration =
@@ -61,10 +61,19 @@ export type CountCorroboration =
 // actually type ("4 nguoi", "3 phong", "2 dem"). normalize() collapses whitespace but
 // never strips diacritics, so both spellings reach this file as the guest typed them.
 const COUNT_NOUNS: Record<CountField, string> = {
+  // `divers?` deliberately absent here even though a diver is a guest: it became its own
+  // count below, and a noun that reads for two counts makes one phrase answer both. "2
+  // divers" would then be read as a guest count too, so a party of 5 with 2 divers looks
+  // like two different guest numbers and `guests` goes back to being a question it has
+  // already been told the answer to.
   guests:
-    "người|nguoi|khách|khach|pax|of\\s+us|people|persons?|adults?|kids?|children|guests?|divers?|bạn|ban|客人|大人|小孩|位|名|人|口|are\\s+staying|is\\s+staying|staying|ở\\s*lại|o\\s*lai|入住",
+    "người|nguoi|khách|khach|pax|of\\s+us|people|persons?|adults?|kids?|children|guests?|bạn|ban|客人|大人|小孩|位|名|人|口|are\\s+staying|is\\s+staying|staying|ở\\s*lại|o\\s*lai|入住",
   rooms: "phòng|phong|rooms?|房间|房間|房",
   nights: "đêm|dem|nights?|晚上|晚",
+  // The dive line is priced per head, so this count is money the same way `guests` is, and
+  // it gets the same reader. Only nouns that mean "a person who dives" — never the activity
+  // ("2 boat dives" is a number of dives, not of divers).
+  divers: "divers?|thợ\\s*lặn|tho\\s*lan|người\\s*lặn|nguoi\\s*lan|潜水员|潛水員|潜水者",
 };
 
 // A measure word may sit between the number and the noun it counts: "8位客人", "3間房",
@@ -154,11 +163,12 @@ function nounPatternsFor(field: CountField): readonly RegExp[] {
     .map((noun) => new RegExp(/[\u4e00-\u9fff]/.test(noun) ? noun : "(?<![\\p{L}])" + noun + "(?![\\p{L}])", "iu"));
 }
 
-const COUNT_FIELDS = ["nights", "guests", "rooms"] as const;
+const COUNT_FIELDS = ["nights", "guests", "rooms", "divers"] as const;
 const NOUN_PATTERNS: Record<CountField, readonly RegExp[]> = {
   nights: nounPatternsFor("nights"),
   guests: nounPatternsFor("guests"),
   rooms: nounPatternsFor("rooms"),
+  divers: nounPatternsFor("divers"),
 };
 
 /** The counts a quote names — empty for a quote with no count noun in it at all ("we are a group"). */
@@ -273,7 +283,12 @@ export function corroborateCount(
   // evidence against the number either, and one naming both counts decides nothing.
   if (evidence) {
     const named = countsNamedIn(evidence);
-    if (named.length > 0 && !named.includes(field)) return "conflicting";
+    // Every diver is a guest, so a quote naming "divers" ("6 AOW divers") still supports
+    // "guests" — the two counts happen to be equal in that message, not in conflict. The
+    // reverse does not hold: a quote naming "guests" says nothing about how many of them
+    // dive, so it is not support for `divers`.
+    const supportsGuestsViaDivers = field === "guests" && named.includes("divers");
+    if (named.length > 0 && !named.includes(field) && !supportsGuestsViaDivers) return "conflicting";
   }
   return "no-opinion";
 }
