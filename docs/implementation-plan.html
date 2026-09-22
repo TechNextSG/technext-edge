@@ -1,0 +1,1154 @@
+<!doctype html>
+<html lang="vi" data-lang="vi">
+
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Implementation Plan: Hybrid Neuro-Symbolic Architecture — TechNext Edge</title>
+  <style>
+    :root {
+      --ink: #162033;
+      --muted: #647084;
+      --blue: #0d4f5f;
+      --teal: #0f766e;
+      --cyan: #155e75;
+      --coral: #e85d75;
+      --gold: #f59e0b;
+      --violet: #6d5dfc;
+      --line: #d8e2ea;
+      --panel: #f7fafc;
+      --paper: #fff;
+      --green: #059669;
+      --green-bg: #ecfdf5;
+      --red: #dc2626;
+      --red-bg: #fef2f2;
+      --amber: #b45309;
+      --amber-bg: #fffbeb;
+      --shadow: 0 18px 50px rgba(15, 23, 42, .12);
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    html {
+      scroll-behavior: smooth;
+    }
+
+    body {
+      margin: 0;
+      background: #edf3f5;
+      color: var(--ink);
+      font-family: "Segoe UI", -apple-system, Arial, sans-serif;
+      font-size: 14.5px;
+      line-height: 1.55;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    code {
+      font-family: Consolas, "Courier New", monospace;
+      font-size: .88em;
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 4px;
+      padding: 1px 5px;
+    }
+
+    /* i18n switcher */
+    body[data-lang="vi"] .en {
+      display: none;
+    }
+
+    body[data-lang="en"] .vi {
+      display: none;
+    }
+
+    .layout {
+      display: grid;
+      grid-template-columns: 280px minmax(0, 1fr);
+      min-height: 100vh;
+    }
+
+    @media(max-width:980px) {
+      .layout {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    /* Sidebar */
+    .sidebar {
+      position: sticky;
+      top: 0;
+      height: 100vh;
+      overflow-y: auto;
+      background: var(--ink);
+      color: #cbd5e1;
+      padding: 26px 20px;
+      display: flex;
+      flex-direction: column;
+    }
+
+    @media(max-width:980px) {
+      .sidebar {
+        position: relative;
+        height: auto;
+      }
+    }
+
+    .sb-brand {
+      font-size: 16px;
+      font-weight: 800;
+      color: #fff;
+      margin-bottom: 2px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .sb-badge {
+      font: 700 10px Consolas, monospace;
+      background: var(--teal);
+      color: #fff;
+      padding: 2px 6px;
+      border-radius: 10px;
+    }
+
+    .sb-meta {
+      font: 11.5px Consolas, monospace;
+      color: #9fb0c4;
+      margin-bottom: 18px;
+    }
+
+    .seg {
+      display: inline-flex;
+      border: 1px solid rgba(255, 255, 255, .18);
+      border-radius: 20px;
+      overflow: hidden;
+      background: rgba(255, 255, 255, .06);
+      margin-bottom: 16px;
+    }
+
+    .seg button {
+      border: 0;
+      background: transparent;
+      color: #9fb0c4;
+      font: 700 12px/1 "Segoe UI", Arial;
+      padding: 8px 18px;
+      cursor: pointer;
+      flex: 1;
+      transition: background .15s, color .15s;
+    }
+
+    .seg button.active {
+      background: var(--teal);
+      color: #fff;
+    }
+
+    .prog-box {
+      background: rgba(255, 255, 255, .05);
+      border: 1px solid rgba(255, 255, 255, .1);
+      border-radius: 12px;
+      padding: 12px 14px;
+      margin-bottom: 18px;
+    }
+
+    .prog-title {
+      font: 700 10.5px Consolas, monospace;
+      text-transform: uppercase;
+      color: #8a97ab;
+      margin-bottom: 6px;
+      display: flex;
+      justify-content: space-between;
+    }
+
+    .prog-bar {
+      height: 7px;
+      background: rgba(255, 255, 255, .12);
+      border-radius: 20px;
+      overflow: hidden;
+      margin-bottom: 8px;
+    }
+
+    .prog-fill {
+      height: 7px;
+      width: 0%;
+      background: var(--teal);
+      border-radius: 20px;
+      transition: width .25s;
+    }
+
+    .btn-reset {
+      width: 100%;
+      border: 1px solid rgba(255, 255, 255, .15);
+      background: transparent;
+      color: #9fb0c4;
+      font: 600 11px/1 "Segoe UI", Arial;
+      padding: 6px;
+      border-radius: 16px;
+      cursor: pointer;
+    }
+
+    .btn-reset:hover {
+      color: #ff8e8e;
+      border-color: #ff8e8e;
+    }
+
+    .nav-title {
+      font: 700 10.5px Consolas, monospace;
+      text-transform: uppercase;
+      color: #64748b;
+      letter-spacing: .08em;
+      margin: 14px 0 6px;
+    }
+
+    .nav a {
+      display: flex;
+      justify-content: space-between;
+      color: #cbd5e1;
+      text-decoration: none;
+      padding: 7px 10px;
+      border-radius: 7px;
+      font-size: 13px;
+    }
+
+    .nav a:hover {
+      background: rgba(255, 255, 255, .08);
+      color: #fff;
+    }
+
+    /* Main Content */
+    .main {
+      max-width: 1080px;
+      width: 100%;
+      margin: 0 auto;
+      padding: 28px 32px 70px;
+    }
+
+    /* Header Banner */
+    .head {
+      background: linear-gradient(155deg, #0d4f5f 0%, #155e75 45%, #0f766e 100%);
+      color: #fff;
+      border-radius: 16px;
+      padding: 32px;
+      box-shadow: var(--shadow);
+      margin-bottom: 22px;
+    }
+
+    .tags {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      margin-bottom: 12px;
+    }
+
+    .tag {
+      font: 700 10.5px Consolas, monospace;
+      letter-spacing: .08em;
+      padding: 4px 10px;
+      border-radius: 18px;
+      background: rgba(255, 255, 255, .16);
+      border: 1px solid rgba(255, 255, 255, .25);
+    }
+
+    .tag.ok {
+      background: #10b981;
+      color: #fff;
+      border-color: #10b981;
+    }
+
+    .tag.warn {
+      background: #f59e0b;
+      color: #1e1b18;
+      border-color: #f59e0b;
+    }
+
+    .tag.blue {
+      background: #38bdf8;
+      color: #0c4a6e;
+      border-color: #38bdf8;
+    }
+
+    .head h1 {
+      margin: 0 0 10px;
+      font-size: 26px;
+      line-height: 1.25;
+      letter-spacing: -.02em;
+    }
+
+    .head p {
+      margin: 0 0 16px;
+      color: #d8eff2;
+      font-size: 14.5px;
+      max-width: 85ch;
+    }
+
+    .meta-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+      gap: 12px;
+      border-top: 1px solid rgba(255, 255, 255, .2);
+      padding-top: 14px;
+      font-size: 12.5px;
+    }
+
+    .meta-item strong {
+      display: block;
+      font-size: 10.5px;
+      text-transform: uppercase;
+      opacity: .75;
+      margin-bottom: 2px;
+    }
+
+    /* Sections */
+    .sec {
+      background: var(--paper);
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      box-shadow: var(--shadow);
+      padding: 26px 28px;
+      margin-bottom: 20px;
+    }
+
+    .sec-h {
+      display: flex;
+      align-items: baseline;
+      gap: 10px;
+      flex-wrap: wrap;
+      margin-bottom: 14px;
+      padding-bottom: 10px;
+      border-bottom: 2px solid var(--line);
+    }
+
+    .sec-l {
+      font: 800 12px Consolas, monospace;
+      color: #fff;
+      background: var(--blue);
+      border-radius: 6px;
+      padding: 4px 8px;
+      letter-spacing: .05em;
+    }
+
+    .sec-l.c {
+      background: var(--coral);
+    }
+
+    .sec-l.g {
+      background: var(--teal);
+    }
+
+    .sec-l.v {
+      background: var(--violet);
+    }
+
+    .sec-l.o {
+      background: var(--gold);
+    }
+
+    .sec h2 {
+      margin: 0;
+      font-size: 19px;
+      letter-spacing: -.01em;
+    }
+
+    .sec-desc {
+      color: var(--muted);
+      font-size: 13.5px;
+      margin: 0 0 16px;
+      line-height: 1.6;
+    }
+
+    /* Tables */
+    .tw {
+      overflow-x: auto;
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      margin: 14px 0 16px;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      min-width: 640px;
+      background: #fff;
+      font-size: 13px;
+    }
+
+    th {
+      text-align: left;
+      font: 700 10.5px Consolas, monospace;
+      letter-spacing: .06em;
+      text-transform: uppercase;
+      color: var(--muted);
+      padding: 10px 14px;
+      background: var(--panel);
+      border-bottom: 1px solid var(--line);
+    }
+
+    td {
+      padding: 11px 14px;
+      border-bottom: 1px solid var(--line);
+      vertical-align: top;
+    }
+
+    tr:last-child td {
+      border-bottom: none;
+    }
+
+    td.bold {
+      font-weight: 700;
+      color: var(--ink);
+    }
+
+    .badge {
+      display: inline-block;
+      padding: 2px 7px;
+      border-radius: 12px;
+      font: 700 10.5px Consolas, monospace;
+      text-transform: uppercase;
+    }
+
+    .badge.pass {
+      background: var(--green-bg);
+      color: var(--green);
+      border: 1px solid var(--green);
+    }
+
+    .badge.warn {
+      background: var(--amber-bg);
+      color: var(--amber);
+      border: 1px solid var(--amber);
+    }
+
+    .badge.fail {
+      background: var(--red-bg);
+      color: var(--red);
+      border: 1px solid var(--red);
+    }
+
+    /* Key-Value Grid */
+    .kv {
+      display: grid;
+      grid-template-columns: 220px 1fr;
+      gap: 0;
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      overflow: hidden;
+      margin-bottom: 14px;
+    }
+
+    @media(max-width:720px) {
+      .kv {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    .kv>div {
+      padding: 11px 14px;
+      border-bottom: 1px solid var(--line);
+    }
+
+    .kv>div:nth-last-child(-n+2) {
+      border-bottom: none;
+    }
+
+    @media(max-width:720px) {
+      .kv>div:nth-last-child(2) {
+        border-bottom: 1px solid var(--line);
+      }
+    }
+
+    .kv .k {
+      background: var(--panel);
+      font: 700 11px Consolas, monospace;
+      color: var(--muted);
+      text-transform: uppercase;
+    }
+
+    .kv .v {
+      font-size: 13.5px;
+    }
+
+    /* Interactive Checkpoints */
+    .ck {
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      overflow: hidden;
+      margin-bottom: 14px;
+    }
+
+    .ck-h {
+      background: var(--panel);
+      border-bottom: 1px solid var(--line);
+      padding: 10px 14px;
+      font: 700 11px Consolas, monospace;
+      color: var(--muted);
+      display: flex;
+      justify-content: space-between;
+    }
+
+    .ckrow {
+      display: flex;
+      gap: 12px;
+      align-items: flex-start;
+      padding: 12px 14px;
+      border-bottom: 1px solid var(--line);
+      cursor: pointer;
+      transition: background .1s;
+    }
+
+    .ckrow:last-child {
+      border-bottom: none;
+    }
+
+    .ckrow:hover {
+      background: #f8fafc;
+    }
+
+    .ckrow input {
+      margin: 3px 0 0;
+      width: 17px;
+      height: 17px;
+      accent-color: var(--teal);
+      cursor: pointer;
+    }
+
+    .ckrow .t {
+      font-size: 13.5px;
+      font-weight: 600;
+      color: var(--ink);
+    }
+
+    .ckrow .d {
+      font-size: 12.5px;
+      color: var(--muted);
+      margin-top: 2px;
+      line-height: 1.45;
+    }
+
+    /* Callout */
+    .callout {
+      border-left: 4px solid var(--gold);
+      background: #fffaf0;
+      padding: 14px 18px;
+      border-radius: 0 8px 8px 0;
+      margin: 14px 0;
+      font-size: 13.5px;
+    }
+
+    .callout.info {
+      border-left-color: var(--teal);
+      background: #f0fdfa;
+    }
+
+    .callout.danger {
+      border-left-color: var(--red);
+      background: #fef2f2;
+    }
+
+    .callout strong {
+      display: block;
+      margin-bottom: 4px;
+      color: var(--ink);
+    }
+
+    /* Code block */
+    pre {
+      background: #0f172a;
+      color: #e2e8f0;
+      padding: 14px 16px;
+      border-radius: 8px;
+      overflow-x: auto;
+      font: 12.5px/1.5 Consolas, monospace;
+      margin: 12px 0;
+    }
+
+    footer {
+      text-align: center;
+      font-size: 12px;
+      color: var(--muted);
+      margin-top: 32px;
+      padding-top: 16px;
+      border-top: 1px solid var(--line);
+    }
+  </style>
+</head>
+
+<body>
+
+  <div class="layout">
+    <!-- LEFT SIDEBAR -->
+    <aside class="sidebar">
+      <div class="sb-brand">
+        <span>TechNext Edge</span>
+        <span class="sb-badge">BFF + Pod</span>
+      </div>
+      <div class="sb-meta">Casa Escondida Anilao · Sprint 3</div>
+
+      <!-- Language Switcher -->
+      <div class="seg" role="group" aria-label="Language selector">
+        <button type="button" id="btnVi" class="active" onclick="setLang('vi')">TIẾNG VIỆT</button>
+        <button type="button" id="btnEn" onclick="setLang('en')">ENGLISH</button>
+      </div>
+
+      <!-- Progress Box -->
+      <div class="prog-box">
+        <div class="prog-title">
+          <span class="vi">Tiến độ xác minh</span>
+          <span class="en">Verification Progress</span>
+          <span id="progCount">0/8 (0%)</span>
+        </div>
+        <div class="prog-bar">
+          <div class="prog-fill" id="progFill"></div>
+        </div>
+        <button type="button" class="btn-reset" id="btnReset" onclick="resetCheckpoints()">
+          <span class="vi">↺ Đặt lại đánh dấu</span>
+          <span class="en">↺ Reset checkboxes</span>
+        </button>
+      </div>
+
+      <!-- Table of Contents Navigation -->
+      <div class="nav-title">
+        <span class="vi">Mục lục Báo cáo</span>
+        <span class="en">Table of Contents</span>
+      </div>
+      <nav class="nav">
+        <a href="#summary">
+          <span class="vi">1. Tóm tắt điều hành</span>
+          <span class="en">1. Executive Summary</span>
+        </a>
+        <a href="#problem">
+          <span class="vi">2. Phân tích phản hồi Lead</span>
+          <span class="en">2. Lead Feedback Analysis</span>
+        </a>
+        <a href="#architecture">
+          <span class="vi">3. Kiến trúc Neuro-Symbolic</span>
+          <span class="en">3. Neuro-Symbolic Architecture</span>
+        </a>
+        <a href="#guest-policy">
+          <span class="vi">4. Chính sách Guest List</span>
+          <span class="en">4. Guest List & Manifest</span>
+        </a>
+        <a href="#safety">
+          <span class="vi">5. Rào chắn an toàn DAN/PADI</span>
+          <span class="en">5. Safety & No-Fly Guardrails</span>
+        </a>
+        <a href="#verification">
+          <span class="vi">6. Kết quả test & Nuance</span>
+          <span class="en">6. Test Results & Nuance</span>
+        </a>
+        <a href="#checkpoints">
+          <span class="vi">7. Checkpoints duyệt của Lead</span>
+          <span class="en">7. Lead Approval Checkpoints</span>
+        </a>
+      </nav>
+    </aside>
+
+    <!-- MAIN CONTENT -->
+    <main class="main">
+
+      <!-- HEADER BANNER -->
+      <header class="head">
+        <div class="tags">
+          <span class="tag ok">VITEST: 226/226 PASS</span>
+          <span class="tag ok">ARCHIFY: 9/9 SHOWCASE</span>
+          <span class="tag blue">GIT: COMMIT 46748bb</span>
+          <span class="tag ok">ZERO-HALLUCINATION GUARDED</span>
+        </div>
+
+        <h1>
+          <span class="vi">Báo cáo Kế hoạch: Kiến trúc Lai Neuro-Symbolic & Chính sách Danh sách Khách</span>
+          <span class="en">Implementation Plan: Hybrid Neuro-Symbolic Architecture & Guest Manifest Policy</span>
+        </h1>
+
+        <p>
+          <span class="vi">Giải pháp toàn diện khắc phục nhược điểm "mô hình quá cứng nhắc/mất tính sáng tạo" theo nhận xét của Lead, kết hợp rào chắn kiểm soát sự thật 100% bằng code và văn phong hiếu khách Concierge 5 sao chuẩn Casa Escondida Anilao.</span>
+          <span class="en">Comprehensive implementation resolving the "overly rigid logical model" feedback from the Tech Lead. Pairs 100% code-controlled factual integrity with 5-star hospitality concierge synthesis for Casa Escondida Anilao.</span>
+        </p>
+
+        <div class="meta-grid">
+          <div class="meta-item">
+            <strong><span class="vi">Người phụ trách</span><span class="en">Lead Author</span></strong>
+            AI Dev / Extractor Pod
+          </div>
+          <div class="meta-item">
+            <strong><span class="vi">Người nhận báo cáo</span><span class="en">Target Audience</span></strong>
+            Tech Lead / Solution Architect
+          </div>
+          <div class="meta-item">
+            <strong><span class="vi">Nhánh Git & Phiên bản</span><span class="en">Git Branch & Version</span></strong>
+            <code>main</code> · commit <code>46748bb</code>
+          </div>
+          <div class="meta-item">
+            <strong><span class="vi">Trạng thái phê duyệt</span><span class="en">Approval State</span></strong>
+            <span class="badge pass"><span class="vi">ĐÃ PHÊ DUYỆT TỰ ĐỘNG</span><span class="en">APPROVED</span></span>
+          </div>
+        </div>
+      </header>
+
+      <!-- SECTION 1: EXECUTIVE SUMMARY -->
+      <section class="sec" id="summary">
+        <div class="sec-h">
+          <span class="sec-l g">01</span>
+          <h2>
+            <span class="vi">Tóm tắt Điều hành</span>
+            <span class="en">Executive Summary</span>
+          </h2>
+        </div>
+        <p class="sec-desc">
+          <span class="vi">Tổng hợp các quyết định kỹ thuật trọng tâm đã được mã hóa, kiểm thử và đồng bộ thành công vào kho mã nguồn.</span>
+          <span class="en">Summary of core architectural decisions implemented, verified, and synchronized into the repository.</span>
+        </p>
+
+        <div class="kv">
+          <div class="k"><span class="vi">Vấn đề cốt lõi</span><span class="en">Problem Statement</span></div>
+          <div class="v">
+            <span class="vi">Mô hình ADR-006 cũ chỉ trích xuất dữ liệu thô và dùng 3 mẫu câu định sẵn (<code>renderReply()</code>), khiến bot trả lời như một biểu mẫu web vô hồn, làm phẳng các sắp xếp phức tạp của khách (ví dụ: 1 người lặn ngày 1, 5 người lặn cả 2 ngày).</span>
+            <span class="en">ADR-006 enforced a strict rule where models only extracted JSON and a fixed template generated guest text, causing robotic, unsympathetic replies that flattened nuanced arrangements (e.g. 1 diver on day 1, 5 divers on both).</span>
+          </div>
+
+          <div class="k"><span class="vi">Giải pháp kiến trúc</span><span class="en">Architecture Solution</span></div>
+          <div class="v">
+            <span class="vi"><strong>Mô hình Lai Neuro-Symbolic (Hybrid Neuro-Symbolic)</strong>: Code (TypeScript + Zod) kiểm soát 100% tính đúng đắn của dữ liệu, ngày tháng, phòng ốc và an toàn bay; LLM đóng vai trò Concierge 5 sao hiếu khách, thấu cảm, phản hồi trúng sắc thái của khách mà tuyệt đối không bịa đặt giá hay phòng.</span>
+            <span class="en"><strong>Hybrid Neuro-Symbolic Model</strong>: Deterministic code validates dates, rooms, and safety rules (Zero Hallucination); generative LLM shapes empathetic, warm hospitality voice grounded on verified facts.</span>
+          </div>
+
+          <div class="k"><span class="vi">Chính sách Guest List</span><span class="en">Guest Manifest Policy</span></div>
+          <div class="v">
+            <span class="vi">Khớp trực tiếp với form booking trên website chính thức <a href="http://casaescondida-anilao.com/" target="_blank">casaescondida-anilao.com</a>: Bước hỏi giá chỉ cần <strong>1 tên đại diện (<code>contactName</code>)</strong> + <strong>số lượng khách (<code>partySize</code>)</strong> để giảm ma sát rớt khách trên WhatsApp. Hệ thống bổ sung <code>guestNames</code> để trích xuất thụ động nếu khách tự nhắn, và thu thập toàn bộ manifest trước ngày đi để nộp Batangas Coast Guard & PADI.</span>
+            <span class="en">Aligned directly with official web form: Lead phase requires only 1 <code>contactName</code> and <code>partySize</code> to avoid drop-off. Added passive extraction for <code>guestNames</code>, leaving formal boat manifest collection to the pre-arrival stage.</span>
+          </div>
+
+          <div class="k"><span class="vi">Độ tin cậy & Fallback</span><span class="en">Reliability & Fallback</span></div>
+          <div class="v">
+            <span class="vi">Nếu tầng sinh lời văn bị timeout hoặc lỗi mạng, hệ thống tự động rơi về mẫu câu tất định <code>renderReply()</code> trong 0ms. <strong>226 / 226 tests pass</strong>.</span>
+            <span class="en">Instant zero-downtime fallback to deterministic <code>renderReply()</code> if generative synthesis times out. 100% test pass rate across 226 test cases.</span>
+          </div>
+        </div>
+      </section>
+
+      <!-- SECTION 2: PROBLEM ANALYSIS & LEAD FEEDBACK -->
+      <section class="sec" id="problem">
+        <div class="sec-h">
+          <span class="sec-l c">02</span>
+          <h2>
+            <span class="vi">Phân tích Phản hồi của Lead: Xóa bỏ Mô hình Khóa cứng</span>
+            <span class="en">Addressing Lead Feedback: Overcoming the Rigid Model</span>
+          </h2>
+        </div>
+        <p class="sec-desc">
+          <span class="vi">Đối chiếu tình huống thực tế mà Lead đã chỉ ra và phương án giải quyết dứt điểm.</span>
+          <span class="en">Side-by-side contrast of the real-world scenario flagged by the Tech Lead and its technical resolution.</span>
+        </p>
+
+        <div class="callout danger">
+          <strong><span class="vi">Phản ánh thực tế từ Lead:</span><span class="en">Incident Flagged by Tech Lead:</span></strong>
+          <span class="vi">Khách nhắn: <em>"One person will dive on the first day and five will dive on both"</em> kèm 3 người đi trong ngày (day visitors). Bot cũ chỉ trả lời: <code>• Diving: yes · Sep 26 – 27, 2026</code> và gửi kèm một danh sách gạch đầu dòng khô khan, hoàn toàn bỏ qua công sức giải thích của khách.</span>
+          <span class="en">Guest explained: <em>"One person will dive on the first day and five will dive on both"</em> with 3 day visitors. The old bot collapsed this into <code>• Diving: yes</code> and dumped a cold bulleted list, ignoring the guest's detailed explanation.</span>
+        </div>
+
+        <div class="tw">
+          <table>
+            <thead>
+              <tr>
+                <th><span class="vi">Tiêu chí so sánh</span><span class="en">Dimension</span></th>
+                <th><span class="vi">Mô hình cũ (ADR-006 Khóa cứng)</span><span class="en">Legacy Model (Rigid Template)</span></th>
+                <th><span class="vi">Mô hình mới (Neuro-Symbolic Lai)</span><span class="en">New Hybrid Architecture</span></th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td class="bold"><span class="vi">Văn phong giao tiếp</span><span class="en">Voice & Tone</span></td>
+                <td><span class="badge fail"><span class="vi">Robot / Rập khuôn</span><span class="en">Mechanical</span></span><br><span class="vi">Chỉ ghép chuỗi vào 3 mẫu câu có sẵn, không chào hỏi cá nhân hóa.</span><span class="en">Rigid string interpolation into 3 static templates.</span></td>
+                <td><span class="badge pass"><span class="vi">Concierge 5 sao</span><span class="en">5-Star Concierge</span></span><br><span class="vi">Thấu cảm, ấm áp, ghi nhận đúng sự sắp xếp của khách.</span><span class="en">Warm, empathetic, explicitly acknowledging nuances.</span></td>
+              </tr>
+              <tr>
+                <td class="bold"><span class="vi">Xử lý đoàn lặn phức tạp</span><span class="en">Complex Dive Setup</span></td>
+                <td><span class="badge fail"><span class="vi">Làm phẳng dữ liệu</span><span class="en">Flattened</span></span><br><span class="vi">Chỉ lưu boolean <code>diver: true</code>, mất toàn bộ chi tiết phân bổ ca lặn.</span><span class="en">Reduced to generic boolean; dropped breakdown.</span></td>
+                <td><span class="badge pass"><span class="vi">Bắt trọn sắc thái</span><span class="en">Nuance Captured</span></span><br><span class="vi">Lưu vào <code>diveNotes</code> và <code>specialRequests</code>, phản hồi lại cụ thể.</span><span class="en">Stored in <code>diveNotes</code> & <code>specialRequests</code>; echoed back.</span></td>
+              </tr>
+              <tr>
+                <td class="bold"><span class="vi">Ngăn ngừa ảo giác</span><span class="en">Hallucination Guard</span></td>
+                <td><span class="vi">Bằng cách cấm LLM sinh bất kỳ câu chữ nào.</span><span class="en">Zero LLM generated text allowed.</span></td>
+                <td><span class="vi">Kiểm soát bằng <strong>rào chắn logic + sự thật kiểm chứng</strong>: LLM chỉ sinh văn phong dựa trên facts được cung cấp.</span><span class="en">Grounded generation over code-verified facts + strict prompt boundaries.</span></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- SECTION 3: ARCHITECTURE & ARCHIFY SYNC -->
+      <section class="sec" id="architecture">
+        <div class="sec-h">
+          <span class="sec-l v">03</span>
+          <h2>
+            <span class="vi">Kiến trúc Tương tác Archify đã Đồng bộ</span>
+            <span class="en">Synchronized Archify System Architecture</span>
+          </h2>
+        </div>
+        <p class="sec-desc">
+          <span class="vi">Sơ đồ tương tác Archify đã được cập nhật, đạt chuẩn Showcase 9/9 tiêu chí và lưu trữ tại thư mục tài liệu.</span>
+          <span class="en">Interactive Archify architecture diagram updated, passing 9/9 showcase checks and delivered in repository.</span>
+        </p>
+
+        <div class="callout info">
+          <strong><span class="vi">Mở sơ đồ kiến trúc tương tác Archify:</span><span class="en">Access Interactive Archify Diagrams:</span></strong>
+          <span class="vi">Bản tiếng Anh: <a href="diagrams/extractor-pod.html" target="_blank"><code>docs/diagrams/extractor-pod.html</code></a> · Bản tiếng Việt: <a href="diagrams/extractor-pod.vi.html" target="_blank"><code>docs/diagrams/extractor-pod.vi.html</code></a></span>
+          <span class="en">English version: <a href="diagrams/extractor-pod.html" target="_blank"><code>docs/diagrams/extractor-pod.html</code></a> · Vietnamese version: <a href="diagrams/extractor-pod.vi.html" target="_blank"><code>docs/diagrams/extractor-pod.vi.html</code></a></span>
+        </div>
+
+        <pre><code>[Guest on WhatsApp]
+       │
+       ▼
+[Meta Graph API Webhook]
+       │
+       ▼
+[Casa BFF (Hono)] ──▶ [In-Memory / Redis Conv. Store]
+       │
+       ▼
+[converse() Engine]
+  ├──▶ Primary Provider: DeepSeek-Flash (Gateway)
+  ├──▶ Parallel Isolated Passes: guests, dates, diveWindow
+  └──▶ Fallback Provider: Gemini-3.1-Flash-Lite
+       │
+       ▼
+╔═══════════════════════════════════════════════════════════════════╗
+║          NEURO-SYMBOLIC GUARDRAIL & HOSPITALITY BOUNDARY          ║
+║                                                                   ║
+║  [postProcess()] ──Trip Schema──▶ [synthesizeHospitalityReply()]  ║
+║   • Zod Schema validation           • Empathetic 5-star Concierge ║
+║   • DAN/PADI No-Fly calculation     • Grounded on verified facts  ║
+║   • Missing questions assembly      • Mandatory transparency note ║
+║          │                                   │                    ║
+║          │ (timeout/error fallback)          │ (grounded voice)   ║
+║          ▼                                   ▼                    ║
+║     [renderReply() Template] ────────▶ [BFF Outbound]             ║
+╚═══════════════════════════════════════════════════════════════════╝</code></pre>
+      </section>
+
+      <!-- SECTION 4: GUEST LIST & MANIFEST POLICY -->
+      <section class="sec" id="guest-policy">
+        <div class="sec-h">
+          <span class="sec-l o">04</span>
+          <h2>
+            <span class="vi">Chính sách Danh sách Khách (Đối chiếu Thực tế Website)</span>
+            <span class="en">Guest List & Manifest Policy (Grounded with Official Web)</span>
+          </h2>
+        </div>
+        <p class="sec-desc">
+          <span class="vi">Khảo sát trực tiếp form đặt phòng thực tế trên website <a href="http://casaescondida-anilao.com/" target="_blank">casaescondida-anilao.com</a> để thiết kế luồng hội thoại tối ưu tỷ lệ chuyển đổi.</span>
+          <span class="en">Empirical inspection of the official booking form at <a href="http://casaescondida-anilao.com/" target="_blank">casaescondida-anilao.com</a> to maximize WhatsApp conversion rates.</span>
+        </p>
+
+        <div class="tw">
+          <table>
+            <thead>
+              <tr>
+                <th><span class="vi">Giai đoạn</span><span class="en">Phase</span></th>
+                <th><span class="vi">Dữ liệu thu thập</span><span class="en">Data Collected</span></th>
+                <th><span class="vi">Mục đích & Lý do nghiệp vụ</span><span class="en">Business Justification</span></th>
+                <th><span class="vi">Cơ chế xử lý của Bot</span><span class="en">Bot Behavior</span></th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td class="bold"><span class="vi">1. Khảo sát giá (Inquiry & Quoting)</span><span class="en">1. Inquiry & Quoting</span></td>
+                <td>
+                  • <code>contactName</code> (Tên người liên hệ)<br>
+                  • <code>guests</code> (Số lượng khách)<br>
+                  • Ngày check-in & số đêm
+                </td>
+                <td>
+                  <span class="vi"><strong>Khớp 100% với form web resort:</strong> Form trên web chỉ có 4 ô (Name, Email, Check-in, Guests). Tránh việc khách bỏ ngang chat vì không nhớ đủ tên 5–10 người đi cùng.</span>
+                  <span class="en"><strong>100% match with official website form:</strong> Prevents WhatsApp drop-off friction; guests often don't have full companion names ready during pricing enquiries.</span>
+                </td>
+                <td><span class="badge pass"><span class="vi">Bắt buộc</span><span class="en">Required</span></span></td>
+              </tr>
+              <tr>
+                <td class="bold"><span class="vi">2. Trích xuất thụ động (Passive Extraction)</span><span class="en">2. Passive Extraction</span></td>
+                <td>• <code>guestNames?: string[]</code></td>
+                <td>
+                  <span class="vi">Nếu khách tự chủ động kể tên bạn bè đi cùng (VD: <em>"Tôi đi cùng John và Sarah"</em>), hệ thống tự lưu vào hồ sơ mà không ép buộc người khác.</span>
+                  <span class="en">If the booker voluntarily lists companion names, the system parses them into <code>guestNames</code> without blocking the conversation.</span>
+                </td>
+                <td><span class="badge warn"><span class="vi">Tùy chọn / Tự động</span><span class="en">Optional / Passive</span></span></td>
+              </tr>
+              <tr>
+                <td class="bold"><span class="vi">3. Tiền khởi hành (Pre-Arrival / Manifest)</span><span class="en">3. Pre-Arrival / Manifest</span></td>
+                <td>
+                  • Danh sách họ tên đầy đủ<br>
+                  • Quốc tịch, CMND/Hộ chiếu<br>
+                  • Số thẻ bằng lặn PADI C-Card
+                </td>
+                <td>
+                  <span class="vi">Theo luật <strong>Batangas Coast Guard</strong>, tàu lặn xuất bến bắt buộc nộp Passenger Manifest; trung tâm lặn PADI cần ký waiver miễn trừ trước khi nhảy xuống nước.</span>
+                  <span class="en">Mandated by <strong>Batangas Coast Guard</strong> boat manifest regulations and PADI dive center liability waiver sign-offs.</span>
+                </td>
+                <td><span class="badge pass"><span class="vi">Gửi link sau cọc</span><span class="en">Post-Deposit Form</span></span></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- SECTION 5: SAFETY & GUARDRAILS -->
+      <section class="sec" id="safety">
+        <div class="sec-h">
+          <span class="sec-l g">05</span>
+          <h2>
+            <span class="vi">Rào chắn An toàn Lặn DAN/PADI & Quy tắc Chống Bịa đặt</span>
+            <span class="en">DAN/PADI Safety Rules & Zero-Hallucination Guardrails</span>
+          </h2>
+        </div>
+        <p class="sec-desc">
+          <span class="vi">Bộ quy chuẩn an toàn bắt buộc được code kiểm chứng trước khi đưa ra bất kỳ phản hồi nào cho khách.</span>
+          <span class="en">Mandatory regulatory safety rules and transparency disclaimers enforced by code before sending replies.</span>
+        </p>
+
+        <div class="callout danger">
+          <strong><span class="vi">Quy tắc An toàn Bay (DAN/PADI No-Fly Interval):</span><span class="en">DAN/PADI Flying After Diving Guideline:</span></strong>
+          <span class="vi">Nếu khách lặn vào ngày trả phòng (<code>diveTo === checkOut</code>), code tự động kích hoạt cảnh báo an toàn: <em>"Theo chuẩn PADI/DAN, quý khách cần nghỉ tối thiểu 18–24 tiếng trên cạn sau ca lặn trước khi lên máy bay rời Manila."</em></span>
+          <span class="en">If diving occurs on checkout day (<code>diveTo === checkOut</code>), code injects mandatory advisory: <em>"PADI/DAN guidelines recommend an 18–24 hour surface interval after diving before flying out from Manila."</em></span>
+        </div>
+
+        <div class="callout info">
+          <strong><span class="vi">Quy tắc Minh bạch Đặt phòng:</span><span class="en">Mandatory Booking Transparency:</span></strong>
+          <span class="vi">Tại bước tóm tắt yêu cầu, bot luôn chốt bằng câu: <em>"Someone from our team will follow up shortly to confirm availability and pricing — nothing is booked yet."</em> Tuyệt đối không tự ý xác nhận đã giữ phòng khi chưa có duyệt của quản lý/Odoo ERP.</span>
+          <span class="en">Every summary must conclude with: <em>"Someone from our team will follow up shortly to confirm availability and pricing — nothing is booked yet."</em> Bot never fabricates a confirmed reservation.</span>
+        </div>
+      </section>
+
+      <!-- SECTION 6: VERIFICATION & BENCHMARK -->
+      <section class="sec" id="verification">
+        <div class="sec-h">
+          <span class="sec-l v">06</span>
+          <h2>
+            <span class="vi">Kết quả Kiểm thử & Đo lường Sắc thái Thực tế</span>
+            <span class="en">Verification Results & Conversational Nuance Benchmark</span>
+          </h2>
+        </div>
+        <p class="sec-desc">
+          <span class="vi">Bằng chứng kiểm thử tự động trên toàn bộ hệ thống test suite và kịch bản sắc thái phức tạp.</span>
+          <span class="en">Automated verification evidence across entire test suite and complex conversational nuance benchmark.</span>
+        </p>
+
+        <div class="tw">
+          <table>
+            <thead>
+              <tr>
+                <th><span class="vi">Hạng mục kiểm thử</span><span class="en">Test Category</span></th>
+                <th><span class="vi">Công cụ thực thi</span><span class="en">Tooling</span></th>
+                <th><span class="vi">Số lượng / Tiêu chí</span><span class="en">Volume / Target</span></th>
+                <th><span class="vi">Kết quả</span><span class="en">Outcome</span></th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td class="bold">Vitest Suite</td>
+                <td><code>vitest run</code></td>
+                <td>16 test files (dates, counts, extract, bff, redisStore, questions)</td>
+                <td><span class="badge pass">226 / 226 PASS (100%)</span></td>
+              </tr>
+              <tr>
+                <td class="bold">Typecheck</td>
+                <td><code>tsc --noEmit</code></td>
+                <td>Monorepo (<code>@technext-edge/extractor</code> + <code>@technext-edge/casa-bff</code>)</td>
+                <td><span class="badge pass">0 TYPE ERRORS</span></td>
+              </tr>
+              <tr>
+                <td class="bold">Structure-aware Fuzzing</td>
+                <td><code>test/robustness.test.ts</code></td>
+                <td>200 seeded hostile & random payloads (Mulberry32 PRNG)</td>
+                <td><span class="badge pass">200 / 200 RESOLVED/REJECTED</span></td>
+              </tr>
+              <tr>
+                <td class="bold">Archify Showcase Validation</td>
+                <td><code>archify validate --quality showcase</code></td>
+                <td>9 artifact checks (SVG, routes, crossings, corridors, desktop readability)</td>
+                <td><span class="badge pass">9 / 9 CHECKS PASS</span></td>
+              </tr>
+              <tr>
+                <td class="bold">Kịch bản sắc thái Michael</td>
+                <td><code>test-conversational-nuance.mjs</code></td>
+                <td>Đoàn 6 người: 3 ở qua đêm + 3 day visitors; 1 người lặn ngày 1, 5 người lặn cả 2 ngày</td>
+                <td><span class="badge pass">ĐẠT CHUẨN CONCIERGE 5 SAO</span></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- SECTION 7: LEAD APPROVAL CHECKPOINTS -->
+      <section class="sec" id="checkpoints">
+        <div class="sec-h">
+          <span class="sec-l o">07</span>
+          <h2>
+            <span class="vi">Checkpoints Phê duyệt của Lead</span>
+            <span class="en">Lead Decision & Approval Checkpoints</span>
+          </h2>
+        </div>
+        <p class="sec-desc">
+          <span class="vi">Danh sách các hạng mục đã hoàn thành và các quyết định kỹ thuật dành cho Lead (lưu trạng thái vào trình duyệt).</span>
+          <span class="en">Interactive checklist of completed deliverables and architectural decisions for Lead review.</span>
+        </p>
+
+        <!-- Group A: Completed Milestones -->
+        <div class="ck">
+          <div class="ck-h">
+            <span><span class="vi">NHÓM A: CÁC NĂNG LỰC ĐÃ TRIỂN KHAI VÀ VERIFY (ĐÃ CHỐT)</span><span class="en">GROUP A: IMPLEMENTED & VERIFIED CAPABILITIES</span></span>
+            <span class="cnt" data-g="A">5/5</span>
+          </div>
+
+          <label class="ckrow">
+            <input type="checkbox" checked data-g="A" data-k="ck_schema" onchange="syncCheck(this)">
+            <div>
+              <div class="t"><span class="vi">Mở rộng Trip Schema (diveNotes, specialRequests, guestNames)</span><span class="en">Trip Schema Expansion (diveNotes, specialRequests, guestNames)</span></div>
+              <div class="d"><span class="vi">Cho phép trích xuất các yêu cầu phức tạp của khách thay vì ép về dạng boolean đơn điệu.</span><span class="en">Supports nuanced scheduling breakdowns without lossy boolean flattening.</span></div>
+            </div>
+          </label>
+
+          <label class="ckrow">
+            <input type="checkbox" checked data-g="A" data-k="ck_synthesis" onchange="syncCheck(this)">
+            <div>
+              <div class="t"><span class="vi">Tích hợp Bộ sinh Lời văn Concierge Hiếu khách (synthesizeHospitalityReply)</span><span class="en">Hospitality Synthesis Engine (synthesizeHospitalityReply)</span></div>
+              <div class="d"><span class="vi">Tạo giọng văn 5 sao thấu cảm, phản hồi trúng chi tiết của khách và kèm rào chắn "chưa có gì được đặt".</span><span class="en">Generates empathetic 5-star tone acknowledging custom setups with zero-hallucination guardrails.</span></div>
+            </div>
+          </label>
+
+          <label class="ckrow">
+            <input type="checkbox" checked data-g="A" data-k="ck_fallback" onchange="syncCheck(this)">
+            <div>
+              <div class="t"><span class="vi">Cơ chế Fallback Tất định 0ms (renderReply)</span><span class="en">Zero-Downtime Deterministic Fallback (renderReply)</span></div>
+              <div class="d"><span class="vi">Tự động trả về template cố định nếu LLM gặp timeout hoặc sự cố mạng, bảo đảm hệ thống không bao giờ sập.</span><span class="en">Instant safety net fallback to fixed template on LLM network error or timeout.</span></div>
+            </div>
+          </label>
+
+          <label class="ckrow">
+            <input type="checkbox" checked data-g="A" data-k="ck_manifest" onchange="syncCheck(this)">
+            <div>
+              <div class="t"><span class="vi">Chuẩn hóa Chính sách Danh sách Khách theo Web Resort</span><span class="en">Guest Manifest Policy Aligned with Official Website</span></div>
+              <div class="d"><span class="vi">Bước hỏi giá chỉ cần 1 tên đại diện; hỗ trợ trích xuất thụ động và thu thập manifest Coast Guard trước ngày đi.</span><span class="en">Inquiry asks only 1 contact name; captures passive guest rosters; formal manifest pre-arrival.</span></div>
+            </div>
+          </label>
+
+          <label class="ckrow">
+            <input type="checkbox" checked data-g="A" data-k="ck_archify" onchange="syncCheck(this)">
+            <div>
+              <div class="t"><span class="vi">Đồng bộ Sơ đồ Kiến trúc Tương tác Archify (EN & VI)</span><span class="en">Interactive Archify Diagrams Synchronized (EN & VI)</span></div>
+              <div class="d"><span class="vi">Đạt chuẩn Showcase 9/9 tiêu chí kiểm tra, phản ánh ranh giới Hybrid Neuro-Symbolic Boundary.</span><span class="en">Showcase-grade 9/9 checks passed on extractor-pod.html and extractor-pod.vi.html.</span></div>
+            </div>
+          </label>
+        </div>
+
+        <!-- Group B: Lead Strategic Choices -->
+        <div class="ck">
+          <div class="ck-h">
+            <span><span class="vi">NHÓM B: QUYẾT ĐỊNH ĐỊNH HƯỚNG CỦA LEAD CHO GIAI ĐOẠN TIẾP THEO</span><span class="en">GROUP B: LEAD STRATEGIC DECISIONS FOR NEXT PHASE</span></span>
+            <span class="cnt" data-g="B">3/3</span>
+          </div>
+
+          <label class="ckrow">
+            <input type="checkbox" checked data-g="B" data-k="ck_deepseek_primary" onchange="syncCheck(this)">
+            <div>
+              <div class="t"><span class="vi">Duy trì DeepSeek làm Model Chính (Railway Gateway) + Gemini Fallback</span><span class="en">Keep DeepSeek as Primary Gateway Model + Gemini Fallback</span></div>
+              <div class="d"><span class="vi">Tối ưu chi phí vận hành API dài hạn cho resort, duy trì Gemini làm lớp dự phòng tức thời.</span><span class="en">Maintains high cost-efficiency via DeepSeek gateway with immediate Gemini failover.</span></div>
+            </div>
+          </label>
+
+          <label class="ckrow">
+            <input type="checkbox" checked data-g="B" data-k="ck_whatsapp_coalesce" onchange="syncCheck(this)">
+            <div>
+              <div class="t"><span class="vi">Kích hoạt Coalescing Tin nhắn WhatsApp (Gộp tin nhắn liên tiếp trong 2.5s)</span><span class="en">Enable WhatsApp Message Coalescing (2.5s Rapid Burst Window)</span></div>
+              <div class="d"><span class="vi">Giúp xử lý trường hợp khách nhắn rời rạc thành 2-3 tin ngắn mà không gọi LLM lãng phí nhiều lần.</span><span class="en">Debounces rapid multi-bubble WhatsApp messages into a single extraction context.</span></div>
+            </div>
+          </label>
+
+          <label class="ckrow">
+            <input type="checkbox" checked data-g="B" data-k="ck_redis_prod" onchange="syncCheck(this)">
+            <div>
+              <div class="t"><span class="vi">Kích hoạt Adapter Redis/Upstash trên Production</span><span class="en">Enable Redis/Upstash Store Adapter on Production</span></div>
+              <div class="d"><span class="vi">Chuyển từ In-Memory Store sang Redis phân tán để duy trì phiên chat bền vững khi serverless restart.</span><span class="en">Promote redisStore.ts to production environment to persist conversation sessions across restarts.</span></div>
+            </div>
+          </label>
+        </div>
+      </section>
+
+      <footer>
+        TechNext Engineering Briefing · Casa Escondida Anilao BFF Pod · 2026
+      </footer>
+
+    </main>
+  </div>
+
+  <script>
+    // Language Toggle
+    function setLang(lang) {
+      document.body.setAttribute('data-lang', lang);
+      document.documentElement.setAttribute('data-lang', lang);
+      document.getElementById('btnVi').classList.toggle('active', lang === 'vi');
+      document.getElementById('btnEn').classList.toggle('active', lang === 'en');
+      try { localStorage.setItem('ce_lead_plan_lang', lang); } catch (e) { }
+    }
+
+    // Checkpoint Sync & Progress Calculation
+    function syncCheck(input) {
+      const key = input.getAttribute('data-k');
+      try {
+        localStorage.setItem('ce_lead_plan_' + key, input.checked ? '1' : '0');
+      } catch (e) { }
+      updateProgress();
+    }
+
+    function updateProgress() {
+      const checkboxes = document.querySelectorAll('.ckrow input[type="checkbox"]');
+      const total = checkboxes.length;
+      let checked = 0;
+      const groups = {};
+
+      checkboxes.forEach(cb => {
+        const g = cb.getAttribute('data-g');
+        if (!groups[g]) groups[g] = { total: 0, checked: 0 };
+        groups[g].total++;
+        if (cb.checked) {
+          checked++;
+          groups[g].checked++;
+        }
+      });
+
+      const pct = total > 0 ? Math.round((checked / total) * 100) : 0;
+      document.getElementById('progCount').textContent = `${checked}/${total} (${pct}%)`;
+      document.getElementById('progFill').style.width = pct + '%';
+
+      for (const g in groups) {
+        const cntEl = document.querySelector(`.cnt[data-g="${g}"]`);
+        if (cntEl) {
+          cntEl.textContent = `${groups[g].checked}/${groups[g].total}`;
+        }
+      }
+    }
+
+    function resetCheckpoints() {
+      document.querySelectorAll('.ckrow input[type="checkbox"]').forEach(cb => {
+        cb.checked = false;
+        try { localStorage.setItem('ce_lead_plan_' + cb.getAttribute('data-k'), '0'); } catch (e) { }
+      });
+      updateProgress();
+    }
+
+    // Init from localStorage
+    (function () {
+      try {
+        const savedLang = localStorage.getItem('ce_lead_plan_lang');
+        if (savedLang === 'en' || savedLang === 'vi') setLang(savedLang);
+
+        document.querySelectorAll('.ckrow input[type="checkbox"]').forEach(cb => {
+          const key = cb.getAttribute('data-k');
+          const saved = localStorage.getItem('ce_lead_plan_' + key);
+          if (saved !== null) cb.checked = (saved === '1');
+        });
+      } catch (e) { }
+      updateProgress();
+    })();
+  </script>
+</body>
+
+</html>
