@@ -2,6 +2,7 @@ import { extract, type ExtractionOutcome } from "./extract.js";
 import { renderReply } from "./questions.js";
 import type { ReplyKind } from "./questions.js";
 import type { ExtractProvider } from "./provider.js";
+import { synthesizeHospitalityReply } from "./synthesis.js";
 
 export interface ConversationTurn {
   role: "guest" | "assistant";
@@ -72,7 +73,18 @@ export async function converse(
   // empty" — one condition, so the summary can never be sent while a question is
   // still open.
   const done = outcome.questions.length === 0;
-  const { kind, text } = renderReply(outcome.trip, outcome.questions);
+  const { kind, text: fallbackText } = renderReply(outcome.trip, outcome.questions);
 
-  return { ...outcome, reply: text, replyKind: kind, done };
+  const reply = await synthesizeHospitalityReply(
+    {
+      turns,
+      trip: outcome.trip,
+      questions: outcome.questions,
+      replyKind: kind,
+      fallbackText,
+    },
+    provider,
+  );
+
+  return { ...outcome, reply, replyKind: kind, done };
 }

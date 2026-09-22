@@ -155,6 +155,8 @@ const LABELS: Record<keyof Trip, Record<Lang, string>> = {
   diveFrom: { en: "Diving from", vi: "Lặn từ ngày", zh: "潜水开始" },
   diveTo: { en: "Diving to", vi: "Lặn đến ngày", zh: "潜水结束" },
   diver: { en: "Diving", vi: "Có lặn", zh: "是否潜水" },
+  diveNotes: { en: "Dive breakdown", vi: "Chi tiết lịch lặn", zh: "潜水安排详情" },
+  specialRequests: { en: "Special notes", vi: "Yêu cầu đặc biệt", zh: "特别要求" },
 };
 
 // The stay is not a field but a range of two of them, so it gets its own label
@@ -394,6 +396,12 @@ function ackParts(trip: Trip, lang: Lang): string[] {
   if (meals) parts.push(MEALS_PHRASE[lang](ENUM_LABELS[meals]?.[lang] ?? meals));
   if (transport !== null) parts.push(TRANSPORT_PHRASE[lang][transport ? "yes" : "no"]);
   if (diver !== null) parts.push(DIVER_PHRASE[lang][diver ? "yes" : "no"]);
+  const diveNotes = statedValue<string>(trip, "diveNotes");
+  if (diveNotes) {
+    if (lang === "vi") parts.push(`chi tiết lặn (${diveNotes})`);
+    else if (lang === "zh") parts.push(`潜水安排（${diveNotes}）`);
+    else parts.push(`diving schedule (${diveNotes})`);
+  }
   if (name) parts.push(NAME_PHRASE[lang](name));
   return parts;
 }
@@ -479,7 +487,13 @@ function summaryLines(trip: Trip, lang: Lang): string[] {
     const diveFrom = (trip.diveFrom?.value as string | null) ?? null;
     const diveTo = (trip.diveTo?.value as string | null) ?? null;
     const window = diveFrom && diveTo ? ` · ${formatRange(diveFrom, diveTo, lang)}` : "";
-    lines.push(`• ${LABELS.diver[lang]}: ${YES_NO[lang][diver.value ? 0 : 1]}${window}`);
+    const notes = trip.diveNotes?.value ? ` (${trip.diveNotes.value})` : "";
+    lines.push(`• ${LABELS.diver[lang]}: ${YES_NO[lang][diver.value ? 0 : 1]}${window}${notes}`);
+  }
+
+  const special = trip.specialRequests?.value;
+  if (special && trip.specialRequests?.state !== "missing") {
+    lines.push(`• ${LABELS.specialRequests[lang]}: ${special}`);
   }
 
   return lines;
@@ -503,8 +517,24 @@ function getNoFlyAdvisory(trip: Trip, lang: Lang): string | null {
 function renderSummary(trip: Trip, lang: Lang): string {
   const name = statedValue<string>(trip, "contactName");
   const noFly = getNoFlyAdvisory(trip, lang);
+  const diveNotes = statedValue<string>(trip, "diveNotes");
+  const specialRequests = statedValue<string>(trip, "specialRequests");
+
+  const notesAck: string[] = [];
+  if (diveNotes) {
+    if (lang === "vi") notesAck.push(`Tôi đã ghi nhận chi tiết lịch lặn: ${diveNotes}.`);
+    else if (lang === "zh") notesAck.push(`已为您记录具体潜水安排：${diveNotes}。`);
+    else notesAck.push(`I've noted your diving arrangement: ${diveNotes}.`);
+  }
+  if (specialRequests) {
+    if (lang === "vi") notesAck.push(`Yêu cầu đặc biệt: ${specialRequests}.`);
+    else if (lang === "zh") notesAck.push(`特别要求：${specialRequests}。`);
+    else notesAck.push(`Special note: ${specialRequests}.`);
+  }
+
   return [
     THANKS[lang](name),
+    ...(notesAck.length > 0 ? [notesAck.join(" ")] : []),
     SUMMARY[lang].intro,
     ...summaryLines(trip, lang),
     ...(noFly ? ["", noFly] : []),

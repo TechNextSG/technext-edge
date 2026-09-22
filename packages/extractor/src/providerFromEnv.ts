@@ -132,6 +132,20 @@ function createResilientProvider(primary: ExtractProvider, fallback?: ExtractPro
       : fallback.extractDiveWindow
         ? { extractDiveWindow: (text: string, today: string) => fallback.extractDiveWindow!(text, today) }
         : {}),
+    ...(primary.generateText
+      ? {
+          async generateText(systemPrompt: string, userPrompt: string) {
+            try {
+              return await primary.generateText!(systemPrompt, userPrompt);
+            } catch (err) {
+              if (fallback.generateText) return await fallback.generateText(systemPrompt, userPrompt);
+              throw err;
+            }
+          },
+        }
+      : fallback.generateText
+        ? { generateText: (systemPrompt: string, userPrompt: string) => fallback.generateText!(systemPrompt, userPrompt) }
+        : {}),
   };
 }
 

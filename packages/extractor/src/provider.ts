@@ -76,4 +76,8 @@ export interface ExtractProvider {
   // correct. diveFrom/diveTo travel together (a single day mention sets
   // both to that day), so one call covers both fields.
   extractDiveWindow?(text: string, today: string): Promise<DiveWindowReadResult>;
+  // Optional natural language generation pass for grounded hospitality replies.
+  // When provided, converse() uses this to generate warm, empathetic responses
+  // that acknowledge nuanced guest arrangements, with safe fallback to renderReply().
+  generateText?(systemPrompt: string, userPrompt: string): Promise<string>;
 }

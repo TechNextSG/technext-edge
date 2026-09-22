@@ -53,6 +53,8 @@ export const Trip = z.object({
   diveFrom: field(z.string()).optional(), // ISO date start of dive window (vital for dive charges)
   diveTo: field(z.string()).optional(), // ISO date end of dive window (vital for dive charges)
   diver: field(z.boolean()).optional(), // true if group includes certified divers or dive courses
+  diveNotes: field(z.string()).optional(), // specific notes about diver schedule / breakdown (e.g. "1 diver day 1, 5 divers both days")
+  specialRequests: field(z.string()).optional(), // special requirements or custom notes (e.g. "3 day visitors")
 });
 export type Trip = z.infer<typeof Trip>;
 

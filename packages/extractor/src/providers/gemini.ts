@@ -227,6 +227,27 @@ export function createGeminiProvider(apiKey: string, model = process.env.GEMINI_
         clearTimeout(timer);
       }
     },
+    async generateText(systemPrompt: string, userPrompt: string): Promise<string> {
+      const controller = new AbortController();
+      const timer = setTimeout(() => controller.abort(), 8000);
+      try {
+        const url = `${API_BASE}/${model}:generateContent?key=${apiKey}`;
+        const res = await fetch(url, {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          signal: controller.signal,
+          body: JSON.stringify({
+            systemInstruction: { parts: [{ text: systemPrompt }] },
+            contents: [{ role: "user", parts: [{ text: userPrompt }] }],
+          }),
+        });
+        if (!res.ok) throw new Error(`Gemini generateText failed: ${res.status}`);
+        const body = await res.json();
+        return body.candidates?.[0]?.content?.parts?.[0]?.text?.trim() ?? "";
+      } finally {
+        clearTimeout(timer);
+      }
+    },
     async call({ text, jsonSchema, today, retry }: ExtractCall): Promise<ExtractResult> {
       const started = Date.now();
       const systemPrompt =
@@ -236,25 +257,15 @@ export function createGeminiProvider(apiKey: string, model = process.env.GEMINI_
         "For 'guests': when a message mentions both a party/group size and a different number of people staying (e.g. 'group of 6 but only 3 are staying' or '4 are day visitors, 2 staying overnight'), always extract the number of guests staying overnight (state 'stated', evidence quoting the staying phrase) — even when the two numbers sit right next to each other with no other words between them. " +
         "Example: 'We are a group of 6 but only 4 of us are joining this trip.' -> guests is stated 4, evidence 'only 4 of us are joining this trip' — 6 is the group size, not the staying count, and this is not a case for 'missing' just because two counts appear. " +
         "When adults and children are specified (e.g. '2 adults and 2 kids'), extract their sum as guests. " +
-        // Note (2026-09-21, ADR-005a): a stronger version of this rule, tried
-        // in this same multi-field prompt, still failed on a real family
-        // email — the model dropped 'guests' to missing 5/5 even with a
-        // step-by-step rewording. What actually works is isolating 'guests'
-        // into its own call: see extractGuests() below and how extract.ts
-        // runs it in parallel and overrides this field with its result.
-        // Left the simpler wording here (rather than the failed rewording)
-        // since a shorter prompt is one less variable, and this path is now
-        // a fallback for providers/cases where the isolated call didn't run.
         "When a message gives a diving window as two dates joined by 'and' with no 'to'/'through' between them (e.g. 'dive on October 16th and 17th'), extract diveFrom as the first date and diveTo as the second date, both stated. " +
-        // configured fallback (providerFromEnv.ts), and a rule that lives in only one prompt is
-        // a money bug waiting for a missing key. See that file for why it is phrased as the
-        // guest's meaning rather than as keywords.
         "'transport' is true (stated) only when the guest asks the resort for an airport " +
         "pickup or transfer. Set it to false (stated) when they say they have their own " +
         "vehicle, are driving themselves, or do not need a transfer — 'xe tụi mình tự đi', " +
         "'tự chạy xe', 'own van', 'we have a car', '自己开车', '不需要接送'. Otherwise mark it " +
         "missing: a guest who never mentions the airport has not asked for anything. " +
         "'diver' is true (stated) when the guest asks to dive, take a dive course, or are divers. Set it to false (stated) when they say they are not diving, do not want to dive, or have no diving plans — 'no diving', 'không lặn', 'không có nhu cầu lặn', '不潜水'. Otherwise mark it missing. " +
+        "For 'diveNotes': when the guest mentions specific diver schedules, splits, or arrangements (e.g. 'one person will dive on the first day and five will dive on both'), extract that breakdown as a concise string (state 'stated', evidence quoting the phrase). Otherwise missing. " +
+        "For 'specialRequests': when the guest mentions special arrangements or requirements (e.g. 'day visitors joining', 'rollaway bed', 'photographer guide'), extract that as a concise string (state 'stated', evidence quoting the phrase). Otherwise missing. " +
         "Copy a date phrase into " +
         "evidence verbatim, and also put your best ISO date (YYYY-MM-DD) for it in that " +
         "field's value, computed from today's date — the caller re-checks that date against " +

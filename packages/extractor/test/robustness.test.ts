@@ -341,6 +341,8 @@ describe("structure-aware fuzz — 200 generated payloads, seeded", () => {
     diveFrom: ["soon"],
     diveTo: [""],
     diver: ["yes", 1],
+    diveNotes: [123, true],
+    specialRequests: [456, false],
   };
   const PLAUSIBLE_VALUES: Record<string, unknown[]> = {
     language: ["vi", "en", "zh"],
@@ -357,6 +359,8 @@ describe("structure-aware fuzz — 200 generated payloads, seeded", () => {
     diveFrom: [null, "2026-09-26"],
     diveTo: [null, "2026-09-29"],
     diver: [true, false],
+    diveNotes: [null, "1 diver day 1, 5 on both days"],
+    specialRequests: [null, "3 day visitors"],
   };
   // Evidence a well-behaved model would lift (real substrings of MESSAGE), plus one it
   // invented — which must be downgraded rather than believed.

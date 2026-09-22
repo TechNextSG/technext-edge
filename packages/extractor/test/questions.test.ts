@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { converse } from "../src/converse.js";
 import { fallbackReply, generateQuestions, renderReply, wantsHuman } from "../src/questions.js";
+import { synthesizeHospitalityReply } from "../src/synthesis.js";
 import type { ConversationTurn } from "../src/converse.js";
 import type { ExtractProvider } from "../src/provider.js";
 import type { Trip } from "../src/schema.js";
@@ -223,6 +224,79 @@ describe("the reply the guest gets back", () => {
     };
     const reply = renderReply(trip, []);
     expect(reply.text).toContain("• Airport transfer: yes · return trip (assumed)");
+  });
+
+  it("includes and acknowledges diveNotes and specialRequests in summary", () => {
+    const trip = {
+      language: { value: "en" as const, state: "default" as const, evidence: null },
+      checkIn: { value: "2026-09-26", state: "stated" as const, evidence: "this Saturday" },
+      checkOut: { value: "2026-09-28", state: "derived" as const, evidence: null },
+      nights: { value: 2, state: "stated" as const, evidence: "2 nights" },
+      guests: { value: 3, state: "stated" as const, evidence: "3 are staying" },
+      rooms: { value: 1, state: "default" as const, evidence: null },
+      meals: { value: "full_board" as const, state: "default" as const, evidence: null },
+      transport: { value: false, state: "default" as const, evidence: null },
+      diver: { value: true, state: "stated" as const, evidence: "will dive" },
+      diveFrom: { value: "2026-09-26", state: "stated" as const, evidence: "first day" },
+      diveTo: { value: "2026-09-27", state: "stated" as const, evidence: "both" },
+      diveNotes: { value: "1 diver day 1, 5 divers on both days", state: "stated" as const, evidence: "one will dive on first day and five on both" },
+      specialRequests: { value: "3 day-visitors joining dives", state: "stated" as const, evidence: "the others are just day visitors" },
+      contactName: { value: "Michael", state: "stated" as const, evidence: "Michael" },
+    };
+    const reply = renderReply(trip, []);
+    expect(reply.text).toContain("I've noted your diving arrangement: 1 diver day 1, 5 divers on both days.");
+    expect(reply.text).toContain("Special note: 3 day-visitors joining dives.");
+    expect(reply.text).toContain("• Diving: yes · Sep 26 – 27, 2026 (1 diver day 1, 5 divers on both days)");
+    expect(reply.text).toContain("• Special notes: 3 day-visitors joining dives");
+  });
+
+  it("synthesizes natural hospitality reply with provider and falls back gracefully", async () => {
+    const trip = {
+      language: { value: "en" as const, state: "default" as const, evidence: null },
+      checkIn: { value: "2026-09-26", state: "stated" as const, evidence: "this Saturday" },
+      checkOut: { value: "2026-09-28", state: "derived" as const, evidence: null },
+      nights: { value: 2, state: "stated" as const, evidence: "2 nights" },
+      guests: { value: 3, state: "stated" as const, evidence: "3 are staying" },
+      rooms: { value: 1, state: "default" as const, evidence: null },
+      meals: { value: "full_board" as const, state: "default" as const, evidence: null },
+      transport: { value: false, state: "default" as const, evidence: null },
+      diver: { value: true, state: "stated" as const, evidence: "will dive" },
+      contactName: { value: "Michael", state: "stated" as const, evidence: "Michael" },
+    };
+
+    const mockProvider: ExtractProvider = {
+      id: "mock",
+      call: vi.fn(),
+      generateText: vi.fn().mockResolvedValue("Warm welcome, Michael! We've noted your 3 staying guests and 1 vs 5 diver split. Someone from our team will follow up shortly to confirm availability and pricing — nothing is booked yet."),
+    };
+
+    const reply = await synthesizeHospitalityReply(
+      {
+        turns: [{ role: "guest", text: "One person will dive on the first day and five will dive on both" }],
+        trip,
+        questions: [],
+        replyKind: "summary",
+        fallbackText: "Fallback summary text",
+      },
+      mockProvider,
+    );
+
+    expect(reply).toContain("Warm welcome, Michael!");
+    expect(reply).toContain("nothing is booked yet");
+
+    // Fallback test when generateText throws
+    vi.mocked(mockProvider.generateText!).mockRejectedValueOnce(new Error("Timeout"));
+    const fallbackReply = await synthesizeHospitalityReply(
+      {
+        turns: [],
+        trip,
+        questions: [],
+        replyKind: "summary",
+        fallbackText: "Fallback summary text",
+      },
+      mockProvider,
+    );
+    expect(fallbackReply).toBe("Fallback summary text");
   });
 
   it("summarizes in the guest's own language, dates and all", async () => {
