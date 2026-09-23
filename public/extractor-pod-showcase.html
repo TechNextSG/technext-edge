@@ -1,0 +1,1893 @@
+<!-- pipeline-showcase template.html — DO NOT reformat/minify. Edit only the
+     blocks marked "EDIT:" below. Everything else (CSS tokens, node-graph
+     render engine, animations) must stay byte-identical to preserve the
+     visual identity 100%. See SKILL.md for the full authoring guide. -->
+<!doctype html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Extractor Pod — Casa Escondida</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=Playfair+Display:ital,wght@0,400..900;1,400..900&family=JetBrains+Mono:wght@400;500;600&display=swap"
+        rel="stylesheet">
+    <style>
+        :root {
+            --bg: #FAF7F2;
+            --bg2: #F3ECDF;
+            --ink: #2A211B;
+            --ink-soft: #4A3D33;
+            --muted: #7A6A5E;
+            --line: #E4DBCF;
+            --line-soft: #EFE7DA;
+            --accent: #8B5E34;
+            --accent-2: #B47A45;
+            --accent-3: #D9A24B;
+            --accent-soft: #F1E6D8;
+            --claude: #D97757;
+            /* Claude signature orange-clay */
+            --claude-2: #B94F31;
+            --claude-soft: #FBEDE3;
+            --trigger: #7A8CA6;
+            --trigger-soft: #E7ECF3;
+            --agent: #D97757;
+            --tool: #4B7F52;
+            --tool-soft: #E3EFE5;
+            --skill: #B08968;
+            --skill-soft: #F1E6D8;
+            --deliverable: #A65E3F;
+            --deliverable-soft: #F4E1D6;
+            --card: #FFFFFF;
+            --shadow: 0 1px 2px rgba(42, 33, 27, .05), 0 8px 24px rgba(42, 33, 27, .06);
+            --shadow-hi: 0 4px 6px rgba(42, 33, 27, .08), 0 24px 48px rgba(42, 33, 27, .16);
+            --shadow-agent: 0 0 0 1px rgba(217, 119, 87, .30), 0 16px 44px rgba(217, 119, 87, .22);
+        }
+
+        * {
+            box-sizing: border-box
+        }
+
+        html,
+        body {
+            margin: 0;
+            padding: 0;
+            background: var(--bg);
+            color: var(--ink);
+            font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+            font-size: 14px;
+            line-height: 1.5;
+            -webkit-font-smoothing: antialiased
+        }
+
+        body {
+            background:
+                radial-gradient(1200px 500px at 90% -10%, rgba(217, 119, 87, .08), transparent 60%),
+                radial-gradient(900px 400px at -10% 60%, rgba(180, 122, 69, .06), transparent 60%),
+                var(--bg);
+        }
+
+        .page {
+            max-width: 1440px;
+            margin: 0 auto;
+            padding: 44px 40px 72px
+        }
+
+        .section {
+            page-break-inside: avoid;
+            break-inside: avoid
+        }
+
+        .section+.section {
+            page-break-before: always;
+            break-before: page;
+            margin-top: 72px
+        }
+
+        .kicker {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 11px;
+            letter-spacing: .2em;
+            text-transform: uppercase;
+            color: var(--accent);
+            font-weight: 700;
+            background: var(--accent-soft);
+            border: 1px solid #E5D3B7;
+            padding: 5px 10px;
+            border-radius: 99px;
+        }
+
+        .kicker::before {
+            content: "";
+            width: 6px;
+            height: 6px;
+            border-radius: 99px;
+            background: var(--accent);
+            display: inline-block;
+            animation: blip 2.4s ease-in-out infinite
+        }
+
+        @keyframes blip {
+
+            0%,
+            100% {
+                opacity: .5;
+                transform: scale(.9)
+            }
+
+            50% {
+                opacity: 1;
+                transform: scale(1.15)
+            }
+        }
+
+        h1 {
+            font-family: 'Playfair Display', Georgia, serif;
+            font-size: 40px;
+            line-height: 1.15;
+            margin: 14px 0 10px;
+            font-weight: 700;
+            letter-spacing: -.01em
+        }
+
+        h1 .thin {
+            font-weight: 400;
+            color: var(--muted)
+        }
+
+        .lede {
+            color: var(--muted);
+            max-width: 840px;
+            font-size: 15px;
+            margin: 0 0 30px
+        }
+
+        /* ============ SECTION 1 · OVERVIEW ============ */
+        .overview {
+            display: grid;
+            grid-template-columns: 1fr 1.15fr 1fr;
+            gap: 26px;
+            align-items: stretch;
+            position: relative;
+        }
+
+        .panel {
+            background: var(--card);
+            border: 1px solid var(--line);
+            border-radius: 16px;
+            padding: 22px 22px 24px;
+            box-shadow: var(--shadow);
+            position: relative;
+            display: flex;
+            flex-direction: column;
+            gap: 14px;
+            transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+
+        .panel:hover {
+            transform: translateY(-2px);
+            box-shadow: var(--shadow-hi);
+        }
+
+        .panel-title {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 11px;
+            letter-spacing: .2em;
+            text-transform: uppercase;
+            color: var(--muted);
+            font-weight: 700;
+        }
+
+        .panel-title .dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 99px;
+            background: var(--accent)
+        }
+
+        .panel h2 {
+            font-family: 'Playfair Display', Georgia, serif;
+            font-size: 22px;
+            margin: 0 0 4px;
+            font-weight: 700
+        }
+
+        .panel p.sub {
+            margin: 0;
+            color: var(--muted);
+            font-size: 13px
+        }
+
+        .arrow {
+            position: absolute;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 36px;
+            height: 36px;
+            border-radius: 99px;
+            background: var(--accent);
+            color: #fff;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 2;
+            box-shadow: var(--shadow-hi);
+            animation: nudge 2.2s ease-in-out infinite;
+        }
+
+        @keyframes nudge {
+
+            0%,
+            100% {
+                transform: translate(0, -50%)
+            }
+
+            50% {
+                transform: translate(4px, -50%)
+            }
+        }
+
+        .arrow.right {
+            right: -44px
+        }
+
+        .panel:last-child .arrow {
+            display: none
+        }
+
+        .input-list {
+            list-style: none;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            flex-direction: column;
+            gap: 9px
+        }
+
+        .input-list li {
+            display: flex;
+            gap: 11px;
+            align-items: flex-start;
+            padding: 10px 12px;
+            border: 1px solid var(--line);
+            border-radius: 10px;
+            background: #FBF7F1;
+            transition: transform .2s cubic-bezier(0.16, 1, 0.3, 1), border-color .2s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+
+        .input-list li:hover {
+            transform: translateX(3px);
+            border-color: #D8C8B0
+        }
+
+        .input-list li .lbl {
+            font-weight: 600;
+            font-size: 13px;
+            line-height: 1.25
+        }
+
+        .input-list li .desc {
+            color: var(--muted);
+            font-size: 12px;
+            line-height: 1.35
+        }
+
+        .input-list li .glyph {
+            width: 28px;
+            height: 28px;
+            border-radius: 8px;
+            background: var(--accent-soft);
+            color: var(--accent);
+            flex: 0 0 28px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .blackbox {
+            background:
+                radial-gradient(600px 200px at 80% -20%, rgba(217, 162, 75, .20), transparent 60%),
+                linear-gradient(180deg, #2A211B 0%, #3A2E24 100%);
+            color: #F6EEDF;
+            border: 1px solid #2A211B;
+            overflow: hidden;
+        }
+
+        .blackbox::after {
+            content: "";
+            position: absolute;
+            inset: 0;
+            pointer-events: none;
+            background:
+                radial-gradient(400px 200px at 20% 120%, rgba(217, 119, 87, .20), transparent 60%),
+                radial-gradient(300px 200px at 80% 80%, rgba(180, 122, 69, .15), transparent 60%);
+        }
+
+        .blackbox .panel-title {
+            color: #D9C7A8
+        }
+
+        .blackbox .panel-title .dot {
+            background: var(--accent-3)
+        }
+
+        .blackbox h2 {
+            font-family: 'Playfair Display', Georgia, serif;
+            color: #F6EEDF
+        }
+
+        .blackbox p.sub {
+            color: #C9B693
+        }
+
+        .counters {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 10px;
+            margin-top: 4px;
+            position: relative;
+            z-index: 1
+        }
+
+        .counter {
+            background: rgba(255, 255, 255, .04);
+            border: 1px solid rgba(255, 255, 255, .07);
+            border-radius: 12px;
+            padding: 14px 14px 12px;
+            position: relative;
+            overflow: hidden;
+            transition: transform .2s ease;
+        }
+
+        .counter:hover {
+            transform: translateY(-1px);
+            background: rgba(255, 255, 255, .06)
+        }
+
+        .counter::before {
+            content: "";
+            position: absolute;
+            left: 0;
+            top: 0;
+            bottom: 0;
+            width: 3px;
+            background: linear-gradient(180deg, var(--accent-3), var(--claude));
+        }
+
+        .counter .num {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 36px;
+            font-weight: 700;
+            letter-spacing: -.02em;
+            color: #F6EEDF;
+            line-height: 1;
+            font-variant-numeric: tabular-nums
+        }
+
+        .counter .lbl {
+            font-size: 10.5px;
+            letter-spacing: .14em;
+            text-transform: uppercase;
+            color: #C9B693;
+            margin-top: 5px;
+            font-weight: 600
+        }
+
+        .counter .hint {
+            font-size: 11px;
+            color: #B8A889;
+            margin-top: 6px;
+            line-height: 1.3
+        }
+
+        .box-sum {
+            margin-top: 10px;
+            font-size: 12.5px;
+            color: #D9C7A8;
+            line-height: 1.55;
+            border-top: 1px dashed rgba(255, 255, 255, .15);
+            padding-top: 12px;
+            position: relative;
+            z-index: 1;
+        }
+
+        .box-sum strong {
+            color: #F6EEDF
+        }
+
+        .agent-strip {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-top: 12px;
+            flex-wrap: wrap;
+            position: relative;
+            z-index: 1;
+        }
+
+        .agent-strip .lab {
+            font-size: 10.5px;
+            letter-spacing: .14em;
+            text-transform: uppercase;
+            color: #C9B693;
+            font-weight: 700;
+            margin-right: 2px
+        }
+
+        .agent-pill {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            background: rgba(217, 119, 87, .12);
+            border: 1px solid rgba(217, 119, 87, .25);
+            color: #F6D5C2;
+            font-size: 11px;
+            font-weight: 600;
+            padding: 4px 10px 4px 4px;
+            border-radius: 99px;
+            font-family: 'JetBrains Mono', monospace;
+            transition: transform 0.2s ease, background-color 0.2s ease;
+        }
+
+        .agent-pill:hover {
+            transform: translateY(-1px);
+            background: rgba(217, 119, 87, .18)
+        }
+
+        .agent-pill .claude-mark {
+            width: 16px;
+            height: 16px;
+            border-radius: 99px;
+            background: #fff;
+            color: var(--claude);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .out-list {
+            display: flex;
+            flex-direction: column;
+            gap: 10px
+        }
+
+        .out-card {
+            display: flex;
+            gap: 12px;
+            align-items: stretch;
+            border: 1px solid var(--line);
+            border-radius: 12px;
+            padding: 12px 14px;
+            background: #FBF7F1;
+            position: relative;
+            overflow: hidden;
+            transition: transform .2s cubic-bezier(0.16, 1, 0.3, 1), border-color .2s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+
+        .out-card:hover {
+            transform: translateX(-3px);
+            border-color: #D8C8B0
+        }
+
+        .out-card .rail {
+            width: 4px;
+            align-self: stretch;
+            border-radius: 99px;
+            background: var(--deliverable)
+        }
+
+        .out-card .body h3 {
+            font-family: 'Playfair Display', Georgia, serif;
+            margin: 0 0 3px;
+            font-size: 14px;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            flex-wrap: wrap
+        }
+
+        .out-card .body p {
+            margin: 0;
+            color: var(--muted);
+            font-size: 12.5px;
+            line-height: 1.45
+        }
+
+        .out-card .tag {
+            display: inline-block;
+            font-size: 10px;
+            letter-spacing: .14em;
+            text-transform: uppercase;
+            color: var(--accent);
+            background: var(--accent-soft);
+            border-radius: 4px;
+            padding: 2px 7px;
+            font-weight: 700;
+        }
+
+        .out-card .ext {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 11px;
+            color: var(--deliverable);
+            background: #F3E1D9;
+            border-radius: 4px;
+            padding: 1px 6px;
+        }
+
+        /* ============ SECTION 2 · WORKFLOW DETAIL ============ */
+        .graph-wrap {
+            background: var(--card);
+            border: 1px solid var(--line);
+            border-radius: 16px;
+            padding: 22px 20px 30px;
+            box-shadow: var(--shadow);
+            position: relative;
+            overflow: hidden;
+            --mouse-x: 50%;
+            --mouse-y: 50%;
+        }
+
+        .graph-wrap::before {
+            content: "";
+            position: absolute;
+            inset: 0;
+            pointer-events: none;
+            background-image:
+                radial-gradient(rgba(139, 94, 52, .12) 1.2px, transparent 1.2px);
+            background-size: 24px 24px;
+            mask-image: radial-gradient(1200px 600px at 50% 40%, #000 40%, transparent 100%);
+            -webkit-mask-image: radial-gradient(1200px 600px at 50% 40%, #000 40%, transparent 100%);
+            z-index: 1;
+        }
+
+        .graph-wrap::after {
+            content: "";
+            position: absolute;
+            inset: 0;
+            pointer-events: none;
+            background: radial-gradient(500px circle at var(--mouse-x) var(--mouse-y), rgba(217, 119, 87, .04), transparent 80%);
+            z-index: 1;
+            transition: background 0.15s ease;
+        }
+
+        .graph {
+            position: relative;
+            width: 100%
+        }
+
+        .graph svg.edges {
+            position: absolute;
+            inset: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 1
+        }
+
+        .phase-band {
+            position: absolute;
+            top: 0;
+            bottom: 0;
+            background: linear-gradient(180deg, rgba(139, 94, 52, .04) 0%, rgba(139, 94, 52, .01) 100%);
+            border-left: 1px dashed rgba(139, 94, 52, .18);
+            border-right: 1px dashed rgba(139, 94, 52, .18);
+            border-radius: 10px;
+        }
+
+        .phase-band .phase-header {
+            position: absolute;
+            top: 12px;
+            left: 14px;
+            right: 14px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .phase-band .phase-num {
+            width: 24px;
+            height: 24px;
+            border-radius: 7px;
+            background: linear-gradient(135deg, var(--accent) 0%, var(--claude) 100%);
+            color: #fff;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 11px;
+            font-weight: 700;
+            font-family: 'JetBrains Mono', monospace;
+            box-shadow: 0 2px 6px rgba(139, 94, 52, .22);
+        }
+
+        .phase-band .phase-name {
+            font-size: 11px;
+            letter-spacing: .18em;
+            text-transform: uppercase;
+            color: var(--accent);
+            font-weight: 700;
+            line-height: 1.2;
+        }
+
+        .phase-band .phase-caption {
+            position: absolute;
+            bottom: 12px;
+            left: 14px;
+            right: 14px;
+            font-size: 11.5px;
+            color: var(--muted);
+            line-height: 1.4;
+            padding-top: 8px;
+            border-top: 1px dashed rgba(139, 94, 52, .18);
+        }
+
+        .phase-band .phase-caption b {
+            color: var(--ink-soft);
+            font-weight: 600
+        }
+
+        .node {
+            position: absolute;
+            background: #fff;
+            border: 1px solid var(--line);
+            border-radius: 12px;
+            box-shadow: var(--shadow);
+            display: flex;
+            /* removed overflow:hidden to allow absolute detail cards to render outside node */
+            z-index: 2;
+            transition: transform .3s cubic-bezier(0.16, 1, 0.3, 1), box-shadow .3s cubic-bezier(0.16, 1, 0.3, 1), border-color .3s cubic-bezier(0.16, 1, 0.3, 1), opacity .3s ease;
+            opacity: 0;
+            transform: translateY(10px);
+        }
+
+        .node.in {
+            opacity: 1;
+            transform: translateY(0)
+        }
+
+        .node:hover,
+        .node:focus-within {
+            transform: translateY(-4px);
+            z-index: 6
+        }
+
+        .node.node-fade {
+            opacity: 0.35;
+            filter: grayscale(30%)
+        }
+
+        .node.node-active {
+            transform: translateY(-6px);
+            z-index: 7
+        }
+
+        .node.kind-trigger:hover,
+        .node.kind-trigger:focus-within {
+            border-color: var(--trigger);
+            box-shadow: 0 0 20px rgba(122, 140, 166, .35), var(--shadow-hi)
+        }
+
+        .node.kind-agent:hover,
+        .node.kind-agent:focus-within {
+            border-color: var(--claude);
+            box-shadow: 0 0 25px rgba(217, 119, 87, .45), var(--shadow-agent)
+        }
+
+        .node.kind-tool:hover,
+        .node.kind-tool:focus-within {
+            border-color: var(--tool);
+            box-shadow: 0 0 20px rgba(75, 127, 82, .35), var(--shadow-hi)
+        }
+
+        .node.kind-skill:hover,
+        .node.kind-skill:focus-within {
+            border-color: var(--skill);
+            box-shadow: 0 0 20px rgba(176, 137, 104, .35), var(--shadow-hi)
+        }
+
+        .node.kind-deliverable:hover,
+        .node.kind-deliverable:focus-within {
+            border-color: var(--deliverable);
+            box-shadow: 0 0 20px rgba(166, 94, 63, .35), var(--shadow-hi)
+        }
+
+        .node .rail {
+            width: 6px;
+            flex: 0 0 6px;
+            background: var(--muted);
+            position: relative;
+            overflow: hidden;
+            border-top-left-radius: 11px;
+            border-bottom-left-radius: 11px;
+        }
+
+        .node.kind-trigger .rail {
+            background: var(--trigger)
+        }
+
+        .node.kind-agent .rail {
+            background: linear-gradient(180deg, var(--claude) 0%, var(--claude-2) 100%)
+        }
+
+        .node.kind-tool .rail {
+            background: var(--tool)
+        }
+
+        .node.kind-skill .rail {
+            background: var(--skill)
+        }
+
+        .node.kind-deliverable .rail {
+            background: var(--deliverable)
+        }
+
+        .node.kind-agent .rail::after {
+            content: "";
+            position: absolute;
+            left: 0;
+            right: 0;
+            top: -40%;
+            height: 40%;
+            background: linear-gradient(180deg, transparent, rgba(255, 255, 255, .75), transparent);
+            animation: railShimmer 2.6s linear infinite;
+        }
+
+        @keyframes railShimmer {
+            0% {
+                transform: translateY(0)
+            }
+
+            100% {
+                transform: translateY(340%)
+            }
+        }
+
+        .node.kind-agent {
+            border-color: #F0D2C0
+        }
+
+        .node .body {
+            padding: 11px 12px 12px;
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+            min-width: 0
+        }
+
+        .node .top {
+            display: flex;
+            align-items: flex-start;
+            gap: 10px
+        }
+
+        .node .icon {
+            width: 32px;
+            height: 32px;
+            border-radius: 8px;
+            background: var(--accent-soft);
+            color: var(--accent);
+            flex: 0 0 32px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+        }
+
+        .node.kind-trigger .icon {
+            background: var(--trigger-soft);
+            color: var(--trigger)
+        }
+
+        .node.kind-agent .icon {
+            background: linear-gradient(135deg, #FFF 0%, var(--claude-soft) 100%);
+            color: var(--claude);
+            box-shadow: 0 0 0 1px rgba(217, 119, 87, .22), 0 4px 12px rgba(217, 119, 87, .20);
+        }
+
+        .node.kind-agent .icon::after {
+            content: "";
+            position: absolute;
+            inset: -3px;
+            border-radius: 10px;
+            background: radial-gradient(circle at 50% 50%, rgba(217, 119, 87, .22), transparent 65%);
+            z-index: -1;
+            animation: pulse 2.4s ease-in-out infinite;
+        }
+
+        @keyframes pulse {
+
+            0%,
+            100% {
+                opacity: .4;
+                transform: scale(.95)
+            }
+
+            50% {
+                opacity: 1;
+                transform: scale(1.06)
+            }
+        }
+
+        .node.kind-tool .icon {
+            background: var(--tool-soft);
+            color: var(--tool)
+        }
+
+        .node.kind-skill .icon {
+            background: var(--skill-soft);
+            color: var(--skill)
+        }
+
+        .node.kind-deliverable .icon {
+            background: var(--deliverable-soft);
+            color: var(--deliverable)
+        }
+
+        .node .head {
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+            min-width: 0;
+            flex: 1
+        }
+
+        .node .title {
+            font-size: 13.5px;
+            font-weight: 600;
+            line-height: 1.25;
+            color: var(--ink);
+            word-break: break-word;
+            overflow-wrap: anywhere;
+            font-family: 'JetBrains Mono', monospace;
+            letter-spacing: -.01em;
+        }
+
+        .node.kind-trigger .title,
+        .node.kind-agent .title {
+            font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+            letter-spacing: 0
+        }
+
+        .node .kind-tag {
+            display: inline-block;
+            font-size: 9px;
+            letter-spacing: .14em;
+            text-transform: uppercase;
+            font-weight: 700;
+            color: var(--muted);
+        }
+
+        .node.kind-trigger .kind-tag {
+            color: var(--trigger)
+        }
+
+        .node.kind-agent .kind-tag {
+            color: var(--claude)
+        }
+
+        .node.kind-tool .kind-tag {
+            color: var(--tool)
+        }
+
+        .node.kind-skill .kind-tag {
+            color: var(--skill)
+        }
+
+        .node.kind-deliverable .kind-tag {
+            color: var(--deliverable)
+        }
+
+        .node .desc {
+            font-size: 11.5px;
+            color: var(--muted);
+            line-height: 1.45;
+            margin-top: 2px;
+        }
+
+        /* Model chip — Claude brand style */
+        .node .chip {
+            align-self: flex-start;
+            margin-top: 4px;
+            font-size: 10px;
+            letter-spacing: .02em;
+            background: linear-gradient(135deg, #FFF 0%, var(--claude-soft) 100%);
+            color: var(--claude-2);
+            border: 1px solid #F0D2C0;
+            padding: 2px 7px 2px 4px;
+            border-radius: 99px;
+            font-family: 'JetBrains Mono', monospace;
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            box-shadow: 0 1px 2px rgba(217, 119, 87, .10);
+        }
+
+        .node .chip .mark {
+            width: 14px;
+            height: 14px;
+            border-radius: 99px;
+            background: #fff;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--claude);
+        }
+
+        /* detail card */
+        .node .detail {
+            position: absolute;
+            top: 100%;
+            left: 0;
+            margin-top: 8px;
+            width: 290px;
+            background: #fff;
+            border: 1px solid var(--line);
+            border-radius: 12px;
+            box-shadow: var(--shadow-hi);
+            padding: 12px 14px;
+            font-size: 12px;
+            color: var(--ink);
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity .2s ease, transform .2s cubic-bezier(0.16, 1, 0.3, 1);
+            z-index: 10;
+            transform: translateY(-4px);
+        }
+
+        .node:hover .detail,
+        .node:focus-within .detail {
+            opacity: 1;
+            pointer-events: auto;
+            transform: translateY(0)
+        }
+
+        /* Position the detail tooltip depending on the row / phase to avoid clipping */
+        .node.detail-top .detail {
+            top: auto;
+            bottom: 100%;
+            margin-top: 0;
+            margin-bottom: 8px;
+            transform: translateY(4px);
+        }
+
+        .node.detail-top:hover .detail,
+        .node.detail-top:focus-within .detail {
+            transform: translateY(0);
+        }
+
+        .node.detail-right .detail {
+            left: auto;
+            right: 0;
+        }
+
+        .node .detail dl {
+            margin: 0;
+            display: grid;
+            grid-template-columns: 82px 1fr;
+            gap: 5px 10px
+        }
+
+        .node .detail dt {
+            color: var(--muted);
+            font-size: 10px;
+            letter-spacing: .06em;
+            text-transform: uppercase;
+            font-weight: 700;
+            padding-top: 2px
+        }
+
+        .node .detail dd {
+            margin: 0;
+            font-size: 12px;
+            line-height: 1.4
+        }
+
+        /* edges */
+        @keyframes dash {
+            to {
+                stroke-dashoffset: -32;
+            }
+        }
+
+        svg.edges path.edge {
+            fill: none;
+            stroke: url(#edgeGrad);
+            stroke-width: 1.8;
+            stroke-dasharray: 6 6;
+            animation: dash 2.2s linear infinite;
+            opacity: .5;
+            transition: stroke 0.25s ease, stroke-width 0.25s ease, opacity 0.25s ease;
+        }
+
+        svg.edges path.edge.edge-highlight {
+            stroke: var(--claude);
+            stroke-width: 2.5;
+            stroke-dasharray: 4 4;
+            animation: dash 1s linear infinite;
+            /* Faster flow! */
+            opacity: 1;
+        }
+
+        svg.edges path.edge.edge-fade {
+            opacity: 0.12;
+        }
+
+        svg.edges circle.dot {
+            fill: var(--claude);
+            opacity: .9;
+            transition: fill 0.25s ease, r 0.25s ease, opacity 0.25s ease;
+        }
+
+        svg.edges circle.dot.edge-highlight {
+            fill: var(--claude-2);
+            r: 4.5;
+            opacity: 1;
+        }
+
+        svg.edges circle.dot.edge-fade {
+            opacity: 0.15;
+        }
+
+        svg.edges circle.pulse {
+            fill: var(--claude);
+            opacity: .85;
+            transition: fill 0.25s ease, r 0.25s ease, opacity 0.25s ease;
+        }
+
+        svg.edges circle.pulse.pulse-highlight {
+            fill: var(--claude-2);
+            r: 3.5;
+            opacity: 1;
+        }
+
+        svg.edges circle.pulse.pulse-fade {
+            opacity: 0.05;
+        }
+
+        /* legend */
+        .legend {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 16px;
+            margin-top: 18px;
+            font-size: 12px;
+            color: var(--muted);
+            padding-top: 14px;
+            border-top: 1px dashed var(--line);
+            align-items: center;
+        }
+
+        .legend .lg {
+            display: flex;
+            align-items: center;
+            gap: 7px
+        }
+
+        .legend .sw {
+            width: 14px;
+            height: 14px;
+            border-radius: 4px;
+            background: var(--muted);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #fff
+        }
+
+        .legend .sw.trigger {
+            background: var(--trigger)
+        }
+
+        .legend .sw.agent {
+            background: linear-gradient(135deg, var(--claude), var(--claude-2))
+        }
+
+        .legend .sw.tool {
+            background: var(--tool)
+        }
+
+        .legend .sw.skill {
+            background: var(--skill)
+        }
+
+        .legend .sw.deliverable {
+            background: var(--deliverable)
+        }
+
+        /* Responsive */
+        @media (max-width: 1200px) {
+            .page {
+                padding: 32px 22px
+            }
+
+            .overview {
+                grid-template-columns: 1fr
+            }
+
+            .arrow {
+                display: none
+            }
+        }
+
+        @media (max-width: 768px) {
+            .page {
+                padding: 24px 14px
+            }
+
+            h1 {
+                font-size: 26px
+            }
+        }
+
+        /* Print */
+        @page {
+            size: A4 landscape;
+            margin: 10mm;
+        }
+
+        @media print {
+
+            html,
+            body {
+                background: #fff
+            }
+
+            body {
+                background: #fff
+            }
+
+            .page {
+                padding: 0;
+                max-width: none
+            }
+
+            .section+.section {
+                margin-top: 0
+            }
+
+            .arrow,
+            .kicker::before {
+                display: none
+            }
+
+            .node {
+                opacity: 1 !important;
+                transform: none !important;
+                box-shadow: none;
+                border-color: #D8CFC2
+            }
+
+            .node .detail {
+                position: static;
+                opacity: 1;
+                pointer-events: auto;
+                margin-top: 6px;
+                box-shadow: none;
+                border: 1px dashed #D8CFC2;
+                background: #FBF7F1;
+                width: auto;
+                transform: none
+            }
+
+            .graph-wrap::before {
+                display: none
+            }
+
+            .graph-wrap {
+                box-shadow: none;
+                border-color: #D8CFC2
+            }
+
+            .blackbox {
+                background: #2A211B !important;
+                -webkit-print-color-adjust: exact;
+                print-color-adjust: exact
+            }
+
+            .counter {
+                background: #3A2E24 !important;
+                -webkit-print-color-adjust: exact;
+                print-color-adjust: exact
+            }
+
+            svg.edges path.edge {
+                animation: none;
+                stroke-dasharray: 0;
+                opacity: .7
+            }
+
+            .node .icon::after,
+            .node.kind-agent .rail::after {
+                display: none
+            }
+
+            .panel,
+            .graph-wrap,
+            .node,
+            .kicker {
+                -webkit-print-color-adjust: exact;
+                print-color-adjust: exact
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <main class="page">
+
+        <!-- ============================================================
+       SECTION 1 · OVERVIEW (BLACK-BOX)
+       EDIT: kicker text, h1, lede, the 3 panels' content below.
+       ============================================================ -->
+        <section class="section" id="overview">
+            <span class="kicker">TechNext · Casa Escondida Extractor Pod</span>
+            <h1>Extractor Pod <span class="thin">— black-box overview</span></h1>
+            <p class="lede">One AI reading per turn, wrapped in deterministic code that re-checks every number and
+                date before it can reach a quotation. A guest's WhatsApp message goes in on the left; a structured
+                booking and a safe reply come out on the right. Section 2 opens the box, node by node.</p>
+
+            <div class="overview">
+
+                <!-- INPUTS — one <li> per input. Reuse an icon from ICO in the
+                     script below by pasting its <svg> markup, or add a new
+                     24x24 viewBox stroke icon following the same pattern. -->
+                <div class="panel">
+                    <div class="panel-title"><span class="dot"></span>Inputs</div>
+                    <h2>What the pipeline consumes</h2>
+                    <p class="sub">Everything that reaches the pipeline before a single model call is made.</p>
+                    <ul class="input-list">
+                        <li>
+                            <span class="glyph" aria-hidden="true">
+                                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                    stroke-width="2" stroke-linejoin="round">
+                                    <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z" />
+                                </svg>
+                            </span>
+                            <div>
+                                <div class="lbl">Guest WhatsApp message</div>
+                                <div class="desc">Free text, written however a real guest writes — English, Vietnamese
+                                    or Chinese</div>
+                            </div>
+                        </li>
+                        <li>
+                            <span class="glyph" aria-hidden="true">
+                                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                    stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                    <path d="M12 8v4l3 2" />
+                                    <circle cx="12" cy="12" r="9" />
+                                </svg>
+                            </span>
+                            <div>
+                                <div class="lbl">Conversation history</div>
+                                <div class="desc">The whole transcript, re-sent every turn — no incremental state to
+                                    drift</div>
+                            </div>
+                        </li>
+                        <li>
+                            <span class="glyph" aria-hidden="true">
+                                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                    stroke-width="2" stroke-linejoin="round">
+                                    <rect x="3" y="5" width="18" height="16" rx="2" />
+                                    <path d="M3 10h18M8 3v4M16 3v4" />
+                                </svg>
+                            </span>
+                            <div>
+                                <div class="lbl">Manila date</div>
+                                <div class="desc">"This Saturday" is resolved in code against Asia/Manila, never taken
+                                    from the model</div>
+                            </div>
+                        </li>
+                        <li>
+                            <span class="glyph" aria-hidden="true">
+                                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                    stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                    <path d="M8 3H7a2 2 0 0 0-2 2v3a2 2 0 0 1-2 2 2 2 0 0 1 2 2v3a2 2 0 0 0 2 2h1" />
+                                    <path d="M16 3h1a2 2 0 0 1 2 2v3a2 2 0 0 0 2 2 2 2 0 0 0-2 2v3a2 2 0 0 1-2 2h-1" />
+                                </svg>
+                            </span>
+                            <div>
+                                <div class="lbl">Trip JSON schema</div>
+                                <div class="desc">18 fields generated from the zod contract — the only shape the model
+                                    may answer in</div>
+                            </div>
+                        </li>
+                        <li>
+                            <span class="glyph" aria-hidden="true">
+                                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                    stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                    <path d="M3 12h4l3 8 4-16 3 8h4" />
+                                </svg>
+                            </span>
+                            <div>
+                                <div class="lbl">House norms</div>
+                                <div class="desc">Exactly 4 fields may be defaulted — meals, transport, rooms, language
+                                </div>
+                            </div>
+                        </li>
+                        <li>
+                            <span class="glyph" aria-hidden="true">
+                                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                    stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                    <circle cx="12" cy="12" r="3" />
+                                    <path d="M12 2v3M12 19v3M2 12h3M19 12h3M5 5l2 2M17 17l2 2M19 5l-2 2M7 17l-2 2" />
+                                </svg>
+                            </span>
+                            <div>
+                                <div class="lbl">Provider config</div>
+                                <div class="desc">One env var picks the model — swapping vendors is not a code change
+                                </div>
+                            </div>
+                        </li>
+                    </ul>
+                    <div class="arrow right" aria-hidden="true">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M5 12h14M13 5l7 7-7 7" />
+                        </svg>
+                    </div>
+                </div>
+
+                <!-- BLACKBOX — the dark summary panel. Counters use
+                     data-count for the count-up animation; keep to 4
+                     (2x2 grid) unless you also change .counters'
+                     grid-template-columns. agent-pill list should name
+                     the same agents Section 2 details. -->
+                <div class="panel blackbox">
+                    <div class="panel-title"><span class="dot"></span>Black-box · workflow</div>
+                    <h2>What runs inside</h2>
+                    <p class="sub">What is really wired today — measured from the source, not the roadmap.</p>
+                    <div class="counters">
+                        <div class="counter">
+                            <div class="num" data-count="18">0</div>
+                            <div class="lbl">Trip fields</div>
+                            <div class="hint">each carries a state + verbatim evidence</div>
+                        </div>
+                        <div class="counter">
+                            <div class="num" data-count="5">0</div>
+                            <div class="lbl">Model calls / turn</div>
+                            <div class="hint">4 to read the message, 1 to word the reply</div>
+                        </div>
+                        <div class="counter">
+                            <div class="num" data-count="5">0</div>
+                            <div class="lbl">Field states</div>
+                            <div class="hint">stated · inferred · default · derived · missing</div>
+                        </div>
+                        <div class="counter">
+                            <div class="num" data-count="230">0</div>
+                            <div class="lbl">Tests green</div>
+                            <div class="hint">plus a 30-case multilingual eval corpus</div>
+                        </div>
+                    </div>
+                    <div class="box-sum">
+                        <strong>converse()</strong> re-sends the whole transcript and re-extracts from scratch every
+                        turn — there is no incremental state to drift. The model proposes; then deterministic code,
+                        not the model, resolves relative dates on Manila time, corroborates every count against the
+                        guest's own words, applies house norms, and decides what is still missing. A value that code
+                        could not verify never reaches a quotation — and the reply the guest reads is worded by a
+                        model that is handed only those verified facts, with the deterministic template as its
+                        fallback.
+                    </div>
+                    <div class="agent-strip">
+                        <span class="lab">Model calls</span>
+                        <span class="agent-pill"><span class="claude-mark"><svg width="10" height="10"
+                                    viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                                    <path clip-rule="evenodd"
+                                        d="M20.998 10.949H24v3.102h-3v3.028h-1.487V20H18v-2.921h-1.487V20H15v-2.921H9V20H7.488v-2.921H6V20H4.487v-2.921H3V14.05H0V10.95h3V5h17.998v5.949zM6 10.949h1.488V8.102H6v2.847zm10.51 0H18V8.102h-1.49v2.847z"
+                                        fill-rule="evenodd" />
+                                </svg></span>main extract</span>
+                        <span class="agent-pill"><span class="claude-mark"><svg width="10" height="10"
+                                    viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                                    <path clip-rule="evenodd"
+                                        d="M20.998 10.949H24v3.102h-3v3.028h-1.487V20H18v-2.921h-1.487V20H15v-2.921H9V20H7.488v-2.921H6V20H4.487v-2.921H3V14.05H0V10.95h3V5h17.998v5.949zM6 10.949h1.488V8.102H6v2.847zm10.51 0H18V8.102h-1.49v2.847z"
+                                        fill-rule="evenodd" />
+                                </svg></span>extractGuests</span>
+                        <span class="agent-pill"><span class="claude-mark"><svg width="10" height="10"
+                                    viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                                    <path clip-rule="evenodd"
+                                        d="M20.998 10.949H24v3.102h-3v3.028h-1.487V20H18v-2.921h-1.487V20H15v-2.921H9V20H7.488v-2.921H6V20H4.487v-2.921H3V14.05H0V10.95h3V5h17.998v5.949zM6 10.949h1.488V8.102H6v2.847zm10.51 0H18V8.102h-1.49v2.847z"
+                                        fill-rule="evenodd" />
+                                </svg></span>extractCheckIn</span>
+                        <span class="agent-pill"><span class="claude-mark"><svg width="10" height="10"
+                                    viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                                    <path clip-rule="evenodd"
+                                        d="M20.998 10.949H24v3.102h-3v3.028h-1.487V20H18v-2.921h-1.487V20H15v-2.921H9V20H7.488v-2.921H6V20H4.487v-2.921H3V14.05H0V10.95h3V5h17.998v5.949zM6 10.949h1.488V8.102H6v2.847zm10.51 0H18V8.102h-1.49v2.847z"
+                                        fill-rule="evenodd" />
+                                </svg></span>extractDiveWindow</span>
+                    </div>
+                    <div class="arrow right" aria-hidden="true">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M5 12h14M13 5l7 7-7 7" />
+                        </svg>
+                    </div>
+                </div>
+
+                <!-- OUTPUTS — one .out-card per client-facing deliverable. -->
+                <div class="panel">
+                    <div class="panel-title"><span class="dot"></span>Outputs</div>
+                    <h2>What user receive</h2>
+                    <p class="sub">Three things per turn, each mapped to the stage that produced it.</p>
+                    <div class="out-list">
+                        <div class="out-card">
+                            <div class="rail"></div>
+                            <div class="body">
+                                <h3><span class="tag">Trip</span>Structured booking <span class="ext">.json</span></h3>
+                                <p>18 fields, each carrying a state and — where it claims the guest said it — the
+                                    verbatim quote it came from. This is what the pricing step consumes.</p>
+                            </div>
+                        </div>
+                        <div class="out-card">
+                            <div class="rail"></div>
+                            <div class="body">
+                                <h3><span class="tag">Reply</span>Guest-facing message <span
+                                        class="ext">whatsapp</span></h3>
+                                <p>Facts come from the code-verified Trip; the wording is then written by the model in
+                                    a concierge voice, under guardrails that forbid quoting a price or confirming a
+                                    booking. If that call fails or times out, the deterministic template is sent
+                                    instead — the guest is never left waiting.</p>
+                            </div>
+                        </div>
+                        <div class="out-card">
+                            <div class="rail"></div>
+                            <div class="body">
+                                <h3><span class="tag">Open</span>What is still missing <span class="ext">[]</span></h3>
+                                <p>The remaining fields in priority order. Empty means the enquiry is complete and a
+                                    human takes it from there — nothing is booked automatically.</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </section>
+
+        <!-- ============================================================
+       SECTION 2 · WORKFLOW DETAIL · n8n-style node graph
+       EDIT: kicker/h1/lede text only. The graph itself is rendered by
+       the PHASES/NODES/EDGES arrays at the bottom of the script — see
+       SKILL.md for how to edit those. Do not hand-author node <div>s
+       here; the script builds them.
+       ============================================================ -->
+        <section class="section" id="detail">
+            <span class="kicker">Section 2 · Node graph</span>
+            <h1>Inside the workflow <span class="thin">— stage by stage</span></h1>
+            <p class="lede">Five phases, left to right, for one guest message. Everything orange is a model call;
+                everything green is code that checks the model's work. Hover a node (screen) or read the callout
+                (print) for its full detail card.</p>
+
+            <div class="graph-wrap">
+                <div class="graph" id="graph"></div>
+
+                <!-- Legend must list exactly the "kind"s actually used in
+                     NODES below — remove a row if a kind goes unused,
+                     add one only alongside a matching .node.kind-X CSS
+                     block (copy an existing kind's block and re-color
+                     via a new CSS variable, don't invent an inline color). -->
+                <div class="legend">
+                    <div class="lg"><span class="sw trigger">
+                            <svg width="8" height="8" viewBox="0 0 24 24" fill="currentColor">
+                                <path d="M8 5l12 7-12 7z" />
+                            </svg>
+                        </span>Trigger</div>
+                    <div class="lg"><span class="sw agent">
+                            <svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                                <path clip-rule="evenodd"
+                                    d="M20.998 10.949H24v3.102h-3v3.028h-1.487V20H18v-2.921h-1.487V20H15v-2.921H9V20H7.488v-2.921H6V20H4.487v-2.921H3V14.05H0V10.95h3V5h17.998v5.949zM6 10.949h1.488V8.102H6v2.847zm10.51 0H18V8.102h-1.49v2.847z"
+                                    fill-rule="evenodd" />
+                            </svg>
+                        </span>Model call · DeepSeek Flash / Gemini</div>
+                    <div class="lg"><span class="sw tool">
+                            <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                stroke-width="3">
+                                <circle cx="12" cy="12" r="3" />
+                                <path d="M12 2v3M12 19v3M2 12h3M19 12h3" />
+                            </svg>
+                        </span>Tool</div>
+                    <div class="lg"><span class="sw skill">
+                            <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                stroke-width="3">
+                                <path d="M12 3l3 6 6 1-4.5 4.5L18 21l-6-3-6 3 1.5-6.5L3 10l6-1z" />
+                            </svg>
+                        </span>Skill</div>
+                    <div class="lg"><span class="sw deliverable">
+                            <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                stroke-width="3">
+                                <path d="M5 3h9l5 5v13H5z" />
+                            </svg>
+                        </span>Deliverable</div>
+                </div>
+            </div>
+        </section>
+
+    </main>
+
+    <script>
+        (function () {
+            // ============ Icons — do not delete unused entries; other
+            // pages built from this template may still reference them.
+            // To add one: 24x24 viewBox, stroke="currentColor" stroke-width="2"
+            // (lucide-style), or fill="currentColor" for a solid glyph like
+            // `claude`. Give it a short lowercase_snake_case key. ============
+            var ICO = {
+                claude:
+                    '<svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor" aria-hidden="true">' +
+                    '<path clip-rule="evenodd" d="M20.998 10.949H24v3.102h-3v3.028h-1.487V20H18v-2.921h-1.487V20H15v-2.921H9V20H7.488v-2.921H6V20H4.487v-2.921H3V14.05H0V10.95h3V5h17.998v5.949zM6 10.949h1.488V8.102H6v2.847zm10.51 0H18V8.102h-1.49v2.847z" fill-rule="evenodd"/>' +
+                    '</svg>',
+                playwright:
+                    '<svg viewBox="0 0 400 400" width="20" height="20" fill="none" aria-hidden="true">' +
+                    '<path d="M136.444 221.556C123.558 225.213 115.104 231.625 109.535 238.032C114.869 233.364 122.014 229.08 131.652 226.348C141.51 223.554 149.92 223.574 156.869 224.915V219.481C150.941 218.939 144.145 219.371 136.444 221.556ZM108.946 175.876L61.0895 188.484C61.0895 188.484 61.9617 189.716 63.5767 191.36L104.153 180.668C104.153 180.668 103.578 188.077 98.5847 194.705C108.03 187.559 108.946 175.876 108.946 175.876ZM149.005 288.347C81.6582 306.486 46.0272 228.438 35.2396 187.928C30.2556 169.229 28.0799 155.067 27.5 145.928C27.4377 144.979 27.4665 144.179 27.5336 143.446C24.04 143.657 22.3674 145.473 22.7077 150.721C23.2876 159.855 25.4633 174.016 30.4473 192.721C41.2301 233.225 76.8659 311.273 144.213 293.134C158.872 289.185 169.885 281.992 178.152 272.81C170.532 279.692 160.995 285.112 149.005 288.347ZM161.661 128.11V132.903H188.077C187.535 131.206 186.989 129.677 186.447 128.11H161.661Z" fill="#2D4552"/>' +
+                    '<path d="M193.981 167.584C205.861 170.958 212.144 179.287 215.465 186.658L228.711 190.42C228.711 190.42 226.904 164.623 203.57 157.995C181.741 151.793 168.308 170.124 166.674 172.496C173.024 167.972 182.297 164.268 193.981 167.584ZM299.422 186.777C277.573 180.547 264.145 198.916 262.535 201.255C268.89 196.736 278.158 193.031 289.837 196.362C301.698 199.741 307.976 208.06 311.307 215.436L324.572 219.212C324.572 219.212 322.736 193.41 299.422 186.777ZM286.262 254.795L176.072 223.99C176.072 223.99 177.265 230.038 181.842 237.869L274.617 263.805C282.255 259.386 286.262 254.795 286.262 254.795ZM209.867 321.102C122.618 297.71 133.166 186.543 147.284 133.865C153.097 112.156 159.073 96.0203 164.029 85.204C161.072 84.5953 158.623 86.1529 156.203 91.0746C150.941 101.747 144.212 119.124 137.7 143.45C123.586 196.127 113.038 307.29 200.283 330.682C241.406 341.699 273.442 324.955 297.323 298.659C274.655 319.19 245.714 330.701 209.867 321.102Z" fill="#2D4552"/>' +
+                    '<path d="M161.661 262.296V239.863L99.3324 257.537C99.3324 257.537 103.938 230.777 136.444 221.556C146.302 218.762 154.713 218.781 161.661 220.123V128.11H192.869C189.471 117.61 186.184 109.526 183.423 103.909C178.856 94.612 174.174 100.775 163.545 109.665C156.059 115.919 137.139 129.261 108.668 136.933C80.1966 144.61 57.179 142.574 47.5752 140.911C33.9601 138.562 26.8387 135.572 27.5049 145.928C28.0847 155.062 30.2605 169.224 35.2445 187.928C46.0272 228.433 81.663 306.481 149.01 288.342C166.602 283.602 179.019 274.233 187.626 262.291H161.661V262.296ZM61.0848 188.484L108.946 175.876C108.946 175.876 107.551 194.288 89.6087 199.018C71.6614 203.743 61.0848 188.484 61.0848 188.484Z" fill="#E2574C"/>' +
+                    '<path d="M341.786 129.174C329.345 131.355 299.498 134.072 262.612 124.185C225.716 114.304 201.236 97.0224 191.537 88.8994C177.788 77.3834 171.74 69.3802 165.788 81.4857C160.526 92.163 153.797 109.54 147.284 133.866C133.171 186.543 122.623 297.706 209.867 321.098C297.093 344.47 343.53 242.92 357.644 190.238C364.157 165.917 367.013 147.5 367.799 135.625C368.695 122.173 359.455 126.078 341.786 129.174ZM166.497 172.756C166.497 172.756 180.246 151.372 203.565 158C226.899 164.628 228.706 190.425 228.706 190.425L166.497 172.756ZM223.42 268.713C182.403 256.698 176.077 223.99 176.077 223.99L286.262 254.796C286.262 254.791 264.021 280.578 223.42 268.713ZM262.377 201.495C262.377 201.495 276.107 180.126 299.422 186.773C322.736 193.411 324.572 219.208 324.572 219.208L262.377 201.495Z" fill="#2EAD33"/>' +
+                    '<path d="M139.88 246.04L99.3324 257.532C99.3324 257.532 103.737 232.44 133.607 222.496L110.647 136.33L108.663 136.933C80.1918 144.611 57.1742 142.574 47.5704 140.911C33.9554 138.563 26.834 135.572 27.5001 145.929C28.08 155.063 30.2557 169.224 35.2397 187.929C46.0225 228.433 81.6583 306.481 149.005 288.342L150.989 287.719L139.88 246.04ZM61.0848 188.485L108.946 175.876C108.946 175.876 107.551 194.288 89.6087 199.018C71.6615 203.743 61.0848 188.485 61.0848 188.485Z" fill="#D65348"/>' +
+                    '<path d="M225.27 269.163L223.415 268.712C182.398 256.698 176.072 223.99 176.072 223.99L232.89 239.872L262.971 124.281L262.607 124.185C225.711 114.304 201.232 97.0224 191.532 88.8994C177.783 77.3834 171.735 69.3802 165.783 81.4857C160.526 92.163 153.797 109.54 147.284 133.866C133.171 186.543 122.623 297.706 209.867 321.097L211.655 321.5L225.27 269.163ZM166.497 172.756C166.497 172.756 180.246 151.372 203.565 158C226.899 164.628 228.706 190.425 228.706 190.425L166.497 172.756Z" fill="#1D8D22"/>' +
+                    '<path d="M141.946 245.451L131.072 248.537C133.641 263.019 138.169 276.917 145.276 289.195C146.513 288.922 147.74 288.687 149 288.342C152.302 287.451 155.364 286.348 158.312 285.145C150.371 273.361 145.118 259.789 141.946 245.451ZM137.7 143.451C132.112 164.307 127.113 194.326 128.489 224.436C130.952 223.367 133.554 222.371 136.444 221.551L138.457 221.101C136.003 188.939 141.308 156.165 147.284 133.866C148.799 128.225 150.318 122.978 151.832 118.085C149.393 119.637 146.767 121.228 143.776 122.867C141.759 129.093 139.722 135.898 137.7 143.451Z" fill="#C04B41"/>' +
+                    '</svg>',
+                user:
+                    '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' +
+                    '<path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />' +
+                    '<circle cx="12" cy="7" r="4" />' +
+                    '</svg>',
+                orchestrator:
+                    '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' +
+                    '<circle cx="12" cy="12" r="3" fill="currentColor" />' +
+                    '<circle cx="12" cy="4" r="2.5" />' +
+                    '<circle cx="12" cy="20" r="2.5" />' +
+                    '<circle cx="4" cy="12" r="2.5" />' +
+                    '<circle cx="20" cy="12" r="2.5" />' +
+                    '<path d="M12 6.5v3M12 14.5v3M6.5 12h3M14.5 12h3" />' +
+                    '</svg>',
+                browser:
+                    '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' +
+                    '<rect x="2" y="3" width="20" height="18" rx="2.5" stroke-width="2"/>' +
+                    '<line x1="2" y1="8" x2="22" y2="8" stroke-width="1.5"/>' +
+                    '<circle cx="5" cy="5.5" r="0.8" fill="currentColor" stroke="none"/>' +
+                    '<circle cx="7" cy="5.5" r="0.8" fill="currentColor" stroke="none"/>' +
+                    '<circle cx="9" cy="5.5" r="0.8" fill="currentColor" stroke="none"/>' +
+                    '<circle cx="12" cy="14" r="2.5"/>' +
+                    '<path d="M14 16l3.5 3.5"/>' +
+                    '</svg>',
+                clipboard:
+                    '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' +
+                    '<path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2" />' +
+                    '<rect x="8" y="2" width="8" height="4" rx="1" fill="currentColor" fill-opacity="0.1" />' +
+                    '<path d="M9 12l2 2 4-4" />' +
+                    '<path d="M9 16h6" />' +
+                    '</svg>',
+                shield:
+                    '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' +
+                    '<path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />' +
+                    '<polyline points="9 11 11 13 15 9" />' +
+                    '</svg>',
+                camera:
+                    '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' +
+                    '<rect x="2" y="5" width="14" height="14" rx="2" />' +
+                    '<path d="M22 7l-6 5 6 5V7z" fill="currentColor" fill-opacity="0.1" />' +
+                    '<circle cx="8" cy="12" r="2" />' +
+                    '</svg>',
+                doc_sparkle:
+                    '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' +
+                    '<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />' +
+                    '<polyline points="14 2 14 8 20 8" />' +
+                    '<path d="M8 13h4M8 17h6" />' +
+                    '<path d="M17 13c.1.5.2.7.5.8-.5.1-.6.3-.7.8-.1-.5-.2-.7-.5-.8.5-.1.6-.3.7-.8z" fill="currentColor" stroke="none" />' +
+                    '</svg>',
+                terminal:
+                    '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' +
+                    '<rect x="2" y="4" width="20" height="16" rx="2.5" />' +
+                    '<polyline points="6 10 10 12 6 14" />' +
+                    '<line x1="12" y1="14" x2="18" y2="14" />' +
+                    '</svg>',
+                cursor:
+                    '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' +
+                    '<path d="M3 3l7.07 16.97 2.51-7.39 7.39-2.51L3 3z" />' +
+                    '<path d="M13 13l6 6" />' +
+                    '</svg>',
+                md:
+                    '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' +
+                    '<rect x="3" y="5" width="18" height="14" rx="2" />' +
+                    '<path d="M7 15V9l2.5 3L12 9v6" />' +
+                    '<path d="M17 12h-4M15 10l2 2-2 2" />' +
+                    '</svg>',
+                json:
+                    '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' +
+                    '<path d="M8 3H7a2 2 0 0 0-2 2v3a2 2 0 0 1-2 2 2 2 0 0 1 2 2v3a2 2 0 0 0 2 2h1" />' +
+                    '<path d="M16 3h1a2 2 0 0 1 2 2v3a2 2 0 0 0 2 2 2 2 0 0 0-2 2v3a2 2 0 0 1-2 2h-1" />' +
+                    '</svg>',
+                check_x:
+                    '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' +
+                    '<path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />' +
+                    '<polyline points="22 4 12 14.01 9 11.01" />' +
+                    '</svg>',
+                media:
+                    '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' +
+                    '<rect x="2" y="3" width="20" height="14" rx="2" />' +
+                    '<path d="M8 21h8M12 17v4" />' +
+                    '<circle cx="8" cy="9" r="1.5" />' +
+                    '<path d="M22 13l-6-6-6 6" />' +
+                    '</svg>',
+                pdf:
+                    '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' +
+                    '<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />' +
+                    '<polyline points="14 2 14 8 20 8" />' +
+                    '<path d="M8 13h2.5a1.5 1.5 0 0 1 0 3H8M13 13h1.5a1.5 1.5 0 0 1 0 3H13M18 13h-2v5" />' +
+                    '</svg>'
+            };
+
+            // ============ EDIT: Data — this block is the entire content
+            // of the node graph. See SKILL.md's "Authoring the graph"
+            // section before editing. ============
+
+            // One entry per vertical phase column, left to right.
+            var PHASES = [
+                { id: 0, title: 'Intake', caption: '<b>Out:</b> one verified, de-duplicated message appended to the transcript — under a per-phone lock.' },
+                { id: 1, title: 'Extract', caption: '<b>Out:</b> raw field claims from 4 parallel model calls, merged — isolated passes fill gaps only.' },
+                { id: 2, title: 'Verify', caption: '<b>Out:</b> a Trip where every surviving claim passed a check the model had no say in.' },
+                { id: 3, title: 'Decide', caption: '<b>Out:</b> Trip + questions[] — empty list means the enquiry is complete.' },
+                { id: 4, title: 'Reply', caption: '<b>Out:</b> one WhatsApp message, then a human for availability and pricing.' }
+            ];
+
+            // One entry per node. `phase` = which PHASES.id column; `row` =
+            // vertical position within that column (0-based, top to bottom;
+            // rows do not need to be contiguous across phases). `kind` is
+            // one of trigger|agent|tool|skill|deliverable (each has its own
+            // CSS color — do not invent a new kind without adding CSS).
+            // `model` is optional — set it only on an `agent` node to show
+            // the Claude-brand model chip. `detail` is optional — set it to
+            // get a hover/print tooltip with Purpose/Tools/Upstream/
+            // Downstream/On-failure fields (see uat-agent below for shape).
+            var NODES = [
+                // ---- Phase 0 · Intake ----
+                { id: 'guest', phase: 0, row: 0, kind: 'trigger', title: 'Guest', kindTag: 'Trigger', desc: 'Sends a WhatsApp message in English, Vietnamese or Chinese.', icon: 'user' },
+                { id: 'bff', phase: 0, row: 1, kind: 'tool', title: 'Casa BFF', kindTag: 'Tool · Hono webhook', desc: 'Verifies Meta&rsquo;s HMAC signature, then claims the message.', icon: 'browser' },
+                { id: 'store', phase: 0, row: 2, kind: 'tool', title: 'Conversation Store', kindTag: 'Tool · in-memory', desc: 'Dedupe by wamid, per-phone lock, full transcript. Redis adapter written, not yet wired.', icon: 'json' },
+
+                // ---- Phase 1 · Extract ----
+                { id: 'converse', phase: 1, row: 0, kind: 'skill', title: 'converse()', kindTag: 'Skill · Stage 1 logic', desc: 'Re-sends the whole transcript and re-extracts from scratch — no incremental state.', icon: 'clipboard' },
+                { id: 'main-call', phase: 1, row: 1, kind: 'agent', title: 'Main extraction pass', kindTag: 'Model call · all 18 fields', desc: 'Reads the transcript once and proposes every field at once.', icon: 'claude', model: 'deepseek-flash', detail: { purpose: 'Propose all 18 Trip fields in one pass, each with a state and a verbatim quote.', tools: 'Forced tool-calling (DeepSeek) / responseSchema (Gemini)', upstream: 'normalised transcript + Manila date + Trip JSON schema', downstream: 'raw field claims, not yet trusted', failure: 'Invalid JSON is retried once with the error attached, then surfaced as 422.' } },
+                { id: 'isolated', phase: 1, row: 2, kind: 'agent', title: '3 isolated passes', kindTag: 'Model call · safety net', desc: 'guests · checkIn · diveWindow — one field each, asked alone, in parallel.', icon: 'claude', model: 'deepseek-flash', detail: { purpose: 'Catch the fields the main pass drops when juggling 18 at once.', tools: 'extractGuests / extractCheckIn / extractDiveWindow', upstream: 'the same transcript, sent concurrently', downstream: 'a value that may fill a gap — never overrule a stated answer', failure: 'Any error is swallowed: the safety net going down must not fail the turn.' } },
+                { id: 'provider', phase: 1, row: 3, kind: 'tool', title: 'Provider seam', kindTag: 'Tool · one interface', desc: 'DeepSeek Flash primary, Gemini fallback. Failover is automatic and invisible to the guest.', icon: 'orchestrator' },
+
+                // ---- Phase 2 · Verify ----
+                { id: 'postprocess', phase: 2, row: 0, kind: 'skill', title: 'postProcess()', kindTag: 'Skill · Stage 2 logic', desc: 'Where the model stops being trusted and code decides.', icon: 'shield' },
+                { id: 'dates', phase: 2, row: 1, kind: 'tool', title: 'resolveRelativeDate()', kindTag: 'Tool · dates', desc: '"This Saturday", "thứ 7 tuần sau", "下周六" → an ISO date on Manila time.', icon: 'terminal' },
+                { id: 'counts', phase: 2, row: 2, kind: 'tool', title: 'corroborateCount()', kindTag: 'Tool · money fields', desc: 'Rejects any count the guest&rsquo;s own words contradict — it becomes a question instead.', icon: 'check_x' },
+                { id: 'evidence', phase: 2, row: 3, kind: 'tool', title: 'enforceVerbatimEvidence()', kindTag: 'Tool · zero fabrication', desc: 'Drops every "stated" claim whose quote is not actually in the guest&rsquo;s message.', icon: 'cursor' },
+
+                // ---- Phase 3 · Decide ----
+                { id: 'questions', phase: 3, row: 0, kind: 'skill', title: 'generateQuestions()', kindTag: 'Skill · Stage 3 logic', desc: 'Lists what is still missing, in the order a receptionist would ask.', icon: 'doc_sparkle' },
+                { id: 'trip-out', phase: 3, row: 1, kind: 'deliverable', title: 'Trip', kindTag: 'Deliverable', desc: '18 fields with state + evidence — the object pricing consumes.', icon: 'json' },
+                { id: 'open-out', phase: 3, row: 2, kind: 'deliverable', title: 'questions[]', kindTag: 'Deliverable · gate', desc: 'Open fields, or empty when the enquiry is complete.', icon: 'md' },
+
+                // ---- Phase 4 · Reply ----
+                { id: 'render', phase: 4, row: 0, kind: 'skill', title: 'renderReply()', kindTag: 'Skill · Stage 4 logic', desc: 'Builds the deterministic reply from verified facts — 1 of 3 fixed templates.', icon: 'md' },
+                { id: 'synthesis', phase: 4, row: 1, kind: 'agent', title: 'synthesizeHospitalityReply()', kindTag: 'Model call · wording only', desc: 'Rewrites that reply in a concierge voice — facts stay fixed, only the phrasing is generated.', icon: 'claude', model: 'gemini', detail: { purpose: 'Give the guest a warm, human-sounding reply without letting the model invent any fact.', tools: 'provider.generateText() — Gemini only today', upstream: 'the deterministic reply + the code-verified Trip as "Verified Facts"', downstream: 'the WhatsApp message actually sent', failure: 'Any error, timeout, or too-short answer falls straight back to the deterministic template.' } },
+                { id: 'reply-out', phase: 4, row: 2, kind: 'deliverable', title: 'WhatsApp reply', kindTag: 'Deliverable', desc: 'greeting · questions · summary — in the guest&rsquo;s own language.', icon: 'media' },
+                { id: 'human', phase: 4, row: 3, kind: 'deliverable', title: 'Human handoff', kindTag: 'Gate · always', desc: 'A person confirms availability and price. Nothing is booked automatically.', icon: 'pdf' }
+            ];
+
+            // One [fromId, toId] pair per arrow. Order does not affect
+            // layout — layout comes entirely from each node's phase/row.
+            var EDGES = [
+                ['guest', 'bff'], ['bff', 'store'],
+                ['store', 'converse'],
+                ['converse', 'main-call'], ['converse', 'isolated'],
+                ['main-call', 'provider'], ['isolated', 'provider'],
+                ['provider', 'postprocess'],
+                ['postprocess', 'dates'], ['dates', 'counts'], ['counts', 'evidence'],
+                ['evidence', 'questions'],
+                ['questions', 'trip-out'], ['trip-out', 'open-out'],
+                ['open-out', 'render'],
+                ['render', 'synthesis'], ['synthesis', 'reply-out'], ['reply-out', 'human']
+            ];
+
+            // ============ Layout — do not change unless the graph looks
+            // visibly cramped/sparse after adding real content; these
+            // control column width, node size, and row spacing. ============
+            var COL_W = 254, COL_GAP = 14, COL_LEFT = 8;
+            var NODE_W = 232, NODE_H = 120;
+            var ROW_TOP = 66, ROW_GAP = 150;
+            var GRAPH_W = COL_LEFT + PHASES.length * COL_W + (PHASES.length - 1) * COL_GAP + COL_LEFT;
+
+            // Claude Code CLI mini logo for badges and chips
+            var claudeCodeMiniLogo = '<svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true" style="display:block"><path clip-rule="evenodd" d="M20.998 10.949H24v3.102h-3v3.028h-1.487V20H18v-2.921h-1.487V20H15v-2.921H9V20H7.488v-2.921H6V20H4.487v-2.921H3V14.05H0V10.95h3V5h17.998v5.949zM6 10.949h1.488V8.102H6v2.847zm10.51 0H18V8.102h-1.49v2.847z" fill-rule="evenodd"/></svg>';
+
+            function colX(p) { return COL_LEFT + p * (COL_W + COL_GAP); }
+            function nodeX(p) { return colX(p) + (COL_W - NODE_W) / 2; }
+            function nodeY(r) { return ROW_TOP + r * ROW_GAP; }
+
+            // ============ Render — do not edit below this line ============
+            var graph = document.getElementById('graph');
+            graph.style.minWidth = GRAPH_W + 'px';
+
+            var maxRow = NODES.reduce(function (m, n) { return Math.max(m, n.row); }, 0);
+            var totalH = ROW_TOP + (maxRow + 1) * ROW_GAP + 110;
+            graph.style.height = totalH + 'px';
+
+            PHASES.forEach(function (p) {
+                var band = document.createElement('div');
+                band.className = 'phase-band';
+                band.style.left = colX(p.id) + 'px';
+                band.style.width = COL_W + 'px';
+                band.innerHTML = '<div class="phase-header"><div class="phase-num">P' + p.id + '</div><div class="phase-name">Phase ' + p.id + ' · ' + p.title + '</div></div><div class="phase-caption">' + p.caption + '</div>';
+                graph.appendChild(band);
+            });
+
+            var svgNS = 'http://www.w3.org/2000/svg';
+            var svg = document.createElementNS(svgNS, 'svg');
+            svg.setAttribute('class', 'edges');
+            svg.setAttribute('viewBox', '0 0 ' + GRAPH_W + ' ' + totalH);
+            svg.setAttribute('preserveAspectRatio', 'none');
+            var defs = document.createElementNS(svgNS, 'defs');
+            defs.innerHTML = '<linearGradient id="edgeGrad" x1="0" y1="0" x2="1" y2="0"><stop offset="0%" stop-color="#8B5E34"/><stop offset="60%" stop-color="#B47A45"/><stop offset="100%" stop-color="#D97757"/></linearGradient>';
+            svg.appendChild(defs);
+            graph.appendChild(svg);
+
+            var byId = {};
+            NODES.forEach(function (n) {
+                byId[n.id] = n;
+                var el = document.createElement('div');
+                el.className = 'node kind-' + n.kind;
+                el.tabIndex = 0;
+                el.style.left = nodeX(n.phase) + 'px';
+                el.style.top = nodeY(n.row) + 'px';
+                el.style.width = NODE_W + 'px';
+                if (n.row >= 2) el.classList.add('detail-top');
+                if (n.phase === PHASES.length - 1) el.classList.add('detail-right');
+                var d = n.detail;
+                var detailHtml = d ? '<div class="detail" role="tooltip"><dl><dt>Purpose</dt><dd>' + d.purpose + '</dd><dt>Tools</dt><dd>' + d.tools + '</dd><dt>Upstream</dt><dd>' + d.upstream + '</dd><dt>Downstream</dt><dd>' + d.downstream + '</dd><dt>On failure</dt><dd>' + d.failure + '</dd></dl></div>' : '';
+                var chipHtml = n.model ? '<div class="chip"><span class="mark">' + claudeCodeMiniLogo + '</span>' + n.model + '</div>' : '';
+                el.innerHTML = '<div class="rail" aria-hidden="true"></div><div class="body"><div class="top"><span class="icon" aria-hidden="true">' + ICO[n.icon] + '</span><div class="head"><div class="kind-tag">' + n.kindTag + '</div><div class="title">' + n.title + '</div></div></div><div class="desc">' + n.desc + '</div>' + chipHtml + detailHtml + '</div>';
+                graph.appendChild(el);
+                n._el = el;
+            });
+
+            NODES.forEach(function (n) {
+                n.width = n._el.offsetWidth || NODE_W;
+                n.height = n._el.offsetHeight || NODE_H;
+            });
+
+            EDGES.forEach(function (pair) {
+                var a = byId[pair[0]], b = byId[pair[1]];
+                if (!a || !b) return;
+                var ax, ay, bx, by, path;
+                if (a.phase === b.phase) {
+                    ax = nodeX(a.phase) + a.width / 2;
+                    ay = nodeY(a.row) + a.height;
+                    bx = nodeX(b.phase) + b.width / 2;
+                    by = nodeY(b.row);
+                    path = 'M' + ax + ',' + ay + ' C' + ax + ',' + (ay + 22) + ' ' + bx + ',' + (by - 22) + ' ' + bx + ',' + by;
+                } else {
+                    ax = nodeX(a.phase) + a.width;
+                    ay = nodeY(a.row) + a.height / 2;
+                    bx = nodeX(b.phase);
+                    by = nodeY(b.row) + b.height / 2;
+                    var mid = (ax + bx) / 2;
+                    path = 'M' + ax + ',' + ay + ' C' + mid + ',' + ay + ' ' + mid + ',' + by + ' ' + bx + ',' + by;
+                }
+                var p = document.createElementNS(svgNS, 'path');
+                p.setAttribute('d', path);
+                p.setAttribute('class', 'edge');
+                p.setAttribute('data-from', pair[0]);
+                p.setAttribute('data-to', pair[1]);
+                svg.appendChild(p);
+                var c = document.createElementNS(svgNS, 'circle');
+                c.setAttribute('cx', bx);
+                c.setAttribute('cy', by);
+                c.setAttribute('r', 3);
+                c.setAttribute('class', 'dot');
+                c.setAttribute('data-from', pair[0]);
+                c.setAttribute('data-to', pair[1]);
+                svg.appendChild(c);
+                var pulse = document.createElementNS(svgNS, 'circle');
+                pulse.setAttribute('r', 2.2);
+                pulse.setAttribute('class', 'pulse');
+                pulse.setAttribute('data-from', pair[0]);
+                pulse.setAttribute('data-to', pair[1]);
+                var anim = document.createElementNS(svgNS, 'animateMotion');
+                anim.setAttribute('dur', (2.4 + Math.random() * 1.4).toFixed(2) + 's');
+                anim.setAttribute('repeatCount', 'indefinite');
+                anim.setAttribute('path', path);
+                pulse.appendChild(anim);
+                svg.appendChild(pulse);
+            });
+
+            var wrap = document.querySelector('.graph-wrap');
+            if (wrap) {
+                wrap.addEventListener('mousemove', function (e) {
+                    var rect = wrap.getBoundingClientRect();
+                    wrap.style.setProperty('--mouse-x', (e.clientX - rect.left) + 'px');
+                    wrap.style.setProperty('--mouse-y', (e.clientY - rect.top) + 'px');
+                });
+            }
+
+            document.querySelectorAll('.node').forEach(function (el) {
+                el.addEventListener('mouseenter', function () {
+                    var nodeId = '';
+                    for (var id in byId) { if (byId[id]._el === el) { nodeId = id; break; } }
+                    if (!nodeId) return;
+                    el.classList.add('node-active');
+                    document.querySelectorAll('.node').forEach(function (nEl) { if (nEl !== el) nEl.classList.add('node-fade'); });
+                    document.querySelectorAll('svg.edges path.edge').forEach(function (e) {
+                        var f = e.getAttribute('data-from'), t = e.getAttribute('data-to');
+                        if (f === nodeId || t === nodeId) e.classList.add('edge-highlight'); else e.classList.add('edge-fade');
+                    });
+                    document.querySelectorAll('svg.edges circle.dot').forEach(function (e) {
+                        var f = e.getAttribute('data-from'), t = e.getAttribute('data-to');
+                        if (f === nodeId || t === nodeId) e.classList.add('edge-highlight'); else e.classList.add('edge-fade');
+                    });
+                    document.querySelectorAll('svg.edges circle.pulse').forEach(function (e) {
+                        var f = e.getAttribute('data-from'), t = e.getAttribute('data-to');
+                        if (f === nodeId || t === nodeId) e.classList.add('pulse-highlight'); else e.classList.add('pulse-fade');
+                    });
+                });
+                el.addEventListener('mouseleave', function () {
+                    el.classList.remove('node-active');
+                    document.querySelectorAll('.node').forEach(function (n) { n.classList.remove('node-fade'); });
+                    document.querySelectorAll('svg.edges path.edge').forEach(function (e) { e.classList.remove('edge-highlight', 'edge-fade'); });
+                    document.querySelectorAll('svg.edges circle.dot').forEach(function (e) { e.classList.remove('edge-highlight', 'edge-fade'); });
+                    document.querySelectorAll('svg.edges circle.pulse').forEach(function (e) { e.classList.remove('pulse-highlight', 'pulse-fade'); });
+                });
+            });
+
+            if ('IntersectionObserver' in window) {
+                var io = new IntersectionObserver(function (entries) {
+                    entries.forEach(function (e) { if (e.isIntersecting) { e.target.classList.add('in'); io.unobserve(e.target); } });
+                }, { threshold: 0.05 });
+                document.querySelectorAll('.node').forEach(function (el, i) { el.style.transitionDelay = (i * 28) + 'ms'; io.observe(el); });
+            } else { document.querySelectorAll('.node').forEach(function (el) { el.classList.add('in'); }); }
+
+            function animateCounter(el) {
+                var target = parseInt(el.getAttribute('data-count'), 10);
+                var start = performance.now();
+                var dur = 950;
+                var fallbackTimer = setTimeout(function () { el.textContent = target; }, dur + 50);
+                function step(t) {
+                    t = t || performance.now();
+                    var k = Math.min(1, (t - start) / dur);
+                    k = 1 - Math.pow(1 - k, 3);
+                    var v = Math.round(k * target);
+                    el.textContent = v;
+                    if (k < 1) {
+                        requestAnimationFrame(step);
+                    } else {
+                        clearTimeout(fallbackTimer);
+                    }
+                }
+                requestAnimationFrame(step);
+            }
+            if ('IntersectionObserver' in window) {
+                var cio = new IntersectionObserver(function (entries) {
+                    entries.forEach(function (e) { if (e.isIntersecting) { animateCounter(e.target); cio.unobserve(e.target); } });
+                }, { threshold: 0.1 });
+                document.querySelectorAll('.counter .num').forEach(function (el) { cio.observe(el); });
+            } else {
+                document.querySelectorAll('.counter .num').forEach(function (el) { el.textContent = el.getAttribute('data-count'); });
+            }
+
+            // Failsafe fallback: if after 1.2s the counters are still 0 (e.g. headless/unfocused), update them immediately.
+            setTimeout(function () {
+                document.querySelectorAll('.counter .num').forEach(function (el) {
+                    var val = el.textContent.trim();
+                    if (val === "0" || val === "") {
+                        el.textContent = el.getAttribute('data-count');
+                    }
+                });
+            }, 1200);
+
+            window.addEventListener('beforeprint', function () {
+                document.querySelectorAll('.counter .num').forEach(function (el) { el.textContent = el.getAttribute('data-count'); });
+                document.querySelectorAll('.node').forEach(function (el) { el.classList.add('in'); el.style.transitionDelay = '0ms'; });
+            });
+        })();
+    </script>
+</body>
+
+</html>
