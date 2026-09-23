@@ -64,118 +64,100 @@ export function createProviderByName(name: string, apiKey: string): ExtractProvi
 
 function createResilientProvider(primary: ExtractProvider, fallback?: ExtractProvider): ExtractProvider {
   if (!fallback) return primary;
+  const COOLDOWN_MS = 60_000;
+  let primaryCooldownUntil = 0;
+
+  async function withFallback<T>(fnPrimary: () => Promise<T>, fnFallback: () => Promise<T>): Promise<T> {
+    if (Date.now() < primaryCooldownUntil) {
+      return await fnFallback();
+    }
+    try {
+      return await fnPrimary();
+    } catch (err) {
+      primaryCooldownUntil = Date.now() + COOLDOWN_MS;
+      // eslint-disable-next-line no-console
+      console.warn(
+        `[provider] Primary ${primary.id} failed (${err instanceof Error ? err.message : String(err)}); tripping 60s circuit-breaker to fallback ${fallback!.id}`
+      );
+      return await fnFallback();
+    }
+  }
+
   return {
     id: primary.id,
     async call(args) {
-      try {
-        return await primary.call(args);
-      } catch (err) {
-        // eslint-disable-next-line no-console
-        console.warn(`[provider] Primary ${primary.id} failed (${err instanceof Error ? err.message : String(err)}); falling over to fallback ${fallback.id}`);
-        return await fallback.call(args);
-      }
+      return await withFallback(() => primary.call(args), () => fallback.call(args));
     },
-    // Found 2026-09-21: this wrapper used to define only `id`/`call`, which
-    // silently dropped extractGuests (and any other optional capability)
-    // whenever a resilient (primary+fallback) provider was in play — exactly
-    // production's shape, since DEEPSEEK_GATEWAY_KEY and GEMINI_API_KEY are
-    // both set there. The isolated-guests fix (this same day) worked in every
-    // direct test and then did nothing in production until this was fixed,
-    // because provider.extractGuests was undefined on the wrapped object even
-    // though primary.extractGuests existed underneath it.
-    ...(primary.extractGuests
+    ...(primary.extractGuests || fallback.extractGuests
       ? {
           async extractGuests(text: string) {
-            try {
-              return await primary.extractGuests!(text);
-            } catch (err) {
-              if (fallback.extractGuests) return await fallback.extractGuests(text);
-              throw err;
+            if (primary.extractGuests && fallback.extractGuests) {
+              return await withFallback(
+                () => primary.extractGuests!(text),
+                () => fallback.extractGuests!(text)
+              );
             }
+            return primary.extractGuests
+              ? await primary.extractGuests(text)
+              : await fallback.extractGuests!(text);
           },
         }
-      : fallback.extractGuests
-        ? { extractGuests: (text: string) => fallback.extractGuests!(text) }
-        : {}),
-    // Same forwarding, same reason, added same day for extractCheckIn — see
-    // the extractGuests comment above; this wrapper drops any optional
-    // capability it doesn't explicitly forward, so a second one added
-    // without updating this function would silently do nothing in exactly
-    // production's configuration.
-    ...(primary.extractCheckIn
+      : {}),
+    ...(primary.extractCheckIn || fallback.extractCheckIn
       ? {
           async extractCheckIn(text: string, today: string) {
-            try {
-              return await primary.extractCheckIn!(text, today);
-            } catch (err) {
-              if (fallback.extractCheckIn) return await fallback.extractCheckIn(text, today);
-              throw err;
+            if (primary.extractCheckIn && fallback.extractCheckIn) {
+              return await withFallback(
+                () => primary.extractCheckIn!(text, today),
+                () => fallback.extractCheckIn!(text, today)
+              );
             }
+            return primary.extractCheckIn
+              ? await primary.extractCheckIn(text, today)
+              : await fallback.extractCheckIn!(text, today);
           },
         }
-      : fallback.extractCheckIn
-        ? { extractCheckIn: (text: string, today: string) => fallback.extractCheckIn!(text, today) }
-        : {}),
-    // Same forwarding, same reason, added same day for extractDiveWindow —
-    // see the extractGuests comment above.
-    ...(primary.extractDiveWindow
+      : {}),
+    ...(primary.extractDiveWindow || fallback.extractDiveWindow
       ? {
           async extractDiveWindow(text: string, today: string) {
-            try {
-              return await primary.extractDiveWindow!(text, today);
-            } catch (err) {
-              if (fallback.extractDiveWindow) return await fallback.extractDiveWindow(text, today);
-              throw err;
+            if (primary.extractDiveWindow && fallback.extractDiveWindow) {
+              return await withFallback(
+                () => primary.extractDiveWindow!(text, today),
+                () => fallback.extractDiveWindow!(text, today)
+              );
             }
+            return primary.extractDiveWindow
+              ? await primary.extractDiveWindow(text, today)
+              : await fallback.extractDiveWindow!(text, today);
           },
         }
-      : fallback.extractDiveWindow
-        ? { extractDiveWindow: (text: string, today: string) => fallback.extractDiveWindow!(text, today) }
-        : {}),
-    ...(primary.generateText
+      : {}),
+    ...(primary.generateText || fallback.generateText
       ? {
           async generateText(systemPrompt: string, userPrompt: string) {
-            try {
-              return await primary.generateText!(systemPrompt, userPrompt);
-            } catch (err) {
-              if (fallback.generateText) return await fallback.generateText(systemPrompt, userPrompt);
-              throw err;
+            if (primary.generateText && fallback.generateText) {
+              return await withFallback(
+                () => primary.generateText!(systemPrompt, userPrompt),
+                () => fallback.generateText!(systemPrompt, userPrompt)
+              );
             }
+            return primary.generateText
+              ? await primary.generateText(systemPrompt, userPrompt)
+              : await fallback.generateText!(systemPrompt, userPrompt);
           },
         }
-      : fallback.generateText
-        ? { generateText: (systemPrompt: string, userPrompt: string) => fallback.generateText!(systemPrompt, userPrompt) }
-        : {}),
+      : {}),
   };
 }
 
 // The one place that turns config into a live provider.
-// Policy: DeepSeek is primary/default. Gemini is secondary/fallback.
+// Policy: Gemini 3.1 Flash-Lite is primary/default for sub-4s latency and
+// prevents 502 timeouts on the DeepSeek gateway from exceeding the 20s WhatsApp deadline.
 export function createProviderFromEnv(env: NodeJS.ProcessEnv = process.env): ExtractProvider {
-  const which = (env.EXTRACTOR_PROVIDER ?? "deepseek-flash").toLowerCase();
+  const which = (env.EXTRACTOR_PROVIDER ?? "gemini-3.1-flash-lite").toLowerCase();
 
   switch (which) {
-    case "deepseek":
-    case "deepseek-flash":
-    case "deepseek-pro": {
-      const key = env.DEEPSEEK_GATEWAY_KEY;
-      const model = which === "deepseek" ? (env.DEEPSEEK_MODEL as "deepseek-flash" | "deepseek-pro" | undefined) ?? "deepseek-flash" : which;
-      if (key) {
-        const primary = createDeepSeekProvider(key, model);
-        if (env.GEMINI_API_KEY) {
-          const fallback = createGeminiProvider(env.GEMINI_API_KEY, env.GEMINI_MODEL);
-          return createResilientProvider(primary, fallback);
-        }
-        return primary;
-      }
-      // Graceful fallback to secondary provider (Gemini) if configured
-      if (env.GEMINI_API_KEY) {
-        // eslint-disable-next-line no-console
-        console.warn(`[provider] DEEPSEEK_GATEWAY_KEY not set; falling back to secondary provider Gemini (${env.GEMINI_MODEL ?? "gemini-2.5-flash"})`);
-        return createGeminiProvider(env.GEMINI_API_KEY, env.GEMINI_MODEL);
-      }
-      throw new Error("DEEPSEEK_GATEWAY_KEY not set (and no fallback GEMINI_API_KEY found)");
-    }
     case "gemini":
     case "gemini-3.1-flash-lite":
     case "gemini-3.5-flash":
@@ -185,10 +167,52 @@ export function createProviderFromEnv(env: NodeJS.ProcessEnv = process.env): Ext
     case "gemini-2.5-pro":
     case "gemini-2.5-flash":
     case "gemini-2.0-flash": {
-      const key = env.GEMINI_API_KEY;
-      if (!key) throw new Error("GEMINI_API_KEY not set");
-      const model = which === "gemini" ? env.GEMINI_MODEL : which;
-      return createGeminiProvider(key, model);
+      const model = which === "gemini" ? (env.GEMINI_MODEL ?? "gemini-3.1-flash-lite") : which;
+      if (env.GEMINI_API_KEY) {
+        const primary = createGeminiProvider(env.GEMINI_API_KEY, model);
+        if (env.DEEPSEEK_GATEWAY_KEY) {
+          const fallback = createDeepSeekProvider(env.DEEPSEEK_GATEWAY_KEY, "deepseek-flash");
+          return createResilientProvider(primary, fallback);
+        }
+        return primary;
+      }
+      if (env.DEEPSEEK_GATEWAY_KEY) {
+        // eslint-disable-next-line no-console
+        console.warn(`[provider] GEMINI_API_KEY not set; falling back to DeepSeek (deepseek-flash)`);
+        return createDeepSeekProvider(env.DEEPSEEK_GATEWAY_KEY, "deepseek-flash");
+      }
+      throw new Error("GEMINI_API_KEY not set (and no fallback DEEPSEEK_GATEWAY_KEY found)");
+    }
+    case "deepseek":
+    case "deepseek-flash":
+    case "deepseek-pro": {
+      const key = env.DEEPSEEK_GATEWAY_KEY;
+      const model = which === "deepseek" ? (env.DEEPSEEK_MODEL as "deepseek-flash" | "deepseek-pro" | undefined) ?? "deepseek-flash" : which;
+      // When both GEMINI_API_KEY and DEEPSEEK_GATEWAY_KEY are present in production,
+      // prefer Gemini 3.1 Flash-Lite as primary so dead DeepSeek gateway 502s never
+      // burn the 20s WhatsApp webhook deadline.
+      if (env.GEMINI_API_KEY && env.FORCE_DEEPSEEK_PRIMARY !== "true") {
+        const primary = createGeminiProvider(env.GEMINI_API_KEY, env.GEMINI_MODEL ?? "gemini-3.1-flash-lite");
+        if (key) {
+          const fallback = createDeepSeekProvider(key, model);
+          return createResilientProvider(primary, fallback);
+        }
+        return primary;
+      }
+      if (key) {
+        const primary = createDeepSeekProvider(key, model);
+        if (env.GEMINI_API_KEY) {
+          const fallback = createGeminiProvider(env.GEMINI_API_KEY, env.GEMINI_MODEL);
+          return createResilientProvider(primary, fallback);
+        }
+        return primary;
+      }
+      if (env.GEMINI_API_KEY) {
+        // eslint-disable-next-line no-console
+        console.warn(`[provider] DEEPSEEK_GATEWAY_KEY not set; falling back to secondary provider Gemini (${env.GEMINI_MODEL ?? "gemini-3.1-flash-lite"})`);
+        return createGeminiProvider(env.GEMINI_API_KEY, env.GEMINI_MODEL);
+      }
+      throw new Error("DEEPSEEK_GATEWAY_KEY not set (and no fallback GEMINI_API_KEY found)");
     }
     default:
       throw new Error(`Unknown EXTRACTOR_PROVIDER: "${which}" (expected ${KNOWN_PROVIDER_NAMES.join(", ")})`);

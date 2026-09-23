@@ -1,0 +1,58 @@
+{
+  "schema_version": 1,
+  "diagram_type": "sequence",
+  "meta": {
+    "title": "One Guest Message, Start to Finish",
+    "locale": "en",
+    "output": "conversation-flow-plain.html",
+    "viewBox": [1080, 500],
+    "column_fit": "spread",
+    "quality_profile": "showcase",
+    "views": [
+      { "id": "understanding", "label": "Understanding and checking", "focus": ["receiver", "reader", "checker"], "note": "AI reads the message; a separate, non-AI step double-checks the details." },
+      { "id": "reply-out", "label": "A safe reply goes back", "focus": ["receiver", "replier", "whatsapp", "guest"], "note": "The reply is picked from a small set of pre-approved messages, never written freely by AI." }
+    ]
+  },
+  "participants": [
+    { "id": "guest", "type": "external", "label": "Guest", "sublabel": "on WhatsApp" },
+    { "id": "whatsapp", "type": "external", "label": "WhatsApp", "sublabel": "messaging app" },
+    { "id": "receiver", "type": "backend", "label": "Message Receiver", "sublabel": "checks & saves each message" },
+    { "id": "reader", "type": "cloud", "label": "AI Reader", "sublabel": "understands what was said" },
+    { "id": "checker", "type": "backend", "label": "Double-Checker", "sublabel": "verifies dates & numbers" },
+    { "id": "replier", "type": "security", "label": "Reply Picker", "sublabel": "a safe, pre-approved reply" }
+  ],
+  "segments": [
+    { "from": 150, "to": 202, "label": "Message comes in" },
+    { "from": 210, "to": 315, "label": "Understanding & checking" },
+    { "from": 323, "to": 420, "label": "Reply goes out" }
+  ],
+  "messages": [
+    { "id": "guest-types", "from": "guest", "to": "whatsapp", "y": 160, "label": "types a message", "variant": "default" },
+    { "id": "whatsapp-delivers", "from": "whatsapp", "to": "receiver", "y": 188, "label": "delivers it", "variant": "default" },
+    { "id": "ask-ai", "from": "receiver", "to": "reader", "y": 216, "label": "what does this mean?", "variant": "emphasis" },
+    { "id": "ai-understood", "from": "reader", "to": "receiver", "y": 244, "label": "here's what I understood", "variant": "return" },
+    { "id": "ask-checker", "from": "receiver", "to": "checker", "y": 272, "label": "please double-check this", "variant": "default" },
+    { "id": "checker-confirms", "from": "checker", "to": "receiver", "y": 300, "label": "confirmed correct", "variant": "return" },
+    { "id": "ask-reply", "from": "receiver", "to": "replier", "y": 328, "label": "what should we say back?", "variant": "emphasis" },
+    { "id": "reply-chosen", "from": "replier", "to": "receiver", "y": 356, "label": "here's the safe reply", "variant": "return" },
+    { "id": "send-reply", "from": "receiver", "to": "whatsapp", "y": 384, "label": "sends the reply", "variant": "default" },
+    { "id": "whatsapp-delivers-reply", "from": "whatsapp", "to": "guest", "y": 412, "label": "delivers the reply", "variant": "return" }
+  ],
+  "activations": [
+    { "participant": "receiver", "from": 180, "to": 416, "type": "backend" },
+    { "participant": "reader", "from": 210, "to": 250, "type": "cloud" },
+    { "participant": "checker", "from": 265, "to": 306, "type": "backend" },
+    { "participant": "replier", "from": 320, "to": 362, "type": "security" }
+  ],
+  "cards": [
+    {
+      "dot": "cyan",
+      "title": "Nothing is guessed, nothing is silent",
+      "items": [
+        "Every detail repeated back must match the guest's own words",
+        "AI never writes the guest-facing reply - only pre-approved messages are sent",
+        "A human always confirms the final price and availability"
+      ]
+    }
+  ]
+}

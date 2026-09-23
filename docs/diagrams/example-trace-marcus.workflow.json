@@ -1,0 +1,73 @@
+{
+  "schema_version": 2,
+  "diagram_type": "workflow",
+  "meta": {
+    "title": "One Message, Traced Step by Step",
+    "locale": "en",
+    "quality_profile": "showcase",
+    "output": "example-trace-marcus.html",
+    "views": [
+      { "id": "ai-step", "label": "AI extraction + safety net", "focus": ["normalize", "ai-main", "isolated", "merge"], "note": "The model reads the message once; a parallel safety net stands by but is not needed here." },
+      { "id": "code-step", "label": "Code verifies, then replies", "focus": ["merge", "postprocess", "reply-picker"], "note": "Dates and derived fields are rechecked; zero missing fields means a full summary, not a question." }
+    ]
+  },
+  "lanes": [
+    { "id": "pipeline", "label": "Pipeline" },
+    { "id": "ai", "label": "AI Layer" },
+    { "id": "safety", "label": "Safety Net", "variant": "exception" }
+  ],
+  "phases": [
+    { "id": "intake", "label": "Clean input", "fromCol": 0, "toCol": 1 },
+    { "id": "extract", "label": "AI extraction (parallel)", "fromCol": 2, "toCol": 2, "variant": "emphasis" },
+    { "id": "verify", "label": "Code verifies, never just trusts", "fromCol": 3, "toCol": 4 },
+    { "id": "reply", "label": "Reply sent", "fromCol": 5, "toCol": 5, "variant": "dashed" }
+  ],
+  "groups": [
+    { "id": "safety_net", "label": "Idle this turn - main call got everything right", "lane": "safety", "fromCol": 2, "toCol": 2, "variant": "dashed" }
+  ],
+  "mainPath": ["guest-msg", "normalize", "ai-main", "merge", "postprocess", "reply-picker"],
+  "nodes": [
+    { "id": "guest-msg", "lane": "pipeline", "col": 0, "type": "external", "label": "Guest Message", "sublabel": "raw WhatsApp text", "tag": "Marcus Brody, Anilao enquiry", "width": 132 },
+    { "id": "normalize", "lane": "pipeline", "col": 1, "type": "backend", "label": "normalize()", "sublabel": "clean whitespace", "width": 132 },
+    { "id": "ai-main", "lane": "ai", "col": 2, "type": "cloud", "label": "Main AI Call", "sublabel": "extract all fields at once", "tag": "9 fields read correctly", "width": 132 },
+    { "id": "isolated", "lane": "safety", "col": 2, "type": "cloud", "label": "Isolated Passes", "sublabel": "guests / dates", "tag": "runs in parallel, just in case", "width": 132 },
+    { "id": "merge", "lane": "pipeline", "col": 3, "type": "backend", "label": "Merge Results", "sublabel": "isolated only fills gaps", "tag": "0 overrides needed", "width": 132 },
+    { "id": "postprocess", "lane": "pipeline", "col": 4, "type": "backend", "label": "postProcess()", "sublabel": "recompute + verify", "tag": "checkOut recomputed, 0 missing", "width": 132 },
+    { "id": "reply-picker", "lane": "pipeline", "col": 5, "type": "security", "label": "renderReply()", "sublabel": "picks 'summary' template", "tag": "human confirms price next", "width": 132 }
+  ],
+  "edges": [
+    { "id": "msg-normalize", "from": "guest-msg", "to": "normalize", "variant": "default" },
+    { "id": "normalize-ai", "from": "normalize", "to": "ai-main", "label": "cleaned text", "variant": "emphasis" },
+    { "id": "normalize-isolated", "from": "normalize", "to": "isolated", "label": "same text, in parallel", "variant": "dashed" },
+    { "id": "ai-merge", "from": "ai-main", "to": "merge", "label": "raw extraction", "variant": "default" },
+    { "id": "isolated-merge", "from": "isolated", "to": "merge", "label": "not needed this time", "variant": "dashed" },
+    { "id": "merge-postprocess", "from": "merge", "to": "postprocess", "variant": "default" },
+    { "id": "postprocess-reply", "from": "postprocess", "to": "reply-picker", "label": "0 open questions", "variant": "emphasis" }
+  ],
+  "cards": [
+    {
+      "dot": "cyan",
+      "title": "What the AI extracted",
+      "items": [
+        "One pass reads all 9 fields correctly: Nov 20-22, 2 guests, 1 room, full board, diving, dive dates Nov 21, transport, name Marcus Brody",
+        "The 3 safety-net calls run in parallel but find nothing to fix"
+      ]
+    },
+    {
+      "dot": "emerald",
+      "title": "What code double-checks",
+      "items": [
+        "checkOut is recomputed from checkIn + nights, not taken from the guest's own words",
+        "transportType is derived as 'roundtrip' since pickup and return are both mentioned"
+      ]
+    },
+    {
+      "dot": "rose",
+      "title": "Why it ends in a summary",
+      "items": [
+        "0 missing fields -> renderReply() picks 'summary', not a question",
+        "A human still confirms price and availability from here"
+      ]
+    }
+  ]
+}

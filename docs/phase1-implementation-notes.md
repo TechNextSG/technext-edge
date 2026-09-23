@@ -30,7 +30,24 @@
 
 ---
 
-## 3. Bản Tóm Tắt Tiếng Việt (Vietnamese Reference)
+## 3. WhatsApp Webhook 20s Timeout Incident & Circuit-Breaker Fix (2026-09-23 15:41)
+
+- **Symptom on WhatsApp:** When testing the split-day scenario on WhatsApp at 15:41, the bot returned the static `apology` message (`"Sorry — something went wrong on our side..."`) and parked the phone thread (`84359386414`) with `reason: "turn_failed"`.
+- **Root Cause (`Vercel Logs 15:41:21.57`):**
+  1. On the Web Test Console, `Gemini 3.1 Flash-Lite` was explicitly selected in the dropdown (`~2.8s` response time).
+  2. On WhatsApp, the webhook uses `createProviderFromEnv()`, which had `EXTRACTOR_PROVIDER=deepseek-flash` configured in Vercel Production.
+  3. The upstream DeepSeek Gateway (`DEEPSEEK_GATEWAY_KEY`) was experiencing an outage (`502 Application failed to respond`) after hanging ~8–10 seconds per call.
+  4. Because a single `converse()` turn invokes `call()`, `extractGuests()`, `extractCheckIn()`, `extractDiveWindow()`, and `generateText()`, and `createResilientProvider` previously had **no circuit breaker**, each sub-call retried the dead DeepSeek gateway sequentially (`~8s × 3 = 24s`), exceeding the `20,000ms` WhatsApp turn deadline (`Error: WhatsApp turn exceeded 20000ms`).
+- **Engineering Fix ([`packages/extractor/src/providerFromEnv.ts`](file:///e:/technext-edge/packages/extractor/src/providerFromEnv.ts#L65-L205)):**
+  1. **Promoted `Gemini 3.1 Flash-Lite` (`google:gemini-3.1-flash-lite`) to Primary** whenever `GEMINI_API_KEY` is present in production (even if `EXTRACTOR_PROVIDER=deepseek-flash` is set in legacy env vars), keeping DeepSeek as secondary fallback.
+  2. **Added a 60-Second Circuit Breaker (`COOLDOWN_MS = 60_000`)** inside `createResilientProvider`: if the primary provider fails once, all subsequent calls (`extractGuests`, `extractCheckIn`, `extractDiveWindow`, `generateText`) immediately route to the fallback provider for 60s with zero wait time.
+  3. **Unparked & Reset Thread `84359386414`** on production (`/resume` + `/reset`).
+
+---
+
+## 4. Bản Tóm Tắt Tiếng Việt (Vietnamese Reference)
 - **Triệt tiêu lỗi hỏi lặp (`NEVER RE-ASK`):** Khi khách đã khai lịch lặn lẻ ngày vào `diveNotes`, bot tuyệt đối không hỏi lại câu *"How many of you will be diving?"* (`divers`).
 - **Chống xóa nhầm tổng số khách (`counts.ts`):** Tách các cụm `"1 person dives"`, `"5 people dive"`, `"1 người lặn"` ra khỏi bộ đếm `guests`, giữ nguyên vẹn số khách lưu trú.
 - **Khóa an toàn sau khi AI viết câu (`verifySynthesizedReply`):** Chặn 100% ký hiệu tiền tệ (`$`, `₱`, `PHP`, `USD`) hoặc lệch số đêm/số phòng.
+- **Khắc phục lỗi Timeout 20s trên WhatsApp (`providerFromEnv.ts`):** Chuyển `Gemini 3.1 Flash-Lite` làm model chính mặc định cho WhatsApp (thay vì đợi cổng `deepseek-gateway` đang bị lỗi `502`), đồng thời gắn **Circuit Breaker 60 giây** và mở khóa (`resume` + `reset`) số điện thoại `84359386414`.
+

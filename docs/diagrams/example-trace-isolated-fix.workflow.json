@@ -1,0 +1,73 @@
+{
+  "schema_version": 2,
+  "diagram_type": "workflow",
+  "meta": {
+    "title": "When the Safety Net Actually Fires",
+    "locale": "en",
+    "quality_profile": "showcase",
+    "output": "example-trace-isolated-fix.html",
+    "views": [
+      { "id": "ai-step", "label": "Main call misses a field", "focus": ["normalize", "ai-main", "isolated"], "note": "A real, documented case: the main call drops 'guests' to missing under a nested family sentence." },
+      { "id": "fix-step", "label": "Isolated pass fills the gap", "focus": ["ai-main", "isolated", "merge", "postprocess"], "note": "The isolated call, with nothing else competing for attention, reads the same number correctly." }
+    ]
+  },
+  "lanes": [
+    { "id": "pipeline", "label": "Pipeline" },
+    { "id": "ai", "label": "AI Layer" },
+    { "id": "safety", "label": "Safety Net", "variant": "exception" }
+  ],
+  "phases": [
+    { "id": "intake", "label": "Clean input", "fromCol": 0, "toCol": 1 },
+    { "id": "extract", "label": "AI extraction (parallel)", "fromCol": 2, "toCol": 2, "variant": "emphasis" },
+    { "id": "verify", "label": "Code merges + verifies", "fromCol": 3, "toCol": 4 },
+    { "id": "reply", "label": "Reply sent", "fromCol": 5, "toCol": 5, "variant": "dashed" }
+  ],
+  "groups": [
+    { "id": "safety_net", "label": "Catches what the main call missed", "lane": "safety", "fromCol": 2, "toCol": 2, "variant": "emphasis" }
+  ],
+  "mainPath": ["guest-msg", "normalize", "ai-main", "merge", "postprocess", "reply-picker"],
+  "nodes": [
+    { "id": "guest-msg", "lane": "pipeline", "col": 0, "type": "external", "label": "Guest Message", "sublabel": "family booking email", "tag": "\"group of five... won't be diving\"", "width": 140 },
+    { "id": "normalize", "lane": "pipeline", "col": 1, "type": "backend", "label": "normalize()", "sublabel": "clean whitespace", "width": 132 },
+    { "id": "ai-main", "lane": "ai", "col": 2, "type": "cloud", "label": "Main AI Call", "sublabel": "9 fields at once", "tag": "guests: missing (dropped)", "width": 132 },
+    { "id": "isolated", "lane": "safety", "col": 2, "type": "cloud", "label": "Isolated Pass", "sublabel": "guests only, nothing else", "tag": "guests: stated 5, evidenced", "width": 132 },
+    { "id": "merge", "lane": "pipeline", "col": 3, "type": "backend", "label": "Merge Results", "sublabel": "fills gaps only", "tag": "1 override: guests -> 5", "width": 132 },
+    { "id": "postprocess", "lane": "pipeline", "col": 4, "type": "backend", "label": "postProcess()", "sublabel": "recompute + verify", "tag": "evidence checked, valid", "width": 132 },
+    { "id": "reply-picker", "lane": "pipeline", "col": 5, "type": "security", "label": "renderReply()", "sublabel": "picks 'summary' template", "tag": "correct guest count sent", "width": 132 }
+  ],
+  "edges": [
+    { "id": "msg-normalize", "from": "guest-msg", "to": "normalize", "variant": "default" },
+    { "id": "normalize-ai", "from": "normalize", "to": "ai-main", "label": "cleaned text", "variant": "default" },
+    { "id": "normalize-isolated", "from": "normalize", "to": "isolated", "label": "same text, in parallel", "variant": "dashed" },
+    { "id": "ai-merge", "from": "ai-main", "to": "merge", "label": "8 of 9 fields ok", "variant": "default" },
+    { "id": "isolated-merge", "from": "isolated", "to": "merge", "label": "fills the missing one", "variant": "emphasis" },
+    { "id": "merge-postprocess", "from": "merge", "to": "postprocess", "variant": "default" },
+    { "id": "postprocess-reply", "from": "postprocess", "to": "reply-picker", "label": "0 open questions", "variant": "emphasis" }
+  ],
+  "cards": [
+    {
+      "dot": "rose",
+      "title": "Why the main call missed it",
+      "items": [
+        "The sentence nests a child's age and diving eligibility right next to the guest total",
+        "Reconciling that detail inside one big multi-field prompt made the model drop guests to missing"
+      ]
+    },
+    {
+      "dot": "emerald",
+      "title": "Why the isolated pass caught it",
+      "items": [
+        "Asked only about guests, with nothing else to reconcile, the same model reads '5' correctly",
+        "It only overrides because the main call said missing - a stated answer is never overruled"
+      ]
+    },
+    {
+      "dot": "cyan",
+      "title": "The override is still checked",
+      "items": [
+        "The isolated result must be exactly 'stated', with a real quote from the guest's own words",
+        "Only then does merge accept it - an unverified guess still can't reach the guest"
+      ]
+    }
+  ]
+}
