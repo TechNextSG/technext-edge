@@ -1216,15 +1216,282 @@
                 print-color-adjust: exact
             }
         }
+
+        /* ============ STICKY NAV ============ */
+        .plan-nav {
+            position: sticky;
+            top: 16px;
+            z-index: 100;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            background: rgba(255, 255, 255, 0.92);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid var(--line);
+            border-radius: 99px;
+            padding: 8px 18px;
+            margin-bottom: 28px;
+            box-shadow: 0 4px 20px rgba(42, 33, 27, 0.08);
+        }
+        .plan-nav .brand {
+            font-size: 12px;
+            font-weight: 700;
+            letter-spacing: .08em;
+            text-transform: uppercase;
+            color: var(--accent);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .plan-nav .brand-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 99px;
+            background: var(--claude);
+        }
+        .plan-nav .links {
+            display: flex;
+            gap: 12px;
+        }
+        .plan-nav a {
+            text-decoration: none;
+            color: var(--muted);
+            font-size: 12.5px;
+            font-weight: 600;
+            padding: 5px 14px;
+            border-radius: 99px;
+            transition: all 0.2s ease;
+        }
+        .plan-nav a:hover {
+            color: var(--ink);
+            background: var(--bg2);
+        }
+        .plan-nav a.active {
+            color: #fff;
+            background: var(--accent);
+        }
+
+        /* ============ SECTION 2 · EXECUTIVE PLAN ============ */
+        .plan-doc {
+            display: flex;
+            flex-direction: column;
+            gap: 32px;
+            margin-top: 10px;
+        }
+        .plan-header-block {
+            background: var(--card);
+            border: 1px solid var(--line);
+            border-radius: 16px;
+            padding: 26px 30px;
+            box-shadow: var(--shadow);
+        }
+        .plan-header-block h2 {
+            font-family: 'Playfair Display', Georgia, serif;
+            font-size: 26px;
+            margin: 0 0 10px;
+            color: var(--ink);
+        }
+
+        .causes-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 20px;
+        }
+        @media (max-width: 960px) {
+            .causes-grid { grid-template-columns: 1fr; }
+        }
+        .cause-card {
+            background: var(--card);
+            border: 1px solid var(--line);
+            border-radius: 14px;
+            padding: 22px;
+            box-shadow: var(--shadow);
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            position: relative;
+        }
+        .cause-card .cause-num {
+            font-size: 11px;
+            font-weight: 700;
+            letter-spacing: .15em;
+            text-transform: uppercase;
+            color: var(--muted);
+        }
+        .cause-card h3 {
+            font-family: 'Playfair Display', Georgia, serif;
+            font-size: 19px;
+            margin: 0;
+            color: var(--ink);
+            line-height: 1.3;
+        }
+        .cause-card .status-pill {
+            align-self: flex-start;
+            font-size: 10.5px;
+            font-weight: 700;
+            padding: 2px 8px;
+            border-radius: 6px;
+            text-transform: uppercase;
+            letter-spacing: .06em;
+        }
+        .status-pill.fixed {
+            background: var(--tool-soft);
+            color: var(--tool);
+        }
+        .status-pill.pending {
+            background: #FCEBEB;
+            color: #C0182F;
+        }
+        .status-pill.partial {
+            background: var(--accent-soft);
+            color: var(--accent);
+        }
+
+        .measure-box {
+            background: var(--card);
+            border: 1px solid var(--line);
+            border-radius: 16px;
+            padding: 26px 30px;
+            box-shadow: var(--shadow);
+        }
+        .measure-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 14px;
+        }
+        .measure-table th, .measure-table td {
+            padding: 14px 18px;
+            text-align: left;
+            border-bottom: 1px solid var(--line-soft);
+            font-size: 14px;
+        }
+        .measure-table th {
+            background: var(--bg2);
+            font-size: 11.5px;
+            letter-spacing: .12em;
+            text-transform: uppercase;
+            color: var(--accent);
+            font-weight: 700;
+        }
+
+        .plan-two-col {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 24px;
+        }
+        @media (max-width: 960px) {
+            .plan-two-col { grid-template-columns: 1fr; }
+        }
+        .action-card {
+            background: var(--card);
+            border: 1px solid var(--line);
+            border-radius: 16px;
+            padding: 26px 28px;
+            box-shadow: var(--shadow);
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+        .action-card h3 {
+            font-family: 'Playfair Display', Georgia, serif;
+            font-size: 21px;
+            margin: 0;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .task-list {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+        .task-row {
+            padding: 14px 16px;
+            background: var(--bg);
+            border: 1px solid var(--line-soft);
+            border-radius: 10px;
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+        .task-row .head {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-weight: 700;
+            color: var(--ink);
+            font-size: 14px;
+        }
+        .task-row .badge-owner {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 10.5px;
+            padding: 2px 7px;
+            border-radius: 4px;
+            background: var(--bg2);
+            color: var(--accent);
+            font-weight: 600;
+        }
+
+        .lead-callout {
+            background: linear-gradient(135deg, var(--claude-soft) 0%, #FFFFFF 100%);
+            border: 2px solid var(--claude);
+            border-radius: 16px;
+            padding: 28px 32px;
+            box-shadow: var(--shadow-agent);
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+        .lead-callout h3 {
+            font-family: 'Playfair Display', Georgia, serif;
+            font-size: 22px;
+            margin: 0;
+            color: var(--claude-2);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .safeguard-box {
+            background: var(--bg);
+            border: 1px dashed var(--muted);
+            border-radius: 16px;
+            padding: 24px 28px;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+        .safeguard-box h4 {
+            font-size: 13px;
+            letter-spacing: .12em;
+            text-transform: uppercase;
+            color: var(--muted);
+            margin: 0;
+            font-weight: 700;
+        }
+
     </style>
 </head>
 
 <body>
     <main class="page">
 
+        <!-- STICKY TOP NAV -->
+        <nav class="plan-nav">
+            <div class="brand">
+                <span class="brand-dot"></span>
+                <span>Casa Escondida · Trợ Lý Đặt Phòng</span>
+            </div>
+            <div class="links">
+                <a href="#overview">1. Tổng Quan & Số Liệu</a>
+                <a href="#plan-detail" class="active">2. Kế Hoạch Cho Lead</a>
+                <a href="#detail">3. Sơ Đồ Luồng Neuro-Symbolic</a>
+            </div>
+        </nav>
+
         <!-- ============================================================
-       SECTION 1 · OVERVIEW (BLACK-BOX)
-       EDIT: kicker text, h1, lede, the 3 panels' content below.
+       SECTION 1 · TỔNG QUAN BLACK-BOX (VĨ MÔ 30.000 FEET)
        ============================================================ -->
         <section class="section" id="overview">
             <span class="kicker">TechNext · Casa Escondida · Trợ Lý Đặt Phòng WhatsApp</span>
@@ -1233,211 +1500,158 @@
 
             <div class="overview">
 
-                <!-- INPUTS — one <li> per input. Reuse an icon from ICO in the
-                     script below by pasting its <svg> markup, or add a new
-                     24x24 viewBox stroke icon following the same pattern. -->
+                <!-- PANEL 1: INPUTS · ĐANG Ở ĐÂU -->
                 <div class="panel">
-                    <div class="panel-title"><span class="dot"></span>Inputs</div>
-                    <h2>What the pipeline consumes</h2>
-                    <p class="sub">Everything that reaches the pipeline before a single model call is made.</p>
+                    <div class="panel-title"><span class="dot"></span>Inputs · Đang ở đâu</div>
+                    <h2>Hiện trạng thật 4 mảng hệ thống</h2>
+                    <p class="sub">Trạng thái vận hành thực tế — nhìn thẳng sự thật, không làm đẹp số.</p>
                     <ul class="input-list">
                         <li>
-                            <span class="glyph" aria-hidden="true">
-                                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                                    stroke-width="2" stroke-linejoin="round">
-                                    <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z" />
+                            <span class="glyph" aria-hidden="true" style="background:var(--tool-soft);color:var(--tool);">
+                                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                    <polyline points="20 6 9 17 4 12"></polyline>
                                 </svg>
                             </span>
                             <div>
-                                <div class="lbl">Guest WhatsApp message</div>
-                                <div class="desc">Free text, written however a real guest writes — English, Vietnamese
-                                    or Chinese</div>
-                            </div>
-                        </li>
-                        <li>
-                            <span class="glyph" aria-hidden="true">
-                                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                                    stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                    <path d="M12 8v4l3 2" />
-                                    <circle cx="12" cy="12" r="9" />
-                                </svg>
-                            </span>
-                            <div>
-                                <div class="lbl">Conversation history</div>
-                                <div class="desc">The whole transcript, re-sent every turn — no incremental state to
-                                    drift</div>
-                            </div>
-                        </li>
-                        <li>
-                            <span class="glyph" aria-hidden="true">
-                                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                                    stroke-width="2" stroke-linejoin="round">
-                                    <rect x="3" y="5" width="18" height="16" rx="2" />
-                                    <path d="M3 10h18M8 3v4M16 3v4" />
-                                </svg>
-                            </span>
-                            <div>
-                                <div class="lbl">Manila date</div>
-                                <div class="desc">"This Saturday" is resolved in code against Asia/Manila, never taken
-                                    from the model</div>
-                            </div>
-                        </li>
-                        <li>
-                            <span class="glyph" aria-hidden="true">
-                                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                                    stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                    <path d="M8 3H7a2 2 0 0 0-2 2v3a2 2 0 0 1-2 2 2 2 0 0 1 2 2v3a2 2 0 0 0 2 2h1" />
-                                    <path d="M16 3h1a2 2 0 0 1 2 2v3a2 2 0 0 0 2 2 2 2 0 0 0-2 2v3a2 2 0 0 1-2 2h-1" />
-                                </svg>
-                            </span>
-                            <div>
-                                <div class="lbl">Trip JSON schema</div>
-                                <div class="desc">18 fields generated from the zod contract — the only shape the model
-                                    may answer in</div>
-                            </div>
-                        </li>
-                        <li>
-                            <span class="glyph" aria-hidden="true">
-                                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                                    stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                    <path d="M3 12h4l3 8 4-16 3 8h4" />
-                                </svg>
-                            </span>
-                            <div>
-                                <div class="lbl">House norms</div>
-                                <div class="desc">Exactly 4 fields may be defaulted — meals, transport, rooms, language
+                                <div class="lbl" style="display:flex;justify-content:space-between;align-items:center;">
+                                    <span>Đọc hiểu tin nhắn khách</span>
+                                    <span style="font-size:10px;text-transform:uppercase;color:var(--tool);font-weight:700;background:var(--tool-soft);padding:1px 6px;border-radius:4px;">Ổn</span>
                                 </div>
+                                <div class="desc">Tự do Anh · Việt · Trung, kể cả "thứ 7 tuần sau". Khi không chắc thì hỏi lại chứ không đoán. Đã kiểm tra nghiêm và đang sạch.</div>
                             </div>
                         </li>
                         <li>
-                            <span class="glyph" aria-hidden="true">
-                                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                                    stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                    <circle cx="12" cy="12" r="3" />
-                                    <path d="M12 2v3M12 19v3M2 12h3M19 12h3M5 5l2 2M17 17l2 2M19 5l-2 2M7 17l-2 2" />
+                            <span class="glyph" aria-hidden="true" style="background:var(--accent-soft);color:var(--accent);">
+                                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                    <circle cx="12" cy="12" r="10"></circle>
+                                    <line x1="12" y1="8" x2="12" y2="12"></line>
+                                    <line x1="12" y1="16" x2="12.01" y2="16"></line>
                                 </svg>
                             </span>
                             <div>
-                                <div class="lbl">Provider config</div>
-                                <div class="desc">One env var picks the model — swapping vendors is not a code change
+                                <div class="lbl" style="display:flex;justify-content:space-between;align-items:center;">
+                                    <span>Cách nói chuyện</span>
+                                    <span style="font-size:10px;text-transform:uppercase;color:var(--accent);font-weight:700;background:var(--accent-soft);padding:1px 6px;border-radius:4px;">Cần thước đo</span>
                                 </div>
+                                <div class="desc">Đã bỏ mẫu cứng, cho AI viết giọng lễ tân trên dữ liệu kiểm chứng. Đúng hướng nhưng chưa có cách chấm điểm xem có thật sự tự nhiên hơn không.</div>
+                            </div>
+                        </li>
+                        <li>
+                            <span class="glyph" aria-hidden="true" style="background:#FCEBEB;color:#C0182F;">
+                                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                    <polygon points="7.86 2 16.14 2 22 7.86 22 16.14 16.14 22 7.86 22 2 16.14 2 7.86 7.86 2"></polygon>
+                                    <line x1="12" y1="8" x2="12" y2="12"></line>
+                                    <line x1="12" y1="16" x2="12.01" y2="16"></line>
+                                </svg>
+                            </span>
+                            <div>
+                                <div class="lbl" style="display:flex;justify-content:space-between;align-items:center;">
+                                    <span>Quy trình lên production</span>
+                                    <span style="font-size:10px;text-transform:uppercase;color:#C0182F;font-weight:700;background:#FCEBEB;padding:1px 6px;border-radius:4px;">Sửa ngay</span>
+                                </div>
+                                <div class="desc">Bản sửa lỗi tính tiền gói lặn xong từ hôm qua nhưng production chưa có — đẩy code lên kho chung chưa tự sync máy chủ thật.</div>
+                            </div>
+                        </li>
+                        <li>
+                            <span class="glyph" aria-hidden="true" style="background:var(--trigger-soft);color:var(--trigger);">
+                                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                    <circle cx="12" cy="12" r="10"></circle>
+                                    <polyline points="12 6 12 12 16 14"></polyline>
+                                </svg>
+                            </span>
+                            <div>
+                                <div class="lbl" style="display:flex;justify-content:space-between;align-items:center;">
+                                    <span>Tính giá & xuất báo giá</span>
+                                    <span style="font-size:10px;text-transform:uppercase;color:var(--trigger);font-weight:700;background:var(--trigger-soft);padding:1px 6px;border-radius:4px;">Chờ người</span>
+                                </div>
+                                <div class="desc">Cấu trúc dữ liệu Odoo chưa chốt, nên cố ý chưa viết dòng code nào nối Odoo để tránh rủi ro đập đi xây lại.</div>
                             </div>
                         </li>
                     </ul>
-                    <div class="arrow right" aria-hidden="true">
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                            stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-                            <path d="M5 12h14M13 5l7 7-7 7" />
-                        </svg>
-                    </div>
+                    <span class="arrow right" aria-hidden="true">→</span>
                 </div>
 
-                <!-- BLACKBOX — the dark summary panel. Counters use
-                     data-count for the count-up animation; keep to 4
-                     (2x2 grid) unless you also change .counters'
-                     grid-template-columns. agent-pill list should name
-                     the same agents Section 2 details. -->
+                <!-- PANEL 2: CENTER BLACK-BOX · BỘ ĐẾM & BÓC TÁCH NGUYÊN NHÂN -->
                 <div class="panel blackbox">
-                    <div class="panel-title"><span class="dot"></span>Black-box · workflow</div>
-                    <h2>What runs inside</h2>
-                    <p class="sub">What is really wired today — measured from the source, not the roadmap.</p>
+                    <div class="panel-title"><span class="dot"></span>Thực trạng & Bóc tách nguyên nhân</div>
+                    <h2>Đo rất kỹ không bịa — Chưa từng đo tự nhiên</h2>
+                    <p class="sub">Lead nhận xét bot "cứng" — bản chất là 3 nguyên nhân riêng biệt cần 3 cách xử lý khác nhau.</p>
+
                     <div class="counters">
                         <div class="counter">
-                            <div class="num" data-count="18">0</div>
-                            <div class="lbl">Trip fields</div>
-                            <div class="hint">each carries a state + verbatim evidence</div>
-                        </div>
-                        <div class="counter">
-                            <div class="num" data-count="5">0</div>
-                            <div class="lbl">Model calls / turn</div>
-                            <div class="hint">4 to read the message, 1 to word the reply</div>
-                        </div>
-                        <div class="counter">
-                            <div class="num" data-count="5">0</div>
-                            <div class="lbl">Field states</div>
-                            <div class="hint">stated · inferred · default · derived · missing</div>
+                            <div class="num" data-count="0">0</div>
+                            <div class="lbl">% Bịa Dữ Liệu (Factual)</div>
+                            <div class="sub">Đo trên 30 kịch bản ngặt nghèo</div>
                         </div>
                         <div class="counter">
                             <div class="num" data-count="230">0</div>
-                            <div class="lbl">Tests green</div>
-                            <div class="hint">plus a 30-case multilingual eval corpus</div>
+                            <div class="lbl">Bài Test Xanh 100%</div>
+                            <div class="sub">Regression suite tự động mỗi commit</div>
+                        </div>
+                        <div class="counter">
+                            <div class="num" data-count="3">0</div>
+                            <div class="lbl">Nguyên Nhân "Cứng"</div>
+                            <div class="sub">Dùng từ · Hỏi sai chỗ · Khuôn ô</div>
+                        </div>
+                        <div class="counter">
+                            <div class="num" data-count="2">0</div>
+                            <div class="lbl">Việc Cần Lead Hỗ Trợ</div>
+                            <div class="sub">Thúc schema Odoo & Xin 30 tin thật</div>
                         </div>
                     </div>
-                    <div class="box-sum">
-                        <strong>converse()</strong> re-sends the whole transcript and re-extracts from scratch every
-                        turn — there is no incremental state to drift. The model proposes; then deterministic code,
-                        not the model, resolves relative dates on Manila time, corroborates every count against the
-                        guest's own words, applies house norms, and decides what is still missing. A value that code
-                        could not verify never reaches a quotation — and the reply the guest reads is worded by a
-                        model that is handed only those verified facts, with the deterministic template as its
-                        fallback.
+
+                    <p class="box-sum"><b>Bóc tách 3 nguyên nhân:</b> (1) <i>Dùng từ:</i> Đã sửa bằng giọng lễ tân. (2) <i>Hỏi lại thứ khách vừa nói:</i> Chưa sửa — câu chữ mượt không cứu được, phải sửa ở chỗ <b>quyết định hỏi gì</b>. (3) <i>Khuôn dữ liệu:</i> Ý khách phong phú hơn ô trống — chấp nhận chuyển nhân viên đọc phần phức tạp. <b>Chưa ai chấm điểm tự nhiên lần nào:</b> Cần 30 tin nhắn thật từ Eloa để dựng thước đo.</p>
+
+                    <div class="models">
+                        <span class="agent-pill">Gemini 3.1 Flash-Lite</span>
+                        <span class="agent-pill">DeepSeek V3</span>
+                        <span class="agent-pill">Code-Verified Facts</span>
+                        <span class="agent-pill">Concierge Voice Engine</span>
                     </div>
-                    <div class="agent-strip">
-                        <span class="lab">Model calls</span>
-                        <span class="agent-pill"><span class="claude-mark"><svg width="10" height="10"
-                                    viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-                                    <path clip-rule="evenodd"
-                                        d="M20.998 10.949H24v3.102h-3v3.028h-1.487V20H18v-2.921h-1.487V20H15v-2.921H9V20H7.488v-2.921H6V20H4.487v-2.921H3V14.05H0V10.95h3V5h17.998v5.949zM6 10.949h1.488V8.102H6v2.847zm10.51 0H18V8.102h-1.49v2.847z"
-                                        fill-rule="evenodd" />
-                                </svg></span>main extract</span>
-                        <span class="agent-pill"><span class="claude-mark"><svg width="10" height="10"
-                                    viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-                                    <path clip-rule="evenodd"
-                                        d="M20.998 10.949H24v3.102h-3v3.028h-1.487V20H18v-2.921h-1.487V20H15v-2.921H9V20H7.488v-2.921H6V20H4.487v-2.921H3V14.05H0V10.95h3V5h17.998v5.949zM6 10.949h1.488V8.102H6v2.847zm10.51 0H18V8.102h-1.49v2.847z"
-                                        fill-rule="evenodd" />
-                                </svg></span>extractGuests</span>
-                        <span class="agent-pill"><span class="claude-mark"><svg width="10" height="10"
-                                    viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-                                    <path clip-rule="evenodd"
-                                        d="M20.998 10.949H24v3.102h-3v3.028h-1.487V20H18v-2.921h-1.487V20H15v-2.921H9V20H7.488v-2.921H6V20H4.487v-2.921H3V14.05H0V10.95h3V5h17.998v5.949zM6 10.949h1.488V8.102H6v2.847zm10.51 0H18V8.102h-1.49v2.847z"
-                                        fill-rule="evenodd" />
-                                </svg></span>extractCheckIn</span>
-                        <span class="agent-pill"><span class="claude-mark"><svg width="10" height="10"
-                                    viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-                                    <path clip-rule="evenodd"
-                                        d="M20.998 10.949H24v3.102h-3v3.028h-1.487V20H18v-2.921h-1.487V20H15v-2.921H9V20H7.488v-2.921H6V20H4.487v-2.921H3V14.05H0V10.95h3V5h17.998v5.949zM6 10.949h1.488V8.102H6v2.847zm10.51 0H18V8.102h-1.49v2.847z"
-                                        fill-rule="evenodd" />
-                                </svg></span>extractDiveWindow</span>
-                    </div>
-                    <div class="arrow right" aria-hidden="true">
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                            stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-                            <path d="M5 12h14M13 5l7 7-7 7" />
-                        </svg>
-                    </div>
+
+                    <span class="arrow right" aria-hidden="true">→</span>
                 </div>
 
-                <!-- OUTPUTS — one .out-card per client-facing deliverable. -->
+                <!-- PANEL 3: OUTPUTS · TÓM TẮT HÀNH ĐỘNG -->
                 <div class="panel">
-                    <div class="panel-title"><span class="dot"></span>Outputs</div>
-                    <h2>What user receive</h2>
-                    <p class="sub">Three things per turn, each mapped to the stage that produced it.</p>
+                    <div class="panel-title"><span class="dot"></span>Outputs · Tóm tắt hành động</div>
+                    <h2>Lộ trình ưu tiên phân định rõ ràng</h2>
+                    <p class="sub">Chi tiết xem toàn văn phần 2 ngay bên dưới.</p>
                     <div class="out-list">
-                        <div class="out-card">
-                            <div class="rail"></div>
-                            <div class="body">
-                                <h3><span class="tag">Trip</span>Structured booking <span class="ext">.json</span></h3>
-                                <p>18 fields, each carrying a state and — where it claims the guest said it — the
-                                    verbatim quote it came from. This is what the pricing step consumes.</p>
+                        <div class="out-card" style="border-left:3px solid var(--tool);">
+                            <div class="head">
+                                <span class="tag" style="background:var(--tool-soft);color:var(--tool);">Làm ngay — không chờ ai</span>
+                                <span class="ext">4 tasks</span>
+                            </div>
+                            <div class="desc">
+                                <b>1.</b> Đưa bản sửa tính tiền lên prod & rà soát hotfix.<br>
+                                <b>2.</b> Thêm lớp đối chiếu con số/ngày trong câu AI.<br>
+                                <b>3.</b> Sửa hỏi lại thứ khách vừa nói (đẩy nhân viên).<br>
+                                <b>4.</b> Quét 2 lỗi tính tiền còn lại (đại lý giảm 30%).
                             </div>
                         </div>
-                        <div class="out-card">
-                            <div class="rail"></div>
-                            <div class="body">
-                                <h3><span class="tag">Reply</span>Guest-facing message <span
-                                        class="ext">whatsapp</span></h3>
-                                <p>Facts come from the code-verified Trip; the wording is then written by the model in
-                                    a concierge voice, under guardrails that forbid quoting a price or confirming a
-                                    booking. If that call fails or times out, the deterministic template is sent
-                                    instead — the guest is never left waiting.</p>
+
+                        <div class="out-card" style="border-left:3px solid var(--accent);">
+                            <div class="head">
+                                <span class="tag" style="background:var(--accent-soft);color:var(--accent);">Chờ đầu vào từ người khác</span>
+                                <span class="ext">4 blockers</span>
+                            </div>
+                            <div class="desc">
+                                <b>1. Phillip:</b> Chốt cấu trúc dữ liệu Odoo.<br>
+                                <b>2. Eloa:</b> Cung cấp 30 tin nhắn khách thật.<br>
+                                <b>3. Anthony:</b> Duyệt ký đóng biên bản tầng trả lời.<br>
+                                <b>4. Jett / Eloa:</b> Xác nhận 4 giá trị mặc định resort.
                             </div>
                         </div>
-                        <div class="out-card">
-                            <div class="rail"></div>
-                            <div class="body">
-                                <h3><span class="tag">Open</span>What is still missing <span class="ext">[]</span></h3>
-                                <p>The remaining fields in priority order. Empty means the enquiry is complete and a
-                                    human takes it from there — nothing is booked automatically.</p>
+
+                        <div class="out-card" style="border-left:3px solid var(--claude);">
+                            <div class="head">
+                                <span class="tag" style="background:var(--claude-soft);color:var(--claude);">Cần Lead giúp đúng 2 việc</span>
+                                <span class="ext">lead action</span>
+                            </div>
+                            <div class="desc">
+                                <b>1. Thúc Phillip chốt cấu trúc Odoo</b> sớm nhất.<br>
+                                <b>2. Xin Eloa 30 tin nhắn khách thật</b> để đo giọng văn.
                             </div>
                         </div>
                     </div>
@@ -1447,13 +1661,219 @@
         </section>
 
         <!-- ============================================================
-       SECTION 2 · WORKFLOW DETAIL · n8n-style node graph
-       EDIT: kicker/h1/lede text only. The graph itself is rendered by
-       the PHASES/NODES/EDGES arrays at the bottom of the script — see
-       SKILL.md for how to edit those. Do not hand-author node <div>s
-       here; the script builds them.
+       SECTION 2 · TOÀN VĂN KẾ HOẠCH CHO LEAD
        ============================================================ -->
-        <section class="section" id="detail">
+        <section class="section" id="plan-detail">
+            <span class="kicker">Chi Tiết Bản Kế Hoạch · Dành Cho Lead</span>
+            <h1>Kế Hoạch Hành Động <span class="thin">— Bóc Tách Bản Chất &amp; Nhiệm Vụ Cụ Thể</span></h1>
+            <p class="lede">Xếp theo thứ tự ưu tiên, chia làm hai cột để thấy rõ chỗ nào team tự làm được và chỗ nào thật sự đang tắc vì chờ người khác.</p>
+
+            <div class="plan-doc">
+
+                <!-- 1. BÓC TÁCH NGUYÊN NHÂN "CỨNG" -->
+                <div class="plan-header-block">
+                    <h2>Vấn đề Lead nêu: Bot nói chuyện thiếu tự nhiên</h2>
+                    <p style="margin:0;color:var(--muted);font-size:15px;line-height:1.5;">Gọi chung là "cứng", nhưng thật ra là <b>ba nguyên nhân khác nhau</b> cần <b>ba cách chữa khác nhau</b>. Gộp chung lại chính là lý do sửa mãi mà không thấy khá lên.</p>
+                </div>
+
+                <div class="causes-grid">
+                    <!-- Nguyên nhân 1 -->
+                    <div class="cause-card">
+                        <div class="cause-num">Nguyên nhân 1 · Cách dùng từ</div>
+                        <h3>Câu chữ khô như máy đọc</h3>
+                        <span class="status-pill fixed">Đã sửa tuần này</span>
+                        <p style="margin:0;color:var(--muted);font-size:13.5px;line-height:1.45;">Trước đây mọi câu trả lời đều là mẫu câu cố định ghép sẵn — an toàn tuyệt đối nhưng đọc lên rất máy móc.</p>
+                        <div style="padding:10px 12px;background:var(--bg);border-radius:8px;font-size:12.5px;color:var(--ink-soft);border:1px solid var(--line-soft);">
+                            <b>Giải pháp đã làm:</b> AI viết lại bằng giọng lễ tân, chỉ được dùng dữ liệu đã kiểm chứng, cấm nói giá hoặc xác nhận đặt phòng; lỗi tự quay về mẫu cũ. Khớp đúng chuẩn quốc tế (Duve, HiJiffy).
+                        </div>
+                    </div>
+
+                    <!-- Nguyên nhân 2 -->
+                    <div class="cause-card" style="border:1.5px solid #F0B8B8;">
+                        <div class="cause-num" style="color:#C0182F;">Nguyên nhân 2 · Hỏi sai chỗ (Tệ nhất)</div>
+                        <h3 style="color:#A01427;">Hỏi lại thứ khách vừa nói</h3>
+                        <span class="status-pill pending">Chưa sửa — Trọng tâm tuần này</span>
+                        <p style="margin:0;color:var(--muted);font-size:13.5px;line-height:1.45;">Khách viết: <i>"Một người lặn ngày đầu, năm người lặn cả hai ngày"</i>. Hệ thống không quy được về một con số nên coi như chưa biết và <b>hỏi lại</b>. Với khách, cảm giác là <i>"Tôi vừa nói rồi mà!"</i>.</p>
+                        <div style="padding:10px 12px;background:#FFF5F5;border-radius:8px;font-size:12.5px;color:#8A1220;border:1px solid #FBD0D0;">
+                            <b>Giải pháp:</b> Dù AI viết hay tới đâu, hỏi lại thứ khách vừa nói vẫn vô duyên. <b>Phải sửa ở chỗ quyết định hỏi gì</b>: Ghi nhận câu nói vào ô ghi chú và chuyển nhân viên đọc thay vì hỏi lại!
+                        </div>
+                    </div>
+
+                    <!-- Nguyên nhân 3 -->
+                    <div class="cause-card">
+                        <div class="cause-num">Nguyên nhân 3 · Khuôn dữ liệu</div>
+                        <h3>Ý khách phong phú hơn ô trống</h3>
+                        <span class="status-pill partial">Đã đỡ một phần</span>
+                        <p style="margin:0;color:var(--muted);font-size:13.5px;line-height:1.45;">Hệ thống có sẵn các ô: ngày, số người, số phòng… Khi khách nói điều không rơi vào ô nào, nó bị làm phẳng hoặc rơi mất — như lịch lặn khác nhau theo từng người.</p>
+                        <div style="padding:10px 12px;background:var(--bg);border-radius:8px;font-size:12.5px;color:var(--ink-soft);border:1px solid var(--line-soft);">
+                            <b>Giới hạn thật:</b> Không thể thêm ô cho mọi cách nói của con người. Đã thêm ô ghi chú nguyên văn; phần phức tạp còn lại chấp nhận chuyển cho nhân viên đọc.
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 2. THƯỚC ĐO: VÌ SAO CỨ CỨNG MÃI -->
+                <div class="measure-box">
+                    <h3 style="font-family:'Playfair Display',serif;font-size:20px;margin:0 0 6px;">Vì sao nó cứ cứng mãi: Mình chưa từng đo cái đó!</h3>
+                    <p style="margin:0 0 14px;color:var(--muted);font-size:14px;">Dự án đo rất nghiêm việc "có bịa thông tin không" — kết quả 0%. Nhưng "hỏi có đúng trọng tâm không, nghe có tự nhiên không" thì <b>chưa hề được chấm điểm lần nào</b>. Báo cáo kiểm thử ghi rõ: <code>Question targeting : not scored — needs a human/judge pass</code>.</p>
+
+                    <table class="measure-table">
+                        <thead>
+                            <tr>
+                                <th style="width:25%;">Hạng Mục</th>
+                                <th style="width:20%;">Điểm Số</th>
+                                <th style="width:55%;">Chi Tiết &amp; Đánh Giá</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td style="font-weight:700;color:var(--tool);">Đo rất kỹ</td>
+                                <td><span style="font-family:'JetBrains Mono';font-size:16px;font-weight:700;color:var(--tool);">0%</span></td>
+                                <td>Bịa dữ liệu · trích dẫn sai · sai ngày · sai số khách. (Chấm tự động mỗi commit &rarr; <b>Làm rất tốt</b>).</td>
+                            </tr>
+                            <tr>
+                                <td style="font-weight:700;color:#C0182F;">Không đo</td>
+                                <td><span style="font-family:'JetBrains Mono';font-size:16px;font-weight:700;color:#C0182F;">—</span></td>
+                                <td>Hỏi thừa · hỏi lại thứ đã biết · giọng văn · cảm giác của khách. (Chưa chấm lần nào &rarr; <b>Cần 30 tin thật từ Eloa</b>).</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                    <p style="margin:12px 0 0;font-size:13px;color:var(--muted);font-style:italic;">* Cái gì được đo thì được cải thiện. Phần "không bịa" tốt vì được chấm mỗi ngày; phần "tự nhiên" tệ vì chưa ai chấm nó lần nào — chứ không phải vì nó khó hơn.</p>
+                </div>
+
+                <!-- 3. HAI CỘT HÀNH ĐỘNG: LÀM NGAY VS CHỜ NGƯỜI -->
+                <div class="plan-two-col">
+
+                    <!-- Cột 1: Làm ngay -->
+                    <div class="action-card" style="border-top:4px solid var(--tool);">
+                        <h3>
+                            <span style="width:10px;height:10px;border-radius:99px;background:var(--tool);display:inline-block;"></span>
+                            <span>Làm ngay — Không chờ ai</span>
+                        </h3>
+                        <p style="margin:0;font-size:13px;color:var(--muted);">Team kỹ thuật tự chủ hoàn toàn, triển khai ngay trong tuần này:</p>
+
+                        <div class="task-list">
+                            <div class="task-row">
+                                <div class="head">
+                                    <span>1. Đưa bản sửa lỗi tính tiền lên production</span>
+                                    <span class="badge-owner" style="background:#FCEBEB;color:#C0182F;">URGENT</span>
+                                </div>
+                                <div style="font-size:13px;color:var(--muted);">Đã xong và kiểm thử từ hôm qua nhưng chưa live. Đồng thời thiết lập rà soát xem còn bản sửa nào khác đang kẹt tương tự.</div>
+                            </div>
+
+                            <div class="task-row">
+                                <div class="head">
+                                    <span>2. Thêm lớp kiểm tra cho câu AI viết (Sanity Check)</span>
+                                    <span class="badge-owner" style="background:var(--tool-soft);color:var(--tool);">CODE CHECK</span>
+                                </div>
+                                <div style="font-size:13px;color:var(--muted);">Đối chiếu mọi con số và ngày trong câu AI vừa viết với dữ liệu đã kiểm chứng; lệch thì tự quay về mẫu câu an toàn. Hiện chỉ có lời dặn trong prompt, chưa có code kiểm tra.</div>
+                            </div>
+
+                            <div class="task-row">
+                                <div class="head">
+                                    <span>3. Sửa nguyên nhân 2 — Hỏi lại thứ khách đã nói</span>
+                                    <span class="badge-owner" style="background:var(--accent-soft);color:var(--accent);">LOGIC FIX</span>
+                                </div>
+                                <div style="font-size:13px;color:var(--muted);">Khi khách đã trả lời nhưng hệ thống không quy được về con số (lịch lặn phức tạp), ghi nhận vào Freeform Notes và chuyển nhân viên thay vì hỏi khách lần nữa.</div>
+                            </div>
+
+                            <div class="task-row">
+                                <div class="head">
+                                    <span>4. Quét nốt hai lỗi tính tiền còn lại</span>
+                                    <span class="badge-owner" style="background:var(--bg2);color:var(--accent);">PRICING</span>
+                                </div>
+                                <div style="font-size:13px;color:var(--muted);">Hai thông tin ảnh hưởng trực tiếp tới giá đang được hệ thống tự suy đoán thay vì hỏi — trong đó có loại khách (đại lý được giảm 30%).</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Cột 2: Chờ đầu vào -->
+                    <div class="action-card" style="border-top:4px solid var(--accent);">
+                        <h3>
+                            <span style="width:10px;height:10px;border-radius:99px;background:var(--accent);display:inline-block;"></span>
+                            <span>Chờ đầu vào từ người khác</span>
+                        </h3>
+                        <p style="margin:0;font-size:13px;color:var(--muted);">Các mắt xích phụ thuộc đối tác bên ngoài cần gỡ nút thắt:</p>
+
+                        <div class="task-list">
+                            <div class="task-row">
+                                <div class="head">
+                                    <span>1. Chốt cấu trúc dữ liệu Odoo</span>
+                                    <span class="badge-owner">PHILLIP</span>
+                                </div>
+                                <div style="font-size:13px;color:var(--muted);">Chặn toàn bộ hướng tính giá, xuất báo giá và link báo giá gửi khách. Đây là mắt xích sớm nhất và quan trọng nhất.</div>
+                            </div>
+
+                            <div class="task-row">
+                                <div class="head">
+                                    <span>2. 30 tin nhắn khách thật</span>
+                                    <span class="badge-owner">ELOA</span>
+                                </div>
+                                <div style="font-size:13px;color:var(--muted);">Có nó mới dựng được thước đo cho chất lượng giọng văn — thứ quyết định việc "làm cho tự nhiên hơn" có chứng minh được bằng số liệu hay không.</div>
+                            </div>
+
+                            <div class="task-row">
+                                <div class="head">
+                                    <span>3. Duyệt hướng tầng trả lời</span>
+                                    <span class="badge-owner">ANTHONY</span>
+                                </div>
+                                <div style="font-size:13px;color:var(--muted);">Biên bản quyết định cũ vẫn đang chờ ký trong khi code đã đi tiếp. Cần đóng lại để người sau không hiểu nhầm.</div>
+                            </div>
+
+                            <div class="task-row">
+                                <div class="head">
+                                    <span>4. Bốn giá trị mặc định của resort</span>
+                                    <span class="badge-owner">JETT / ELOA</span>
+                                </div>
+                                <div style="font-size:13px;color:var(--muted);">Hiện là số phỏng đoán. Đoán sai thì báo giá sai mà không ai nhìn ra.</div>
+                            </div>
+                        </div>
+                    </div>
+
+                </div>
+
+                <!-- 4. CẦN LEAD GIÚP ĐÚNG HAI VIỆC -->
+                <div class="lead-callout">
+                    <h3>
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"></path>
+                        </svg>
+                        <span>Cần Lead giúp đúng hai việc</span>
+                    </h3>
+                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;">
+                        <div style="background:#FFF;padding:18px 20px;border-radius:12px;border:1px solid rgba(217,119,87,.25);box-shadow:0 2px 8px rgba(0,0,0,.03);">
+                            <div style="font-size:12px;letter-spacing:.1em;text-transform:uppercase;color:var(--claude);font-weight:700;margin-bottom:6px;">Hành động 1 · Block cao nhất</div>
+                            <div style="font-weight:700;font-size:15.5px;color:var(--ink);margin-bottom:6px;">Thúc Phillip chốt cấu trúc dữ liệu</div>
+                            <div style="font-size:13.5px;color:var(--muted);line-height:1.45;">Mọi thứ liên quan tới báo giá — kể cả link báo giá gửi khách theo chuẩn quốc tế — đang nằm chờ đúng mắt xích này, không phải chờ team kỹ thuật.</div>
+                        </div>
+
+                        <div style="background:#FFF;padding:18px 20px;border-radius:12px;border:1px solid rgba(217,119,87,.25);box-shadow:0 2px 8px rgba(0,0,0,.03);">
+                            <div style="font-size:12px;letter-spacing:.1em;text-transform:uppercase;color:var(--claude);font-weight:700;margin-bottom:6px;">Hành động 2 · Dữ liệu đo lường</div>
+                            <div style="font-weight:700;font-size:15.5px;color:var(--ink);margin-bottom:6px;">Xin Eloa 30 tin nhắn khách thật (đã che tên)</div>
+                            <div style="font-size:13.5px;color:var(--muted);line-height:1.45;">Không có nó thì việc "làm cho tự nhiên hơn" vẫn chỉ là cảm tính — sửa xong không ai chứng minh được đã khá hơn hay chưa.</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 5. HAI VIỆC CỐ Ý CHƯA LÀM -->
+                <div class="safeguard-box">
+                    <h4>Hai việc đang cố ý CHƯA làm (để tránh hiểu nhầm là bỏ sót)</h4>
+                    <div style="display:flex;flex-direction:column;gap:10px;font-size:13.5px;color:var(--ink-soft);line-height:1.5;">
+                        <div>
+                            <b>Một · Chưa xây bước tính giá và xuất báo giá:</b> Cấu trúc dữ liệu chưa chốt, xây trước là chắc chắn phải làm lại.
+                        </div>
+                        <div>
+                            <b>Hai · Chưa gộp phần đọc dữ liệu và viết lời thoại vào một lượt gọi AI:</b> Làm vậy để tiết kiệm chi phí nhưng sẽ khiến AI viết lời cho khách trước khi hệ thống kịp kiểm tra dữ liệu, mà riêng tuần này lớp kiểm tra đó đã chặn được 2 lỗi bịa thông tin!
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </section>
+
+        <!-- ============================================================
+       SECTION 3 · WORKFLOW DETAIL (SVG NODE-GRAPH)
+       ============================================================ -->
+<section class="section" id="detail">
             <span class="kicker">Section 2 · Node graph</span>
             <h1>Inside the workflow <span class="thin">— stage by stage</span></h1>
             <p class="lede">Five phases, left to right, for one guest message. Everything orange is a model call;
