@@ -61,7 +61,11 @@ const RULES: QuestionRule[] = [
   // decides whether a dive package (and its window) belongs on the estimate at
   // all — so it is asked outright instead of being guessed from a keyword. Guests
   // who volunteer it in their first message are never asked.
-  { key: "diver", question: { en: "Would you like to go diving during your stay?", vi: "Mình có muốn đi lặn trong chuyến này không?", zh: "您这次想潜水吗？" } },
+  {
+    key: "diver",
+    question: { en: "Would you like to go diving during your stay?", vi: "Mình có muốn đi lặn trong chuyến này không?", zh: "您这次想潜水吗？" },
+    when: (trip) => !notedValue<string>(trip, "diveNotes"),
+  },
   { key: "contactName", question: { en: "What name should we put on the booking?", vi: "Mình nên ghi tên ai trên booking?", zh: "预订时应该登记谁的姓名？" } },
 
   // Tier 2, from the Odoo API field guide. A missing dive window silently wipes

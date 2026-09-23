@@ -395,6 +395,21 @@ function postProcess(raw: unknown, today: string, sourceText: string): unknown {
 
   enforceVerbatimEvidence(trip, guestText);
 
+  // When the model records a stated diving breakdown in `diveNotes` with verified verbatim
+  // evidence (e.g. "1 person dives day 1, and 5 people dive both days."), it often attaches
+  // the quote to `diveNotes.evidence` and leaves `diver` as `inferred` or `missing`. Since
+  // `diveNotes.evidence` has just passed `enforceVerbatimEvidence`, it is verbatim proof
+  // from the guest's own words that the trip includes diving.
+  if (
+    trip.diver?.state === "missing" &&
+    trip.diveNotes?.state === "stated" &&
+    typeof trip.diveNotes.evidence === "string" &&
+    trip.diveNotes.evidence.length > 0
+  ) {
+    trip.diver = { value: true, state: "stated", evidence: trip.diveNotes.evidence };
+  }
+
+
   // 4. nights, guests and rooms — the three counts the estimate is priced from, checked
   // against the guest's own words the way a check-in date is. ADR-006 Decision 4 is "ask
   // what money depends on; never infer it", and until now it stopped at the date: a
