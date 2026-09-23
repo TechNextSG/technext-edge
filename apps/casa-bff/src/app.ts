@@ -33,6 +33,8 @@ import {
   getDiagramHtml,
   getDiagramViewerHtml,
   getDiagramViHtml,
+  getPlanShowcaseHtml,
+  getExtractorShowcaseHtml,
 } from "./reportsHtml.js";
 import { createConversationStoreFromEnv, type ConversationStore } from "./conversationStore.js";
 import {
@@ -566,6 +568,12 @@ export function createApp(options: AppOptions = {}) {
   app.get("/diagrams/extractor-pod", (c) => c.html(getDiagramViewerHtml()));
   app.get("/diagrams", (c) => c.html(getDiagramViewerHtml()));
   app.get("/architecture", (c) => c.html(getDiagramViewerHtml()));
+
+  // Executive Showcase & 2-Slide Plan for Lead
+  app.get("/casa-escondida-plan-showcase.html", (c) => c.html(getPlanShowcaseHtml()));
+  app.get("/plan", (c) => c.html(getPlanShowcaseHtml()));
+  app.get("/extractor-pod-showcase.html", (c) => c.html(getExtractorShowcaseHtml()));
+  app.get("/showcase", (c) => c.html(getExtractorShowcaseHtml()));
 
   return app;
 }

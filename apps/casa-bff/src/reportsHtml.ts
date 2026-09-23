@@ -61,3 +61,11 @@ export function getDiagramViewerHtml(): string {
 export function getDiagramViHtml(): string {
   return loadHtmlFile("diagrams/extractor-pod.vi.html");
 }
+
+export function getPlanShowcaseHtml(): string {
+  return loadHtmlFile("casa-escondida-plan-showcase.html");
+}
+
+export function getExtractorShowcaseHtml(): string {
+  return loadHtmlFile("extractor-pod-showcase.html");
+}

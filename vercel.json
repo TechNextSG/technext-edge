@@ -23,6 +23,10 @@
     { "source": "/diagrams/extractor-pod.html", "destination": "/api" },
     { "source": "/diagrams/extractor-pod", "destination": "/api" },
     { "source": "/architecture", "destination": "/api" },
+    { "source": "/plan", "destination": "/api" },
+    { "source": "/casa-escondida-plan-showcase.html", "destination": "/api" },
+    { "source": "/showcase", "destination": "/api" },
+    { "source": "/extractor-pod-showcase.html", "destination": "/api" },
     { "source": "/v1/:path*", "destination": "/api" },
     { "source": "/healthz", "destination": "/api" }
   ]
