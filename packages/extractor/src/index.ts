@@ -21,5 +21,17 @@ export { buildOdooHandoffPayload } from "./odooHandoff.js";
 export type { OdooHandoffMode, OdooEstimateDraft, OdooHandoffEnvelope } from "./odooHandoff.js";
 export { converse } from "./converse.js";
 export type { ConversationChannel, ConversationInput, ConversationTurn, ConverseOutcome } from "./converse.js";
+export {
+  SUBMIT_QUOTATION_TO_HONO_DECLARATION,
+  buildHonoQuotationDraft,
+  recalculateQuotationTotals,
+  synthesizeConfirmedQuotationReply,
+} from "./quotationTool.js";
+export type {
+  QuotationLineItem,
+  HonoQuotationDraft,
+  HonoToolCallTrace,
+} from "./quotationTool.js";
+
 
 

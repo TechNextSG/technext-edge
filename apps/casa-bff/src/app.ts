@@ -17,9 +17,11 @@ import {
   createProviderByName,
   KNOWN_PROVIDER_NAMES,
   maskForLogging,
+  synthesizeConfirmedQuotationReply,
   type ConversationTurn,
   type ExtractProvider,
   type GuestLanguage,
+  type HonoQuotationDraft,
 } from "../../../packages/extractor/src/index.js";
 import { TEST_PAGE_HTML } from "./testPage.js";
 import {
@@ -37,6 +39,13 @@ import {
   getExtractorShowcaseHtml,
   getConversationFlowHtml,
 } from "./reportsHtml.js";
+import {
+  saveQuotationDraft,
+  getQuotationByIdOrSlug,
+  listQuotations,
+  renderHonoQuotationEditorHtml,
+  renderCustomerQuotationViewHtml,
+} from "./quotationStore.js";
 import { createConversationStoreFromEnv, type ConversationStore } from "./conversationStore.js";
 import {
   checkSenderCredentials,
@@ -215,13 +224,16 @@ export function createApp(options: AppOptions = {}) {
         ? await converse(
           {
             message: parsed.data.message,
-            history: parsed.data.history,
+            history: parsed.data.history as ConversationTurn[] | undefined,
             channel: parsed.data.channel,
             conversationId: parsed.data.conversationId,
           },
           provider,
         )
-        : await converse(parsed.data.history!, provider);
+        : await converse(parsed.data.history as ConversationTurn[], provider);
+      if (outcome.quotationDraft) {
+        saveQuotationDraft(outcome.quotationDraft);
+      }
       return c.json(outcome);
     } catch (err) {
       return handleExtractError(err);
@@ -419,9 +431,16 @@ export function createApp(options: AppOptions = {}) {
               return;
             }
 
-            await store.append(phone, { role: "assistant", text: outcome.reply });
+            let finalReplyText = outcome.reply;
+            if (outcome.quotationDraft) {
+              outcome.quotationDraft.phone = phone;
+              saveQuotationDraft(outcome.quotationDraft);
+              finalReplyText = `${outcome.reply}\n\n🔗 **Interactive Quotation Link:**\n${outcome.quotationDraft.quotationUrl}\n✏️ **Edit Table & Confirm on Hono:**\n${outcome.quotationDraft.honoEditorUrl}`;
+            }
+
+            await store.append(phone, { role: "assistant", text: finalReplyText });
             sending = true;
-            await send({ to: phone, body: outcome.reply });
+            await send({ to: phone, body: finalReplyText });
             replied++;
             await markAllDone();
           })();
@@ -578,6 +597,97 @@ export function createApp(options: AppOptions = {}) {
   app.get("/diagrams/conversation-flow-plain.html", (c) => c.html(getConversationFlowHtml()));
   app.get("/conversation-flow-plain.html", (c) => c.html(getConversationFlowHtml()));
   app.get("/flow", (c) => c.html(getConversationFlowHtml()));
+
+  // ---- Hono Tool-Calling Quotation Studio & Editable Quotation Links -------
+  app.get("/quotes", (c) => {
+    const all = listQuotations();
+    const latest = all[0]!;
+    return c.html(renderHonoQuotationEditorHtml(latest, all));
+  });
+
+  app.get("/quotes/:id", (c) => {
+    const id = c.req.param("id");
+    const all = listQuotations();
+    const found = getQuotationByIdOrSlug(id) ?? all[0]!;
+    return c.html(renderHonoQuotationEditorHtml(found, all));
+  });
+
+  app.get("/q/:slug", (c) => {
+    const slug = c.req.param("slug");
+    const all = listQuotations();
+    const found = getQuotationByIdOrSlug(slug) ?? all[0]!;
+    return c.html(renderCustomerQuotationViewHtml(found));
+  });
+
+  app.get("/v1/quotes", (c) => {
+    return c.json({ quotations: listQuotations() });
+  });
+
+  app.get("/v1/quotes/:id", (c) => {
+    const found = getQuotationByIdOrSlug(c.req.param("id"));
+    if (!found) return c.json({ error: "not_found" }, 404);
+    return c.json({ quotation: found });
+  });
+
+  app.put("/v1/quotes/:id", async (c) => {
+    const id = c.req.param("id");
+    const existing = getQuotationByIdOrSlug(id);
+    if (!existing) return c.json({ error: "not_found" }, 404);
+    const body = (await c.req.json().catch(() => ({}))) as Partial<HonoQuotationDraft>;
+    const merged: HonoQuotationDraft = {
+      ...existing,
+      ...body,
+      quoteId: existing.quoteId,
+      lineItems: Array.isArray(body.lineItems) ? body.lineItems : existing.lineItems,
+      quotationUrl: body.quotationUrl || existing.quotationUrl,
+    };
+    const saved = saveQuotationDraft(merged);
+    return c.json({ ok: true, quotation: saved });
+  });
+
+  app.post("/v1/quotes/:id/confirm", async (c) => {
+    const id = c.req.param("id");
+    const existing = getQuotationByIdOrSlug(id);
+    if (!existing) return c.json({ error: "not_found" }, 404);
+    const body = (await c.req.json().catch(() => ({}))) as Partial<HonoQuotationDraft>;
+    const merged: HonoQuotationDraft = {
+      ...existing,
+      ...body,
+      quoteId: existing.quoteId,
+      status: "confirmed_by_hono",
+      confirmedAt: new Date().toISOString(),
+      confirmedBy: "Hono Reservation Studio",
+      lineItems: Array.isArray(body.lineItems) ? body.lineItems : existing.lineItems,
+      quotationUrl: body.quotationUrl || existing.quotationUrl,
+    };
+    const saved = saveQuotationDraft(merged);
+    let provider: ExtractProvider | undefined;
+    try {
+      provider = options.provider ?? createProviderFromEnv();
+    } catch {}
+    const aiReply = await synthesizeConfirmedQuotationReply(saved, provider);
+    saved.aiConfirmedReply = aiReply;
+    saveQuotationDraft(saved);
+    return c.json({ ok: true, quotation: saved, aiReply });
+  });
+
+  app.post("/v1/quotes/:id/send-whatsapp", async (c) => {
+    const id = c.req.param("id");
+    const existing = getQuotationByIdOrSlug(id);
+    if (!existing) return c.json({ error: "not_found" }, 404);
+    const body = (await c.req.json().catch(() => ({}))) as { phone?: string };
+    const toPhone = (body.phone || existing.phone || "").replace(/\D/g, "");
+    if (!toPhone) return c.json({ ok: false, error: "Phone number is required" }, 400);
+    const text = existing.aiConfirmedReply || (await synthesizeConfirmedQuotationReply(existing));
+    const config = whatsAppConfig();
+    const send = options.sendWhatsApp ?? createWhatsAppSender(config);
+    try {
+      await send({ to: toPhone, body: text });
+      return c.json({ ok: true, phone: toPhone });
+    } catch (err) {
+      return c.json({ ok: false, error: err instanceof Error ? err.message : String(err) }, 502);
+    }
+  });
 
   return app;
 }

@@ -402,6 +402,16 @@ async function sendChatTurn() {
     renderTripRows(chatResultBody, data.trip);
     chatTripDetails.hidden = false;
     doneBanner.style.display = data.done ? 'block' : 'none';
+    if (data.done && data.quotationDraft) {
+      const q = data.quotationDraft;
+      doneBanner.innerHTML =
+        '<div style="display:flex;flex-direction:column;gap:8px;">' +
+        '<div><strong>✅ Enquiry Complete — AI Tool Call Executed:</strong> <code>submit_quotation_to_hono(quoteId="' + escapeHtml(q.quoteId) + '")</code></div>' +
+        '<div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:4px;">' +
+        '<a href="/quotes/' + encodeURIComponent(q.quoteId) + '" target="_blank" style="background:#0ea5e9;color:#090d16;padding:7px 14px;border-radius:7px;font-weight:700;text-decoration:none;font-size:13px;">✏️ Edit Quotation Table &amp; Link on Hono (' + escapeHtml(q.quoteId) + ')</a>' +
+        '<a href="' + escapeHtml(q.quotationUrl) + '" target="_blank" style="background:#1e293b;color:#38bdf8;border:1px solid #38bdf8;padding:7px 14px;border-radius:7px;font-weight:700;text-decoration:none;font-size:13px;">🔗 Open Shareable Quote Link</a>' +
+        '</div></div>';
+    }
     chatMeta.textContent = data.meta.provider + ' · ' + data.meta.tokensIn + ' in / ' + data.meta.tokensOut + ' out tokens · ' +
       data.meta.ms + 'ms server-side (' + elapsed + 'ms round trip)' + (data.meta.retried ? ' · retried once' : '');
   } catch (err) {

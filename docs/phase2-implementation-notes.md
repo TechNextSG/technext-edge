@@ -28,8 +28,3 @@
   1. `Phase 2 Naturalness Scorer: awards 100/100 to warm non-redundant replies and penalizes re-asking`
   2. `Phase 2 Odoo Handoff Adapter: distinguishes auto_estimate_ready vs manual_staff_review`
 
----
-
-## 3. Bản Tóm Tắt Tiếng Việt (Vietnamese Reference)
-- **Bộ chấm điểm Độ tự nhiên (`scoreReplyNaturalness`):** Chấm điểm tự động 0–100 cho 30 tin nhắn thật của Eloa (35% Không hỏi lặp, 25% Ghi nhận lịch riêng, 25% Khóa an toàn Fact Gate, 15% Giọng lễ tân 5 sao).
-- **Bộ đóng gói Odoo (`buildOdooHandoffPayload`):** Phân loại tự động giữa đơn báo giá tự động (`auto_estimate_ready`) và đơn cần nhân viên xác nhận chiết khấu 30% / lịch lặn lẻ ngày (`manual_staff_review`).
