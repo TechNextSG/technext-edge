@@ -142,11 +142,11 @@ export function buildHonoQuotationDraft(
   const nights = trip.nights.value ?? 2;
   const stayingGuests = trip.guests.value ?? 2;
   const rooms = trip.rooms.value ?? Math.max(1, Math.ceil(stayingGuests / 2));
-  const mealPlan = trip.dining.value ?? "full_board";
-  const diver = trip.diver.value === true || (trip.diveNotes.state !== "missing" && Boolean(trip.diveNotes.value));
-  const divers = trip.divers.value;
-  const diveNotes = trip.diveNotes.value;
-  const guestType = trip.guestType.value;
+  const mealPlan = trip.meals?.value ?? "full_board";
+  const diver = trip.diver?.value === true || (trip.diveNotes?.state !== "missing" && Boolean(trip.diveNotes?.value));
+  const divers = trip.divers?.value ?? null;
+  const diveNotes = trip.diveNotes?.value ?? null;
+  const guestType = trip.guestType?.value ?? null;
 
   const cleanName = guestName.replace(/[^a-zA-Z0-9]/g, "").toUpperCase().slice(0, 4) || "CASA";
   const dateCompact = checkIn.replace(/-/g, "").slice(4);
@@ -245,7 +245,7 @@ export function buildHonoQuotationDraft(
   }
 
   // 4. Airport Transfer Row (if requested)
-  if (trip.transfer.value === true) {
+  if (trip.airportTransfer?.value === true) {
     lineItems.push({
       id: "item-transfer",
       category: "transfer",
