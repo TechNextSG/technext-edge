@@ -2,6 +2,8 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { converse } from "../src/converse.js";
 import { fallbackReply, generateQuestions, getStaffAlerts, renderReply, wantsHuman } from "../src/questions.js";
 import { synthesizeHospitalityReply, verifySynthesizedReply } from "../src/synthesis.js";
+import { scoreReplyNaturalness } from "../src/naturalness.js";
+import { buildOdooHandoffPayload } from "../src/odooHandoff.js";
 import type { ConversationTurn } from "../src/converse.js";
 import type { ExtractProvider } from "../src/provider.js";
 import type { Trip } from "../src/schema.js";
@@ -593,5 +595,84 @@ describe("Phase 1 Hybrid AI Guardrails: NEVER RE-ASK, Fact Gate & Staff Alerts",
     expect(alerts).toHaveLength(1);
     expect(alerts[0]).toContain("30% agency discount");
   });
+
+  it("Phase 2 Naturalness Scorer: awards 100/100 to warm non-redundant replies and penalizes re-asking", () => {
+    const trip: Trip = {
+      ...(BLANK_RAW as unknown as Trip),
+      language: { value: "en", state: "inferred", evidence: null },
+      checkIn: { value: "2026-10-10", state: "stated", evidence: "Oct 10" },
+      checkOut: { value: "2026-10-12", state: "derived", evidence: null },
+      nights: { value: 2, state: "stated", evidence: "2 nights" },
+      guests: { value: 6, state: "stated", evidence: "6 of us" },
+      rooms: { value: 2, state: "stated", evidence: "2 rooms" },
+      diver: { value: true, state: "stated", evidence: "dives" },
+      divers: { value: null, state: "missing", evidence: null },
+      diveNotes: {
+        value: "1 person dives day 1, 5 people dive both days",
+        state: "stated",
+        evidence: "1 person dives day 1, 5 people dive both days",
+      },
+      contactName: { value: "Sky", state: "stated", evidence: "Sky" },
+    };
+
+    const rendered = renderReply(trip, generateQuestions(trip));
+    const goodScore = scoreReplyNaturalness(rendered.text, trip, []);
+    expect(goodScore.noReAskScore).toBe(1.0);
+    expect(goodScore.nuanceAckScore).toBe(1.0);
+    expect(goodScore.factGateScore).toBe(1.0);
+    expect(goodScore.overallScore).toBe(100);
+
+    // Now simulate a robotic reply that re-asks "How many of you will be diving?"
+    const badScore = scoreReplyNaturalness(
+      "Thanks! How many of you will be diving?",
+      trip,
+      [{ field: "divers", question: "How many of you will be diving?" }],
+    );
+    expect(badScore.noReAskScore).toBe(0.0);
+    expect(badScore.overallScore).toBeLessThan(50);
+  });
+
+  it("Phase 2 Odoo Handoff Adapter: distinguishes auto_estimate_ready vs manual_staff_review", () => {
+    const retailTrip: Trip = {
+      ...(BLANK_RAW as unknown as Trip),
+      language: { value: "en", state: "inferred", evidence: null },
+      guestType: { value: "retail", state: "default", evidence: null },
+      checkIn: { value: "2026-10-10", state: "stated", evidence: "Oct 10" },
+      checkOut: { value: "2026-10-12", state: "derived", evidence: null },
+      nights: { value: 2, state: "stated", evidence: "2 nights" },
+      guests: { value: 2, state: "stated", evidence: "2 guests" },
+      rooms: { value: 1, state: "default", evidence: null },
+      meals: { value: "full_board", state: "default", evidence: null },
+      transport: { value: false, state: "stated", evidence: "no transfer" },
+      transportType: { value: "none", state: "derived", evidence: null },
+      diver: { value: false, state: "stated", evidence: "no diving" },
+      contactName: { value: "Nhat", state: "stated", evidence: "Nhat" },
+    };
+
+    const retailHandoff = buildOdooHandoffPayload(retailTrip);
+    expect(retailHandoff.mode).toBe("auto_estimate_ready");
+    expect(retailHandoff.readyForAutoQuote).toBe(true);
+    expect(retailHandoff.manualReviewReasons).toEqual([]);
+
+    // Agency trip with split-day diveNotes -> manual_staff_review
+    const complexAgentTrip: Trip = {
+      ...retailTrip,
+      guestType: { value: "agent", state: "inferred", evidence: null },
+      diver: { value: true, state: "stated", evidence: "dives" },
+      divers: { value: null, state: "missing", evidence: null },
+      diveNotes: {
+        value: "1 person dives day 1, 5 people dive both days",
+        state: "stated",
+        evidence: "1 person dives day 1, 5 people dive both days",
+      },
+    };
+
+    const manualHandoff = buildOdooHandoffPayload(complexAgentTrip);
+    expect(manualHandoff.mode).toBe("manual_staff_review");
+    expect(manualHandoff.readyForAutoQuote).toBe(false);
+    expect(manualHandoff.manualReviewReasons).toContain("partner_rate_confirmation_required:agent");
+    expect(manualHandoff.manualReviewReasons).toContain("custom_split_day_dive_schedule");
+  });
 });
+
 

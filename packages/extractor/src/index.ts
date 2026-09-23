@@ -15,6 +15,11 @@ export { generateQuestions, renderReply, fallbackReply, wantsHuman, getStaffAler
 export type { ReplyKind, RenderedReply, FallbackKind, GuestLanguage } from "./questions.js";
 export { verifySynthesizedReply, synthesizeHospitalityReply } from "./synthesis.js";
 export type { FactGateResult, SynthesisInput } from "./synthesis.js";
+export { scoreReplyNaturalness } from "./naturalness.js";
+export type { NaturalnessScoreBreakdown } from "./naturalness.js";
+export { buildOdooHandoffPayload } from "./odooHandoff.js";
+export type { OdooHandoffMode, OdooEstimateDraft, OdooHandoffEnvelope } from "./odooHandoff.js";
 export { converse } from "./converse.js";
 export type { ConversationChannel, ConversationInput, ConversationTurn, ConverseOutcome } from "./converse.js";
+
 
