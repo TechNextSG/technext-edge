@@ -1,11 +1,11 @@
 import fs from 'node:fs';
 
 const html = `<!doctype html>
-<html lang="vi">
+<html lang="en">
 <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Kế Hoạch Nâng Cấp Trợ Lý Đặt Phòng WhatsApp — Casa Escondida</title>
+    <title>Casa Escondida — WhatsApp Booking Assistant Upgrade Plan</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=Playfair+Display:ital,wght@0,600;0,700;1,600&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -435,175 +435,175 @@ const html = `<!doctype html>
     <div class="page">
 
         <!-- ============================================================
-             SLIDE 1 · THỰC TRẠNG & GIẢI PHÁP HYBRID AI (NEURO-SYMBOLIC)
+             SLIDE 1 · PROBLEMS & HYBRID AI SOLUTION (NEURO-SYMBOLIC)
              ============================================================ -->
         <section class="slide-section" id="slide-1">
             <div class="top-nav">
                 <div class="brand">
                     <span class="dot"></span>
-                    <span data-vi="Casa Escondida · Kế Hoạch 2 Slide Cho Lead" data-en="Casa Escondida · 2-Slide Executive Plan">Casa Escondida · Kế Hoạch 2 Slide Cho Lead</span>
+                    <span data-vi="Casa Escondida · Kế Hoạch 2 Slide Cho Lead" data-en="Casa Escondida · 2-Slide Executive Plan">Casa Escondida · 2-Slide Executive Plan</span>
                 </div>
                 <div class="nav-right">
                     <a href="extractor-pod-showcase.html" class="arch-btn" target="_blank">
-                        <span data-vi="Xem Sơ Đồ Kiến Trúc Chi Tiết →" data-en="View Architecture Pipeline Graph →">Xem Sơ Đồ Kiến Trúc Chi Tiết →</span>
+                        <span data-vi="Xem Sơ Đồ Kiến Trúc Chi Tiết →" data-en="View Architecture Pipeline Graph →">View Architecture Pipeline Graph →</span>
                     </a>
                     <div class="lang-switcher" aria-label="Language selection">
-                        <button type="button" class="lang-btn active" data-lang="vi">VI</button>
-                        <button type="button" class="lang-btn" data-lang="en">EN</button>
+                        <button type="button" class="lang-btn" data-lang="vi">VI</button>
+                        <button type="button" class="lang-btn active" data-lang="en">EN</button>
                     </div>
                 </div>
             </div>
 
-            <span class="kicker" data-vi="Trang 1 / 2 · Vấn đề thực tế &amp; Giải pháp kỹ thuật" data-en="Slide 1 / 2 · Real Problem &amp; Hybrid AI Solution">Trang 1 / 2 · Vấn đề thực tế &amp; Giải pháp kỹ thuật</span>
-            <h1 data-vi="Trợ Lý WhatsApp: Khắc Phục Lỗi &amp; Ứng Dụng Hybrid AI" data-en="WhatsApp Assistant: Resolving Rigidity via Hybrid AI">Trợ Lý WhatsApp: Khắc Phục Lỗi &amp; Ứng Dụng Hybrid AI</h1>
-            <p class="lede" data-vi="Bot đọc tin nhắn khách bằng ngôn ngữ tự nhiên (Anh · Việt · Trung), rút ra thông tin đặt phòng, hỏi nốt phần thiếu, rồi bàn giao cho nhân viên chốt giá. Odoo vẫn giữ giá, hoá đơn và phòng — phần này chỉ đứng ngoài tiếp khách." data-en="The bot reads natural WhatsApp messages (EN · VI · ZH), extracts trip details, clarifies missing parameters, and hands off to human staff for pricing. Odoo ERP retains rates, rooms, and invoices — this system acts as the front concierge.">Bot đọc tin nhắn khách bằng ngôn ngữ tự nhiên (Anh · Việt · Trung), rút ra thông tin đặt phòng, hỏi nốt phần thiếu, rồi bàn giao cho nhân viên chốt giá. Odoo vẫn giữ giá, hoá đơn và phòng — phần này chỉ đứng ngoài tiếp khách.</p>
+            <span class="kicker" data-vi="Trang 1 / 2 · Vấn đề thực tế &amp; Giải pháp kỹ thuật" data-en="Slide 1 / 2 · Real Problem &amp; Hybrid AI Solution">Slide 1 / 2 · Real Problem &amp; Hybrid AI Solution</span>
+            <h1 data-vi="Trợ Lý WhatsApp: Khắc Phục Lỗi &amp; Ứng Dụng Hybrid AI" data-en="WhatsApp Assistant: Resolving Rigidity via Hybrid AI">WhatsApp Assistant: Resolving Rigidity via Hybrid AI</h1>
+            <p class="lede" data-vi="Bot đọc tin nhắn khách bằng ngôn ngữ tự nhiên (Anh · Việt · Trung), rút ra thông tin đặt phòng, hỏi nốt phần thiếu, rồi bàn giao cho nhân viên chốt giá. Odoo vẫn giữ giá, hoá đơn và phòng — phần này chỉ đứng ngoài tiếp khách." data-en="The bot reads natural WhatsApp messages (EN · VI · ZH), extracts trip details, clarifies missing parameters, and hands off to human staff for pricing. Odoo ERP retains rates, rooms, and invoices — this system acts as the front concierge.">The bot reads natural WhatsApp messages (EN · VI · ZH), extracts trip details, clarifies missing parameters, and hands off to human staff for pricing. Odoo ERP retains rates, rooms, and invoices — this system acts as the front concierge.</p>
 
             <!-- KPI STRIP -->
             <div class="kpi-strip">
                 <div class="kpi-box green">
                     <div class="val">0%</div>
-                    <div class="lbl" data-vi="Bịa Dữ Liệu" data-en="Hallucination Rate">Bịa Dữ Liệu</div>
-                    <div class="sub" data-vi="Đo trên 30 kịch bản ngặt nghèo" data-en="Benchmarked across 30 cases">Đo trên 30 kịch bản ngặt nghèo</div>
+                    <div class="lbl" data-vi="Bịa Dữ Liệu" data-en="Hallucination Rate">Hallucination Rate</div>
+                    <div class="sub" data-vi="Đo trên 30 kịch bản ngặt nghèo" data-en="Benchmarked across 30 cases">Benchmarked across 30 cases</div>
                 </div>
                 <div class="kpi-box green">
                     <div class="val">230</div>
-                    <div class="lbl" data-vi="Bài Test Xanh" data-en="Green Unit Tests">Bài Test Xanh</div>
-                    <div class="sub" data-vi="Regression suite tự động mỗi commit" data-en="Automated regression suite">Regression suite tự động mỗi commit</div>
+                    <div class="lbl" data-vi="Bài Test Xanh" data-en="Green Unit Tests">Green Unit Tests</div>
+                    <div class="sub" data-vi="Regression suite tự động mỗi commit" data-en="Automated regression suite">Automated regression suite</div>
                 </div>
                 <div class="kpi-box red">
-                    <div class="val" data-vi="Chưa live" data-en="Pending">Chưa live</div>
-                    <div class="lbl" data-vi="Bản Sửa Tính Tiền" data-en="Pricing Fix Sync">Bản Sửa Tính Tiền</div>
-                    <div class="sub" data-vi="Xong hôm qua nhưng kẹt CI/CD" data-en="Tested yesterday, awaiting deploy">Xong hôm qua nhưng kẹt CI/CD</div>
+                    <div class="val" data-vi="Chưa live" data-en="Pending">Pending</div>
+                    <div class="lbl" data-vi="Bản Sửa Tính Tiền" data-en="Pricing Fix Sync">Pricing Fix Sync</div>
+                    <div class="sub" data-vi="Xong hôm qua nhưng kẹt CI/CD" data-en="Tested yesterday, awaiting deploy">Tested yesterday, awaiting deploy</div>
                 </div>
                 <div class="kpi-box orange">
-                    <div class="val" data-vi="Hỏi lại" data-en="Re-ask">Hỏi lại</div>
-                    <div class="lbl" data-vi="Lỗi Khách Phàn Nàn" data-en="Rigidity Complaint">Lỗi Khách Phàn Nàn</div>
-                    <div class="sub" data-vi="Hỏi lại thứ khách vừa nói" data-en="Re-asking stated nuances">Hỏi lại thứ khách vừa nói</div>
+                    <div class="val" data-vi="Hỏi lại" data-en="Re-ask">Re-ask</div>
+                    <div class="lbl" data-vi="Lỗi Khách Phàn Nàn" data-en="Rigidity Complaint">Rigidity Complaint</div>
+                    <div class="sub" data-vi="Hỏi lại thứ khách vừa nói" data-en="Re-asking stated nuances">Re-asking stated nuances</div>
                 </div>
             </div>
 
             <!-- SPLIT: REAL PROBLEM VS HYBRID AI SOLUTION -->
             <div class="split-grid">
-                <!-- Cột trái: Vấn đề hôm qua -->
+                <!-- Left Col: Real Problems -->
                 <div class="split-col">
-                    <h2 data-vi="1. Vấn đề thực tế đang bị gì?" data-en="1. What Are The Real Problems?">1. Vấn đề thực tế đang bị gì?</h2>
+                    <h2 data-vi="1. Vấn đề thực tế đang bị gì?" data-en="1. What Are The Real Problems?">1. What Are The Real Problems?</h2>
 
                     <div class="item-card alert">
                         <div class="title">
-                            <span data-vi="Lỗi hôm qua trên WhatsApp (Kẹt Deploy)" data-en="Yesterday's WhatsApp Issue (Deployment)">Lỗi hôm qua trên WhatsApp (Kẹt Deploy)</span>
-                            <span class="tag red" data-vi="Kẹt Production" data-en="Prod Out of Sync">Kẹt Production</span>
+                            <span data-vi="Lỗi hôm qua trên WhatsApp (Kẹt Deploy)" data-en="Yesterday's WhatsApp Issue (Deployment)">Yesterday's WhatsApp Issue (Deployment)</span>
+                            <span class="tag red" data-vi="Kẹt Production" data-en="Prod Out of Sync">Prod Out of Sync</span>
                         </div>
                         <div class="desc" data-vi="Bản sửa lỗi tính tiền gói lặn đã kiểm thử xong từ hôm qua, nhưng kiểm tra lại hôm nay thì &lt;b&gt;production vẫn chưa có&lt;/b&gt; do đẩy code lên kho chưa tự động đưa lên máy chủ thật." data-en="Diving package pricing fix passed testing yesterday, but &lt;b&gt;production still lacks it today&lt;/b&gt; because git pushes lack automated production sync.">
-                            Bản sửa lỗi tính tiền gói lặn đã kiểm thử xong từ hôm qua, nhưng kiểm tra lại hôm nay thì <b>production vẫn chưa có</b> do đẩy code lên kho chưa tự động đưa lên máy chủ thật.
+                            Diving package pricing fix passed testing yesterday, but <b>production still lacks it today</b> because git pushes lack automated production sync.
                         </div>
                     </div>
 
                     <div class="item-card alert">
                         <div class="title">
-                            <span data-vi="Bot hỏi lại thứ khách vừa nói (Căn bệnh 'cứng')" data-en="Bot Re-asks Stated Details (Root of Rigidity)">Bot hỏi lại thứ khách vừa nói (Căn bệnh 'cứng')</span>
-                            <span class="tag red" data-vi="Trọng Tâm Tuần Này" data-en="Core Flaw">Trọng Tâm Tuần Này</span>
+                            <span data-vi="Bot hỏi lại thứ khách vừa nói (Căn bệnh 'cứng')" data-en="Bot Re-asks Stated Details (Root of Rigidity)">Bot Re-asks Stated Details (Root of Rigidity)</span>
+                            <span class="tag red" data-vi="Trọng Tâm Tuần Này" data-en="Core Flaw">Core Flaw</span>
                         </div>
                         <div class="desc" data-vi="Khách viết: &lt;i&gt;'1 người lặn ngày đầu, 5 người lặn cả 2 ngày'&lt;/i&gt;. Máy chỉ có 1 ô trống &lt;code&gt;Số người lặn&lt;/code&gt;, không quy ra số được nên quay ra hỏi lại: &lt;i&gt;'Đoàn mình có mấy người lặn?'&lt;/i&gt; &amp;rarr; &lt;b&gt;Khách rất bực mình!&lt;/b&gt;" data-en="Guest writes: &lt;i&gt;'1 person dives day 1, 5 people dive both days'&lt;/i&gt;. The system has a single slot &lt;code&gt;diveGuests&lt;/code&gt;; unable to collapse this to an integer, it re-asks: &lt;i&gt;'How many people are diving?'&lt;/i&gt; &amp;rarr; &lt;b&gt;Very irritating!&lt;/b&gt;">
-                            Khách viết: <i>'1 người lặn ngày đầu, 5 người lặn cả 2 ngày'</i>. Máy chỉ có 1 ô trống <code>Số người lặn</code>, không quy ra số được nên quay ra hỏi lại: <i>'Đoàn mình có mấy người lặn?'</i> &rarr; <b>Khách rất bực mình!</b>
+                            Guest writes: <i>'1 person dives day 1, 5 people dive both days'</i>. The system has a single slot <code>diveGuests</code>; unable to collapse this to an integer, it re-asks: <i>'How many people are diving?'</i> &rarr; <b>Very irritating!</b>
                         </div>
                     </div>
 
                     <div class="item-card">
                         <div class="title">
-                            <span data-vi="Chưa từng đo độ tự nhiên" data-en="Zero Naturalness Scoring">Chưa từng đo độ tự nhiên</span>
-                            <span class="tag orange" data-vi="Thiếu Dữ Liệu" data-en="Missing Metric">Thiếu Dữ Liệu</span>
+                            <span data-vi="Chưa từng đo độ tự nhiên" data-en="Zero Naturalness Scoring">Zero Naturalness Scoring</span>
+                            <span class="tag orange" data-vi="Thiếu Dữ Liệu" data-en="Missing Metric">Missing Metric</span>
                         </div>
                         <div class="desc" data-vi="Đo rất kỹ 'không bịa' (0% bịa), nhưng chưa từng chấm điểm xem bot nói có 'duyên' hay hỏi thừa không. Cần 30 tin nhắn thật từ Eloa để dựng bài chấm điểm." data-en="Rigidly measured hallucination (0%), but never scored conversational charm. Needs 30 real transcripts from Eloa to establish objective grading.">
-                            Đo rất kỹ 'không bịa' (0% bịa), nhưng chưa từng chấm điểm xem bot nói có 'duyên' hay hỏi thừa không. Cần 30 tin nhắn thật từ Eloa để dựng bài chấm điểm.
+                            Rigidly measured hallucination (0%), but never scored conversational charm. Needs 30 real transcripts from Eloa to establish objective grading.
                         </div>
                     </div>
                 </div>
 
-                <!-- Cột phải: Giải pháp Hybrid AI -->
+                <!-- Right Col: Hybrid AI Solution -->
                 <div class="split-col">
-                    <h2 data-vi="2. Khắc phục thế nào bằng Hybrid AI?" data-en="2. How Does Hybrid AI Solve This?">2. Khắc phục thế nào bằng Hybrid AI?</h2>
+                    <h2 data-vi="2. Khắc phục thế nào bằng Hybrid AI?" data-en="2. How Does Hybrid AI Solve This?">2. How Does Hybrid AI Solve This?</h2>
 
                     <div class="item-card solution">
                         <div class="title">
-                            <span data-vi="Tầng Neuro (AI Linh Hoạt): Giọng Lễ Tân 5 Sao" data-en="Neuro Layer (AI): 5-Star Concierge Voice">Tầng Neuro (AI Linh Hoạt): Giọng Lễ Tân 5 Sao</span>
-                            <span class="tag green" data-vi="Đã Làm Tuần Này" data-en="Shipped">Đã Làm Tuần Này</span>
+                            <span data-vi="Tầng Neuro (AI Linh Hoạt): Giọng Lễ Tân 5 Sao" data-en="Neuro Layer (AI): 5-Star Concierge Voice">Neuro Layer (AI): 5-Star Concierge Voice</span>
+                            <span class="tag green" data-vi="Đã Làm Tuần Này" data-en="Shipped">Shipped</span>
                         </div>
                         <div class="desc" data-vi="Bỏ hẳn mẫu câu dập khuôn của robot. AI được giao vai Lễ tân khách sạn: chào hỏi ân cần, giải thích lịch trình ấm áp bằng tiếng Anh, Việt hoặc Trung trên nền dữ liệu đã kiểm chứng." data-en="Eliminated static robot templates. AI acts as a warm 5-star concierge: greets politely and explains itineraries warmly in EN, VI, or ZH based solely on verified facts.">
-                            Bỏ hẳn mẫu câu dập khuôn của robot. AI được giao vai Lễ tân khách sạn: chào hỏi ân cần, giải thích lịch trình ấm áp bằng tiếng Anh, Việt hoặc Trung trên nền dữ liệu đã kiểm chứng.
+                            Eliminated static robot templates. AI acts as a warm 5-star concierge: greets politely and explains itineraries warmly in EN, VI, or ZH based solely on verified facts.
                         </div>
                     </div>
 
                     <div class="item-card solution">
                         <div class="title">
-                            <span data-vi="Tầng Symbolic (Code Khóa Cứng): Rào Chắn An Toàn" data-en="Symbolic Layer (Code): Strict Fact Gate">Tầng Symbolic (Code Khóa Cứng): Rào Chắn An Toàn</span>
-                            <span class="tag green" data-vi="Bảo Đảm 0% Bịa" data-en="Zero Hallucination">Bảo Đảm 0% Bịa</span>
+                            <span data-vi="Tầng Symbolic (Code Khóa Cứng): Rào Chắn An Toàn" data-en="Symbolic Layer (Code): Strict Fact Gate">Symbolic Layer (Code): Strict Fact Gate</span>
+                            <span class="tag green" data-vi="Bảo Đảm 0% Bịa" data-en="Zero Hallucination">Zero Hallucination</span>
                         </div>
                         <div class="desc" data-vi="Code tất định kiểm soát 100%: chuẩn hóa ngày theo giờ Manila, đối chiếu con số. &lt;b&gt;AI tuyệt đối không được tự ý tính tiền hay hứa còn phòng&lt;/b&gt;; sai lệch là tự quay về mẫu câu an toàn." data-en="Deterministic code retains 100% authority: resolves Manila timezone, validates numbers. &lt;b&gt;AI is strictly forbidden from quoting arbitrary rates or promising availability&lt;/b&gt;.">
-                            Code tất định kiểm soát 100%: chuẩn hóa ngày theo giờ Manila, đối chiếu con số. <b>AI tuyệt đối không được tự ý tính tiền hay hứa còn phòng</b>; sai lệch là tự quay về mẫu câu an toàn.
+                            Deterministic code retains 100% authority: resolves Manila timezone, validates numbers. <b>AI is strictly forbidden from quoting arbitrary rates or promising availability</b>.
                         </div>
                     </div>
 
                     <div class="item-card solution">
                         <div class="title">
-                            <span data-vi="Quy Tắc Ứng Xử Mới: CẤM HỎI LẠI THỨ ĐÃ NÓI" data-en="New Decision Rule: NEVER RE-ASK STATED FACTS">Quy Tắc Ứng Xử Mới: CẤM HỎI LẠI THỨ ĐÃ NÓI</span>
-                            <span class="tag orange" data-vi="Sửa Tuần Này" data-en="Implementing">Sửa Tuần Này</span>
+                            <span data-vi="Quy Tắc Ứng Xử Mới: CẤM HỎI LẠI THỨ ĐÃ NÓI" data-en="New Decision Rule: NEVER RE-ASK STATED FACTS">New Decision Rule: NEVER RE-ASK STATED FACTS</span>
+                            <span class="tag orange" data-vi="Sửa Tuần Này" data-en="Implementing">Implementing</span>
                         </div>
                         <div class="desc" data-vi="Khi khách nói lịch phức tạp (lặn lẻ người), bot &lt;b&gt;không được hỏi lại&lt;/b&gt;. Máy tự lưu nguyên văn vào ô 'Ghi chú đặc biệt', hỏi sang việc khác (giờ đón), rồi chuyển nhân viên thật xử lý!" data-en="When guests describe nuances, the bot &lt;b&gt;must never re-ask&lt;/b&gt;. It saves the verbatim note into 'Special Requests', moves to another topic, and hands off to staff!">
-                            Khi khách nói lịch phức tạp (lặn lẻ người), bot <b>không được hỏi lại</b>. Máy tự lưu nguyên văn vào ô 'Ghi chú đặc biệt', hỏi sang việc khác (giờ đón), rồi chuyển nhân viên thật xử lý!
+                            When guests describe nuances, the bot <b>must never re-ask</b>. It saves the verbatim note into 'Special Requests', moves to another topic, and hands off to staff!
                         </div>
                     </div>
                 </div>
             </div>
 
             <div class="slide-footer">
-                <span data-vi="Trợ lý đặt phòng Casa Escondida · TechNext Edge" data-en="Casa Escondida Booking Assistant · TechNext Edge">Trợ lý đặt phòng Casa Escondida · TechNext Edge</span>
-                <span data-vi="Sang trang 2: Lộ trình 3 Phase &amp; Việc cần Lead chốt →" data-en="Next Slide: 3-Phase Roadmap &amp; Lead Decisions →">Sang trang 2: Lộ trình 3 Phase &amp; Việc cần Lead chốt →</span>
+                <span data-vi="Trợ lý đặt phòng Casa Escondida · TechNext Edge" data-en="Casa Escondida Booking Assistant · TechNext Edge">Casa Escondida Booking Assistant · TechNext Edge</span>
+                <span data-vi="Sang trang 2: Lộ trình 3 Phase &amp; Việc cần Lead chốt →" data-en="Next Slide: 3-Phase Roadmap &amp; Lead Decisions →">Next Slide: 3-Phase Roadmap &amp; Lead Decisions →</span>
             </div>
         </section>
 
 
         <!-- ============================================================
-             SLIDE 2 · LỘ TRÌNH 3 PHASE TIẾP THEO & VIỆC CẦN LEAD CHỐT
+             SLIDE 2 · 3 UPCOMING PHASES ROADMAP & CRITICAL BLOCKERS
              ============================================================ -->
         <section class="slide-section" id="slide-2">
-            <span class="kicker" data-vi="Trang 2 / 2 · Lộ trình triển khai &amp; Quyết định" data-en="Slide 2 / 2 · Delivery Roadmap &amp; Decisions">Trang 2 / 2 · Lộ trình triển khai &amp; Quyết định</span>
-            <h1 data-vi="Lộ Trình Các Phase Tiếp Theo &amp; Nút Thắt Cần Gỡ" data-en="Upcoming Phases Roadmap &amp; Critical Blockers">Lộ Trình Các Phase Tiếp Theo &amp; Nút Thắt Cần Gỡ</h1>
-            <p class="lede" data-vi="Tập trung vào 3 phase tiếp nối thực tế: Phase 1 dứt điểm lỗi tuần này; Phase 2 mở khóa Odoo &amp; đo lường chất lượng; Phase 3 tự động hóa xuất báo giá hoàn chỉnh." data-en="Focusing on 3 consecutive phases: Phase 1 fixes immediate flaws; Phase 2 unblocks Odoo and naturalness scoring; Phase 3 delivers full quotation automation.">Tập trung vào 3 phase tiếp nối thực tế: Phase 1 dứt điểm lỗi tuần này; Phase 2 mở khóa Odoo &amp; đo lường chất lượng; Phase 3 tự động hóa xuất báo giá hoàn chỉnh.</p>
+            <span class="kicker" data-vi="Trang 2 / 2 · Lộ trình triển khai &amp; Quyết định" data-en="Slide 2 / 2 · Delivery Roadmap &amp; Decisions">Slide 2 / 2 · Delivery Roadmap &amp; Decisions</span>
+            <h1 data-vi="Lộ Trình Các Phase Tiếp Theo &amp; Nút Thắt Cần Gỡ" data-en="Upcoming Phases Roadmap &amp; Critical Blockers">Upcoming Phases Roadmap &amp; Critical Blockers</h1>
+            <p class="lede" data-vi="Tập trung vào 3 phase tiếp nối thực tế: Phase 1 dứt điểm lỗi tuần này; Phase 2 mở khóa Odoo &amp; đo lường chất lượng; Phase 3 tự động hóa xuất báo giá hoàn chỉnh." data-en="Focusing on 3 consecutive phases: Phase 1 fixes immediate flaws; Phase 2 unblocks Odoo and naturalness scoring; Phase 3 delivers full quotation automation.">Focusing on 3 consecutive phases: Phase 1 fixes immediate flaws; Phase 2 unblocks Odoo and naturalness scoring; Phase 3 delivers full quotation automation.</p>
 
             <!-- 3 PHASES ROW -->
             <div class="phases-row">
                 <!-- Phase 1 -->
                 <div class="phase-col active">
-                    <span class="phase-badge" style="color:var(--tool);" data-vi="Phase 1 · Tuần này (Làm ngay)" data-en="Phase 1 · This Week (Immediate)">Phase 1 · Tuần này (Làm ngay)</span>
-                    <h3 data-vi="Sửa Lỗi &amp; Gia Cố Rào Chắn" data-en="Hotfix Deploy &amp; Guardrails">Sửa Lỗi &amp; Gia Cố Rào Chắn</h3>
+                    <span class="phase-badge" style="color:var(--tool);" data-vi="Phase 1 · Tuần này (Làm ngay)" data-en="Phase 1 · This Week (Immediate)">Phase 1 · This Week (Immediate)</span>
+                    <h3 data-vi="Sửa Lỗi &amp; Gia Cố Rào Chắn" data-en="Hotfix Deploy &amp; Guardrails">Hotfix Deploy &amp; Guardrails</h3>
                     <ul class="phase-tasks">
-                        <li data-vi="&lt;b&gt;Đưa bản sửa tính tiền lên production:&lt;/b&gt; Đồng bộ ngay hotfix bị kẹt từ hôm qua." data-en="&lt;b&gt;Deploy pricing hotfix to production:&lt;/b&gt; Sync yesterday's stranded fix immediately."><b>Đưa bản sửa tính tiền lên production:</b> Đồng bộ ngay hotfix bị kẹt từ hôm qua.</li>
-                        <li data-vi="&lt;b&gt;Gắn bộ lọc an toàn cho câu AI:&lt;/b&gt; Đối chiếu số &amp; ngày trước khi gửi khách; lệch là rollback." data-en="&lt;b&gt;AI sentence verification:&lt;/b&gt; Cross-check numbers/dates; roll back to template on mismatch."><b>Gắn bộ lọc an toàn cho câu AI:</b> Đối chiếu số &amp; ngày trước khi gửi khách; lệch là rollback.</li>
-                        <li data-vi="&lt;b&gt;Sửa tật hỏi lại:&lt;/b&gt; Ca lặn phức tạp &amp;rarr; lưu ghi chú + chuyển nhân viên, cấm hỏi lại." data-en="&lt;b&gt;Stop re-asking:&lt;/b&gt; Complex dive schedule &amp;rarr; save note + staff alert, never re-ask."><b>Sửa tật hỏi lại:</b> Ca lặn phức tạp &rarr; lưu ghi chú + chuyển nhân viên, cấm hỏi lại.</li>
-                        <li data-vi="&lt;b&gt;Quét 2 lỗi tính tiền còn lại:&lt;/b&gt; Xử lý chiết khấu đại lý 30% thay vì đoán." data-en="&lt;b&gt;Audit 2 pricing assumptions:&lt;/b&gt; Explicitly confirm 30% agency discount."><b>Quét 2 lỗi tính tiền còn lại:</b> Xử lý chiết khấu đại lý 30% thay vì đoán.</li>
+                        <li data-vi="&lt;b&gt;Đưa bản sửa tính tiền lên production:&lt;/b&gt; Đồng bộ ngay hotfix bị kẹt từ hôm qua." data-en="&lt;b&gt;Deploy pricing hotfix to production:&lt;/b&gt; Sync yesterday's stranded fix immediately."><b>Deploy pricing hotfix to production:</b> Sync yesterday's stranded fix immediately.</li>
+                        <li data-vi="&lt;b&gt;Gắn bộ lọc an toàn cho câu AI:&lt;/b&gt; Đối chiếu số &amp; ngày trước khi gửi khách; lệch là rollback." data-en="&lt;b&gt;AI sentence verification:&lt;/b&gt; Cross-check numbers/dates; roll back to template on mismatch."><b>AI sentence verification:</b> Cross-check numbers/dates; roll back to template on mismatch.</li>
+                        <li data-vi="&lt;b&gt;Sửa tật hỏi lại:&lt;/b&gt; Ca lặn phức tạp &amp;rarr; lưu ghi chú + chuyển nhân viên, cấm hỏi lại." data-en="&lt;b&gt;Stop re-asking:&lt;/b&gt; Complex dive schedule &amp;rarr; save note + staff alert, never re-ask."><b>Stop re-asking:</b> Complex dive schedule &rarr; save note + staff alert, never re-ask.</li>
+                        <li data-vi="&lt;b&gt;Quét 2 lỗi tính tiền còn lại:&lt;/b&gt; Xử lý chiết khấu đại lý 30% thay vì đoán." data-en="&lt;b&gt;Audit 2 pricing assumptions:&lt;/b&gt; Explicitly confirm 30% agency discount."><b>Audit 2 pricing assumptions:</b> Explicitly confirm 30% agency discount.</li>
                     </ul>
                 </div>
 
                 <!-- Phase 2 -->
                 <div class="phase-col">
-                    <span class="phase-badge" style="color:var(--accent);" data-vi="Phase 2 · Tuần sau (Chờ Lead gỡ)" data-en="Phase 2 · Next Sprint (Needs Lead)">Phase 2 · Tuần sau (Chờ Lead gỡ)</span>
-                    <h3 data-vi="Mở Khóa Odoo &amp; Đo Lường" data-en="Odoo Unblocking &amp; Scoring">Mở Khóa Odoo &amp; Đo Lường</h3>
+                    <span class="phase-badge" style="color:var(--accent);" data-vi="Phase 2 · Tuần sau (Chờ Lead gỡ)" data-en="Phase 2 · Next Sprint (Needs Lead)">Phase 2 · Next Sprint (Needs Lead)</span>
+                    <h3 data-vi="Mở Khóa Odoo &amp; Đo Lường" data-en="Odoo Unblocking &amp; Scoring">Odoo Unblocking &amp; Scoring</h3>
                     <ul class="phase-tasks">
-                        <li data-vi="&lt;b&gt;Nhận cấu trúc dữ liệu Odoo từ Phillip:&lt;/b&gt; Bắt đầu viết code kết nối tính giá và giữ phòng." data-en="&lt;b&gt;Receive Odoo contract from Phillip:&lt;/b&gt; Start coding pricing and inventory integration."><b>Nhận cấu trúc dữ liệu Odoo từ Phillip:</b> Bắt đầu viết code kết nối tính giá và giữ phòng.</li>
-                        <li data-vi="&lt;b&gt;Nhận 30 tin nhắn thật từ Eloa:&lt;/b&gt; Dựng bài chấm điểm khách quan xem bot đã nói duyên chưa." data-en="&lt;b&gt;Receive 30 transcripts from Eloa:&lt;/b&gt; Build objective benchmark to score conversational charm."><b>Nhận 30 tin nhắn thật từ Eloa:</b> Dựng bài chấm điểm khách quan xem bot đã nói duyên chưa.</li>
-                        <li data-vi="&lt;b&gt;Đóng biên bản tầng trả lời:&lt;/b&gt; Anthony ký duyệt chính thức để khóa thiết kế." data-en="&lt;b&gt;Sign off ADR:&lt;/b&gt; Anthony formally signs decision record to freeze design."><b>Đóng biên bản tầng trả lời:</b> Anthony ký duyệt chính thức để khóa thiết kế.</li>
-                        <li data-vi="&lt;b&gt;Chốt 4 giá trị mặc định:&lt;/b&gt; Jett/Eloa xác nhận giờ check-in, chính sách trẻ em." data-en="&lt;b&gt;Confirm 4 defaults:&lt;/b&gt; Jett/Eloa confirm check-in hours and infant policy."><b>Chốt 4 giá trị mặc định:</b> Jett/Eloa xác nhận giờ check-in, chính sách trẻ em.</li>
+                        <li data-vi="&lt;b&gt;Nhận cấu trúc dữ liệu Odoo từ Phillip:&lt;/b&gt; Bắt đầu viết code kết nối tính giá và giữ phòng." data-en="&lt;b&gt;Receive Odoo contract from Phillip:&lt;/b&gt; Start coding pricing and inventory integration."><b>Receive Odoo contract from Phillip:</b> Start coding pricing and inventory integration.</li>
+                        <li data-vi="&lt;b&gt;Nhận 30 tin nhắn thật từ Eloa:&lt;/b&gt; Dựng bài chấm điểm khách quan xem bot đã nói duyên chưa." data-en="&lt;b&gt;Receive 30 transcripts from Eloa:&lt;/b&gt; Build objective benchmark to score conversational charm."><b>Receive 30 transcripts from Eloa:</b> Build objective benchmark to score conversational charm.</li>
+                        <li data-vi="&lt;b&gt;Đóng biên bản tầng trả lời:&lt;/b&gt; Anthony ký duyệt chính thức để khóa thiết kế." data-en="&lt;b&gt;Sign off ADR:&lt;/b&gt; Anthony formally signs decision record to freeze design."><b>Sign off ADR:</b> Anthony formally signs decision record to freeze design.</li>
+                        <li data-vi="&lt;b&gt;Chốt 4 giá trị mặc định:&lt;/b&gt; Jett/Eloa xác nhận giờ check-in, chính sách trẻ em." data-en="&lt;b&gt;Confirm 4 defaults:&lt;/b&gt; Jett/Eloa confirm check-in hours and infant policy."><b>Confirm 4 defaults:</b> Jett/Eloa confirm check-in hours and infant policy.</li>
                     </ul>
                 </div>
 
                 <!-- Phase 3 -->
                 <div class="phase-col">
-                    <span class="phase-badge" style="color:var(--claude);" data-vi="Phase 3 · Hoàn thiện (Go-Live)" data-en="Phase 3 · Rollout (Go-Live)">Phase 3 · Hoàn thiện (Go-Live)</span>
-                    <h3 data-vi="Tự Động Báo Giá &amp; Bàn Giao" data-en="Automated Quotation &amp; Handoff">Tự Động Báo Giá &amp; Bàn Giao</h3>
+                    <span class="phase-badge" style="color:var(--claude);" data-vi="Phase 3 · Hoàn thiện (Go-Live)" data-en="Phase 3 · Rollout (Go-Live)">Phase 3 · Rollout (Go-Live)</span>
+                    <h3 data-vi="Tự Động Báo Giá &amp; Bàn Giao" data-en="Automated Quotation &amp; Handoff">Automated Quotation &amp; Handoff</h3>
                     <ul class="phase-tasks">
-                        <li data-vi="&lt;b&gt;Xuất link báo giá Odoo:&lt;/b&gt; Bot gửi link báo giá tạm tính chuẩn quốc tế cho khách." data-en="&lt;b&gt;Issue Odoo quote links:&lt;/b&gt; Bot sends verified estimate links to guests on WhatsApp."><b>Xuất link báo giá Odoo:</b> Bot gửi link báo giá tạm tính chuẩn quốc tế cho khách.</li>
-                        <li data-vi="&lt;b&gt;Quy trình bàn giao mượt mà:&lt;/b&gt; Nhân viên resort tiếp quản đơn hàng trên Odoo chỉ với 1 click." data-en="&lt;b&gt;Seamless staff handoff:&lt;/b&gt; Resort staff confirms rooms on Odoo with a single click."><b>Quy trình bàn giao mượt mà:</b> Nhân viên resort tiếp quản đơn hàng trên Odoo chỉ với 1 click.</li>
-                        <li data-vi="&lt;b&gt;Giám sát chất lượng 24/7:&lt;/b&gt; Tự động cảnh báo nếu khách phàn nàn để nhân viên can thiệp ngay." data-en="&lt;b&gt;24/7 Quality monitoring:&lt;/b&gt; Auto-alert staff if sentiment turns negative."><b>Giám sát chất lượng 24/7:</b> Tự động cảnh báo nếu khách phàn nàn để nhân viên can thiệp ngay.</li>
+                        <li data-vi="&lt;b&gt;Xuất link báo giá Odoo:&lt;/b&gt; Bot gửi link báo giá tạm tính chuẩn quốc tế cho khách." data-en="&lt;b&gt;Issue Odoo quote links:&lt;/b&gt; Bot sends verified estimate links to guests on WhatsApp."><b>Issue Odoo quote links:</b> Bot sends verified estimate links to guests on WhatsApp.</li>
+                        <li data-vi="&lt;b&gt;Quy trình bàn giao mượt mà:&lt;/b&gt; Nhân viên resort tiếp quản đơn hàng trên Odoo chỉ với 1 click." data-en="&lt;b&gt;Seamless staff handoff:&lt;/b&gt; Resort staff confirms rooms on Odoo with a single click."><b>Seamless staff handoff:</b> Resort staff confirms rooms on Odoo with a single click.</li>
+                        <li data-vi="&lt;b&gt;Giám sát chất lượng 24/7:&lt;/b&gt; Tự động cảnh báo nếu khách phàn nàn để nhân viên can thiệp ngay." data-en="&lt;b&gt;24/7 Quality monitoring:&lt;/b&gt; Auto-alert staff if sentiment turns negative."><b>24/7 Quality monitoring:</b> Auto-alert staff if sentiment turns negative.</li>
                     </ul>
                 </div>
             </div>
@@ -615,30 +615,30 @@ const html = `<!doctype html>
                         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
                             <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"></path>
                         </svg>
-                        <span data-vi="Cần Lead giúp đúng 2 việc (Nút thắt quyết định)" data-en="Two Critical Actions Needed From Tech Lead">Cần Lead giúp đúng 2 việc (Nút thắt quyết định)</span>
+                        <span data-vi="Cần Lead giúp đúng 2 việc (Nút thắt quyết định)" data-en="Two Critical Actions Needed From Tech Lead">Two Critical Actions Needed From Tech Lead</span>
                     </h4>
                     <ul>
                         <li data-vi="&lt;b&gt;1. Thúc Phillip chốt cấu trúc dữ liệu Odoo:&lt;/b&gt; Mọi việc liên quan đến tính giá và xuất báo giá đang kẹt ở đây, không phải chờ đội kỹ thuật." data-en="&lt;b&gt;1. Unblock Phillip on Odoo schema:&lt;/b&gt; All quotation and pricing logic is blocked on this single contract, not on engineering.">
-                            <b>1. Thúc Phillip chốt cấu trúc dữ liệu Odoo:</b> Mọi việc liên quan đến tính giá và xuất báo giá đang kẹt ở đây, không phải chờ đội kỹ thuật.
+                            <b>1. Unblock Phillip on Odoo schema:</b> All quotation and pricing logic is blocked on this single contract, not on engineering.
                         </li>
                         <li data-vi="&lt;b&gt;2. Xin Eloa 30 tin nhắn khách thật (ẩn danh):&lt;/b&gt; Không có tin thật thì việc 'làm cho bot tự nhiên hơn' mãi là cảm tính, không ai đo đếm được." data-en="&lt;b&gt;2. Obtain 30 real transcripts from Eloa:&lt;/b&gt; Without real data, improving tone remains subjective guesswork without proof.">
-                            <b>2. Xin Eloa 30 tin nhắn khách thật (ẩn danh):</b> Không có tin thật thì việc 'làm cho bot tự nhiên hơn' mãi là cảm tính, không ai đo đếm được.
+                            <b>2. Obtain 30 real transcripts from Eloa:</b> Without real data, improving tone remains subjective guesswork without proof.
                         </li>
                     </ul>
                 </div>
 
                 <div class="withhold-box">
-                    <h4 data-vi="Hai việc team CỐ Ý CHƯA LÀM (Bảo vệ dự án)" data-en="Two Things Deliberately Withheld (Safeguards)">Hai việc team CỐ Ý CHƯA LÀM (Bảo vệ dự án)</h4>
+                    <h4 data-vi="Hai việc team CỐ Ý CHƯA LÀM (Bảo vệ dự án)" data-en="Two Things Deliberately Withheld (Safeguards)">Two Things Deliberately Withheld (Safeguards)</h4>
                     <ul>
-                        <li data-vi="&lt;b&gt;Chưa viết code tính tiền Odoo:&lt;/b&gt; Cấu trúc chưa chốt, xây trước chắc chắn tuần sau phải đập đi làm lại lãng phí nguồn lực." data-en="&lt;b&gt;Withholding Odoo code:&lt;/b&gt; Contract not finalized; coding beforehand guarantees costly rework."><b>Chưa viết code tính tiền Odoo:</b> Cấu trúc chưa chốt, xây trước chắc chắn tuần sau phải đập đi làm lại lãng phí nguồn lực.</li>
-                        <li data-vi="&lt;b&gt;Không gộp 2 lượt gọi AI làm 1:&lt;/b&gt; Tách riêng bước đọc và viết câu để giữ rào chắn code chặn 100% việc AI bịa giá cho khách." data-en="&lt;b&gt;Refusing to merge model calls:&lt;/b&gt; Separating extraction and generation preserves the firewall against hallucinations."><b>Không gộp 2 lượt gọi AI làm 1:</b> Tách riêng bước đọc và viết câu để giữ rào chắn code chặn 100% việc AI bịa giá cho khách.</li>
+                        <li data-vi="&lt;b&gt;Chưa viết code tính tiền Odoo:&lt;/b&gt; Cấu trúc chưa chốt, xây trước chắc chắn tuần sau phải đập đi làm lại lãng phí nguồn lực." data-en="&lt;b&gt;Withholding Odoo code:&lt;/b&gt; Contract not finalized; coding beforehand guarantees costly rework."><b>Withholding Odoo code:</b> Contract not finalized; coding beforehand guarantees costly rework.</li>
+                        <li data-vi="&lt;b&gt;Không gộp 2 lượt gọi AI làm 1:&lt;/b&gt; Tách riêng bước đọc và viết câu để giữ rào chắn code chặn 100% việc AI bịa giá cho khách." data-en="&lt;b&gt;Refusing to merge model calls:&lt;/b&gt; Separating extraction and generation preserves the firewall against hallucinations."><b>Refusing to merge model calls:</b> Separating extraction and generation preserves the firewall against hallucinations.</li>
                     </ul>
                 </div>
             </div>
 
             <div class="slide-footer">
-                <span data-vi="Kế hoạch cô đọng 2 Slide · Dành cho Lead duyệt" data-en="Concise 2-Slide Plan · Prepared for Tech Lead Approval">Kế hoạch cô đọng 2 Slide · Dành cho Lead duyệt</span>
-                <a href="extractor-pod-showcase.html" target="_blank" data-vi="Mở trang Kiến trúc Extractor Pod đầy đủ →" data-en="Open Full Architecture Showcase →">Mở trang Kiến trúc Extractor Pod đầy đủ →</a>
+                <span data-vi="Kế hoạch cô đọng 2 Slide · Dành cho Lead duyệt" data-en="Concise 2-Slide Plan · Prepared for Tech Lead Approval">Concise 2-Slide Plan · Prepared for Tech Lead Approval</span>
+                <a href="extractor-pod-showcase.html" target="_blank" data-vi="Mở trang Kiến trúc Extractor Pod đầy đủ →" data-en="Open Full Architecture Showcase →">Open Full Architecture Showcase →</a>
             </div>
         </section>
 
@@ -665,6 +665,10 @@ const html = `<!doctype html>
                 var v = el.getAttribute(attr);
                 if (v !== null) el.innerHTML = v;
             });
+
+            document.title = lang === 'en'
+                ? 'Casa Escondida — WhatsApp Booking Assistant Upgrade Plan'
+                : 'Kế Hoạch Nâng Cấp Trợ Lý Đặt Phòng WhatsApp — Casa Escondida';
         }
 
         btns.forEach(function(b) {
@@ -674,7 +678,7 @@ const html = `<!doctype html>
             });
         });
 
-        var initLang = 'vi';
+        var initLang = 'en';
         try {
             var s = localStorage.getItem(KEY);
             if (s === 'en' || s === 'vi') initLang = s;
@@ -688,4 +692,4 @@ const html = `<!doctype html>
 
 fs.writeFileSync('docs/casa-escondida-plan-showcase.html', html, 'utf8');
 fs.writeFileSync('public/casa-escondida-plan-showcase.html', html, 'utf8');
-console.log('Successfully generated concise 2-slide Executive Plan for Lead!');
+console.log('Successfully generated concise 2-slide Executive Plan in English default for Lead!');
