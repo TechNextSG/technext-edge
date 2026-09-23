@@ -448,8 +448,8 @@ const html = `<!doctype html>
                         <span data-vi="Xem Sơ Đồ Kiến Trúc Chi Tiết →" data-en="View Architecture Pipeline Graph →">View Architecture Pipeline Graph →</span>
                     </a>
                     <div class="lang-switcher" aria-label="Language selection">
-                        <button type="button" class="lang-btn" data-lang="vi">VI</button>
                         <button type="button" class="lang-btn active" data-lang="en">EN</button>
+                        <button type="button" class="lang-btn" data-lang="vi">VI</button>
                     </div>
                 </div>
             </div>

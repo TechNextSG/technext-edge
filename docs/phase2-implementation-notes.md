@@ -1,28 +1,35 @@
-# Nhật Ký Kỹ Thuật (Engineering Log) — Phase 2: Bộ Chấm Điểm Độ Tự Nhiên, Adapter Bàn Giao Odoo & ADR-007
+# Phase 2 Engineering Log: Naturalness Scorer, Odoo Handoff Adapter & ADR-007
 
-**Ngày thực hiện:** 23/09/2026  
-**Người thực hiện:** `aidev1-technext`  
-**Mục tiêu:** Chủ động hoàn thiện toàn bộ hạ tầng kỹ thuật của **Phase 2** trước khi nhận dữ liệu từ Phillip và Eloa, bao gồm:
-1. Bộ chấm điểm độ tự nhiên & không hỏi lặp khách quan (`scoreReplyNaturalness`).
-2. Bộ chuyển đổi dữ liệu bàn giao & báo giá Odoo (`buildOdooHandoffPayload`).
-3. Văn bản quyết định kiến trúc chính thức `ADR-007` để Lead (Sky / Anthony) ký duyệt khóa thiết kế.
-
----
-
-## 1. Bảng Tóm Tắt Các Hạng Mục Đã Xây Dựng Trong Phase 2
-
-| STT | Hạng mục Phase 2 | Mô tả kỹ thuật & Giá trị mang lại | File triển khai |
-| :---: | :--- | :--- | :--- |
-| **1** | **Bộ chấm điểm Độ Tự Nhiên (`scoreReplyNaturalness`)** | Chấm điểm tự động trên thang **0 – 100 điểm** dựa trên 4 trọng số khách quan:<br>• **35% `noReAskScore`**: Không hỏi lặp lại `divers`/`diveFrom`/`diveTo` khi đã có `diveNotes`.<br>• **25% `nuanceAckScore`**: Có phản hồi xác nhận đúng chi tiết `diveNotes` & `specialRequests` của khách.<br>• **25% `factGateScore`**: Vượt qua bộ lọc `verifySynthesizedReply` (0% bịa giá, 0% sai số đêm/phòng).<br>• **15% `conciergeWarmthScore`**: Có lời chào/cảm ơn ấm áp và bố cục tóm tắt rõ ràng.<br>$\rightarrow$ **Sẵn sàng 100%:** Ngay khi Eloa gửi 30 tin nhắn thật, chỉ cần chạy hàm này là xuất báo cáo điểm số tức thì. | [`packages/extractor/src/naturalness.ts`](file:///e:/technext-edge/packages/extractor/src/naturalness.ts) |
-| **2** | **Bộ đóng gói & phân luồng bàn giao Odoo (`buildOdooHandoffPayload`)** | Chuyển hóa đối tượng `Trip` đã xác thực thành gói `OdooHandoffEnvelope` chia làm 3 chế độ rõ ràng:<br>• `incomplete_enquiry`: Đang hỏi thêm thông tin trên WhatsApp.<br>• `auto_estimate_ready`: Khách lẻ (`retail`) có đủ số nguyên chuẩn $\rightarrow$ Sẵn sàng gọi thẳng API báo giá Odoo ngay khi Phillip mở cổng.<br>• `manual_staff_review`: Khách đại lý/giáo viên (`agent`/`instructor` cần chiết khấu 30%) hoặc lịch lặn lẻ ngày (`diveNotes`) $\rightarrow$ Tự động đính kèm `manualReviewReasons` & `staffAlerts` cho nhân viên chốt giá. | [`packages/extractor/src/odooHandoff.ts`](file:///e:/technext-edge/packages/extractor/src/odooHandoff.ts) |
-| **3** | **Biên bản kiến trúc `ADR-007` (`ADR-007-neuro-symbolic-synthesis.md`)** | Tài liệu hóa chính thức kiến trúc Hybrid AI 2 tầng (Neuro Synthesis + Symbolic Fact Gate + `NEVER RE-ASK` + `DIVE_CLAUSE_AFTER_NOUN`) tiếp nối `ADR-005a` và `ADR-006`, sẵn sàng để Sky và Anthony ký duyệt (`Sign-off`). | [`docs/adr/ADR-007-neuro-symbolic-synthesis.md`](file:///e:/technext-edge/docs/adr/ADR-007-neuro-symbolic-synthesis.md) |
+**Date:** 2026-09-23  
+**Author:** `aidev1-technext`  
+**Reviewer / Lead:** Sky  
+**Objective:** Pre-build and verify all Phase 2 engineering infrastructure ahead of external dependencies from Phillip (Odoo schema) and Eloa (30 real guest transcripts):
+1. Objective Conversational Naturalness & Non-Redundancy Scorer (`scoreReplyNaturalness`).
+2. Tri-State Odoo Quotation & Staff Handoff Adapter (`buildOdooHandoffPayload`).
+3. Formal Architecture Decision Record (`ADR-007-neuro-symbolic-synthesis.md`) ready for Lead sign-off.
 
 ---
 
-## 2. Kết Quả Kiểm Thử Tự Động (Unit Tests & Typecheck)
+## 1. Summary of Phase 2 Deliverables (English Primary)
 
-- **Lệnh chạy:** `npm run verify` (`tsc --noEmit` + `vitest run`)
-- **Kết quả:** **16/16 Test Files Passed — 235/235 Unit Tests Passed (100% Xanh)**.
-- **Các bài test mới bổ sung tại [`packages/extractor/test/questions.test.ts`](file:///e:/technext-edge/packages/extractor/test/questions.test.ts#L599-L675):**
+| # | Phase 2 Deliverable | Technical Design & Business Value | Target File |
+| :-: | :--- | :--- | :--- |
+| **1** | **Objective Naturalness Scorer (`scoreReplyNaturalness`)** | Scores every reply on a **0 – 100 scale** across 4 deterministic dimensions:<br>• **35% `noReAskScore`**: Penalizes any re-asking of `divers`/`diveFrom`/`diveTo` when `diveNotes` is already recorded.<br>• **25% `nuanceAckScore`**: Verifies explicit readback of `diveNotes` & `specialRequests`.<br>• **25% `factGateScore`**: Enforces `verifySynthesizedReply` (0% price hallucination, 0% count mismatch).<br>• **15% `conciergeWarmthScore`**: Verifies polite 5-star hospitality opening and structured summary.<br>$\rightarrow$ **Ready for Eloa's 30 transcripts:** Instant automated grading the moment transcripts arrive. | [`packages/extractor/src/naturalness.ts`](file:///e:/technext-edge/packages/extractor/src/naturalness.ts) |
+| **2** | **Tri-State Odoo Handoff Adapter (`buildOdooHandoffPayload`)** | Transforms a validated `Trip` into an `OdooHandoffEnvelope` with 3 deterministic routing modes:<br>• `incomplete_enquiry`: Still collecting required fields on WhatsApp.<br>• `auto_estimate_ready`: Standard `retail` booking with exact integer counts — ready for direct Odoo Estimate API call.<br>• `manual_staff_review`: Booking includes partner/agency discount (`agent`/`instructor` 30% discount) or custom split-day diving (`diveNotes`) — routes with `manualReviewReasons` & `staffAlerts` for 1-click staff confirmation. | [`packages/extractor/src/odooHandoff.ts`](file:///e:/technext-edge/packages/extractor/src/odooHandoff.ts) |
+| **3** | **Architecture Decision Record [`ADR-007`](file:///e:/technext-edge/docs/adr/ADR-007-neuro-symbolic-synthesis.md)** | Formalizes the 2-Layer Neuro-Symbolic Synthesis architecture (`synthesizeHospitalityReply` + `verifySynthesizedReply` + `NEVER RE-ASK` + `DIVE_CLAUSE_AFTER_NOUN`), extending `ADR-005a` and `ADR-006` for Sky / Anthony sign-off. | [`docs/adr/ADR-007-neuro-symbolic-synthesis.md`](file:///e:/technext-edge/docs/adr/ADR-007-neuro-symbolic-synthesis.md) |
+
+---
+
+## 2. Automated Verification & Test Suite (`235 / 235 Green`)
+
+- **Command:** `npm run verify` (`tsc --noEmit` + `vitest run`)
+- **Result:** **16 / 16 Test Files Passed — 235 / 235 Unit Tests Passed (100% Green)**.
+- **Phase 2 Unit Tests in [`packages/extractor/test/questions.test.ts`](file:///e:/technext-edge/packages/extractor/test/questions.test.ts#L599-L675):**
   1. `Phase 2 Naturalness Scorer: awards 100/100 to warm non-redundant replies and penalizes re-asking`
   2. `Phase 2 Odoo Handoff Adapter: distinguishes auto_estimate_ready vs manual_staff_review`
+
+---
+
+## 3. Bản Tóm Tắt Tiếng Việt (Vietnamese Reference)
+- **Bộ chấm điểm Độ tự nhiên (`scoreReplyNaturalness`):** Chấm điểm tự động 0–100 cho 30 tin nhắn thật của Eloa (35% Không hỏi lặp, 25% Ghi nhận lịch riêng, 25% Khóa an toàn Fact Gate, 15% Giọng lễ tân 5 sao).
+- **Bộ đóng gói Odoo (`buildOdooHandoffPayload`):** Phân loại tự động giữa đơn báo giá tự động (`auto_estimate_ready`) và đơn cần nhân viên xác nhận chiết khấu 30% / lịch lặn lẻ ngày (`manual_staff_review`).
