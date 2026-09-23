@@ -170,12 +170,12 @@ export function buildHonoQuotationDraft(
   });
 
   // 2. Meal Plan Row
-  if (mealPlan !== "no_meals") {
-    const mealPrice = mealPlan === "full_board" ? 1600 : 650;
+  if (mealPlan !== "room_only" && mealPlan !== "none") {
+    const mealPrice = mealPlan === "full_board" ? 1600 : 950;
     const mealLabel =
       mealPlan === "full_board"
         ? "Full-Board Dining Package (Breakfast, Lunch & Dinner)"
-        : "Resort Daily Breakfast Package";
+        : "Half-Board Resort Dining Package";
     lineItems.push({
       id: "item-meals",
       category: "meals",
@@ -245,7 +245,7 @@ export function buildHonoQuotationDraft(
   }
 
   // 4. Airport Transfer Row (if requested)
-  if (trip.airportTransfer?.value === true) {
+  if (trip.pickup?.value === true) {
     lineItems.push({
       id: "item-transfer",
       category: "transfer",
