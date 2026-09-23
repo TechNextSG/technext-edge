@@ -495,8 +495,18 @@ function enforceVerbatimEvidence(trip: Record<string, Field<unknown>>, sourceTex
   for (const [key, f] of Object.entries(trip)) {
     if (f?.state === "stated") {
       if (!f.evidence || !haystack.includes(f.evidence.toLowerCase())) {
-        trip[key] = { value: null, state: "missing", evidence: null };
+        if (
+          (key === "diveNotes" || key === "specialRequests" || key === "guestNames") &&
+          f.value !== null &&
+          f.value !== undefined &&
+          (!Array.isArray(f.value) || f.value.length > 0)
+        ) {
+          trip[key] = { value: f.value, state: "inferred", evidence: null };
+        } else {
+          trip[key] = { value: null, state: "missing", evidence: null };
+        }
       }
     }
   }
 }
+

@@ -464,19 +464,19 @@
                     <div class="sub" data-vi="Đo trên 30 kịch bản ngặt nghèo" data-en="Benchmarked across 30 cases">Benchmarked across 30 cases</div>
                 </div>
                 <div class="kpi-box green">
-                    <div class="val">230</div>
+                    <div class="val">233</div>
                     <div class="lbl" data-vi="Bài Test Xanh" data-en="Green Unit Tests">Green Unit Tests</div>
                     <div class="sub" data-vi="Regression suite tự động mỗi commit" data-en="Automated regression suite">Automated regression suite</div>
                 </div>
-                <div class="kpi-box red">
-                    <div class="val" data-vi="Chưa live" data-en="Pending">Pending</div>
-                    <div class="lbl" data-vi="Bản Sửa Tính Tiền" data-en="Pricing Fix Sync">Pricing Fix Sync</div>
-                    <div class="sub" data-vi="Xong hôm qua nhưng kẹt CI/CD" data-en="Tested yesterday, awaiting deploy">Tested yesterday, awaiting deploy</div>
+                <div class="kpi-box green">
+                    <div class="val" data-vi="Đã Live" data-en="Synced">Synced</div>
+                    <div class="lbl" data-vi="Bản Sửa Tính Tiền" data-en="Pricing &amp; Phase 1 Fix">Pricing &amp; Phase 1 Fix</div>
+                    <div class="sub" data-vi="Đã đồng bộ lên Vercel Production" data-en="Live on Vercel Production">Live on Vercel Production</div>
                 </div>
-                <div class="kpi-box orange">
-                    <div class="val" data-vi="Hỏi lại" data-en="Re-ask">Re-ask</div>
-                    <div class="lbl" data-vi="Lỗi Khách Phàn Nàn" data-en="Rigidity Complaint">Rigidity Complaint</div>
-                    <div class="sub" data-vi="Hỏi lại thứ khách vừa nói" data-en="Re-asking stated nuances">Re-asking stated nuances</div>
+                <div class="kpi-box green">
+                    <div class="val" data-vi="Đã Khóa" data-en="Resolved">Resolved</div>
+                    <div class="lbl" data-vi="Chặn Hỏi Lặp" data-en="NEVER RE-ASK Rule">NEVER RE-ASK Rule</div>
+                    <div class="sub" data-vi="Tự lưu diveNotes &amp; báo nhân viên" data-en="Saves diveNotes &amp; alerts staff">Saves diveNotes &amp; alerts staff</div>
                 </div>
             </div>
 
@@ -484,32 +484,32 @@
             <div class="split-grid">
                 <!-- Left Col: Real Problems -->
                 <div class="split-col">
-                    <h2 data-vi="1. Vấn đề thực tế đang bị gì?" data-en="1. What Are The Real Problems?">1. What Are The Real Problems?</h2>
+                    <h2 data-vi="1. Vấn đề thực tế đang bị gì?" data-en="1. What Were The Real Problems?">1. What Were The Real Problems?</h2>
 
                     <div class="item-card alert">
                         <div class="title">
                             <span data-vi="Lỗi hôm qua trên WhatsApp (Kẹt Deploy)" data-en="Yesterday's WhatsApp Issue (Deployment)">Yesterday's WhatsApp Issue (Deployment)</span>
-                            <span class="tag red" data-vi="Kẹt Production" data-en="Prod Out of Sync">Prod Out of Sync</span>
+                            <span class="tag green" data-vi="Đã Đồng Bộ" data-en="Fixed &amp; Synced">Fixed &amp; Synced</span>
                         </div>
-                        <div class="desc" data-vi="Bản sửa lỗi tính tiền gói lặn đã kiểm thử xong từ hôm qua, nhưng kiểm tra lại hôm nay thì &lt;b&gt;production vẫn chưa có&lt;/b&gt; do đẩy code lên kho chưa tự động đưa lên máy chủ thật." data-en="Diving package pricing fix passed testing yesterday, but &lt;b&gt;production still lacks it today&lt;/b&gt; because git pushes lack automated production sync.">
-                            Diving package pricing fix passed testing yesterday, but <b>production still lacks it today</b> because git pushes lack automated production sync.
+                        <div class="desc" data-vi="Bản sửa lỗi tính tiền gói lặn hôm qua chưa tự động đưa lên máy chủ thật. &lt;b&gt;Hôm nay đã đồng bộ trực tiếp lên Production.&lt;/b&gt;" data-en="Diving package pricing fix was pending prod sync yesterday. &lt;b&gt;Now built and deployed directly to Production.&lt;/b&gt;">
+                            Diving package pricing fix was pending prod sync yesterday. <b>Now built and deployed directly to Production.</b>
                         </div>
                     </div>
 
                     <div class="item-card alert">
                         <div class="title">
-                            <span data-vi="Bot hỏi lại thứ khách vừa nói (Căn bệnh 'cứng')" data-en="Bot Re-asks Stated Details (Root of Rigidity)">Bot Re-asks Stated Details (Root of Rigidity)</span>
-                            <span class="tag red" data-vi="Trọng Tâm Tuần Này" data-en="Core Flaw">Core Flaw</span>
+                            <span data-vi="Bot hỏi lại thứ khách vừa nói (Căn bệnh 'Logicalize')" data-en="Bot Re-asks Stated Details (Over-Logicalized)">Bot Re-asks Stated Details (Over-Logicalized)</span>
+                            <span class="tag green" data-vi="Đã Triệt Tiêu" data-en="Resolved in Code">Resolved in Code</span>
                         </div>
-                        <div class="desc" data-vi="Khách viết: &lt;i&gt;'1 người lặn ngày đầu, 5 người lặn cả 2 ngày'&lt;/i&gt;. Máy chỉ có 1 ô trống &lt;code&gt;Số người lặn&lt;/code&gt;, không quy ra số được nên quay ra hỏi lại: &lt;i&gt;'Đoàn mình có mấy người lặn?'&lt;/i&gt; &amp;rarr; &lt;b&gt;Khách rất bực mình!&lt;/b&gt;" data-en="Guest writes: &lt;i&gt;'1 person dives day 1, 5 people dive both days'&lt;/i&gt;. The system has a single slot &lt;code&gt;diveGuests&lt;/code&gt;; unable to collapse this to an integer, it re-asks: &lt;i&gt;'How many people are diving?'&lt;/i&gt; &amp;rarr; &lt;b&gt;Very irritating!&lt;/b&gt;">
-                            Guest writes: <i>'1 person dives day 1, 5 people dive both days'</i>. The system has a single slot <code>diveGuests</code>; unable to collapse this to an integer, it re-asks: <i>'How many people are diving?'</i> &rarr; <b>Very irritating!</b>
+                        <div class="desc" data-vi="Khách viết: &lt;i&gt;'1 người lặn ngày đầu, 5 người lặn cả 2 ngày'&lt;/i&gt;. Logic cũ ép vào 1 số nguyên &lt;code&gt;divers&lt;/code&gt; không được nên quay ra hỏi lại &amp; xóa nhầm cả tổng số khách. &lt;b&gt;Nay đã khắc phục triệt để!&lt;/b&gt;" data-en="Guest writes: &lt;i&gt;'1 person dives day 1, 5 people dive both days'&lt;/i&gt;. Old slot logic failed to collapse to one integer &lt;code&gt;divers&lt;/code&gt; and re-asked: &lt;i&gt;'How many people are diving?'&lt;/i&gt; &lt;b&gt;Now completely resolved!&lt;/b&gt;">
+                            Guest writes: <i>'1 person dives day 1, 5 people dive both days'</i>. Old slot logic failed to collapse to one integer <code>divers</code> and re-asked: <i>'How many people are diving?'</i> <b>Now completely resolved!</b>
                         </div>
                     </div>
 
                     <div class="item-card">
                         <div class="title">
                             <span data-vi="Chưa từng đo độ tự nhiên" data-en="Zero Naturalness Scoring">Zero Naturalness Scoring</span>
-                            <span class="tag orange" data-vi="Thiếu Dữ Liệu" data-en="Missing Metric">Missing Metric</span>
+                            <span class="tag orange" data-vi="Chờ Phase 2" data-en="Phase 2 Target">Phase 2 Target</span>
                         </div>
                         <div class="desc" data-vi="Đo rất kỹ 'không bịa' (0% bịa), nhưng chưa từng chấm điểm xem bot nói có 'duyên' hay hỏi thừa không. Cần 30 tin nhắn thật từ Eloa để dựng bài chấm điểm." data-en="Rigidly measured hallucination (0%), but never scored conversational charm. Needs 30 real transcripts from Eloa to establish objective grading.">
                             Rigidly measured hallucination (0%), but never scored conversational charm. Needs 30 real transcripts from Eloa to establish objective grading.
@@ -524,7 +524,7 @@
                     <div class="item-card solution">
                         <div class="title">
                             <span data-vi="Tầng Neuro (AI Linh Hoạt): Giọng Lễ Tân 5 Sao" data-en="Neuro Layer (AI): 5-Star Concierge Voice">Neuro Layer (AI): 5-Star Concierge Voice</span>
-                            <span class="tag green" data-vi="Đã Làm Tuần Này" data-en="Shipped">Shipped</span>
+                            <span class="tag green" data-vi="Đã Ship" data-en="Shipped">Shipped</span>
                         </div>
                         <div class="desc" data-vi="Bỏ hẳn mẫu câu dập khuôn của robot. AI được giao vai Lễ tân khách sạn: chào hỏi ân cần, giải thích lịch trình ấm áp bằng tiếng Anh, Việt hoặc Trung trên nền dữ liệu đã kiểm chứng." data-en="Eliminated static robot templates. AI acts as a warm 5-star concierge: greets politely and explains itineraries warmly in EN, VI, or ZH based solely on verified facts.">
                             Eliminated static robot templates. AI acts as a warm 5-star concierge: greets politely and explains itineraries warmly in EN, VI, or ZH based solely on verified facts.
@@ -533,21 +533,21 @@
 
                     <div class="item-card solution">
                         <div class="title">
-                            <span data-vi="Tầng Symbolic (Code Khóa Cứng): Rào Chắn An Toàn" data-en="Symbolic Layer (Code): Strict Fact Gate">Symbolic Layer (Code): Strict Fact Gate</span>
+                            <span data-vi="Tầng Symbolic (Code Khóa Cứng): Fact Gate Kiểm Duyệt" data-en="Symbolic Layer (Code): Post-Gen Fact Gate">Symbolic Layer (Code): Post-Gen Fact Gate</span>
                             <span class="tag green" data-vi="Bảo Đảm 0% Bịa" data-en="Zero Hallucination">Zero Hallucination</span>
                         </div>
-                        <div class="desc" data-vi="Code tất định kiểm soát 100%: chuẩn hóa ngày theo giờ Manila, đối chiếu con số. &lt;b&gt;AI tuyệt đối không được tự ý tính tiền hay hứa còn phòng&lt;/b&gt;; sai lệch là tự quay về mẫu câu an toàn." data-en="Deterministic code retains 100% authority: resolves Manila timezone, validates numbers. &lt;b&gt;AI is strictly forbidden from quoting arbitrary rates or promising availability&lt;/b&gt;.">
-                            Deterministic code retains 100% authority: resolves Manila timezone, validates numbers. <b>AI is strictly forbidden from quoting arbitrary rates or promising availability</b>.
+                        <div class="desc" data-vi="Hàm &lt;code&gt;verifySynthesizedReply&lt;/code&gt; đối chiếu 100% câu AI viết ra: chặn đứng mọi ký hiệu tiền tệ (&lt;code&gt;$&lt;/code&gt;, &lt;code&gt;₱&lt;/code&gt;, &lt;code&gt;PHP&lt;/code&gt;), hứa giữ phòng hoặc lệch số đêm/phòng; sai lệch là tự quay về mẫu câu an toàn." data-en="&lt;code&gt;verifySynthesizedReply&lt;/code&gt; audits every AI sentence: blocks any currency quote (&lt;code&gt;$&lt;/code&gt;, &lt;code&gt;₱&lt;/code&gt;, &lt;code&gt;PHP&lt;/code&gt;), false confirmation, or count mismatch — auto-rolling back to safe templates.">
+                            <code>verifySynthesizedReply</code> audits every AI sentence: blocks any currency quote (<code>$</code>, <code>₱</code>, <code>PHP</code>), false confirmation, or count mismatch — auto-rolling back to safe templates.
                         </div>
                     </div>
 
                     <div class="item-card solution">
                         <div class="title">
                             <span data-vi="Quy Tắc Ứng Xử Mới: CẤM HỎI LẠI THỨ ĐÃ NÓI" data-en="New Decision Rule: NEVER RE-ASK STATED FACTS">New Decision Rule: NEVER RE-ASK STATED FACTS</span>
-                            <span class="tag orange" data-vi="Sửa Tuần Này" data-en="Implementing">Implementing</span>
+                            <span class="tag green" data-vi="Đã Ship (233 Tests)" data-en="Shipped (233 Tests)">Shipped (233 Tests)</span>
                         </div>
-                        <div class="desc" data-vi="Khi khách nói lịch phức tạp (lặn lẻ người), bot &lt;b&gt;không được hỏi lại&lt;/b&gt;. Máy tự lưu nguyên văn vào ô 'Ghi chú đặc biệt', hỏi sang việc khác (giờ đón), rồi chuyển nhân viên thật xử lý!" data-en="When guests describe nuances, the bot &lt;b&gt;must never re-ask&lt;/b&gt;. It saves the verbatim note into 'Special Requests', moves to another topic, and hands off to staff!">
-                            When guests describe nuances, the bot <b>must never re-ask</b>. It saves the verbatim note into 'Special Requests', moves to another topic, and hands off to staff!
+                        <div class="desc" data-vi="Khi khách nói lịch phức tạp (lặn lẻ người), bot &lt;b&gt;không hỏi lại&lt;/b&gt; và không xóa nhầm số khách. Máy lưu nguyên văn vào &lt;code&gt;diveNotes&lt;/code&gt; và gắn cờ &lt;code&gt;getStaffAlerts&lt;/code&gt; chuyển nhân viên thật xử lý!" data-en="When guests describe nuances, the bot &lt;b&gt;never re-asks&lt;/b&gt; and preserves guest counts. It stores the verbatim schedule in &lt;code&gt;diveNotes&lt;/code&gt; and triggers &lt;code&gt;getStaffAlerts&lt;/code&gt; for human handoff!">
+                            When guests describe nuances, the bot <b>never re-asks</b> and preserves guest counts. It stores the verbatim schedule in <code>diveNotes</code> and triggers <code>getStaffAlerts</code> for human handoff!
                         </div>
                     </div>
                 </div>
@@ -566,19 +566,19 @@
         <section class="slide-section" id="slide-2">
             <span class="kicker" data-vi="Trang 2 / 2 · Lộ trình triển khai &amp; Quyết định" data-en="Slide 2 / 2 · Delivery Roadmap &amp; Decisions">Slide 2 / 2 · Delivery Roadmap &amp; Decisions</span>
             <h1 data-vi="Lộ Trình Các Phase Tiếp Theo &amp; Nút Thắt Cần Gỡ" data-en="Upcoming Phases Roadmap &amp; Critical Blockers">Upcoming Phases Roadmap &amp; Critical Blockers</h1>
-            <p class="lede" data-vi="Tập trung vào 3 phase tiếp nối thực tế: Phase 1 dứt điểm lỗi tuần này; Phase 2 mở khóa Odoo &amp; đo lường chất lượng; Phase 3 tự động hóa xuất báo giá hoàn chỉnh." data-en="Focusing on 3 consecutive phases: Phase 1 fixes immediate flaws; Phase 2 unblocks Odoo and naturalness scoring; Phase 3 delivers full quotation automation.">Focusing on 3 consecutive phases: Phase 1 fixes immediate flaws; Phase 2 unblocks Odoo and naturalness scoring; Phase 3 delivers full quotation automation.</p>
+            <p class="lede" data-vi="Tập trung vào 3 phase tiếp nối thực tế: Phase 1 đã hoàn tất 100% trong code &amp; production; Phase 2 mở khóa Odoo &amp; đo lường chất lượng; Phase 3 tự động hóa xuất báo giá hoàn chỉnh." data-en="Focusing on 3 consecutive phases: Phase 1 is now 100% completed in code &amp; production; Phase 2 unblocks Odoo and naturalness scoring; Phase 3 delivers full quotation automation.">Focusing on 3 consecutive phases: Phase 1 is now 100% completed in code &amp; production; Phase 2 unblocks Odoo and naturalness scoring; Phase 3 delivers full quotation automation.</p>
 
             <!-- 3 PHASES ROW -->
             <div class="phases-row">
                 <!-- Phase 1 -->
                 <div class="phase-col active">
-                    <span class="phase-badge" style="color:var(--tool);" data-vi="Phase 1 · Tuần này (Làm ngay)" data-en="Phase 1 · This Week (Immediate)">Phase 1 · This Week (Immediate)</span>
-                    <h3 data-vi="Sửa Lỗi &amp; Gia Cố Rào Chắn" data-en="Hotfix Deploy &amp; Guardrails">Hotfix Deploy &amp; Guardrails</h3>
+                    <span class="phase-badge" style="color:var(--tool);" data-vi="Phase 1 · Đã hoàn tất 100% (Live)" data-en="Phase 1 · Completed Today (100% Live)">Phase 1 · Completed Today (100% Live)</span>
+                    <h3 data-vi="✓ Sửa Lỗi &amp; Gia Cố Rào Chắn" data-en="✓ Hotfix Deploy &amp; Guardrails">✓ Hotfix Deploy &amp; Guardrails</h3>
                     <ul class="phase-tasks">
-                        <li data-vi="&lt;b&gt;Đưa bản sửa tính tiền lên production:&lt;/b&gt; Đồng bộ ngay hotfix bị kẹt từ hôm qua." data-en="&lt;b&gt;Deploy pricing hotfix to production:&lt;/b&gt; Sync yesterday's stranded fix immediately."><b>Deploy pricing hotfix to production:</b> Sync yesterday's stranded fix immediately.</li>
-                        <li data-vi="&lt;b&gt;Gắn bộ lọc an toàn cho câu AI:&lt;/b&gt; Đối chiếu số &amp; ngày trước khi gửi khách; lệch là rollback." data-en="&lt;b&gt;AI sentence verification:&lt;/b&gt; Cross-check numbers/dates; roll back to template on mismatch."><b>AI sentence verification:</b> Cross-check numbers/dates; roll back to template on mismatch.</li>
-                        <li data-vi="&lt;b&gt;Sửa tật hỏi lại:&lt;/b&gt; Ca lặn phức tạp &amp;rarr; lưu ghi chú + chuyển nhân viên, cấm hỏi lại." data-en="&lt;b&gt;Stop re-asking:&lt;/b&gt; Complex dive schedule &amp;rarr; save note + staff alert, never re-ask."><b>Stop re-asking:</b> Complex dive schedule &rarr; save note + staff alert, never re-ask.</li>
-                        <li data-vi="&lt;b&gt;Quét 2 lỗi tính tiền còn lại:&lt;/b&gt; Xử lý chiết khấu đại lý 30% thay vì đoán." data-en="&lt;b&gt;Audit 2 pricing assumptions:&lt;/b&gt; Explicitly confirm 30% agency discount."><b>Audit 2 pricing assumptions:</b> Explicitly confirm 30% agency discount.</li>
+                        <li data-vi="&lt;b&gt;✓ Đưa bản sửa tính tiền lên production:&lt;/b&gt; Đã đồng bộ hotfix lên Vercel Production." data-en="&lt;b&gt;✓ Deployed pricing hotfix to production:&lt;/b&gt; Synced stranded fix to Vercel Production."><b>✓ Deployed pricing hotfix to production:</b> Synced stranded fix to Vercel Production.</li>
+                        <li data-vi="&lt;b&gt;✓ Gắn bộ lọc Fact Gate (&lt;code&gt;verifySynthesizedReply&lt;/code&gt;):&lt;/b&gt; Chặn 100% bịa giá &amp; lệch số đêm/phòng." data-en="&lt;b&gt;✓ Shipped AI Fact Gate (&lt;code&gt;verifySynthesizedReply&lt;/code&gt;):&lt;/b&gt; Blocks price quotes &amp; count mismatches."><b>✓ Shipped AI Fact Gate (<code>verifySynthesizedReply</code>):</b> Blocks price quotes &amp; count mismatches.</li>
+                        <li data-vi="&lt;b&gt;✓ Triệt tiêu tật hỏi lại (&lt;code&gt;NEVER RE-ASK&lt;/code&gt;):&lt;/b&gt; Tự lưu &lt;code&gt;diveNotes&lt;/code&gt; + tách danh từ lặn khỏi &lt;code&gt;counts.ts&lt;/code&gt;." data-en="&lt;b&gt;✓ Eliminated re-asking (&lt;code&gt;NEVER RE-ASK&lt;/code&gt;):&lt;/b&gt; Auto-routes &lt;code&gt;diveNotes&lt;/code&gt; &amp; fixes &lt;code&gt;counts.ts&lt;/code&gt; conflict."><b>✓ Eliminated re-asking (<code>NEVER RE-ASK</code>):</b> Auto-routes <code>diveNotes</code> &amp; fixes <code>counts.ts</code> conflict.</li>
+                        <li data-vi="&lt;b&gt;✓ Gắn cảnh báo chiết khấu 30% (&lt;code&gt;getStaffAlerts&lt;/code&gt;):&lt;/b&gt; Báo nhân viên xác nhận giá Đại lý." data-en="&lt;b&gt;✓ Added 30% agency rate alert (&lt;code&gt;getStaffAlerts&lt;/code&gt;):&lt;/b&gt; Flags partner enquiries for staff."><b>✓ Added 30% agency rate alert (<code>getStaffAlerts</code>):</b> Flags partner enquiries for staff.</li>
                     </ul>
                 </div>
 

@@ -11,13 +11,76 @@ export interface SynthesisInput {
   fallbackText: string;
 }
 
+export interface FactGateResult {
+  ok: boolean;
+  reason?:
+    | "empty_or_too_short"
+    | "unauthorized_price_quote"
+    | "false_booking_confirmation"
+    | "mismatched_nights_count"
+    | "mismatched_rooms_count";
+}
+
+const PRICE_QUOTE_RE =
+  /(?:\$\s*\d|₱\s*\d|\b(?:PHP|USD|VND|EUR)\s*\d|\d[\d,.]*\s*(?:PHP|USD|VND|pesos?|dollars?|đồng|triệu)\b)/i;
+
+const FALSE_CONFIRMATION_RE =
+  /\b(?:your booking is confirmed|reservation is confirmed|officially booked|we have booked your room|đã đặt phòng thành công|xác nhận đã giữ phòng|预订已确认|已为您预订成功)\b/i;
+
+/**
+ * Deterministic Symbolic Fact Gate (Post-Generation Verifier):
+ * Audits any LLM-synthesized reply against the verified `Trip` facts before
+ * it can ever reach a WhatsApp guest.
+ *
+ * Rejects and triggers an instant rollback to `fallbackText` if:
+ * 1. The LLM invents or quotes any price/currency figure (`$`, `₱`, `PHP`, `USD`, `VND`).
+ * 2. The LLM claims the booking is already confirmed without human staff approval.
+ * 3. The LLM contradicts the guest's stated night count or room count.
+ */
+export function verifySynthesizedReply(text: string, trip: Trip): FactGateResult {
+  if (!text || text.trim().length < 20) {
+    return { ok: false, reason: "empty_or_too_short" };
+  }
+
+  if (PRICE_QUOTE_RE.test(text)) {
+    return { ok: false, reason: "unauthorized_price_quote" };
+  }
+
+  if (FALSE_CONFIRMATION_RE.test(text)) {
+    return { ok: false, reason: "false_booking_confirmation" };
+  }
+
+  if (trip.nights?.state === "stated" && typeof trip.nights.value === "number") {
+    const expectedNights = trip.nights.value;
+    const nightMatches = [...text.matchAll(/\b(\d+)\s*(?:nights?|đêm|晚)\b/gi)];
+    for (const m of nightMatches) {
+      if (Number(m[1]) !== expectedNights) {
+        return { ok: false, reason: "mismatched_nights_count" };
+      }
+    }
+  }
+
+  if (trip.rooms?.state === "stated" && typeof trip.rooms.value === "number") {
+    const expectedRooms = trip.rooms.value;
+    const roomMatches = [...text.matchAll(/\b(\d+)\s*(?:rooms?|phòng|间房)\b/gi)];
+    for (const m of roomMatches) {
+      if (Number(m[1]) !== expectedRooms) {
+        return { ok: false, reason: "mismatched_rooms_count" };
+      }
+    }
+  }
+
+  return { ok: true };
+}
+
 /**
  * Synthesizes a natural, warm hospitality message grounded on the verified
  * extracted Trip facts, acknowledging nuanced arrangements while respecting
  * all business boundaries and zero-hallucination guardrails.
  *
- * If the provider has no generateText method or fails/times out, it falls
- * back safely to the deterministic renderReply() text.
+ * If the provider has no generateText method, fails/times out, or fails the
+ * deterministic `verifySynthesizedReply` fact gate, it rolls back safely to
+ * the deterministic renderReply() text.
  */
 export async function synthesizeHospitalityReply(
   input: SynthesisInput,
@@ -68,12 +131,19 @@ export async function synthesizeHospitalityReply(
       `Reference summary (keep core details matching this):\n${input.fallbackText}`;
 
     const text = await provider.generateText(systemPrompt, userPrompt);
-    if (!text || text.length < 20) return input.fallbackText;
+
+    // Post-Generation Symbolic Fact Gate: verify no hallucinated prices, confirmations, or mismatched counts
+    const check = verifySynthesizedReply(text, input.trip);
+    if (!check.ok) {
+      // eslint-disable-next-line no-console
+      console.warn(`[synthesis] Fact gate rejected LLM reply (${check.reason}); rolling back to deterministic fallback`);
+      return input.fallbackText;
+    }
 
     // Safety check: if situation is summary, ensure the disclaimer is present
     if (input.replyKind === "summary") {
       const lower = text.toLowerCase();
-      if (!lower.includes("nothing is booked yet") && !lower.includes("chưa có gì được đặt") && !lower.includes("尚未完成预订")) {
+      if (!lower.includes("nothing is booked yet") && !lower.includes("chưa có gì được đặt") && !lower.includes("chưa đặt gì") && !lower.includes("尚未完成预订") && !lower.includes("尚未预订")) {
         return text + "\n\nSomeone from our team will follow up shortly to confirm availability and pricing — nothing is booked yet.";
       }
     }

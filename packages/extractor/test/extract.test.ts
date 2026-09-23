@@ -433,9 +433,10 @@ describe("extract", () => {
   });
 
   // The other half of the same bug: a plan that genuinely has no single head count ("one
-  // person on the first day, five on both") must not be flattened into a guess. `divers`
-  // stays missing and becomes a question instead of a silently wrong price.
-  it("never invents a diver count when the guest's plan varies per person", async () => {
+  // person on the first day, five on both") must not be flattened into a guess (`divers`
+  // stays `missing`), AND because `diveNotes` already recorded the exact split-day breakdown,
+  // the NEVER RE-ASK guardrail skips re-asking `divers` and routes `diveNotes` to staff.
+  it("never invents a diver count and never re-asks when the guest's plan varies per person in diveNotes", async () => {
     const message =
       "Our group has 6 people coming this Saturday, but only 3 are staying for 2 nights. " +
       "One person will dive on the first day and five will dive on both. My name is Michael.";
@@ -458,7 +459,7 @@ describe("extract", () => {
 
     expect(outcome.trip.guests).toEqual({ value: 3, state: "stated", evidence: "only 3 are staying" });
     expect(outcome.trip.divers).toEqual({ value: null, state: "missing", evidence: null });
-    expect(outcome.questions.map((q) => q.field)).toContain("divers");
+    expect(outcome.questions.map((q) => q.field)).not.toContain("divers");
   });
 });
 

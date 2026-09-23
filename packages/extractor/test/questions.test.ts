@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { converse } from "../src/converse.js";
-import { fallbackReply, generateQuestions, renderReply, wantsHuman } from "../src/questions.js";
-import { synthesizeHospitalityReply } from "../src/synthesis.js";
+import { fallbackReply, generateQuestions, getStaffAlerts, renderReply, wantsHuman } from "../src/questions.js";
+import { synthesizeHospitalityReply, verifySynthesizedReply } from "../src/synthesis.js";
 import type { ConversationTurn } from "../src/converse.js";
 import type { ExtractProvider } from "../src/provider.js";
 import type { Trip } from "../src/schema.js";
@@ -483,3 +483,115 @@ describe("fallbacks", () => {
     expect(outcome.reply).toContain("⚠️ Dive Safety Note: PADI/DAN guidelines recommend an 18–24 hour surface interval");
   });
 });
+
+describe("Phase 1 Hybrid AI Guardrails: NEVER RE-ASK, Fact Gate & Staff Alerts", () => {
+  it("NEVER RE-ASK: skips asking divers/diveFrom/diveTo when diveNotes already records split-day schedule", async () => {
+    const raw = {
+      ...BLANK_RAW,
+      checkIn: { value: "2026-10-10", state: "stated", evidence: "Oct 10" },
+      nights: { value: 2, state: "stated", evidence: "2 nights" },
+      guests: { value: 6, state: "stated", evidence: "6 of us" },
+      diver: { value: true, state: "stated", evidence: "dives" },
+      divers: { value: null, state: "missing", evidence: null }, // cannot collapse 1 vs 5 into single integer
+      diveNotes: {
+        value: "1 person dives day 1, 5 people dive both days",
+        state: "stated",
+        evidence: "1 person dives day 1, 5 people dive both days",
+      },
+      contactName: { value: "Sky", state: "stated", evidence: "Sky" },
+    };
+
+    const outcome = await converse(
+      [
+        {
+          role: "guest",
+          text: "Hi, 6 of us Oct 10 for 2 nights, Sky. 1 person dives day 1, 5 people dive both days.",
+        },
+      ],
+      providerReturning(raw),
+    );
+
+    // Must NOT re-ask "How many of you will be diving?" or dive dates
+    expect(outcome.questions.map((q) => q.field)).not.toContain("divers");
+    expect(outcome.questions.map((q) => q.field)).not.toContain("diveFrom");
+    expect(outcome.questions.map((q) => q.field)).not.toContain("diveTo");
+    expect(outcome.done).toBe(true);
+    expect(outcome.replyKind).toBe("summary");
+    expect(outcome.reply).toContain("1 person dives day 1, 5 people dive both days");
+    expect(outcome.reply).toContain("📋 Custom Dive Schedule:");
+  });
+
+  it("Post-Generation Fact Gate: rejects LLM replies that invent prices or contradict verified counts", async () => {
+    const trip: Trip = {
+      ...(BLANK_RAW as unknown as Trip),
+      language: { value: "en", state: "inferred", evidence: null },
+      checkIn: { value: "2026-10-10", state: "stated", evidence: "Oct 10" },
+      checkOut: { value: "2026-10-13", state: "derived", evidence: null },
+      nights: { value: 3, state: "stated", evidence: "3 nights" },
+      guests: { value: 4, state: "stated", evidence: "4 guests" },
+      rooms: { value: 2, state: "stated", evidence: "2 rooms" },
+    };
+
+    // 1. Price invention ($150, ₱4,500, PHP 3000) -> rejected
+    expect(
+      verifySynthesizedReply("Welcome! Your 3 nights in 2 rooms will cost $150 per night.", trip),
+    ).toEqual({ ok: false, reason: "unauthorized_price_quote" });
+
+    expect(
+      verifySynthesizedReply("Welcome! Total estimate is ₱12,500 for your stay.", trip),
+    ).toEqual({ ok: false, reason: "unauthorized_price_quote" });
+
+    // 2. False booking confirmation -> rejected
+    expect(
+      verifySynthesizedReply("Great news! Your booking is confirmed for 3 nights in 2 rooms.", trip),
+    ).toEqual({ ok: false, reason: "false_booking_confirmation" });
+
+    // 3. Mismatched night count (says 5 nights instead of 3) -> rejected
+    expect(
+      verifySynthesizedReply("Thank you! I have noted your stay for 5 nights in 2 rooms.", trip),
+    ).toEqual({ ok: false, reason: "mismatched_nights_count" });
+
+    // 4. Mismatched room count (says 1 room instead of 2) -> rejected
+    expect(
+      verifySynthesizedReply("Thank you! I have noted your stay for 3 nights in 1 room.", trip),
+    ).toEqual({ ok: false, reason: "mismatched_rooms_count" });
+
+    // 5. Valid warm concierge reply -> passes
+    expect(
+      verifySynthesizedReply(
+        "Thank you so much! I have recorded your stay for 3 nights in 2 rooms. Someone from our team will follow up shortly to confirm availability and pricing — nothing is booked yet.",
+        trip,
+      ),
+    ).toEqual({ ok: true });
+
+    // 6. Verify synthesizeHospitalityReply automatically rolls back to fallbackText on violation
+    const badProvider: ExtractProvider = {
+      id: "bad-llm",
+      call: vi.fn(),
+      generateText: vi.fn().mockResolvedValue("Hi! I can offer you 2 rooms for $120 per night, your booking is confirmed!"),
+    };
+    const safeReply = await synthesizeHospitalityReply(
+      {
+        turns: [{ role: "guest", text: "Oct 10, 3 nights, 4 guests, 2 rooms" }],
+        trip,
+        questions: [],
+        replyKind: "summary",
+        fallbackText: "SAFE_DETERMINISTIC_FALLBACK",
+      },
+      badProvider,
+    );
+    expect(safeReply).toBe("SAFE_DETERMINISTIC_FALLBACK");
+  });
+
+  it("Staff Alerts: flags travel agency / partner enquiries for 30% discount confirmation", () => {
+    const agentTrip: Trip = {
+      ...(BLANK_RAW as unknown as Trip),
+      language: { value: "en", state: "inferred", evidence: null },
+      guestType: { value: "agent", state: "inferred", evidence: null },
+    };
+    const alerts = getStaffAlerts(agentTrip, "en");
+    expect(alerts).toHaveLength(1);
+    expect(alerts[0]).toContain("30% agency discount");
+  });
+});
+

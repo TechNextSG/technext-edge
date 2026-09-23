@@ -120,10 +120,19 @@ const COLLECTIVE_OF = new RegExp(`(?:party|group|family|team)\\s+of\\s+${NUMBER}
  * field, built once: it carries every noun and every number word, and rebuilding it per
  * call would put a compile on the hot path of every extraction.
  */
+// When a guest writes "1 person dives day 1, 5 people dive both days" or "1 người lặn",
+// the noun ("person", "people", "người") is the subject of a diving verb rather than a
+// statement of total staying guests. Excluding nouns immediately followed by a diving verb
+// prevents `corroborateCount("guests", ...)` from misreading diver head-counts as conflicting
+// total guest counts and wiping the stated `guests` field back to `missing`.
+const DIVE_CLAUSE_AFTER_NOUN =
+  "(?!\\s+(?:will\\s+|want\\s+to\\s+|going\\s+to\\s+|are\\s+|is\\s+)?(?:dive|dives|diving)\\b|\\s+(?:sẽ\\s+|đi\\s+|muốn\\s+)?(?:lặn|lan)\\b|\\s*(?:去|要|会)?(?:潜水|潛水))";
+
 function patternFor(field: CountField): RegExp {
   let pattern = PATTERNS.get(field);
   if (!pattern) {
-    pattern = new RegExp(`${NUMBER}\\s*${CLASSIFIER}\\s*(?:${COUNT_NOUNS[field]})`, "giu");
+    const suffix = field === "guests" ? DIVE_CLAUSE_AFTER_NOUN : "";
+    pattern = new RegExp(`${NUMBER}\\s*${CLASSIFIER}\\s*(?:${COUNT_NOUNS[field]})${suffix}`, "giu");
     PATTERNS.set(field, pattern);
   }
   return pattern;

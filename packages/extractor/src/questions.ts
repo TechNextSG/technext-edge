@@ -74,10 +74,16 @@ const RULES: QuestionRule[] = [
   // without this number the estimate has to guess and a wrong guess is a wrong quote.
   // Asked before the dates because it is the one that cannot be defaulted, and only of a
   // trip that has already said it dives.
+  // NEVER RE-ASK RULE (Hybrid AI Guardrail):
+  // When `diveNotes` already records a nuanced or split-day diving schedule (e.g.
+  // "1 person dives day 1, 5 people dive both days"), `divers` / `diveFrom` / `diveTo`
+  // cannot be forced into a single rigid integer/range slot. Instead of re-asking
+  // "How many of you will be diving?" and frustrating the guest, skip the slot
+  // questions and hand off `diveNotes` to human staff for custom quotation.
   {
     key: "divers",
     question: { en: "How many of you will be diving?", vi: "Có bao nhiêu người sẽ lặn?", zh: "有几位客人潜水？" },
-    when: (trip) => trip.diver?.value === true,
+    when: (trip) => trip.diver?.value === true && !notedValue<string>(trip, "diveNotes"),
   },
   {
     key: "diveFrom",
@@ -90,7 +96,7 @@ const RULES: QuestionRule[] = [
       }
       return { en: "Which day does your diving start?", vi: "Bạn bắt đầu lặn từ ngày nào?", zh: "潜水从哪天开始？" }[lang];
     },
-    when: (trip) => trip.diver?.value === true,
+    when: (trip) => trip.diver?.value === true && !notedValue<string>(trip, "diveNotes"),
   },
   {
     key: "diveTo",
@@ -103,7 +109,7 @@ const RULES: QuestionRule[] = [
       }
       return { en: "And which day does it end?", vi: "Và kết thúc vào ngày nào?", zh: "哪天结束？" }[lang];
     },
-    when: (trip) => trip.diver?.value === true,
+    when: (trip) => trip.diver?.value === true && !notedValue<string>(trip, "diveNotes"),
   },
   { key: "transportType", question: { en: "One-way or return transfer?", vi: "Bạn cần đưa đón một chiều hay khứ hồi?", zh: "需要单程还是往返接送？" }, askOn: ["missing", "default", "derived"], when: (trip) => trip.transport?.value === true },
 ];
@@ -289,6 +295,18 @@ function statedValue<T>(trip: Trip, key: keyof Trip): T | null {
     : null;
 }
 
+/** Auxiliary narrative notes (diveNotes, specialRequests, guestNames) may be
+ * returned as either `stated` or `inferred` when the model summarizes a guest's
+ * multi-clause breakdown. Both represent guest-supplied nuances rather than
+ * house-norm guesses. */
+function notedValue<T>(trip: Trip, key: keyof Trip): T | null {
+  const field = trip[key];
+  return (field?.state === "stated" || field?.state === "inferred") && field.value !== null && field.value !== undefined
+    ? (field.value as T)
+    : null;
+}
+
+
 // ---- Greeting (first reply) -------------------------------------------------
 
 const GREETING: Record<Lang, string[]> = {
@@ -414,7 +432,7 @@ function ackParts(trip: Trip, lang: Lang): string[] {
   if (meals) parts.push(MEALS_PHRASE[lang](ENUM_LABELS[meals]?.[lang] ?? meals));
   if (transport !== null) parts.push(TRANSPORT_PHRASE[lang][transport ? "yes" : "no"]);
   if (diver !== null) parts.push(DIVER_PHRASE[lang][diver ? "yes" : "no"]);
-  const diveNotes = statedValue<string>(trip, "diveNotes");
+  const diveNotes = notedValue<string>(trip, "diveNotes");
   if (diveNotes) {
     if (lang === "vi") parts.push(`chi tiết lặn (${diveNotes})`);
     else if (lang === "zh") parts.push(`潜水安排（${diveNotes}）`);
@@ -540,12 +558,62 @@ function getNoFlyAdvisory(trip: Trip, lang: Lang): string | null {
   return null;
 }
 
+/**
+ * Staff handoff alerts for pricing & operational edge cases that must never be
+ * silently guessed in code:
+ * 1. Partner / Agency rate confirmation (e.g. 30% agency or instructor discount).
+ * 2. Custom split-day diving schedule (`diveNotes` present while single `divers`
+ *    slot was intentionally bypassed via NEVER RE-ASK).
+ */
+export function getStaffAlerts(trip: Trip, lang?: GuestLanguage): string[] {
+  const l: Lang = lang ?? trip.language?.value ?? "en";
+  const alerts: string[] = [];
+  const guestType = trip.guestType?.value;
+
+  if (guestType === "agent" || guestType === "instructor") {
+    const typeLabel = ENUM_LABELS[guestType]?.[l] ?? guestType;
+    if (l === "vi") {
+      alerts.push(
+        `📋 Chính sách Đại lý / Đối tác: Đã ghi nhận nhóm khách (${typeLabel}) — đội ngũ Casa sẽ xác nhận mức chiết khấu đối tác (VD: 30% đại lý) trực tiếp trên báo giá.`,
+      );
+    } else if (l === "zh") {
+      alerts.push(
+        `📋 合作伙伴/代理价格：已记录为${typeLabel}咨询——我们的团队将在报价单中直接确认适用合作折扣（如 30% 代理折扣）。`,
+      );
+    } else {
+      alerts.push(
+        `📋 Partner / Agency Rate: Noted as ${typeLabel} enquiry — our team will confirm applicable partner discount rates (e.g. 30% agency discount) directly on your quote.`,
+      );
+    }
+  }
+
+  const diveNotes = notedValue<string>(trip, "diveNotes");
+  if (diveNotes && trip.divers?.state === "missing") {
+    if (l === "vi") {
+      alerts.push(
+        `📋 Lịch lặn linh hoạt: Đã chuyển chi tiết (${diveNotes}) cho nhân viên tính báo giá chính xác theo từng ngày.`,
+      );
+    } else if (l === "zh") {
+      alerts.push(
+        `📋 定制潜水日程：已将具体安排（${diveNotes}）转交工作人员按天核算准确报价。`,
+      );
+    } else {
+      alerts.push(
+        `📋 Custom Dive Schedule: Split-day diving arrangement (${diveNotes}) routed to staff for manual per-day quote calculation.`,
+      );
+    }
+  }
+
+  return alerts;
+}
+
 function renderSummary(trip: Trip, lang: Lang): string {
   const name = statedValue<string>(trip, "contactName");
   const noFly = getNoFlyAdvisory(trip, lang);
-  const diveNotes = statedValue<string>(trip, "diveNotes");
-  const specialRequests = statedValue<string>(trip, "specialRequests");
-  const guestNames = statedValue<string[]>(trip, "guestNames");
+  const staffAlerts = getStaffAlerts(trip, lang);
+  const diveNotes = notedValue<string>(trip, "diveNotes");
+  const specialRequests = notedValue<string>(trip, "specialRequests");
+  const guestNames = notedValue<string[]>(trip, "guestNames");
 
   const notesAck: string[] = [];
   if (diveNotes) {
@@ -569,6 +637,7 @@ function renderSummary(trip: Trip, lang: Lang): string {
     ...(notesAck.length > 0 ? [notesAck.join(" ")] : []),
     SUMMARY[lang].intro,
     ...summaryLines(trip, lang),
+    ...(staffAlerts.length > 0 ? ["", ...staffAlerts] : []),
     ...(noFly ? ["", noFly] : []),
     "",
     SUMMARY[lang].closing,
