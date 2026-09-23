@@ -245,7 +245,7 @@ export function buildHonoQuotationDraft(
   }
 
   // 4. Airport Transfer Row (if requested)
-  if (trip.pickup?.value === true) {
+  if (trip.transport?.value === true) {
     lineItems.push({
       id: "item-transfer",
       category: "transfer",
