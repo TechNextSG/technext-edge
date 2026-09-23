@@ -35,6 +35,7 @@ import {
   getDiagramViHtml,
   getPlanShowcaseHtml,
   getExtractorShowcaseHtml,
+  getConversationFlowHtml,
 } from "./reportsHtml.js";
 import { createConversationStoreFromEnv, type ConversationStore } from "./conversationStore.js";
 import {
@@ -574,6 +575,9 @@ export function createApp(options: AppOptions = {}) {
   app.get("/plan", (c) => c.html(getPlanShowcaseHtml()));
   app.get("/extractor-pod-showcase.html", (c) => c.html(getExtractorShowcaseHtml()));
   app.get("/showcase", (c) => c.html(getExtractorShowcaseHtml()));
+  app.get("/diagrams/conversation-flow-plain.html", (c) => c.html(getConversationFlowHtml()));
+  app.get("/conversation-flow-plain.html", (c) => c.html(getConversationFlowHtml()));
+  app.get("/flow", (c) => c.html(getConversationFlowHtml()));
 
   return app;
 }

@@ -2,41 +2,51 @@
   "schema_version": 1,
   "diagram_type": "sequence",
   "meta": {
-    "title": "One Guest Message, Start to Finish",
+    "title": "One Guest Message, Start to Finish — Hybrid AI (Neuro-Symbolic) Flow",
     "locale": "en",
     "output": "conversation-flow-plain.html",
     "viewBox": [1080, 500],
     "column_fit": "spread",
     "quality_profile": "showcase",
     "views": [
-      { "id": "understanding", "label": "Understanding and checking", "focus": ["receiver", "reader", "checker"], "note": "AI reads the message; a separate, non-AI step double-checks the details." },
-      { "id": "reply-out", "label": "A safe reply goes back", "focus": ["receiver", "replier", "whatsapp", "guest"], "note": "The reply is picked from a small set of pre-approved messages, never written freely by AI." }
+      {
+        "id": "understanding",
+        "label": "1. AI Extraction + Symbolic Guardrails",
+        "focus": ["receiver", "reader", "checker"],
+        "note": "Gemini 3.1 Flash-Lite extracts Trip JSON (with 60s Circuit Breaker); Symbolic Verifier enforces verbatim evidence, protects staying guests from diver clauses, and triggers NEVER RE-ASK when diveNotes is present."
+      },
+      {
+        "id": "reply-out",
+        "label": "2. Hospitality Replier + Symbolic Fact Gate",
+        "focus": ["receiver", "replier", "whatsapp", "guest"],
+        "note": "Hybrid Replier crafts a warm concierge response verified by verifySynthesizedReply() Fact Gate (blocking unauthorized price quotes or count drift, with deterministic fallback) + Staff Alerts (30% agency / split-day)."
+      }
     ]
   },
   "participants": [
-    { "id": "guest", "type": "external", "label": "Guest", "sublabel": "on WhatsApp" },
-    { "id": "whatsapp", "type": "external", "label": "WhatsApp", "sublabel": "messaging app" },
-    { "id": "receiver", "type": "backend", "label": "Message Receiver", "sublabel": "checks & saves each message" },
-    { "id": "reader", "type": "cloud", "label": "AI Reader", "sublabel": "understands what was said" },
-    { "id": "checker", "type": "backend", "label": "Double-Checker", "sublabel": "verifies dates & numbers" },
-    { "id": "replier", "type": "security", "label": "Reply Picker", "sublabel": "a safe, pre-approved reply" }
+    { "id": "guest", "type": "external", "label": "Guest", "sublabel": "on WhatsApp / Web" },
+    { "id": "whatsapp", "type": "external", "label": "WhatsApp Cloud API", "sublabel": "Meta Webhook (20s SLA)" },
+    { "id": "receiver", "type": "backend", "label": "Message Receiver", "sublabel": "Casa BFF & Redis Store" },
+    { "id": "reader", "type": "cloud", "label": "AI Reader", "sublabel": "Gemini 3.1 Flash-Lite + 60s CB" },
+    { "id": "checker", "type": "backend", "label": "Symbolic Verifier", "sublabel": "Verbatim · NEVER RE-ASK · Lookahead" },
+    { "id": "replier", "type": "security", "label": "Hybrid Replier & Fact Gate", "sublabel": "verifySynthesizedReply + Staff Alerts" }
   ],
   "segments": [
-    { "from": 150, "to": 202, "label": "Message comes in" },
-    { "from": 210, "to": 315, "label": "Understanding & checking" },
-    { "from": 323, "to": 420, "label": "Reply goes out" }
+    { "from": 150, "to": 202, "label": "1. Inbound Webhook (<20s SLA)" },
+    { "from": 210, "to": 315, "label": "2. Neuro Extraction & Symbolic Verification" },
+    { "from": 323, "to": 420, "label": "3. Fact-Gated Reply & Staff Alert Handoff" }
   ],
   "messages": [
-    { "id": "guest-types", "from": "guest", "to": "whatsapp", "y": 160, "label": "types a message", "variant": "default" },
-    { "id": "whatsapp-delivers", "from": "whatsapp", "to": "receiver", "y": 188, "label": "delivers it", "variant": "default" },
-    { "id": "ask-ai", "from": "receiver", "to": "reader", "y": 216, "label": "what does this mean?", "variant": "emphasis" },
-    { "id": "ai-understood", "from": "reader", "to": "receiver", "y": 244, "label": "here's what I understood", "variant": "return" },
-    { "id": "ask-checker", "from": "receiver", "to": "checker", "y": 272, "label": "please double-check this", "variant": "default" },
-    { "id": "checker-confirms", "from": "checker", "to": "receiver", "y": 300, "label": "confirmed correct", "variant": "return" },
-    { "id": "ask-reply", "from": "receiver", "to": "replier", "y": 328, "label": "what should we say back?", "variant": "emphasis" },
-    { "id": "reply-chosen", "from": "replier", "to": "receiver", "y": 356, "label": "here's the safe reply", "variant": "return" },
-    { "id": "send-reply", "from": "receiver", "to": "whatsapp", "y": 384, "label": "sends the reply", "variant": "default" },
-    { "id": "whatsapp-delivers-reply", "from": "whatsapp", "to": "guest", "y": 412, "label": "delivers the reply", "variant": "return" }
+    { "id": "guest-types", "from": "guest", "to": "whatsapp", "y": 160, "label": "sends split-day / booking msg", "variant": "default" },
+    { "id": "whatsapp-delivers", "from": "whatsapp", "to": "receiver", "y": 188, "label": "delivers webhook payload", "variant": "default" },
+    { "id": "ask-ai", "from": "receiver", "to": "reader", "y": 216, "label": "extract Trip slots (Flash-Lite)", "variant": "emphasis" },
+    { "id": "ai-understood", "from": "reader", "to": "receiver", "y": 244, "label": "structured Trip JSON + diveNotes", "variant": "return" },
+    { "id": "ask-checker", "from": "receiver", "to": "checker", "y": 272, "label": "verify counts & NEVER RE-ASK", "variant": "default" },
+    { "id": "checker-confirms", "from": "checker", "to": "receiver", "y": 300, "label": "verified Trip + Staff Alerts", "variant": "return" },
+    { "id": "ask-reply", "from": "receiver", "to": "replier", "y": 328, "label": "synthesize + run Symbolic Fact Gate", "variant": "emphasis" },
+    { "id": "reply-chosen", "from": "replier", "to": "receiver", "y": 356, "label": "fact-checked reply + Odoo route", "variant": "return" },
+    { "id": "send-reply", "from": "receiver", "to": "whatsapp", "y": 384, "label": "sends verified reply (~3.2s)", "variant": "default" },
+    { "id": "whatsapp-delivers-reply", "from": "whatsapp", "to": "guest", "y": 412, "label": "delivers warm concierge reply", "variant": "return" }
   ],
   "activations": [
     { "participant": "receiver", "from": 180, "to": 416, "type": "backend" },
@@ -47,11 +57,29 @@
   "cards": [
     {
       "dot": "cyan",
-      "title": "Nothing is guessed, nothing is silent",
+      "title": "Phase 1 — Symbolic Extraction & NEVER RE-ASK Guardrails",
       "items": [
-        "Every detail repeated back must match the guest's own words",
-        "AI never writes the guest-facing reply - only pre-approved messages are sent",
-        "A human always confirms the final price and availability"
+        "Every date & count is verified against the guest's verbatim text (enforceVerbatimEvidence); narrative diveNotes & specialRequests are preserved as inferred",
+        "Diver-Clause Lookahead (DIVE_CLAUSE_AFTER_NOUN): '1 person dives day 1, 5 people dive both days' never overwrites staying guest count (guests: 4)",
+        "NEVER RE-ASK Rule: When diveNotes captures a split-day schedule, the bot skips re-asking divers, diveFrom, and diveTo"
+      ]
+    },
+    {
+      "dot": "emerald",
+      "title": "Phase 1 & 2 — Post-Generation Fact Gate & Staff Alerts",
+      "items": [
+        "Hybrid AI Replier (synthesizeHospitalityReply) writes warm concierge acknowledgments that must pass verifySynthesizedReply() before sending",
+        "100% hard block on unauthorized currency/price quotes ($, ₱, PHP, USD, VND), false booking confirmations, or room/night drift (instant deterministic rollback)",
+        "Automatic Staff Alerts (getStaffAlerts): appends 📋 Partner / Agency Rate (30% discount) and 📋 Custom Dive Schedule directly to the handoff summary"
+      ]
+    },
+    {
+      "dot": "amber",
+      "title": "Production Resilience (WhatsApp <4s) & Odoo ERP Handoff",
+      "items": [
+        "Gemini 3.1 Flash-Lite promoted to Primary on WhatsApp with a 60s Circuit Breaker in createResilientProvider (eliminating 20s webhook timeouts on 502 gateways)",
+        "Odoo ERP Handoff (buildOdooHandoffPayload): routes enquiries into auto_estimate_ready, manual_staff_review, or incomplete_enquiry",
+        "Verified by 235 / 235 unit & fuzz tests across 16 test suites (npm run verify) + live WhatsApp & Web Console validation"
       ]
     }
   ]

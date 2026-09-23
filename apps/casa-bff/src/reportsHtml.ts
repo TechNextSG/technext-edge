@@ -69,3 +69,8 @@ export function getPlanShowcaseHtml(): string {
 export function getExtractorShowcaseHtml(): string {
   return loadHtmlFile("extractor-pod-showcase.html");
 }
+
+export function getConversationFlowHtml(): string {
+  return loadHtmlFile("diagrams/conversation-flow-plain.html");
+}
+
