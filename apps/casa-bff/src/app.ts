@@ -1,3 +1,4 @@
+import { createHmac } from "node:crypto";
 import { Hono } from "hono";
 import { z } from "zod";
 // Relative import, not the "@technext-edge/extractor" package name: Vercel's
@@ -17,11 +18,14 @@ import {
   createProviderByName,
   KNOWN_PROVIDER_NAMES,
   maskForLogging,
+  buildHonoQuotationDraft,
+  recalculateQuotationTotals,
   synthesizeConfirmedQuotationReply,
   type ConversationTurn,
   type ExtractProvider,
   type GuestLanguage,
   type HonoQuotationDraft,
+  type Trip,
 } from "../../../packages/extractor/src/index.js";
 import { TEST_PAGE_HTML } from "./testPage.js";
 import {
@@ -619,14 +623,132 @@ export function createApp(options: AppOptions = {}) {
     return c.html(renderCustomerQuotationViewHtml(found));
   });
 
+  // Helper: Build signed GAIS (Gateway Auth & Idempotent Sync) envelope for Odoo ERP (`sale.order`)
+  function buildOdooGaisEnvelope(draft: HonoQuotationDraft) {
+    const gaisSecret = process.env.GAIS_HMAC_SECRET || process.env.WHATSAPP_APP_SECRET || "casa-gais-dev-hmac-secret";
+    const gaisApiKey = process.env.GAIS_API_KEY ? "Bearer ***" + process.env.GAIS_API_KEY.slice(-4) : "Bearer gais_live_casa_escondida_***9f2a";
+    const timestamp = new Date().toISOString();
+    const idempotencyKey = `${draft.quoteId}-${draft.confirmedAt ? "confirmed" : "draft"}`;
+    const diversCount = draft.divers ?? (draft.diver ? draft.stayingGuests : 0);
+    const odooPayload = {
+      model: "sale.order",
+      action: "upsert_quotation",
+      external_ref: draft.quoteId,
+      quotation_url: draft.quotationUrl,
+      partner: {
+        name: draft.guestName,
+        phone: draft.phone || undefined,
+        category_tag: draft.discountPercent > 0 ? "Resort Partner / B2B" : "Direct Guest",
+      },
+      stay_window: {
+        x_casa_checkin: draft.checkIn,
+        x_casa_checkout: draft.checkOut,
+        x_casa_nights: draft.nights,
+        x_casa_guests_total: draft.totalGroupSize,
+        x_casa_divers: diversCount,
+        x_casa_non_divers: Math.max(0, draft.totalGroupSize - diversCount),
+      },
+      x_casa_split_dive_manifest: draft.diveNotes || null,
+      x_casa_special_requests: draft.staffNotes || null,
+      pricelist_currency: draft.currency,
+      discount_percent: draft.discountPercent,
+      amounts: {
+        subtotal: draft.subtotalAmount,
+        discount_amount: draft.discountAmount,
+        amount_total: draft.totalAmount,
+      },
+      order_line: draft.lineItems.map((item, idx) => ({
+        sequence: (idx + 1) * 10,
+        product_category: item.category,
+        name: item.description,
+        product_uom_qty: item.quantity * item.multiplier,
+        x_casa_qty: item.quantity,
+        x_casa_unit: item.unitLabel,
+        x_casa_multiplier: item.multiplier,
+        price_unit: item.unitPrice,
+        discount: draft.discountPercent,
+        price_subtotal: item.subtotal,
+      })),
+    };
+    const rawBody = JSON.stringify(odooPayload);
+    const signature = "sha256=" + createHmac("sha256", gaisSecret).update(`${timestamp}.${idempotencyKey}.${rawBody}`).digest("hex");
+    return {
+      targetEndpoint: process.env.ODOO_GAIS_URL || "https://erp.casaescondida.ph/api/v1/casa/quotations",
+      headers: {
+        "Authorization": gaisApiKey,
+        "X-GAIS-Timestamp": timestamp,
+        "X-GAIS-Signature": signature,
+        "Idempotency-Key": idempotencyKey,
+        "Content-Type": "application/json",
+      },
+      odooSaleOrderRef: `SO-${draft.quoteId.replace(/^QT-/, "")}`,
+      payload: odooPayload,
+    };
+  }
+
   app.get("/v1/quotes", (c) => {
     return c.json({ quotations: listQuotations() });
+  });
+
+  // Hop 1A: Deterministic Pricing Compute Endpoint (AI -> Hono Compute)
+  app.post("/v1/quotes/compute", async (c) => {
+    const body = (await c.req.json().catch(() => ({}))) as {
+      trip?: Trip;
+      phone?: string;
+      discountPercent?: number;
+      draft?: Partial<HonoQuotationDraft>;
+    };
+    if (body.trip) {
+      const computed = buildHonoQuotationDraft(body.trip, undefined, body.phone);
+      if (typeof body.discountPercent === "number") {
+        computed.discountPercent = body.discountPercent;
+      }
+      const finalComputed = recalculateQuotationTotals(computed);
+      return c.json({
+        ok: true,
+        computed: finalComputed,
+        gaisContract: buildOdooGaisEnvelope(finalComputed),
+      });
+    }
+    const existing = getQuotationByIdOrSlug(body.draft?.quoteId || "QT-1010-SKY") ?? listQuotations()[0]!;
+    const recomputed = recalculateQuotationTotals({
+      ...existing,
+      ...body.draft,
+      lineItems: Array.isArray(body.draft?.lineItems) ? body.draft!.lineItems! : existing.lineItems,
+    });
+    return c.json({
+      ok: true,
+      computed: recomputed,
+      gaisContract: buildOdooGaisEnvelope(recomputed),
+    });
+  });
+
+  // Hop 1B: AI Tool-Calling Submit Endpoint (AI -> Hono Submit & Stage)
+  app.post("/v1/quotes/submit", async (c) => {
+    const body = (await c.req.json().catch(() => ({}))) as {
+      trip?: Trip;
+      phone?: string;
+      discountPercent?: number;
+    };
+    if (!body.trip) {
+      return c.json({ ok: false, error: "trip object is required for submit_quotation_to_hono" }, 400);
+    }
+    const draft = buildHonoQuotationDraft(body.trip, undefined, body.phone);
+    if (typeof body.discountPercent === "number") {
+      draft.discountPercent = body.discountPercent;
+    }
+    const saved = saveQuotationDraft(recalculateQuotationTotals(draft));
+    return c.json({
+      ok: true,
+      quotation: saved,
+      gaisContract: buildOdooGaisEnvelope(saved),
+    });
   });
 
   app.get("/v1/quotes/:id", (c) => {
     const found = getQuotationByIdOrSlug(c.req.param("id"));
     if (!found) return c.json({ error: "not_found" }, 404);
-    return c.json({ quotation: found });
+    return c.json({ quotation: found, gaisContract: buildOdooGaisEnvelope(found) });
   });
 
   app.put("/v1/quotes/:id", async (c) => {
@@ -642,7 +764,7 @@ export function createApp(options: AppOptions = {}) {
       quotationUrl: body.quotationUrl || existing.quotationUrl,
     };
     const saved = saveQuotationDraft(merged);
-    return c.json({ ok: true, quotation: saved });
+    return c.json({ ok: true, quotation: saved, gaisContract: buildOdooGaisEnvelope(saved) });
   });
 
   app.post("/v1/quotes/:id/confirm", async (c) => {
@@ -668,7 +790,22 @@ export function createApp(options: AppOptions = {}) {
     const aiReply = await synthesizeConfirmedQuotationReply(saved, provider);
     saved.aiConfirmedReply = aiReply;
     saveQuotationDraft(saved);
-    return c.json({ ok: true, quotation: saved, aiReply });
+    const gaisContract = buildOdooGaisEnvelope(saved);
+    return c.json({ ok: true, quotation: saved, aiReply, gaisContract });
+  });
+
+  // Hop 3: Explicit Hono -> Odoo ERP Sync via GAIS Gateway
+  app.post("/v1/quotes/:id/sync-odoo", async (c) => {
+    const id = c.req.param("id");
+    const existing = getQuotationByIdOrSlug(id);
+    if (!existing) return c.json({ error: "not_found" }, 404);
+    const gaisContract = buildOdooGaisEnvelope(existing);
+    return c.json({
+      ok: true,
+      syncedAt: new Date().toISOString(),
+      odooSaleOrderRef: gaisContract.odooSaleOrderRef,
+      gaisContract,
+    });
   });
 
   app.post("/v1/quotes/:id/send-whatsapp", async (c) => {

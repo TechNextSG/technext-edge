@@ -45,15 +45,9 @@
 
 ---
 
-## 4. Hono Tool Calling & Editable Quotation Studio (`/quotes` & `submit_quotation_to_hono`)
-
-- **Tool Calling Declaration (`SUBMIT_QUOTATION_TO_HONO_DECLARATION`):**
-  - Defined in [`packages/extractor/src/quotationTool.ts`](file:///e:/technext-edge/packages/extractor/src/quotationTool.ts#L78-L100) and integrated into [`packages/extractor/src/converse.ts`](file:///e:/technext-edge/packages/extractor/src/converse.ts#L85-L115).
-  - Whenever an enquiry completes slot extraction (`done: true`), the AI triggers `submit_quotation_to_hono`, passing verified trip parameters and `diveNotes` to Hono.
-- **Editable Quotation Table & Editable Link on Hono ([`apps/casa-bff/src/quotationStore.ts`](file:///e:/technext-edge/apps/casa-bff/src/quotationStore.ts)):**
-  - **Studio URL:** `https://technext-edge-casa-bff.vercel.app/quotes` (and `/quotes/:quoteId`)
-  - **Customer Shareable Link (Editable):** `https://technext-edge-casa-bff.vercel.app/q/:slug`
-  - Hono automatically parses split-day diving notes (e.g., *"1 person dives day 1; 5 people dive both days"*) into separate line-item rows.
-  - Staff / Lead can edit every cell of the quotation table (category, description, quantity, unit label, nights/days, unit price, discount %, currency) AND edit the shareable quotation URL before clicking **`✅ Hono Confirm & Send Back to AI`** (`POST /v1/quotes/:id/confirm`), which feeds the confirmed tool result back to `Gemini 3.1 Flash-Lite` to synthesize the final guest message.
-
+## 4. Bản Tóm Tắt Tiếng Việt (Vietnamese Reference)
+- **Triệt tiêu lỗi hỏi lặp (`NEVER RE-ASK`):** Khi khách đã khai lịch lặn lẻ ngày vào `diveNotes`, bot tuyệt đối không hỏi lại câu *"How many of you will be diving?"* (`divers`).
+- **Chống xóa nhầm tổng số khách (`counts.ts`):** Tách các cụm `"1 person dives"`, `"5 people dive"`, `"1 người lặn"` ra khỏi bộ đếm `guests`, giữ nguyên vẹn số khách lưu trú.
+- **Khóa an toàn sau khi AI viết câu (`verifySynthesizedReply`):** Chặn 100% ký hiệu tiền tệ (`$`, `₱`, `PHP`, `USD`) hoặc lệch số đêm/số phòng.
+- **Khắc phục lỗi Timeout 20s trên WhatsApp (`providerFromEnv.ts`):** Chuyển `Gemini 3.1 Flash-Lite` làm model chính mặc định cho WhatsApp (thay vì đợi cổng `deepseek-gateway` đang bị lỗi `502`), đồng thời gắn **Circuit Breaker 60 giây** và mở khóa (`resume` + `reset`) số điện thoại `84359386414`.
 
