@@ -1,31 +1,27 @@
 1
-00:00:00,002 --> 00:00:07,513
-Welcome to the Casa Escondida WhatsApp Concierge, running on the official WhatsApp Business Cloud API.
+00:00:00,300 --> 00:00:08,172
+Welcome to our live WhatsApp Business integration for Casa Escondida, connected to the production Cloud API.
 
 2
-00:00:07,783 --> 00:00:15,391
-The real-time neuro-symbolic engine monitors trip state, slot completion, and guardrails with each message.
+00:00:09,000 --> 00:00:17,232
+First, Sarah Jenkins sends a booking enquiry for four guests in two Deluxe rooms from October seventeenth for three nights.
 
 3
-00:00:15,644 --> 00:00:21,765
-Sarah Jenkins sends an enquiry for four guests in two Deluxe rooms for three nights.
+00:00:19,800 --> 00:00:28,008
+Within seconds, the assistant extracts the dates, rooms, and full-board meals, then asks if the group plans to dive.
 
 4
-00:00:22,027 --> 00:00:28,746
-The assistant acknowledges dates, rooms, and meals, and immediately asks whether the group plans to dive.
+00:00:29,700 --> 00:00:37,020
+In the second turn, Sarah adds two days of boat diving for two guests, plus airport pickup from Manila.
 
 5
-00:00:29,015 --> 00:00:35,302
-In the second turn, Sarah adds boat diving for two, plus Manila airport pickup.
+00:00:39,200 --> 00:00:45,824
+The engine logs boat diving and the Manila transfer, and asks to confirm the exact diver headcount.
 
 6
-00:00:35,557 --> 00:00:41,917
-The engine updates diving and transfer, then asks to confirm the exact diver headcount.
+00:00:47,000 --> 00:00:53,792
+Finally, Sarah confirms two divers and an eleven AM arrival at Manila airport for all four guests.
 
 7
-00:00:42,182 --> 00:00:47,942
-Sarah confirms two divers and an eleven AM arrival at Manila airport.
-
-8
-00:00:48,200 --> 00:00:55,928
-All required fields are satisfied. The assistant locks the trip state and initiates staff handover for quotation.
+00:00:54,300 --> 00:01:02,532
+All required details are now complete. The assistant locks the full itinerary and hands over to staff for official quotation.
