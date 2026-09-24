@@ -1,0 +1,23 @@
+# Keep screen-capture scratch out of the deployment bundle.
+#
+# These directories hold the individual JPEG frames (and the per-cue TTS cache) that the
+# recording scripts in scripts/ produce. They are working files, not application assets,
+# and they are numerous: the five that existed when this file was added held ~7,900 files
+# between them. Vercel refuses a prebuilt deployment above 15,000 files, and the failure
+# is quiet from the outside — `vercel deploy --prebuilt` reports an error, the alias keeps
+# pointing at the previous build, and production silently serves stale code. That is
+# exactly what happened: a console text change was deployed three times and never went
+# live. `.gitignore` did not cover these paths, and `.vercelignore` defaults to it.
+docs/.two-modes-tmp
+docs/.two-videos-tmp
+docs/.live-scenarios-tmp
+docs/.scenario-videos-tmp
+docs/.screencast-tmp
+docs/.two-demos-tmp
+docs/.live-web-demo-tmp
+docs/.live-whatsapp-tmp
+docs/.web-demo-visual-tmp
+docs/.web-demo-voice-tmp
+
+# Frame dumps written by the older one-video recorder.
+docs/.demo-frames
