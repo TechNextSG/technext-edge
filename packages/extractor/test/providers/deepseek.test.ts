@@ -72,3 +72,39 @@ describe("createDeepSeekProvider prompt", () => {
     expect(prompt).toMatch(/Otherwise mark it missing/);
   });
 });
+
+describe("createDeepSeekProvider generateText", () => {
+  // synthesis.ts's warm concierge reply only had Gemini to call — when Gemini's
+  // free-tier quota is exhausted, providerFromEnv.ts's withFallback for
+  // generateText had nothing on the DeepSeek side to try first, so every
+  // reply silently dropped to the plain renderReply() template. This is the
+  // method that gives it a second real option.
+  it("sends a plain system+user completion, no tool schema, and returns the message text", async () => {
+    let request: Record<string, any> | undefined;
+    global.fetch = vi.fn(async (_url: string, init?: RequestInit) => {
+      request = JSON.parse(String(init?.body));
+      return new Response(
+        JSON.stringify({ choices: [{ message: { content: "  Warm reply text.  " } }] }),
+        { status: 200, headers: { "content-type": "application/json" } },
+      );
+    }) as unknown as typeof fetch;
+
+    const text = await createDeepSeekProvider("fake-key").generateText!("system prompt", "user prompt");
+
+    expect(text).toBe("Warm reply text.");
+    expect(request?.messages).toEqual([
+      { role: "system", content: "system prompt" },
+      { role: "user", content: "user prompt" },
+    ]);
+    expect(request?.tools).toBeUndefined();
+    expect(request?.thinking).toEqual({ type: "disabled" });
+  });
+
+  it("throws on a non-OK response so the resilient provider can fall back", async () => {
+    global.fetch = vi.fn(async () => new Response("server error", { status: 500 })) as unknown as typeof fetch;
+
+    await expect(createDeepSeekProvider("fake-key").generateText!("sys", "user")).rejects.toThrow(
+      "DeepSeek generateText failed: 500",
+    );
+  });
+});

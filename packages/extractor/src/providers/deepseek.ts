@@ -251,6 +251,37 @@ export function createDeepSeekProvider(
         clearTimeout(timer);
       }
     },
+    // Plain-text completion for synthesis.ts's warm concierge reply — no tool
+    // schema, just a system+user prompt in, prose out. Gives the hybrid reply
+    // layer a second real option: today it only has Gemini, so when Gemini's
+    // free-tier quota is exhausted the reply silently falls back to the
+    // deterministic renderReply() template (see providerFromEnv.ts's
+    // withFallback wiring, which already tries primary then fallback for
+    // generateText — it just had nothing on the DeepSeek side to try first).
+    async generateText(systemPrompt: string, userPrompt: string): Promise<string> {
+      const controller = new AbortController();
+      const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
+      try {
+        const res = await fetch(`${GATEWAY_BASE_URL}/chat/completions`, {
+          method: "POST",
+          headers: { "content-type": "application/json", authorization: `Bearer ${apiKey}` },
+          signal: controller.signal,
+          body: JSON.stringify({
+            model,
+            thinking: { type: "disabled" },
+            messages: [
+              { role: "system", content: systemPrompt },
+              { role: "user", content: userPrompt },
+            ],
+          }),
+        });
+        if (!res.ok) throw new Error(`DeepSeek generateText failed: ${res.status}`);
+        const body = await res.json();
+        return body.choices?.[0]?.message?.content?.trim() ?? "";
+      } finally {
+        clearTimeout(timer);
+      }
+    },
     async call({ text, jsonSchema, today, retry }: ExtractCall): Promise<ExtractResult> {
       const started = Date.now();
       const systemPrompt =
