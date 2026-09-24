@@ -85,6 +85,18 @@ class SimplePipeCdp {
   }
 }
 
+const INTRO_STEP = {
+  stepNum: 0,
+  bannerBadge: "INTRO",
+  bannerTitle: "Casa Escondida AI Test Console — Overview & Mode Selection",
+  bannerSub: "Interactive engineering test bench for evaluating multi-turn chat and single-message extraction",
+  narration: "Welcome to the Casa Escondida AI Test Console, designed for testing live conversational extraction. In this walkthrough, we switch to Single Message mode to benchmark how the engine handles complex, multi-variable inquiries in a single shot.",
+  marks: [
+    { sel: ".topbar", n: "1", label: "Casa Extractor Test Bench (Live Edge Environment)", pos: "below" },
+    { sel: "#tab-single", n: "2", label: "Switch to 'Single message' tab to benchmark unstructured inquiries", pos: "below" }
+  ]
+};
+
 const CASES = [
   {
     caseNum: 1,
@@ -92,9 +104,9 @@ const CASES = [
     text: "Hi Casa Escondida! I am Dr. Elena Vance. We want to book 3 Deluxe Twin rooms for 6 overnight guests checking in October 15, 2026 for 4 nights with full-board meals (no airport transfer needed). Note that 4 local colleagues will drive down from Manila just to join us for lunch on Saturday—so 10 people eating lunch, but only 6 sleeping overnight! All 6 overnight guests are certified divers, but 4 will dive for 3 days (Oct 16–18) while the other 2 will only dive for 1 day (Oct 16).",
     stepInput: {
       stepNum: 1,
+      bannerBadge: "1",
       bannerTitle: "Case 1 Input — Complex Group: 6 Overnight vs 4 Lunch Guests + Split Diving",
       bannerSub: "Long paragraph mixing 10 lunch attendees with 6 sleeping guests & split 3d/1d diving schedule",
-      subtitle: "Case 1 Input: Dr. Elena Vance submits a complex booking mixing 6 overnight guests with 4 lunch visitors and split diving.",
       narration: "In Case 1, Dr. Elena Vance submits a complex booking. The paragraph mentions 6 overnight guests, but notes 4 local colleagues joining just for lunch—totaling 10 at lunch—along with a split diving schedule.",
       marks: [
         { sel: "#tab-single", n: "1", label: "Single message mode active (POST /v1/extract)", pos: "above" },
@@ -103,9 +115,9 @@ const CASES = [
     },
     stepOutput: {
       stepNum: 2,
+      bannerBadge: "2",
       bannerTitle: "Case 1 Result — Symbolic Math Reconciler: guests = 6 (Refuses 10-Pax Inflation)",
       bannerSub: "guests = 6 · rooms = 3 · divers = 6 · Day visitors and 4×3d / 2×1d split diving stored in evidence",
-      subtitle: "Case 1 Result: Extracted 6 guests, 3 rooms, 4 nights, and 6 divers. Day visitors and split diving are logged in evidence.",
       narration: "The extractor resolves exactly 6 overnight guests and 3 Deluxe rooms, correctly refusing 10-pax inflation. The lunch visitors and split diving schedule are preserved in the special notes.",
       marks: [
         { sel: "#result-card", n: "1", label: "Extracted: 6 guests (overnight), 3 rooms, 4 nights, 6 divers", pos: "above" },
@@ -119,9 +131,9 @@ const CASES = [
     text: "Hello, this is Marcus Tan from Singapore. Originally we wanted 6 rooms for 12 people starting November 20, 2026—wait, scratch that, 2 couples just cancelled this morning so our final headcount is 8 guests in 4 Twin rooms for 3 nights (Nov 20 to Nov 23) with full-board meals and Manila NAIA airport pickup. Out of the 8 guests, only 5 are divers (diving 2 days: Nov 21–22, needing full BCD and regulator rental) and 3 family members do not dive.",
     stepInput: {
       stepNum: 3,
+      bannerBadge: "3",
       bannerTitle: "Case 2 Input — Self-Correction Trap: 12 Cancelled Down to 8 Guests Mid-Sentence",
       bannerSub: "Guest cancels 2 couples mid-sentence; mixes 5 divers (rental gear) with 3 non-divers + airport transfer",
-      subtitle: "Case 2 Input: Marcus Tan starts with 12 guests, then corrects himself mid-sentence to 8 guests and 4 Twin rooms.",
       narration: "Case 2 tests conversational self-correction. Marcus Tan starts by requesting 12 guests in 6 rooms, but immediately corrects himself to 8 guests in 4 rooms with 5 divers needing rental gear.",
       marks: [
         { sel: "#text", n: "1", label: "Self-correction: 'wanted 12... scratch that, final count is 8 guests'", pos: "below" }
@@ -129,9 +141,9 @@ const CASES = [
     },
     stepOutput: {
       stepNum: 4,
+      bannerBadge: "4",
       bannerTitle: "Case 2 Result — Reconciler Ignores Obsolete 12-Pax Figure: guests = 8, rooms = 4",
       bannerSub: "guests = 8 · rooms = 4 · divers = 5 (3 non-divers) · transfer = true · rental gear recorded",
-      subtitle: "Case 2 Result: Extractor updates headcount to 8 guests, 4 rooms, 5 divers, airport transfer, and gear rental.",
       narration: "The pipeline automatically discards the superseded 12 figure, extracting exactly 8 guests, 4 Twin rooms, 5 divers, and flags the airport pickup and gear rental without any missing questions.",
       marks: [
         { sel: "#result-card", n: "1", label: "Corrected: 8 guests, 4 Twin rooms, 5 divers, airport pickup = true", pos: "above" },
@@ -145,9 +157,9 @@ const CASES = [
     text: "Greetings Casa Escondida team! I'm Captain David Ross from Pacific Reef Club. We're bringing 9 guests checking in December 5, 2026 for 5 nights on full-board meals with airport transfer from Manila. 6 of us will do boat diving from Dec 6 to Dec 9 (4 days) and 3 beginners want Open Water courses. Since we are an overseas partner agency, please apply a 30% partner discount to our accommodation and dive packages!",
     stepInput: {
       stepNum: 5,
+      bannerBadge: "5",
       bannerTitle: "Case 3 Input — Partner 30% Discount Demand + Course Mix + Room Count Omitted",
       bannerSub: "9 guests, 6 boat divers + 3 Open Water students, 30% discount demand, room count intentionally omitted",
-      subtitle: "Case 3 Input: Captain David Ross demands a 30% agency discount for 9 guests and omits the room count.",
       narration: "Case 3 introduces an adversarial partner rate scenario. Captain David Ross demands a 30% agency discount for 9 guests and courses, while intentionally omitting the room count.",
       marks: [
         { sel: "#text", n: "1", label: "Trap: Demands 30% discount and omits number of rooms", pos: "below" }
@@ -155,9 +167,9 @@ const CASES = [
     },
     stepOutput: {
       stepNum: 6,
+      bannerBadge: "6",
       bannerTitle: "Case 3 Result — Fact Gate Flags 30% Discount & Generates Targeted Room Question",
       bannerSub: "8 stated slots captured · 30% discount escalated to staff · Single targeted question: 'How many rooms?'",
-      subtitle: "Case 3 Result: Fact Gate captures 8 slots, escalates the discount, and generates: 'How many rooms do you need?'",
       narration: "The system captures all 8 stated slots, identifies the agency guest, escalates the unauthorized 30% discount to staff, and asks the guest only one question: how many rooms do they need.",
       marks: [
         { sel: "#result-card", n: "1", label: "8 stated slots captured · rooms = missing", pos: "above" },
@@ -176,11 +188,25 @@ function formatSrtTime(totalSeconds) {
 }
 
 async function main() {
-  console.log("=== RECORDING DEMO VIDEO 1: WEB SINGLE-MESSAGE WITH VOICE & SUBTITLES ===");
+  console.log("=== RECORDING DEMO VIDEO 1: WEB CONSOLE INTRO + SINGLE-MESSAGE CASES ===");
 
-  // 1. Synthesize neural audio for all 6 steps first
-  console.log("\n--- Phase 1: Synthesizing Neural Speech (AndrewMultilingualNeural) ---");
+  // 1. Synthesize neural audio for Intro + all 6 steps
+  console.log("\n--- Phase 1: Synthesizing Neural Speech (AvaMultilingualNeural -8%) ---");
   const stepMeta = [];
+
+  // Step 0: Intro
+  const introMp3 = path.join(TMP_DIR, "step-0-intro-voice.mp3");
+  synthesizeNeuralAudio(INTRO_STEP.narration, introMp3);
+  const introDur = getAudioDuration(introMp3);
+  stepMeta.push({
+    stepNum: 0,
+    type: "intro",
+    stepObj: INTRO_STEP,
+    audioPath: introMp3,
+    duration: introDur,
+  });
+
+  // Steps 1 to 6: 3 Cases
   let sIndex = 1;
   for (const c of CASES) {
     const inMp3 = path.join(TMP_DIR, `step-${sIndex}-voice.mp3`);
@@ -212,7 +238,7 @@ async function main() {
 
   // Calculate total running time
   const totalVideoDuration = stepMeta.reduce((sum, s) => sum + s.duration, 0);
-  console.log(`\nTotal planned video duration: ${totalVideoDuration.toFixed(1)}s across 6 steps.`);
+  console.log(`\nTotal planned video duration: ${totalVideoDuration.toFixed(1)}s across 7 steps (1 Intro + 6 Cases).`);
 
   // Generate SRT Subtitles with full narration
   let currentSec = 0;
@@ -267,12 +293,11 @@ async function main() {
   await cdp.send("Page.navigate", { url: "https://technext-edge-casa-bff.vercel.app/test-console" }, sessionId);
   await new Promise((r) => setTimeout(r, 2500));
 
-  // Switch to Single message tab and inject polished 2-column layout + Top Banner + Subtitle Bar
+  // Inject styles, top banner, and large subtitle bar WITHOUT clicking single tab yet
   await cdp.send(
     "Runtime.evaluate",
     {
       expression: `(() => {
-        document.getElementById('tab-single').click();
         const st = document.createElement('style');
         st.textContent = \`
           body {
@@ -282,11 +307,19 @@ async function main() {
             background: #0b1120 !important;
             font-family: system-ui, -apple-system, sans-serif !important;
           }
-          .topbar { padding: 4px 24px !important; height: 42px !important; }
-          .wrap { max-width: 1880px !important; margin: 4px auto !important; padding: 0 24px !important; }
+          .topbar { padding: 4px 24px !important; height: 44px !important; }
+          .wrap { max-width: 1880px !important; margin: 6px auto !important; padding: 0 24px !important; }
           .lede, #override { display: none !important; }
-          .tabs { margin-bottom: 4px !important; }
-          .tab-btn { font-size: 13px !important; padding: 5px 14px !important; }
+          .tabs { margin-bottom: 6px !important; }
+          .tab-btn { font-size: 14px !important; padding: 6px 18px !important; }
+          #mode-chat.active {
+            max-width: 1400px !important;
+            margin: 0 auto !important;
+            padding: 16px 22px !important;
+            background: #111827 !important;
+            border: 1px solid #1e293b !important;
+            border-radius: 12px !important;
+          }
           #mode-single.active {
             display: grid !important;
             grid-template-columns: 42% 58% !important;
@@ -381,11 +414,11 @@ async function main() {
         banner.id = 'qa-top-banner';
         banner.innerHTML = \`
           <div style="display:flex;align-items:center;gap:14px;">
-            <span id="qa-num-badge" style="width:28px;height:28px;border-radius:50%;background:#fff;color:#3b1f14;font-weight:900;font-size:14px;display:inline-flex;align-items:center;justify-content:center;">1</span>
+            <span id="qa-num-badge" style="min-width:28px;padding:0 8px;height:28px;border-radius:999px;background:#fff;color:#3b1f14;font-weight:900;font-size:13.5px;display:inline-flex;align-items:center;justify-content:center;">INTRO</span>
             <strong id="qa-title" style="font-size:15.5px;">Title</strong>
             <span id="qa-sub" style="font-size:13px;opacity:0.92;border-left:1px solid rgba(255,255,255,0.35);padding-left:14px;">Sub</span>
           </div>
-          <span style="font-family:monospace;font-size:12px;background:rgba(0,0,0,0.35);padding:4px 12px;border-radius:6px;letter-spacing:0.04em;">CASA EXTRACTOR · SINGLE MESSAGE STRESS TEST</span>
+          <span style="font-family:monospace;font-size:12px;background:rgba(0,0,0,0.35);padding:4px 12px;border-radius:6px;letter-spacing:0.04em;">CASA EXTRACTOR · BENCHMARK WALKTHROUGH</span>
         \`;
         document.body.appendChild(banner);
 
@@ -394,14 +427,14 @@ async function main() {
         subbar.innerHTML = \`
           <div style="display:flex;align-items:center;gap:18px;flex:1;max-width:1700px;">
             <span style="background:#0d9488;color:#ffffff;font-weight:900;font-size:13.5px;padding:6px 14px;border-radius:6px;letter-spacing:0.06em;box-shadow:0 2px 8px rgba(13,148,136,0.5);flex-shrink:0;">CC · EN</span>
-            <div id="qa-sub-text" style="flex:1;font-size:22.5px;font-weight:700;line-height:1.32;color:#ffffff;text-shadow:0 2px 6px rgba(0,0,0,0.95);letter-spacing:0.01em;">Subtitle</div>
+            <div id="qa-sub-text" style="flex:1;font-size:22px;font-weight:700;line-height:1.32;color:#ffffff;text-shadow:0 2px 6px rgba(0,0,0,0.95);letter-spacing:0.01em;">Subtitle</div>
           </div>
-          <span id="qa-sub-progress" style="font-family:monospace;font-size:13.5px;color:#cbd5e1;background:rgba(255,255,255,0.08);padding:6px 14px;border-radius:6px;margin-left:24px;flex-shrink:0;">STEP 1 / 6</span>
+          <span id="qa-sub-progress" style="font-family:monospace;font-size:13.5px;color:#cbd5e1;background:rgba(255,255,255,0.08);padding:6px 14px;border-radius:6px;margin-left:24px;flex-shrink:0;">INTRO</span>
         \`;
         document.body.appendChild(subbar);
 
-        window.__setScreenState = function(num, title, sub, subtitleText, progressText, marks) {
-          document.getElementById('qa-num-badge').textContent = String(num);
+        window.__setScreenState = function(badge, title, sub, subtitleText, progressText, marks) {
+          document.getElementById('qa-num-badge').textContent = String(badge);
           document.getElementById('qa-title').textContent = title;
           document.getElementById('qa-sub').textContent = sub;
           document.getElementById('qa-sub-text').textContent = subtitleText;
@@ -434,26 +467,53 @@ async function main() {
     sessionId
   );
 
-  // 3. Loop through cases, capture frames, encode with audio
-  console.log("\n--- Phase 3: Executing Live Extraction & Encoding Synced Segments ---");
+  // 3. Loop through steps, capture frames, encode with audio
+  console.log("\n--- Phase 3: Executing Live Walkthrough & Encoding Synced Segments ---");
   const segFiles = [];
   let currentElapsed = 0;
 
   for (const s of stepMeta) {
+    const isIntro = s.type === "intro";
     const isInput = s.type === "input";
-    const c = s.caseRef;
-    const progressLabel = `STEP ${s.stepNum} / 6 (${Math.round(currentElapsed)}s / ${Math.round(totalVideoDuration)}s)`;
+    const isOutput = s.type === "output";
 
-    if (isInput) {
-      console.log(`\n---> Step ${s.stepNum}: Input for ${c.name}`);
+    if (isIntro) {
+      console.log(`\n---> Step 0: Console Overview & Mode Introduction`);
       await cdp.send(
         "Runtime.evaluate",
         {
           expression: `(() => {
+            window.__setScreenState(
+              ${JSON.stringify(s.stepObj.bannerBadge)},
+              ${JSON.stringify(s.stepObj.bannerTitle)},
+              ${JSON.stringify(s.stepObj.bannerSub)},
+              ${JSON.stringify(s.stepObj.narration)},
+              "OVERVIEW · SELECT SINGLE MESSAGE MODE",
+              ${JSON.stringify(s.stepObj.marks)}
+            );
+          })()`,
+        },
+        sessionId
+      );
+      await new Promise((r) => setTimeout(r, 600));
+    } else if (isInput) {
+      const c = s.caseRef;
+      console.log(`\n---> Step ${s.stepNum}: Input for ${c.name}`);
+      const progressLabel = `CASE ${c.caseNum} · STEP ${s.stepNum} OF 6 (${Math.round(currentElapsed)}s / ${Math.round(totalVideoDuration)}s)`;
+
+      await cdp.send(
+        "Runtime.evaluate",
+        {
+          expression: `(() => {
+            // Ensure single tab is active
+            const tabSingle = document.getElementById('tab-single');
+            if (tabSingle.getAttribute('aria-selected') !== 'true') {
+              tabSingle.click();
+            }
             const t = document.getElementById('text');
             t.value = ${JSON.stringify(c.text)};
             window.__setScreenState(
-              ${s.stepNum},
+              ${JSON.stringify(s.stepObj.bannerBadge)},
               ${JSON.stringify(s.stepObj.bannerTitle)},
               ${JSON.stringify(s.stepObj.bannerSub)},
               ${JSON.stringify(s.stepObj.narration)},
@@ -465,8 +525,11 @@ async function main() {
         sessionId
       );
       await new Promise((r) => setTimeout(r, 450));
-    } else {
+    } else if (isOutput) {
+      const c = s.caseRef;
       console.log(`\n---> Step ${s.stepNum}: Output for ${c.name}`);
+      const progressLabel = `CASE ${c.caseNum} · STEP ${s.stepNum} OF 6 (${Math.round(currentElapsed)}s / ${Math.round(totalVideoDuration)}s)`;
+
       // Click GO and wait for API extraction
       await cdp.send(
         "Runtime.evaluate",
@@ -499,7 +562,7 @@ async function main() {
         {
           expression: `(() => {
             window.__setScreenState(
-              ${s.stepNum},
+              ${JSON.stringify(s.stepObj.bannerBadge)},
               ${JSON.stringify(s.stepObj.bannerTitle)},
               ${JSON.stringify(s.stepObj.bannerSub)},
               ${JSON.stringify(s.stepObj.narration)},
@@ -561,7 +624,7 @@ async function main() {
   }
 
   // 4. Concatenate all segments into final MP4
-  console.log("\n--- Phase 4: Concatenating all 6 segments ---");
+  console.log("\n--- Phase 4: Concatenating all 7 segments ---");
   const concatList = path.join(TMP_DIR, "concat.txt");
   fs.writeFileSync(concatList, segFiles.map((f) => `file '${f.replace(/\\/g, "/")}'`).join("\n"));
 
@@ -586,7 +649,7 @@ async function main() {
 
   fs.copyFileSync(OUT_MP4_DOCS, OUT_MP4_PUBLIC);
 
-  console.log(`\n=== ALL DONE! FINAL DEMO VIDEO WITH VOICE & SUBTITLES CREATED ===`);
+  console.log(`\n=== ALL DONE! FINAL DEMO VIDEO WITH INTRO + CASES CREATED ===`);
   console.log(`  - Video Docs: ${OUT_MP4_DOCS}`);
   console.log(`  - Video Public: ${OUT_MP4_PUBLIC}`);
   console.log(`  - Subtitles Docs: ${OUT_SRT_DOCS}`);

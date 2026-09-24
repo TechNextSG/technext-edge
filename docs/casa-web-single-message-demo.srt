@@ -1,23 +1,27 @@
 1
-00:00:00,000 --> 00:00:17,019
-In Case 1, Dr. Elena Vance submits a complex booking. The paragraph mentions 6 overnight guests, but notes 4 local colleagues joining just for lunch—totaling 10 at lunch—along with a split diving schedule.
+00:00:00,000 --> 00:00:17,890
+Welcome to the Casa Escondida AI Test Console, designed for testing live conversational extraction. In this walkthrough, we switch to Single Message mode to benchmark how the engine handles complex, multi-variable inquiries in a single shot.
 
 2
-00:00:17,019 --> 00:00:31,379
-The extractor resolves exactly 6 overnight guests and 3 Deluxe rooms, correctly refusing 10-pax inflation. The lunch visitors and split diving schedule are preserved in the special notes.
+00:00:17,890 --> 00:00:34,909
+In Case 1, Dr. Elena Vance submits a complex booking. The paragraph mentions 6 overnight guests, but notes 4 local colleagues joining just for lunch—totaling 10 at lunch—along with a split diving schedule.
 
 3
-00:00:31,379 --> 00:00:46,439
-Case 2 tests conversational self-correction. Marcus Tan starts by requesting 12 guests in 6 rooms, but immediately corrects himself to 8 guests in 4 rooms with 5 divers needing rental gear.
+00:00:34,909 --> 00:00:49,269
+The extractor resolves exactly 6 overnight guests and 3 Deluxe rooms, correctly refusing 10-pax inflation. The lunch visitors and split diving schedule are preserved in the special notes.
 
 4
-00:00:46,439 --> 00:01:01,399
-The pipeline automatically discards the superseded 12 figure, extracting exactly 8 guests, 4 Twin rooms, 5 divers, and flags the airport pickup and gear rental without any missing questions.
+00:00:49,269 --> 00:01:04,329
+Case 2 tests conversational self-correction. Marcus Tan starts by requesting 12 guests in 6 rooms, but immediately corrects himself to 8 guests in 4 rooms with 5 divers needing rental gear.
 
 5
-00:01:01,399 --> 00:01:15,299
-Case 3 introduces an adversarial partner rate scenario. Captain David Ross demands a 30% agency discount for 9 guests and courses, while intentionally omitting the room count.
+00:01:04,329 --> 00:01:19,289
+The pipeline automatically discards the superseded 12 figure, extracting exactly 8 guests, 4 Twin rooms, 5 divers, and flags the airport pickup and gear rental without any missing questions.
 
 6
-00:01:15,299 --> 00:01:30,329
+00:01:19,289 --> 00:01:33,189
+Case 3 introduces an adversarial partner rate scenario. Captain David Ross demands a 30% agency discount for 9 guests and courses, while intentionally omitting the room count.
+
+7
+00:01:33,189 --> 00:01:48,219
 The system captures all 8 stated slots, identifies the agency guest, escalates the unauthorized 30% discount to staff, and asks the guest only one question: how many rooms do they need.
