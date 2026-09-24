@@ -1,27 +1,31 @@
 1
-00:00:00,000 --> 00:00:17,890
-Welcome to the Casa Escondida AI Test Console, designed for testing live conversational extraction. In this walkthrough, we switch to Single Message mode to benchmark how the engine handles complex, multi-variable inquiries in a single shot.
+00:00:00,000 --> 00:00:15,460
+Welcome to the Casa Escondida AI Test Console. The interface features multi-turn Chat and Single Message modes, quick test presets, and real-time conversation controls to test how the engine interacts with guests.
 
 2
-00:00:17,890 --> 00:00:34,909
-In Case 1, Dr. Elena Vance submits a complex booking. The paragraph mentions 6 overnight guests, but notes 4 local colleagues joining just for lunch—totaling 10 at lunch—along with a split diving schedule.
+00:00:15,460 --> 00:00:28,120
+First, in Chat mode, we type a natural enquiry for four guests in two rooms. The assistant acknowledges the dates and rooms, and immediately asks whether the group plans to dive.
 
 3
-00:00:34,909 --> 00:00:49,269
-The extractor resolves exactly 6 overnight guests and 3 Deluxe rooms, correctly refusing 10-pax inflation. The lunch visitors and split diving schedule are preserved in the special notes.
+00:00:28,120 --> 00:00:39,980
+In the second turn, the guest adds boat diving and airport pickup. The assistant updates the trip state in real time and asks to confirm how many people are diving.
 
 4
-00:00:49,269 --> 00:01:04,329
-Case 2 tests conversational self-correction. Marcus Tan starts by requesting 12 guests in 6 rooms, but immediately corrects himself to 8 guests in 4 rooms with 5 divers needing rental gear.
+00:00:39,980 --> 00:00:50,930
+Once the guest confirms two divers, all required fields are satisfied. The completion banner triggers, locking the trip state for staff quotation.
 
 5
-00:01:04,329 --> 00:01:19,289
-The pipeline automatically discards the superseded 12 figure, extracting exactly 8 guests, 4 Twin rooms, 5 divers, and flags the airport pickup and gear rental without any missing questions.
+00:00:50,930 --> 00:01:05,070
+Now, we switch to Single Message mode. Here, the engine is stress-tested against dense, unstructured paragraphs with self-corrections, traps, and missing variables in one single pass.
 
 6
-00:01:19,289 --> 00:01:33,189
-Case 3 introduces an adversarial partner rate scenario. Captain David Ross demands a 30% agency discount for 9 guests and courses, while intentionally omitting the room count.
+00:01:05,070 --> 00:01:19,670
+In Case 1, Dr. Elena Vance sends a booking mixing six overnight guests with four lunch-only visitors. The reconciler captures exactly six sleeping guests, refusing ten-pax inflation.
 
 7
-00:01:33,189 --> 00:01:48,219
-The system captures all 8 stated slots, identifies the agency guest, escalates the unauthorized 30% discount to staff, and asks the guest only one question: how many rooms do they need.
+00:01:19,670 --> 00:01:34,320
+In Case 2, Marcus Tan corrects himself mid-sentence from twelve down to eight guests. The system cleanly ignores the obsolete figure, recording eight guests, five divers, and rental gear.
+
+8
+00:01:34,320 --> 00:01:49,090
+In Case 3, Captain David Ross demands an unauthorized thirty percent partner discount and omits the room count. The fact gate flags the discount and generates a single question asking for room count.

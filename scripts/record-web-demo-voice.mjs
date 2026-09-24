@@ -85,96 +85,269 @@ class SimplePipeCdp {
   }
 }
 
-const INTRO_STEP = {
-  stepNum: 0,
-  bannerBadge: "INTRO",
-  bannerTitle: "Casa Escondida AI Test Console — Overview & Mode Selection",
-  bannerSub: "Interactive engineering test bench for evaluating multi-turn chat and single-message extraction",
-  narration: "Welcome to the Casa Escondida AI Test Console, designed for testing live conversational extraction. In this walkthrough, we switch to Single Message mode to benchmark how the engine handles complex, multi-variable inquiries in a single shot.",
-  marks: [
-    { sel: ".topbar", n: "1", label: "Casa Extractor Test Bench (Live Edge Environment)", pos: "below" },
-    { sel: "#tab-single", n: "2", label: "Switch to 'Single message' tab to benchmark unstructured inquiries", pos: "below" }
-  ]
-};
+// ============================================================================
+// DEMO SCENARIO SCRIPT (PART 1: INTRO & CHAT, PART 2: SWITCH, PART 3: SINGLE)
+// ============================================================================
 
-const CASES = [
+const STEPS = [
+  // --- PART 1: OVERVIEW & CONTROLS ---
   {
-    caseNum: 1,
-    name: "Case 1: Overnight (6) vs Lunch Day Visitors (4) + Split Diving (4×3d, 2×1d)",
-    text: "Hi Casa Escondida! I am Dr. Elena Vance. We want to book 3 Deluxe Twin rooms for 6 overnight guests checking in October 15, 2026 for 4 nights with full-board meals (no airport transfer needed). Note that 4 local colleagues will drive down from Manila just to join us for lunch on Saturday—so 10 people eating lunch, but only 6 sleeping overnight! All 6 overnight guests are certified divers, but 4 will dive for 3 days (Oct 16–18) while the other 2 will only dive for 1 day (Oct 16).",
-    stepInput: {
-      stepNum: 1,
-      bannerBadge: "1",
-      bannerTitle: "Case 1 Input — Complex Group: 6 Overnight vs 4 Lunch Guests + Split Diving",
-      bannerSub: "Long paragraph mixing 10 lunch attendees with 6 sleeping guests & split 3d/1d diving schedule",
-      narration: "In Case 1, Dr. Elena Vance submits a complex booking. The paragraph mentions 6 overnight guests, but notes 4 local colleagues joining just for lunch—totaling 10 at lunch—along with a split diving schedule.",
-      marks: [
-        { sel: "#tab-single", n: "1", label: "Single message mode active (POST /v1/extract)", pos: "above" },
-        { sel: "#text", n: "2", label: "Input: 10 people at lunch, but only 6 sleeping overnight", pos: "below" }
-      ]
-    },
-    stepOutput: {
-      stepNum: 2,
-      bannerBadge: "2",
-      bannerTitle: "Case 1 Result — Symbolic Math Reconciler: guests = 6 (Refuses 10-Pax Inflation)",
-      bannerSub: "guests = 6 · rooms = 3 · divers = 6 · Day visitors and 4×3d / 2×1d split diving stored in evidence",
-      narration: "The extractor resolves exactly 6 overnight guests and 3 Deluxe rooms, correctly refusing 10-pax inflation. The lunch visitors and split diving schedule are preserved in the special notes.",
-      marks: [
-        { sel: "#result-card", n: "1", label: "Extracted: 6 guests (overnight), 3 rooms, 4 nights, 6 divers", pos: "above" },
-        { sel: "#questions-card", n: "2", label: "Zero missing questions: 100% complete in 1 shot", pos: "above" }
-      ]
+    stepId: "intro",
+    badge: "INTRO",
+    title: "Casa Escondida AI Test Console — Overview & Controls",
+    sub: "Interactive test bench for evaluating multi-turn chat and single-message extraction",
+    narration: "Welcome to the Casa Escondida AI Test Console. The interface features multi-turn Chat and Single Message modes, quick test presets, and real-time conversation controls to test how the engine interacts with guests.",
+    marks: [
+      { sel: ".tabs", n: "1", label: "Mode Switch: Multi-turn Chat vs Single-shot Extraction", pos: "above" },
+      { sel: ".examples", n: "2", label: "Quick Scenario Presets: EN Starter, EN Agency, Reset", pos: "above" },
+      { sel: ".chat-input-row", n: "3", label: "Interactive Conversation Input: Type & Send real messages", pos: "below" }
+    ],
+    execute: async (cdp, sessionId) => {
+      // Show default chat view with markers on buttons
+      await new Promise(r => setTimeout(r, 600));
     }
   },
+
+  // --- PART 2: CHAT MODE (3 REAL CONVERSATIONAL TURNS) ---
   {
-    caseNum: 2,
-    name: "Case 2: Mid-Paragraph Self-Correction (12 → 8 Guests) + 5 Divers & 3 Non-Divers",
-    text: "Hello, this is Marcus Tan from Singapore. Originally we wanted 6 rooms for 12 people starting November 20, 2026—wait, scratch that, 2 couples just cancelled this morning so our final headcount is 8 guests in 4 Twin rooms for 3 nights (Nov 20 to Nov 23) with full-board meals and Manila NAIA airport pickup. Out of the 8 guests, only 5 are divers (diving 2 days: Nov 21–22, needing full BCD and regulator rental) and 3 family members do not dive.",
-    stepInput: {
-      stepNum: 3,
-      bannerBadge: "3",
-      bannerTitle: "Case 2 Input — Self-Correction Trap: 12 Cancelled Down to 8 Guests Mid-Sentence",
-      bannerSub: "Guest cancels 2 couples mid-sentence; mixes 5 divers (rental gear) with 3 non-divers + airport transfer",
-      narration: "Case 2 tests conversational self-correction. Marcus Tan starts by requesting 12 guests in 6 rooms, but immediately corrects himself to 8 guests in 4 rooms with 5 divers needing rental gear.",
-      marks: [
-        { sel: "#text", n: "1", label: "Self-correction: 'wanted 12... scratch that, final count is 8 guests'", pos: "below" }
-      ]
-    },
-    stepOutput: {
-      stepNum: 4,
-      bannerBadge: "4",
-      bannerTitle: "Case 2 Result — Reconciler Ignores Obsolete 12-Pax Figure: guests = 8, rooms = 4",
-      bannerSub: "guests = 8 · rooms = 4 · divers = 5 (3 non-divers) · transfer = true · rental gear recorded",
-      narration: "The pipeline automatically discards the superseded 12 figure, extracting exactly 8 guests, 4 Twin rooms, 5 divers, and flags the airport pickup and gear rental without any missing questions.",
-      marks: [
-        { sel: "#result-card", n: "1", label: "Corrected: 8 guests, 4 Twin rooms, 5 divers, airport pickup = true", pos: "above" },
-        { sel: "#questions-card", n: "2", label: "All fields complete: zero questions required", pos: "above" }
-      ]
+    stepId: "chat-turn-1",
+    badge: "CHAT 1",
+    title: "Chat Mode (Turn 1) — Multi-Turn Booking: Sarah Jenkins",
+    sub: "AI acknowledges dates and rooms, and asks targeted diving question without re-asking",
+    narration: "First, in Chat mode, we type a natural enquiry for four guests in two rooms. The assistant acknowledges the dates and rooms, and immediately asks whether the group plans to dive.",
+    marks: [
+      { sel: ".bubble-guest", n: "1", label: "Guest enquiry: 4 guests, 2 Deluxe rooms, Oct 17 for 3 nights", pos: "above" },
+      { sel: ".bubble-assistant", n: "2", label: "AI confirms dates & rooms, and asks missing diving question", pos: "below" }
+    ],
+    execute: async (cdp, sessionId) => {
+      const text = "Hi, I'm Sarah Jenkins. We'd like to book 2 Deluxe rooms for 4 guests checking in Oct 17, 2026 for 3 nights on full board.";
+      await cdp.send("Runtime.evaluate", {
+        expression: `(() => {
+          document.getElementById('chat-text').value = ${JSON.stringify(text)};
+          document.getElementById('chat-send').click();
+        })()`
+      }, sessionId);
+
+      // Wait for assistant reply bubble to appear
+      for (let w = 0; w < 40; w++) {
+        await new Promise(r => setTimeout(r, 500));
+        const { result } = await cdp.send("Runtime.evaluate", {
+          expression: `(() => {
+            const bubbles = document.querySelectorAll('.bubble-assistant');
+            return bubbles.length >= 1;
+          })()`
+        }, sessionId);
+        if (result.value) {
+          console.log(`    -> Chat Turn 1 live response rendered in ~${(w + 1) * 0.5}s!`);
+          break;
+        }
+      }
+      await new Promise(r => setTimeout(r, 600));
     }
   },
+
   {
-    caseNum: 3,
-    name: "Case 3: Partner 30% Discount Trap + Open Water Courses + Missing Room Count",
-    text: "Greetings Casa Escondida team! I'm Captain David Ross from Pacific Reef Club. We're bringing 9 guests checking in December 5, 2026 for 5 nights on full-board meals with airport transfer from Manila. 6 of us will do boat diving from Dec 6 to Dec 9 (4 days) and 3 beginners want Open Water courses. Since we are an overseas partner agency, please apply a 30% partner discount to our accommodation and dive packages!",
-    stepInput: {
-      stepNum: 5,
-      bannerBadge: "5",
-      bannerTitle: "Case 3 Input — Partner 30% Discount Demand + Course Mix + Room Count Omitted",
-      bannerSub: "9 guests, 6 boat divers + 3 Open Water students, 30% discount demand, room count intentionally omitted",
-      narration: "Case 3 introduces an adversarial partner rate scenario. Captain David Ross demands a 30% agency discount for 9 guests and courses, while intentionally omitting the room count.",
-      marks: [
-        { sel: "#text", n: "1", label: "Trap: Demands 30% discount and omits number of rooms", pos: "below" }
-      ]
-    },
-    stepOutput: {
-      stepNum: 6,
-      bannerBadge: "6",
-      bannerTitle: "Case 3 Result — Fact Gate Flags 30% Discount & Generates Targeted Room Question",
-      bannerSub: "8 stated slots captured · 30% discount escalated to staff · Single targeted question: 'How many rooms?'",
-      narration: "The system captures all 8 stated slots, identifies the agency guest, escalates the unauthorized 30% discount to staff, and asks the guest only one question: how many rooms do they need.",
-      marks: [
-        { sel: "#result-card", n: "1", label: "8 stated slots captured · rooms = missing", pos: "above" },
-        { sel: "#questions-card", n: "2", label: "Targeted Question Generated: 'How many rooms do you need?'", pos: "above" }
-      ]
+    stepId: "chat-turn-2",
+    badge: "CHAT 2",
+    title: "Chat Mode (Turn 2) — Adding Diving Schedule & Airport Transfer",
+    sub: "Trip state updates dynamically in memory with zero duplicate questions",
+    narration: "In the second turn, the guest adds boat diving and airport pickup. The assistant updates the trip state in real time and asks to confirm how many people are diving.",
+    marks: [
+      { sel: ".bubble-guest:last-of-type", n: "1", label: "Guest adds: boat diving Oct 18–19 and airport pickup", pos: "above" },
+      { sel: ".bubble-assistant:last-of-type", n: "2", label: "AI updates diving & transfer, asks for exact diver count", pos: "below" }
+    ],
+    execute: async (cdp, sessionId) => {
+      const text = "Yes, 2 of us will do boat diving from Oct 18 to Oct 19, and we need airport pickup from Manila.";
+      await cdp.send("Runtime.evaluate", {
+        expression: `(() => {
+          document.getElementById('chat-text').value = ${JSON.stringify(text)};
+          document.getElementById('chat-send').click();
+        })()`
+      }, sessionId);
+
+      for (let w = 0; w < 40; w++) {
+        await new Promise(r => setTimeout(r, 500));
+        const { result } = await cdp.send("Runtime.evaluate", {
+          expression: `(() => {
+            const bubbles = document.querySelectorAll('.bubble-assistant');
+            return bubbles.length >= 2;
+          })()`
+        }, sessionId);
+        if (result.value) {
+          console.log(`    -> Chat Turn 2 live response rendered in ~${(w + 1) * 0.5}s!`);
+          break;
+        }
+      }
+      await new Promise(r => setTimeout(r, 600));
+    }
+  },
+
+  {
+    stepId: "chat-turn-3",
+    badge: "CHAT 3",
+    title: "Chat Mode (Turn 3) — Slot Completion & Handover Gate",
+    sub: "All required variables satisfied · System executes completion gate",
+    narration: "Once the guest confirms two divers, all required fields are satisfied. The completion banner triggers, locking the trip state for staff quotation.",
+    marks: [
+      { sel: ".bubble-assistant:last-of-type", n: "1", label: "Final confirmation of all 8 reservation slots", pos: "below" },
+      { sel: "#done-banner", n: "2", label: "Enquiry Complete: Done = true · Ready for staff quotation", pos: "above" }
+    ],
+    execute: async (cdp, sessionId) => {
+      const text = "Exactly 2 divers. Manila pickup for all 4 of us, arriving at 11 AM. Thanks!";
+      await cdp.send("Runtime.evaluate", {
+        expression: `(() => {
+          document.getElementById('chat-text').value = ${JSON.stringify(text)};
+          document.getElementById('chat-send').click();
+        })()`
+      }, sessionId);
+
+      for (let w = 0; w < 40; w++) {
+        await new Promise(r => setTimeout(r, 500));
+        const { result } = await cdp.send("Runtime.evaluate", {
+          expression: `(() => {
+            const banner = document.getElementById('done-banner');
+            return banner && banner.style.display !== 'none';
+          })()`
+        }, sessionId);
+        if (result.value) {
+          console.log(`    -> Chat Turn 3 completion banner rendered in ~${(w + 1) * 0.5}s!`);
+          break;
+        }
+      }
+      await new Promise(r => setTimeout(r, 600));
+    }
+  },
+
+  // --- PART 3: MODE SWITCH ---
+  {
+    stepId: "switch-mode",
+    badge: "SWITCH",
+    title: "Mode Switch — Single Message Unstructured Stress Benchmarks",
+    sub: "Testing complex, multi-variable single paragraphs without conversational back-and-forth",
+    narration: "Now, we switch to Single Message mode. Here, the engine is stress-tested against dense, unstructured paragraphs with self-corrections, traps, and missing variables in one single pass.",
+    marks: [
+      { sel: "#tab-single", n: "1", label: "Single message mode active (POST /v1/extract)", pos: "above" },
+      { sel: "#text", n: "2", label: "Unstructured single paragraph input benchmarking", pos: "below" }
+    ],
+    execute: async (cdp, sessionId) => {
+      await cdp.send("Runtime.evaluate", {
+        expression: `(() => {
+          document.getElementById('tab-single').click();
+        })()`
+      }, sessionId);
+      await new Promise(r => setTimeout(r, 600));
+    }
+  },
+
+  // --- PART 4: SINGLE MESSAGE STRESS TESTS (3 CASES) ---
+  {
+    stepId: "single-case-1",
+    badge: "CASE 1",
+    title: "Single Message (Case 1) — Overnight (6) vs Lunch Visitors (4)",
+    sub: "Symbolic Math Reconciler captures 6 guests and stores day visitors in evidence",
+    narration: "In Case 1, Dr. Elena Vance sends a booking mixing six overnight guests with four lunch-only visitors. The reconciler captures exactly six sleeping guests, refusing ten-pax inflation.",
+    marks: [
+      { sel: "#result-card", n: "1", label: "Extracted: 6 guests (overnight), 3 rooms, 4 nights, 6 divers", pos: "above" },
+      { sel: "#questions-card", n: "2", label: "Zero missing questions: 100% complete in 1 shot", pos: "above" }
+    ],
+    execute: async (cdp, sessionId) => {
+      const text = "Hi Casa Escondida! I am Dr. Elena Vance. We want to book 3 Deluxe Twin rooms for 6 overnight guests checking in October 15, 2026 for 4 nights with full-board meals (no airport transfer needed). Note that 4 local colleagues will drive down from Manila just to join us for lunch on Saturday—so 10 people eating lunch, but only 6 sleeping overnight! All 6 overnight guests are certified divers, but 4 will dive for 3 days (Oct 16–18) while the other 2 will only dive for 1 day (Oct 16).";
+      await cdp.send("Runtime.evaluate", {
+        expression: `(() => {
+          document.getElementById('text').value = ${JSON.stringify(text)};
+          document.getElementById('go').click();
+        })()`
+      }, sessionId);
+
+      for (let w = 0; w < 40; w++) {
+        await new Promise(r => setTimeout(r, 500));
+        const { result } = await cdp.send("Runtime.evaluate", {
+          expression: `(() => {
+            const go = document.getElementById('go');
+            const rc = document.getElementById('result-card');
+            return !go.disabled && rc && rc.style.display === 'block';
+          })()`
+        }, sessionId);
+        if (result.value) {
+          console.log(`    -> Case 1 extraction response arrived in ~${(w + 1) * 0.5}s!`);
+          break;
+        }
+      }
+      await new Promise(r => setTimeout(r, 600));
+    }
+  },
+
+  {
+    stepId: "single-case-2",
+    badge: "CASE 2",
+    title: "Single Message (Case 2) — Mid-Sentence Self-Correction (12 → 8)",
+    sub: "Reconciler ignores obsolete 12 figure and captures rental gear",
+    narration: "In Case 2, Marcus Tan corrects himself mid-sentence from twelve down to eight guests. The system cleanly ignores the obsolete figure, recording eight guests, five divers, and rental gear.",
+    marks: [
+      { sel: "#result-card", n: "1", label: "Corrected: 8 guests, 4 Twin rooms, 5 divers, airport pickup = true", pos: "above" },
+      { sel: "#questions-card", n: "2", label: "All fields complete: zero questions required", pos: "above" }
+    ],
+    execute: async (cdp, sessionId) => {
+      const text = "Hello, this is Marcus Tan from Singapore. Originally we wanted 6 rooms for 12 people starting November 20, 2026—wait, scratch that, 2 couples just cancelled this morning so our final headcount is 8 guests in 4 Twin rooms for 3 nights (Nov 20 to Nov 23) with full-board meals and Manila NAIA airport pickup. Out of the 8 guests, only 5 are divers (diving 2 days: Nov 21–22, needing full BCD and regulator rental) and 3 family members do not dive.";
+      await cdp.send("Runtime.evaluate", {
+        expression: `(() => {
+          document.getElementById('text').value = ${JSON.stringify(text)};
+          document.getElementById('go').click();
+        })()`
+      }, sessionId);
+
+      for (let w = 0; w < 40; w++) {
+        await new Promise(r => setTimeout(r, 500));
+        const { result } = await cdp.send("Runtime.evaluate", {
+          expression: `(() => {
+            const go = document.getElementById('go');
+            const rc = document.getElementById('result-card');
+            return !go.disabled && rc && rc.style.display === 'block';
+          })()`
+        }, sessionId);
+        if (result.value) {
+          console.log(`    -> Case 2 extraction response arrived in ~${(w + 1) * 0.5}s!`);
+          break;
+        }
+      }
+      await new Promise(r => setTimeout(r, 600));
+    }
+  },
+
+  {
+    stepId: "single-case-3",
+    badge: "CASE 3",
+    title: "Single Message (Case 3) — 30% Partner Discount & Missing Rooms",
+    sub: "Fact Gate escalates discount and generates targeted room question",
+    narration: "In Case 3, Captain David Ross demands an unauthorized thirty percent partner discount and omits the room count. The fact gate flags the discount and generates a single question asking for room count.",
+    marks: [
+      { sel: "#result-card", n: "1", label: "8 stated slots captured · 30% discount escalated to staff", pos: "above" },
+      { sel: "#questions-card", n: "2", label: "Targeted Question Generated: 'How many rooms do you need?'", pos: "above" }
+    ],
+    execute: async (cdp, sessionId) => {
+      const text = "Greetings Casa Escondida team! I'm Captain David Ross from Pacific Reef Club. We're bringing 9 guests checking in December 5, 2026 for 5 nights on full-board meals with airport transfer from Manila. 6 of us will do boat diving from Dec 6 to Dec 9 (4 days) and 3 beginners want Open Water courses. Since we are an overseas partner agency, please apply a 30% partner discount to our accommodation and dive packages!";
+      await cdp.send("Runtime.evaluate", {
+        expression: `(() => {
+          document.getElementById('text').value = ${JSON.stringify(text)};
+          document.getElementById('go').click();
+        })()`
+      }, sessionId);
+
+      for (let w = 0; w < 40; w++) {
+        await new Promise(r => setTimeout(r, 500));
+        const { result } = await cdp.send("Runtime.evaluate", {
+          expression: `(() => {
+            const go = document.getElementById('go');
+            const rc = document.getElementById('result-card');
+            return !go.disabled && rc && rc.style.display === 'block';
+          })()`
+        }, sessionId);
+        if (result.value) {
+          console.log(`    -> Case 3 extraction response arrived in ~${(w + 1) * 0.5}s!`);
+          break;
+        }
+      }
+      await new Promise(r => setTimeout(r, 600));
     }
   }
 ];
@@ -188,75 +361,37 @@ function formatSrtTime(totalSeconds) {
 }
 
 async function main() {
-  console.log("=== RECORDING DEMO VIDEO 1: WEB CONSOLE INTRO + SINGLE-MESSAGE CASES ===");
+  console.log("=== COMPREHENSIVE WEB DEMO: OVERVIEW + 3 CHAT TURNS + 3 SINGLE CASES ===");
 
-  // 1. Synthesize neural audio for Intro + all 6 steps
-  console.log("\n--- Phase 1: Synthesizing Neural Speech (AvaMultilingualNeural -8%) ---");
-  const stepMeta = [];
-
-  // Step 0: Intro
-  const introMp3 = path.join(TMP_DIR, "step-0-intro-voice.mp3");
-  synthesizeNeuralAudio(INTRO_STEP.narration, introMp3);
-  const introDur = getAudioDuration(introMp3);
-  stepMeta.push({
-    stepNum: 0,
-    type: "intro",
-    stepObj: INTRO_STEP,
-    audioPath: introMp3,
-    duration: introDur,
-  });
-
-  // Steps 1 to 6: 3 Cases
-  let sIndex = 1;
-  for (const c of CASES) {
-    const inMp3 = path.join(TMP_DIR, `step-${sIndex}-voice.mp3`);
-    synthesizeNeuralAudio(c.stepInput.narration, inMp3);
-    const inDur = getAudioDuration(inMp3);
-    stepMeta.push({
-      stepNum: sIndex,
-      type: "input",
-      caseRef: c,
-      stepObj: c.stepInput,
-      audioPath: inMp3,
-      duration: inDur,
-    });
-    sIndex++;
-
-    const outMp3 = path.join(TMP_DIR, `step-${sIndex}-voice.mp3`);
-    synthesizeNeuralAudio(c.stepOutput.narration, outMp3);
-    const outDur = getAudioDuration(outMp3);
-    stepMeta.push({
-      stepNum: sIndex,
-      type: "output",
-      caseRef: c,
-      stepObj: c.stepOutput,
-      audioPath: outMp3,
-      duration: outDur,
-    });
-    sIndex++;
+  // 1. Synthesize audio for all steps
+  console.log("\n--- Phase 1: Synthesizing Neural Audio (AvaMultilingualNeural -8%) ---");
+  for (let i = 0; i < STEPS.length; i++) {
+    const s = STEPS[i];
+    const mp3 = path.join(TMP_DIR, `cue-${i}-${s.stepId}.mp3`);
+    synthesizeNeuralAudio(s.narration, mp3);
+    s.audioPath = mp3;
+    s.duration = getAudioDuration(mp3);
   }
 
-  // Calculate total running time
-  const totalVideoDuration = stepMeta.reduce((sum, s) => sum + s.duration, 0);
-  console.log(`\nTotal planned video duration: ${totalVideoDuration.toFixed(1)}s across 7 steps (1 Intro + 6 Cases).`);
+  const totalDuration = STEPS.reduce((sum, s) => sum + s.duration, 0);
+  console.log(`\nTotal planned video duration: ${totalDuration.toFixed(1)}s across ${STEPS.length} steps.`);
 
-  // Generate SRT Subtitles with full narration
+  // Write SRT
   let currentSec = 0;
   const srtEntries = [];
-  for (let i = 0; i < stepMeta.length; i++) {
-    const s = stepMeta[i];
+  for (let i = 0; i < STEPS.length; i++) {
+    const s = STEPS[i];
     const startStr = formatSrtTime(currentSec);
     const endStr = formatSrtTime(currentSec + s.duration);
-    srtEntries.push(`${i + 1}\n${startStr} --> ${endStr}\n${s.stepObj.narration}\n`);
+    srtEntries.push(`${i + 1}\n${startStr} --> ${endStr}\n${s.narration}\n`);
     currentSec += s.duration;
   }
   const srtContent = srtEntries.join("\n");
   fs.writeFileSync(OUT_SRT_DOCS, srtContent, "utf8");
   fs.writeFileSync(OUT_SRT_PUBLIC, srtContent, "utf8");
-  console.log(`Subtitles (.srt) generated and written to docs & public.`);
 
-  // 2. Launch Headless Chrome & Capture Frames
-  console.log("\n--- Phase 2: Launching Chrome CDP & Capturing Screen Frames ---");
+  // 2. Launch Chrome CDP
+  console.log("\n--- Phase 2: Launching Chrome CDP ---");
   const chrome = findChrome();
   const userDataDir = path.join(TMP_DIR, "chrome-prof");
   fs.mkdirSync(userDataDir, { recursive: true });
@@ -293,7 +428,7 @@ async function main() {
   await cdp.send("Page.navigate", { url: "https://technext-edge-casa-bff.vercel.app/test-console" }, sessionId);
   await new Promise((r) => setTimeout(r, 2500));
 
-  // Inject styles, top banner, and large subtitle bar WITHOUT clicking single tab yet
+  // Inject styles, top banner, and large subtitle bar
   await cdp.send(
     "Runtime.evaluate",
     {
@@ -312,14 +447,76 @@ async function main() {
           .lede, #override { display: none !important; }
           .tabs { margin-bottom: 6px !important; }
           .tab-btn { font-size: 14px !important; padding: 6px 18px !important; }
+          
           #mode-chat.active {
-            max-width: 1400px !important;
-            margin: 0 auto !important;
-            padding: 16px 22px !important;
+            max-width: 1380px !important;
+            margin: 6px auto !important;
+            padding: 16px 24px !important;
             background: #111827 !important;
             border: 1px solid #1e293b !important;
             border-radius: 12px !important;
+            display: flex !important;
+            flex-direction: column !important;
+            gap: 12px !important;
           }
+          .chat-log {
+            min-height: 250px !important;
+            max-height: 380px !important;
+            overflow-y: auto !important;
+            display: flex !important;
+            flex-direction: column !important;
+            gap: 10px !important;
+          }
+          .bubble {
+            max-width: 78% !important;
+            padding: 10px 16px !important;
+            border-radius: 12px !important;
+            font-size: 14.5px !important;
+            line-height: 1.5 !important;
+          }
+          .bubble-guest {
+            align-self: flex-end !important;
+            background: #0d9488 !important;
+            color: #fff !important;
+            border-bottom-right-radius: 4px !important;
+          }
+          .bubble-assistant {
+            align-self: flex-start !important;
+            background: #1e293b !important;
+            border: 1px solid #334155 !important;
+            color: #f8fafc !important;
+            border-bottom-left-radius: 4px !important;
+          }
+          .chat-input-row {
+            display: flex !important;
+            gap: 10px !important;
+          }
+          #chat-text {
+            flex: 1 !important;
+            min-height: 52px !important;
+            font-size: 14px !important;
+            background: #0f172a !important;
+            border: 2px solid #0d9488 !important;
+            color: #fff !important;
+            border-radius: 8px !important;
+            padding: 10px 14px !important;
+          }
+          #chat-send {
+            padding: 0 24px !important;
+            font-size: 14px !important;
+            font-weight: 700 !important;
+          }
+          .done-banner {
+            margin-top: 4px !important;
+            padding: 8px 14px !important;
+            border-radius: 8px !important;
+            background: #064e3b !important;
+            color: #a7f3d0 !important;
+            font-size: 13.5px !important;
+            font-weight: 700 !important;
+            border: 1px solid #059669 !important;
+          }
+
           #mode-single.active {
             display: grid !important;
             grid-template-columns: 42% 58% !important;
@@ -467,118 +664,42 @@ async function main() {
     sessionId
   );
 
-  // 3. Loop through steps, capture frames, encode with audio
-  console.log("\n--- Phase 3: Executing Live Walkthrough & Encoding Synced Segments ---");
+  // 3. Loop through steps, execute, capture, encode
+  console.log("\n--- Phase 3: Executing Steps and Encoding Synced Segments ---");
   const segFiles = [];
   let currentElapsed = 0;
 
-  for (const s of stepMeta) {
-    const isIntro = s.type === "intro";
-    const isInput = s.type === "input";
-    const isOutput = s.type === "output";
+  for (let i = 0; i < STEPS.length; i++) {
+    const s = STEPS[i];
+    const progressLabel = `STEP ${i + 1} OF ${STEPS.length} (${Math.round(currentElapsed)}s / ${Math.round(totalDuration)}s)`;
+    console.log(`\n---> [Step ${i + 1}/${STEPS.length}] ${s.title}`);
 
-    if (isIntro) {
-      console.log(`\n---> Step 0: Console Overview & Mode Introduction`);
-      await cdp.send(
-        "Runtime.evaluate",
-        {
-          expression: `(() => {
-            window.__setScreenState(
-              ${JSON.stringify(s.stepObj.bannerBadge)},
-              ${JSON.stringify(s.stepObj.bannerTitle)},
-              ${JSON.stringify(s.stepObj.bannerSub)},
-              ${JSON.stringify(s.stepObj.narration)},
-              "OVERVIEW · SELECT SINGLE MESSAGE MODE",
-              ${JSON.stringify(s.stepObj.marks)}
-            );
-          })()`,
-        },
-        sessionId
-      );
-      await new Promise((r) => setTimeout(r, 600));
-    } else if (isInput) {
-      const c = s.caseRef;
-      console.log(`\n---> Step ${s.stepNum}: Input for ${c.name}`);
-      const progressLabel = `CASE ${c.caseNum} · STEP ${s.stepNum} OF 6 (${Math.round(currentElapsed)}s / ${Math.round(totalVideoDuration)}s)`;
+    // Execute page logic
+    await s.execute(cdp, sessionId);
 
-      await cdp.send(
-        "Runtime.evaluate",
-        {
-          expression: `(() => {
-            // Ensure single tab is active
-            const tabSingle = document.getElementById('tab-single');
-            if (tabSingle.getAttribute('aria-selected') !== 'true') {
-              tabSingle.click();
-            }
-            const t = document.getElementById('text');
-            t.value = ${JSON.stringify(c.text)};
-            window.__setScreenState(
-              ${JSON.stringify(s.stepObj.bannerBadge)},
-              ${JSON.stringify(s.stepObj.bannerTitle)},
-              ${JSON.stringify(s.stepObj.bannerSub)},
-              ${JSON.stringify(s.stepObj.narration)},
-              ${JSON.stringify(progressLabel)},
-              ${JSON.stringify(s.stepObj.marks)}
-            );
-          })()`,
-        },
-        sessionId
-      );
-      await new Promise((r) => setTimeout(r, 450));
-    } else if (isOutput) {
-      const c = s.caseRef;
-      console.log(`\n---> Step ${s.stepNum}: Output for ${c.name}`);
-      const progressLabel = `CASE ${c.caseNum} · STEP ${s.stepNum} OF 6 (${Math.round(currentElapsed)}s / ${Math.round(totalVideoDuration)}s)`;
+    // Apply overlays
+    await cdp.send(
+      "Runtime.evaluate",
+      {
+        expression: `(() => {
+          window.__setScreenState(
+            ${JSON.stringify(s.badge)},
+            ${JSON.stringify(s.title)},
+            ${JSON.stringify(s.sub)},
+            ${JSON.stringify(s.narration)},
+            ${JSON.stringify(progressLabel)},
+            ${JSON.stringify(s.marks)}
+          );
+        })()`,
+      },
+      sessionId
+    );
+    await new Promise((r) => setTimeout(r, 450));
 
-      // Click GO and wait for API extraction
-      await cdp.send(
-        "Runtime.evaluate",
-        { expression: `document.getElementById('go').click();` },
-        sessionId
-      );
-
-      for (let wait = 0; wait < 40; wait++) {
-        await new Promise((r) => setTimeout(r, 500));
-        const { result } = await cdp.send(
-          "Runtime.evaluate",
-          {
-            expression: `(() => {
-              const go = document.getElementById('go');
-              const rc = document.getElementById('result-card');
-              return !go.disabled && rc && rc.style.display === 'block';
-            })()`,
-          },
-          sessionId
-        );
-        if (result.value === true) {
-          console.log(`    -> Live /v1/extract response returned in ~${(wait + 1) * 0.5}s!`);
-          break;
-        }
-      }
-      await new Promise((r) => setTimeout(r, 500));
-
-      await cdp.send(
-        "Runtime.evaluate",
-        {
-          expression: `(() => {
-            window.__setScreenState(
-              ${JSON.stringify(s.stepObj.bannerBadge)},
-              ${JSON.stringify(s.stepObj.bannerTitle)},
-              ${JSON.stringify(s.stepObj.bannerSub)},
-              ${JSON.stringify(s.stepObj.narration)},
-              ${JSON.stringify(progressLabel)},
-              ${JSON.stringify(s.stepObj.marks)}
-            );
-          })()`,
-        },
-        sessionId
-      );
-      await new Promise((r) => setTimeout(r, 450));
-    }
-
+    // Capture screenshot
     const shot = await cdp.send("Page.captureScreenshot", { format: "png" }, sessionId);
-    const framePng = path.join(TMP_DIR, `step-${s.stepNum}.png`);
-    const segMp4 = path.join(TMP_DIR, `seg-${s.stepNum}.mp4`);
+    const framePng = path.join(TMP_DIR, `step-${i}.png`);
+    const segMp4 = path.join(TMP_DIR, `seg-${i}.mp4`);
     fs.writeFileSync(framePng, Buffer.from(shot.data, "base64"));
 
     // Encode segment with ffmpeg (video + audio synced)
@@ -619,12 +740,12 @@ async function main() {
     );
 
     segFiles.push(segMp4);
-    console.log(`  [Step ${s.stepNum}] Encoded with Neural Audio & Burnt-in Subtitle (${s.duration.toFixed(1)}s)`);
+    console.log(`  [Step ${i + 1}] Encoded with Neural Audio & Burnt-in Subtitle (${s.duration.toFixed(1)}s)`);
     currentElapsed += s.duration;
   }
 
   // 4. Concatenate all segments into final MP4
-  console.log("\n--- Phase 4: Concatenating all 7 segments ---");
+  console.log("\n--- Phase 4: Concatenating all segments ---");
   const concatList = path.join(TMP_DIR, "concat.txt");
   fs.writeFileSync(concatList, segFiles.map((f) => `file '${f.replace(/\\/g, "/")}'`).join("\n"));
 
@@ -649,7 +770,7 @@ async function main() {
 
   fs.copyFileSync(OUT_MP4_DOCS, OUT_MP4_PUBLIC);
 
-  console.log(`\n=== ALL DONE! FINAL DEMO VIDEO WITH INTRO + CASES CREATED ===`);
+  console.log(`\n=== ALL DONE! FINAL COMPREHENSIVE DEMO VIDEO CREATED ===`);
   console.log(`  - Video Docs: ${OUT_MP4_DOCS}`);
   console.log(`  - Video Public: ${OUT_MP4_PUBLIC}`);
   console.log(`  - Subtitles Docs: ${OUT_SRT_DOCS}`);
