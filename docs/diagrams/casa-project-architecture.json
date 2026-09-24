@@ -2,81 +2,79 @@
   "schema_version": 1,
   "diagram_type": "architecture",
   "meta": {
-    "title": "Casa Escondida — Hybrid AI, Hono Quotation Studio & Odoo GAIS Architecture",
+    "title": "Casa Escondida — Hybrid AI Reservation Intake & Edge BFF Architecture",
     "output": "docs/diagrams/casa-project-architecture.html",
     "quality_profile": "showcase",
     "animation": "trace",
     "views": [
       {
-        "id": "inbound-ai-extraction",
-        "label": "1. Inbound & Hybrid AI Pod",
-        "focus": ["guest", "auth", "bff", "redis", "extractor", "gemini"],
-        "note": "WhatsApp and Web messages pass HMAC verification and Redis phone locks before entering the Neuro-Symbolic Extractor Pod."
+        "id": "inbound-edge-gate",
+        "label": "1. Edge Intake & Security Gate",
+        "focus": ["guest", "auth", "bff", "redis"],
+        "note": "WhatsApp and Web Console requests pass HMAC verification, WAMID deduplication, and Redis phone locks at the Hono Edge BFF."
       },
       {
-        "id": "tool-call-hono-studio",
-        "label": "2. Tool Call & Hono Studio",
-        "focus": ["extractor", "studio", "quote_link"],
-        "note": "When all 6 booking fields are complete, AI invokes submit_quotation_to_hono to stage an editable table and shareable URL on Hono."
+        "id": "hybrid-ai-extractor",
+        "label": "2. Hybrid AI Extractor Pod",
+        "focus": ["bff", "extractor", "llm_pool", "gates"],
+        "note": "Pass 1 (Trip JSON) + Pass 2 (Guest Manifest) run in parallel with a 60s circuit breaker and deterministic Math & Fact Gates."
       },
       {
-        "id": "confirm-gais-odoo",
-        "label": "3. Confirm -> Odoo GAIS & Reply",
-        "focus": ["studio", "odoo", "quote_link", "guest"],
-        "note": "Staff edits line items or partner discounts (30%) and confirms to upsert Odoo sale.order via GAIS and share the live link."
+        "id": "handoff-and-alerts",
+        "label": "3. Verified Output & Staff Alerts",
+        "focus": ["extractor", "gates", "handoff", "guest"],
+        "note": "Once all 6 booking slots are captured, the pod returns a verified reply to the guest and flags Staff Alerts for downstream ERP handoff."
       }
     ]
   },
   "components": [
-    { "id": "guest", "type": "external", "label": "Guest Channels", "sublabel": "WhatsApp / Web", "pos": [40, 300], "size": [125, 60] },
-    { "id": "auth", "type": "security", "label": "GAIS & Webhook Auth", "sublabel": "HMAC-SHA256", "pos": [40, 110], "size": [125, 64], "tag": "X-Hub + GAIS" },
-    { "id": "bff", "type": "backend", "label": "Hono Edge BFF", "sublabel": "Webhook & API", "pos": [250, 300], "size": [130, 60] },
-    { "id": "redis", "type": "database", "label": "Upstash Redis", "sublabel": "Lock & Thread", "pos": [250, 145], "size": [130, 60] },
-    { "id": "extractor", "type": "backend", "label": "Hybrid AI Pod", "sublabel": "Pass 1/2 + Gates", "pos": [460, 300], "size": [130, 60] },
-    { "id": "gemini", "type": "cloud", "label": "Gemini 3.1 Lite", "sublabel": "60s Circuit Breaker", "pos": [460, 145], "size": [130, 60], "tag": "< 2.5s SLA" },
-    { "id": "studio", "type": "frontend", "label": "Hono Studio", "sublabel": "/quotes Editor", "pos": [670, 300], "size": [130, 60], "tag": "Editable Table" },
-    { "id": "quote_link", "type": "frontend", "label": "Customer Quote", "sublabel": "/q/:slug Link", "pos": [670, 445], "size": [130, 60] },
-    { "id": "odoo", "type": "external", "label": "Odoo 18 ERP", "sublabel": "sale.order GAIS", "pos": [880, 300], "size": [130, 60], "tag": "Idempotent" }
+    { "id": "guest", "type": "external", "label": "Guest Channels", "sublabel": "WhatsApp / Web Console", "pos": [40, 300], "size": [130, 60] },
+    { "id": "auth", "type": "security", "label": "Webhook Auth", "sublabel": "X-Hub-Signature-256", "pos": [40, 115], "size": [130, 64], "tag": "HMAC-SHA256" },
+    { "id": "bff", "type": "backend", "label": "Hono Edge BFF", "sublabel": "/webhook & /v1/converse", "pos": [255, 300], "size": [130, 60] },
+    { "id": "redis", "type": "database", "label": "Upstash Redis", "sublabel": "Phone Lock & WAMID", "pos": [255, 145], "size": [130, 60] },
+    { "id": "extractor", "type": "backend", "label": "Hybrid AI Pod", "sublabel": "Pass 1 Trip + Pass 2 Guests", "pos": [470, 300], "size": [140, 60] },
+    { "id": "llm_pool", "type": "cloud", "label": "DeepSeek + Gemini", "sublabel": "60s Circuit Breaker", "pos": [470, 145], "size": [140, 60], "tag": "< 2.5s SLA" },
+    { "id": "gates", "type": "security", "label": "Math & Fact Gates", "sublabel": "No Re-Ask & Price Guard", "pos": [690, 300], "size": [140, 60], "tag": "0% Fabrication" },
+    { "id": "handoff", "type": "external", "label": "Reservation Handoff", "sublabel": "Verified Trip + Staff Alerts", "pos": [905, 300], "size": [140, 60], "tag": "Odoo Ready" }
   ],
   "boundaries": [
-    { "kind": "region", "label": "Vercel Production Edge & Serverless (technext-edge-casa-bff)", "wraps": ["bff", "redis", "extractor", "gemini", "studio", "quote_link"] }
+    { "kind": "region", "label": "Vercel Production Edge & Serverless (technext-edge-casa-bff)", "wraps": ["bff", "redis", "extractor", "llm_pool", "gates"] }
   ],
   "connections": [
     { "id": "guest-to-bff", "from": "guest", "to": "bff", "label": "HTTPS", "variant": "emphasis" },
-    { "id": "auth-to-bff", "from": "auth", "to": "bff", "label": "verify HMAC", "variant": "security", "fromSide": "right", "toSide": "top", "via": [[205, 142], [205, 250], [315, 250]] },
+    { "id": "auth-to-bff", "from": "auth", "to": "bff", "label": "verify HMAC", "variant": "security", "fromSide": "right", "toSide": "top", "via": [[210, 147], [210, 250], [320, 250]] },
     { "id": "bff-to-redis", "from": "bff", "to": "redis", "label": "claim + lock", "fromSide": "top", "toSide": "bottom", "labelDy": -68 },
     { "id": "bff-to-extractor", "from": "bff", "to": "extractor", "label": "converse()", "variant": "emphasis" },
-    { "id": "extractor-to-gemini", "from": "extractor", "to": "gemini", "label": "JSON + Tools", "fromSide": "top", "toSide": "bottom", "labelDy": -68 },
-    { "id": "extractor-to-studio", "from": "extractor", "to": "studio", "label": "submit tool", "variant": "emphasis" },
-    { "id": "studio-to-quote-link", "from": "studio", "to": "quote_link", "label": "publish /q/:slug", "variant": "dashed", "fromSide": "bottom", "toSide": "top", "labelDy": 58 },
-    { "id": "studio-to-odoo", "from": "studio", "to": "odoo", "label": "GAIS upsert", "variant": "security" }
+    { "id": "extractor-to-llm", "from": "extractor", "to": "llm_pool", "label": "Pass 1 + Pass 2", "fromSide": "top", "toSide": "bottom", "labelDy": -68 },
+    { "id": "extractor-to-gates", "from": "extractor", "to": "gates", "label": "reconcile", "variant": "emphasis" },
+    { "id": "gates-to-handoff", "from": "gates", "to": "handoff", "label": "done + alerts", "variant": "emphasis" }
   ],
   "cards": [
     {
       "dot": "cyan",
-      "title": "1. Edge Intake & Hybrid AI Pod",
+      "title": "1. Edge Security & Concurrency Control",
       "items": [
-        "Meta Cloud API webhook verified via X-Hub-Signature-256 + Redis WAMID deduplication",
-        "Gemini 3.1 Flash-Lite primary with 60s circuit breaker prevents 20s WhatsApp timeouts",
-        "Pass 1 (Trip JSON) + Pass 2 (Guest Manifest) + Deterministic Math & Fact Gates"
+        "Meta Cloud API webhook verified via X-Hub-Signature-256 before parsing",
+        "Upstash Redis claims WAMID fence token and serializes turns per phone number",
+        "Coalesces rapid guest messages and supports instant 'reset' commands"
       ]
     },
     {
       "dot": "orange",
-      "title": "2. Tool Calling -> Hono Quotation Studio",
+      "title": "2. Resilient Dual-Pass Hybrid AI Pod",
       "items": [
-        "When 6 core fields are complete, AI calls submit_quotation_to_hono (<35ms compute)",
-        "Staff edits itemized table (Room, Split-Day Dives, Meals, 30% Partner Discount) at /quotes",
-        "Generates custom shareable customer quotation link (/q/sky-oct10-group)"
+        "Runs Pass 1 (Trip JSON) + Isolated Pass 2 (Guests, Check-In, Dive Window) in parallel",
+        "60s circuit breaker between DeepSeek Flash and Gemini 3.1 Flash-Lite prevents timeouts",
+        "Deterministic Reconciler resolves mid-chat headcount changes and split-day diving"
       ]
     },
     {
       "dot": "emerald",
-      "title": "3. Hono Confirm -> Odoo GAIS & Guest Reply",
+      "title": "3. Fact Gate & Staff Alert Handoff",
       "items": [
-        "Clicking Confirm triggers POST /v1/quotes/:id/confirm and synthesizes verified AI reply",
-        "Signs outbound Odoo payload with X-GAIS-Signature (HMAC-SHA256) + Idempotency-Key",
-        "Upserts clean Odoo sale.order without polluting ERP with unverified chat drafts"
+        "NEVER RE-ASK rule ensures the bot never asks for a field already stated",
+        "Post-generation Fact Gate blocks unauthorized price promises or invented discounts",
+        "Emits structured Trip JSON + Staff Alerts (30% partner discount, split dive schedule)"
       ]
     }
   ]

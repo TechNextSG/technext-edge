@@ -1,0 +1,43 @@
+1
+00:00:00,000 --> 00:00:08,000
+Casa Escondida — Hybrid AI Reservation Intake & Qualification (Web & WhatsApp).
+
+2
+00:00:08,000 --> 00:00:18,000
+Guests can inquire naturally across multiple turns on Web or WhatsApp while the Neuro-Symbolic AI extracts verified booking data.
+
+3
+00:00:18,000 --> 00:00:30,000
+Scene 1: Web Console (/test-console). A guest sends an initial inquiry for 6 people (4 divers, 2 non-divers) checking in on November 15.
+
+4
+00:00:30,000 --> 00:00:44,000
+Pass 1 & Pass 2 extract every stated fact with verbatim evidence, and the AI asks only for the missing fields—never re-asking known slots.
+
+5
+00:00:44,000 --> 00:00:58,000
+In Turn 2, the guest provides the remaining details: 3 nights, 3 Deluxe rooms, full-board meals, and diving dates (Nov 16–17).
+
+6
+00:00:58,000 --> 00:01:12,000
+All 6 core booking slots are now complete (done = true), producing a verified structured Trip payload ready for the reservation team.
+
+7
+00:01:12,000 --> 00:01:26,000
+Scene 2: Real-Time WhatsApp Interaction. Sir Sky messages on WhatsApp to book for 10 guests across 4 nights (October 10–14).
+
+8
+00:01:26,000 --> 00:01:40,000
+Within 2 seconds, the AI confirms the check-in dates, 5 twin rooms, and full-board meal plan, then asks if the group will be diving.
+
+9
+00:01:40,000 --> 00:01:58,000
+Next, the guest changes the headcount to 8 divers, splits the dive schedule (4 divers x 3 days, 4 divers x 2 days), and asks for a 30% partner discount.
+
+10
+00:01:58,000 --> 00:02:15,000
+The Deterministic Math & Fact Gate updates the total guests from 10 to 8 without double-counting and captures the split-day dive notes.
+
+11
+00:02:15,000 --> 00:02:30,000
+Crucially, the Fact Gate blocks unauthorized price promises, confirms all verified details to the guest, and raises a Staff Alert for the 30% partner discount.

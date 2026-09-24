@@ -164,12 +164,12 @@ details pre{background:var(--card2);border:1px solid var(--hairline);padding:12p
       <div class="override-row">
         <select id="provider-select">
           <option value="">Server default (DeepSeek Flash — primary)</option>
-          <option value="deepseek-flash">DeepSeek Flash (chính / primary)</option>
+          <option value="deepseek-flash">DeepSeek Flash (Primary)</option>
           <option value="deepseek-pro">DeepSeek Pro</option>
-          <option value="gemini-3.1-flash-lite">Gemini 3.1 Flash-Lite (Google 2026 - Mới nhất)</option>
+          <option value="gemini-3.1-flash-lite">Gemini 3.1 Flash-Lite (Google 2026 - Fast SLA)</option>
           <option value="gemini-3.5-flash">Gemini 3.5 Flash (Extended Reasoning)</option>
           <option value="gemini-2.5-flash">Gemini 2.5 Flash</option>
-          <option value="gemini">Gemini (Theo biến môi trường GEMINI_MODEL)</option>
+          <option value="gemini">Gemini (Default GEMINI_MODEL env)</option>
         </select>
         <input id="api-key" type="password" placeholder="API key override (optional)" autocomplete="off" spellcheck="false">
       </div>

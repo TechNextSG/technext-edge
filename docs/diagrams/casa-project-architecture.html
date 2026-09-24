@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="generator" content="archify 2.17.0-dev.1">
-  <title>Casa Escondida — Hybrid AI, Hono Quotation Studio &amp; Odoo GAIS Architecture Diagram</title>
+  <title>Casa Escondida — Hybrid AI Reservation Intake &amp; Edge BFF Architecture Diagram</title>
   <script>
     // Resolve the theme before first paint so light-preference users don't
     // see a dark flash. The toolbar script below re-applies with UI state.
@@ -5081,11 +5081,11 @@ OTHER DEALINGS IN THE FONT SOFTWARE.
            data-preset-badge-blueprint="BLUEPRINT / REV 01"
            data-preset-badge-editorial="EDITORIAL / FIELD NOTE">
         <div class="pulse-dot"></div>
-        <h1>Casa Escondida — Hybrid AI, Hono Quotation Studio &amp; Odoo GAIS Architecture</h1>
+        <h1>Casa Escondida — Hybrid AI Reservation Intake &amp; Edge BFF Architecture</h1>
       </div>
     </div>
 
-    <script id="archify-guided-views-data" type="application/json">[{"id":"inbound-ai-extraction","label":"1. Inbound \u0026 Hybrid AI Pod","focus":["guest","auth","bff","redis","extractor","gemini"],"note":"WhatsApp and Web messages pass HMAC verification and Redis phone locks before entering the Neuro-Symbolic Extractor Pod."},{"id":"tool-call-hono-studio","label":"2. Tool Call \u0026 Hono Studio","focus":["extractor","studio","quote_link"],"note":"When all 6 booking fields are complete, AI invokes submit_quotation_to_hono to stage an editable table and shareable URL on Hono."},{"id":"confirm-gais-odoo","label":"3. Confirm -\u003e Odoo GAIS \u0026 Reply","focus":["studio","odoo","quote_link","guest"],"note":"Staff edits line items or partner discounts (30%) and confirms to upsert Odoo sale.order via GAIS and share the live link."}]</script>
+    <script id="archify-guided-views-data" type="application/json">[{"id":"inbound-edge-gate","label":"1. Edge Intake \u0026 Security Gate","focus":["guest","auth","bff","redis"],"note":"WhatsApp and Web Console requests pass HMAC verification, WAMID deduplication, and Redis phone locks at the Hono Edge BFF."},{"id":"hybrid-ai-extractor","label":"2. Hybrid AI Extractor Pod","focus":["bff","extractor","llm_pool","gates"],"note":"Pass 1 (Trip JSON) + Pass 2 (Guest Manifest) run in parallel with a 60s circuit breaker and deterministic Math \u0026 Fact Gates."},{"id":"handoff-and-alerts","label":"3. Verified Output \u0026 Staff Alerts","focus":["extractor","gates","handoff","guest"],"note":"Once all 6 booking slots are captured, the pod returns a verified reply to the guest and flags Staff Alerts for downstream ERP handoff."}]</script>
 
     <script id="archify-i18n-data" type="application/json">{"locale":"en","messages":{"viewer.kind.frontend":"Frontend","viewer.kind.backend":"Backend","viewer.kind.database":"Database","viewer.kind.cloud":"Cloud","viewer.kind.security":"Security","viewer.kind.messagebus":"Message bus","viewer.kind.external":"External","viewer.kind.neutral":"Neutral","viewer.kind.node":"Node","viewer.kind.start":"Start","viewer.kind.active":"Active","viewer.kind.waiting":"Waiting","viewer.kind.decision":"Decision","viewer.kind.success":"Success","viewer.kind.failure":"Failure","viewer.toolbar.actions":"Diagram actions","viewer.theme.toggle.title":"Toggle theme (T)","viewer.theme.toggle":"Toggle color theme","viewer.theme.dark":"Dark","viewer.theme.light":"Light","viewer.preset.choose.title":"Choose visual style (S cycles)","viewer.preset.choose":"Choose visual style","viewer.preset.style":"Style","viewer.preset.menu":"Visual style","viewer.preset.identity":"Visual identity","viewer.preset.cycles":"S cycles","viewer.preset.classic":"Classic","viewer.preset.classic.short":"Classic","viewer.preset.classic.hint":"Stable technical default","viewer.preset.flow":"Signal Flow","viewer.preset.flow.short":"Flow","viewer.preset.flow.hint":"Motion-forward presentation","viewer.preset.blueprint":"Blueprint","viewer.preset.blueprint.hint":"Engineering review","viewer.preset.editorial":"Editorial","viewer.preset.editorial.hint":"Publication and launch notes","viewer.preset.badge.signalFlow":"SIGNAL FLOW","viewer.preset.badge.blueprint":"BLUEPRINT / REV 01","viewer.preset.badge.editorial":"EDITORIAL / FIELD NOTE","viewer.preset.badge.editorialPlate":"ARCHIFY / PLATE 04","viewer.preset.current":"Visual style: {style}. Choose visual style","viewer.motion.live":"Live","viewer.motion.still":"Still","viewer.motion.pause":"Pause motion","viewer.motion.resume":"Resume motion","viewer.motion.reduced":"Motion paused by reduced-motion preference","viewer.motion.hidden":"Motion paused while this page is hidden","viewer.motion.yielding":"Pause motion; currently yielding to {owner}","viewer.motion.yielding.title":"Live preview enabled · yielding to {owner}","viewer.owner.story":"the guided story","viewer.owner.chapter":"the active chapter","viewer.owner.chapterPreview":"the chapter delta preview","viewer.owner.handoff":"the chapter handoff","viewer.owner.route":"Route Probe","viewer.owner.lens":"Semantic Lens","viewer.owner.relationship":"Relationship Preview","viewer.owner.intent":"Intent Trace","viewer.owner.focus":"semantic focus","viewer.owner.legend":"legend preview","viewer.owner.reader":"reader interaction","viewer.present.enter":"Enter presentation stage","viewer.present.enter.title":"Presentation stage (F)","viewer.present.exit":"Exit presentation stage","viewer.present.exit.title":"Exit presentation stage (F or Escape)","viewer.present.present":"Present","viewer.present.exit.label":"Exit","viewer.export.button":"Export","viewer.export.button.title":"Export diagram (E)","viewer.export.diagram":"Export diagram","viewer.export.menu":"Export","viewer.export.subtitle":"Portable, clean outputs","viewer.export.share":"Share","viewer.export.shareCard":"Share Card","viewer.export.routeShareCard":"Route Share Card","viewer.export.reachShareCard":"Reach Share Card","viewer.export.copyShareCard":"Copy Share Card","viewer.export.copyDiagram":"Copy diagram","viewer.export.clipboardPng":"PNG to clipboard","viewer.export.raster":"Raster images","viewer.export.image":"Image","viewer.export.lossless":"Lossless image","viewer.export.compact":"Compact image","viewer.export.modern":"Modern image","viewer.export.vectorMotion":"Vector and motion","viewer.export.vectorMotion.heading":"Vector \u0026 motion","viewer.export.editable":"Editable vector","viewer.export.motion6s":"6s motion","viewer.export.unsupported":"Not supported by this browser","viewer.export.clipboardUnsupported":"Clipboard image write not supported by this browser","viewer.export.clipboardUnsupported.period":"Clipboard image write not supported by this browser.","viewer.export.clipboardUnsupported.short":"Clipboard image write not supported in this browser.","viewer.export.motionUnavailable":"Motion capture unavailable in this browser","viewer.export.webmUnavailable":"WebM unavailable in this browser","viewer.export.failed":"Export failed: {message}","viewer.export.unknownVariant":"Unknown Share Card variant: {variant}","viewer.export.routeRequired":"Trace a route before exporting a Route Share Card","viewer.export.reachRequired":"Trace authored reach before exporting a Reach Share Card","viewer.export.unknown":"unknown","viewer.export.routeFailed":"Route Share Card export failed: {message}","viewer.export.reachFailed":"Reach Share Card export failed: {message}","viewer.export.copyFailed":"Copy failed: {message}","viewer.export.copiedPng":"Copied PNG to clipboard","viewer.export.copiedShare":"Copied Share Card","viewer.export.downloadedShare":"Downloaded Share Card","viewer.export.downloadedRoute":"Downloaded Route Share Card","viewer.export.downloadedReach":"Downloaded Reach Share Card","viewer.export.downloadedWebm":"Downloaded WebM","viewer.export.recording":"Recording 6 seconds of motion…","viewer.export.card.routeSummary.one":"Route: {source} → {target} · {count} directed hop","viewer.export.card.routeSummary.other":"Route: {source} → {target} · {count} directed hops","viewer.export.card.reachSummary":"Authored {direction} from {origin} · {nodes} · {links} · max {hops}","viewer.export.card.node.one":"{count} node","viewer.export.card.node.other":"{count} nodes","viewer.export.card.link.one":"{count} link","viewer.export.card.link.other":"{count} links","viewer.export.card.hop.one":"{count} hop","viewer.export.card.hop.other":"{count} hops","viewer.export.card.routeBadge":"ARCHIFY · ROUTE · {hops}","viewer.export.card.reachBadge":"ARCHIFY · {direction} REACH","viewer.export.card.defaultBadge":"ARCHIFY · {preset} · {theme}","viewer.export.direction.upstream":"Upstream","viewer.export.direction.downstream":"Downstream","viewer.export.error.canvasUnavailable":"Canvas unavailable for {label}","viewer.export.error.contextUnavailable":"2D canvas context unavailable for {label}","viewer.export.error.toBlobUnavailable":"canvas.toBlob unavailable for {label}","viewer.export.error.toBlobNull":"canvas.toBlob returned no data for {label}","viewer.export.error.variantsCombined":"Share Card variants cannot be combined","viewer.export.error.viewerState":"Share Card export could not remove temporary viewer state","viewer.export.error.routeState":"Route Card export could not preserve the resolved route safely","viewer.export.error.reachState":"Reach Card export could not preserve authored reach safely","viewer.export.error.webmRequirements":"WebM motion export requires a trace animation and browser MediaRecorder support","viewer.export.error.mediaRecorder":"MediaRecorder failed","viewer.export.error.emptyWebm":"MediaRecorder produced an empty WebM","viewer.export.error.webmBackground":"SVG background could not be loaded for WebM export","viewer.guided.region":"Guided diagram views","viewer.guided.previous":"Previous guided view","viewer.guided.previous.title":"Previous guided view ([)","viewer.guided.next":"Next guided view","viewer.guided.next.title":"Next guided view (])","viewer.guided.views":"Guided views","viewer.guided.explore":"Explore this system","viewer.guided.intro":"Step through curated paths without changing the source diagram.","viewer.guided.trail":"Story trail","viewer.guided.beat":"Beat","viewer.guided.nextBeat":"Next","viewer.guided.play":"Play guided story","viewer.guided.play.title":"Play guided story (P)","viewer.guided.pause":"Pause guided story","viewer.guided.pause.title":"Pause guided story (P)","viewer.guided.replay":"Replay guided story","viewer.guided.replay.title":"Replay guided story (P)","viewer.guided.playStory":"Play story","viewer.guided.pauseStory":"Pause","viewer.guided.replayStory":"Replay story","viewer.guided.motionUnavailable":"Story playback unavailable while motion is Still","viewer.guided.enableMotion":"Switch motion to Live to play the guided story","viewer.guided.selectBeatLink":"Select a Story Beat to copy its exact link","viewer.guided.copyMoment":"Copy moment","viewer.guided.momentCopied":"Moment link copied","viewer.guided.momentCopyFailed":"Could not copy story moment link","viewer.guided.copied":"Copied","viewer.guided.copyFailed":"Copy failed","viewer.guided.showAll":"Show all","viewer.guided.showAll.aria":"Show entire diagram","viewer.guided.chapters":"Story chapters","viewer.guided.storyTrail":"Story trail for {label}: {count} beats","viewer.guided.chapter.open":"Open chapter {index} of {total}: {label}, {count} stops","viewer.guided.chapter.current":"Current chapter {index} of {total}: {label}, {count} stops","viewer.guided.chapter.selectedNodes":"{count} selected nodes","viewer.guided.chapter.stops":"{count} stops","viewer.guided.chapter.stop.one":"{count} stop","viewer.guided.chapter.stop.other":"{count} stops","viewer.guided.chapter.current.title":"{label} — current chapter, {count} stops","viewer.guided.chapter.delta.expanded":"{stay} stay, {enter} enter, {leave} leave","viewer.guided.chapter.delta.aria":"Open chapter {index} of {total}: {label}. Chapter focus delta: {delta}","viewer.guided.chapter.delta.title":"{label} — {delta} chapter focus","viewer.guided.handoff":"{from} → {to} · via {label}","viewer.guided.share.chapter":"Chapter {index} / {total}","viewer.guided.share.initial":"Chapter 01 / 01","viewer.guided.share.default":"Guided chapter","viewer.guided.state.ready":"Ready","viewer.guided.state.playing":"Playing","viewer.guided.state.settled":"Settled","viewer.guided.state.paused":"Paused","viewer.guided.state.pinned":"Pinned","viewer.guided.state.still":"Still","viewer.guided.share.step":"Step {index} / {total} · {label}","viewer.guided.share.staticMoment":"{step} · Static moment","viewer.guided.share.complete":"{count} steps complete · {note}","viewer.guided.share.settled":"Path settled for reading.","viewer.guided.share.staticPath":"{count} steps · Static path","viewer.guided.share.ready":"{count} steps · Ready","viewer.guided.share.aria":"{state} chapter {index} of {total}: {label}. {beat}. {route}","viewer.guided.beat.start":"Beat {index} / {total} · {label} · starting point","viewer.guided.beat.forward":"Beat {index} / {total} · {from} → {to}","viewer.guided.beat.reverse":"Beat {index} / {total} · {from} → {to} · reverse authored link","viewer.guided.beat.multiple":"Beat {index} / {total} · {from} ⇄ {to} · {count} authored links","viewer.guided.beat.group":"Beat {index} / {total} · {from} · {to} · grouped · no direct link","viewer.guided.beat.aria.prefix":"Story beat {index} of {total}: {label}. ","viewer.guided.beat.aria.start":"Starting point.","viewer.guided.beat.aria.forward":"From {from} through one authored forward relationship.","viewer.guided.beat.aria.reverse":"From {from}; the authored relationship points from {to} to {from}.","viewer.guided.beat.aria.multiple":"From {from} through {count} authored relationships; shown without arbitrary motion.","viewer.guided.beat.aria.group":"Grouped from {from} with no direct authored relationship.","viewer.guided.caption.start":"Starting point","viewer.guided.caption.grouped":"Grouped transition · no direct authored link","viewer.guided.caption.more":" +{count} more","viewer.guided.caption.reverse":"Reverse authored relationship","viewer.guided.caption.relationships":"{count} authored relationships","viewer.guided.caption.relationship":"Authored relationship","viewer.guided.caption.direction":"authored direction: {from} → {to}","viewer.guided.caption.starting":"Authored starting point","viewer.guided.beatLink":"Copy link to current story moment: Beat {index} of {total}: {label}","viewer.guided.noStory":"This diagram has no authored guided story.","viewer.guide.eyebrow":"Diagram guide","viewer.guide.close":"Close diagram guide","viewer.guide.inspecting":"Inspecting compiled semantics","viewer.guide.actions":"Diagram exploration actions","viewer.guide.find":"Find any node","viewer.guide.find.hint":"Search labels, responsibilities, kinds, and stable IDs.","viewer.guide.route":"Trace a route","viewer.guide.route.aria":"Trace a directed route","viewer.guide.route.hint":"Ask how two semantic nodes connect in authored direction.","viewer.guide.map":"See the whole system","viewer.guide.map.hint":"Open Semantic Radar with a live viewport and stable nodes.","viewer.guide.lens":"Compare semantic kinds","viewer.guide.lens.hint":"Count roles, reveal their traffic, and compare direct authored links.","viewer.guide.story":"Play the guided story","viewer.guide.story.hint":"Walk the authored chapters and real relationships.","viewer.guide.present":"Enter Presentation Stage","viewer.guide.present.hint":"Give the live diagram the viewport without changing export.","viewer.guide.shortcuts":"Additional keyboard shortcuts","viewer.guide.shortcut.export":"Export","viewer.guide.shortcut.theme":"Theme","viewer.guide.shortcut.style":"Style","viewer.guide.shortcut.reset":"Reset","viewer.guide.shortcut.zoomIn":"Zoom in","viewer.guide.shortcut.zoomOut":"Zoom out","viewer.guide.shortcut.close":"Close","viewer.guide.facts":"{nodes} · {relationships} · {views}","viewer.guide.fact.node.one":"{count} semantic node","viewer.guide.fact.node.other":"{count} semantic nodes","viewer.guide.fact.relationship.one":"{count} relationship","viewer.guide.fact.relationship.other":"{count} relationships","viewer.guide.fact.view.one":"{count} guided view","viewer.guide.fact.view.other":"{count} guided views","viewer.guide.story.available.one":"Walk {count} authored chapter and its real relationships.","viewer.guide.story.available.other":"Walk {count} authored chapters and their real relationships.","viewer.guide.story.unavailable":"No authored guided story in this diagram.","viewer.guide.open":"Open diagram guide","viewer.guide.noStory":"This diagram has no authored guided story.","viewer.finder.title":"Find a node","viewer.finder.close":"Close node finder","viewer.finder.placeholder":"Search labels or IDs","viewer.finder.search":"Search diagram nodes","viewer.finder.results":"Diagram nodes","viewer.finder.empty":"No matching nodes","viewer.finder.result.focus":"Focus {label}","viewer.finder.result.routeStart":"Choose {label} as route start","viewer.finder.result.routeTarget":"Choose {label} as route destination, {links}","viewer.finder.status.empty":"No matching nodes","viewer.finder.status.count.one":"{count} matching node","viewer.finder.status.count.other":"{count} matching nodes","viewer.finder.noun.nodes":"nodes","viewer.finder.link.one":"{count} link","viewer.finder.link.other":"{count} links","viewer.finder.result.focus.one":"Focus {label}, {count} related connection","viewer.finder.result.focus.other":"Focus {label}, {count} related connections","viewer.finder.status.filtered":"{visible} of {available} {noun}","viewer.finder.status.all":"{available} {noun}","viewer.passport.eyebrow":"Semantic passport","viewer.passport.metadata":"Node metadata","viewer.passport.evidence":"Verified source evidence","viewer.passport.verified":"Verified source","viewer.passport.verificationScope":"Verified against local Git at the pinned revision. Remote access has not been checked.","viewer.passport.reach":"Authored reach","viewer.passport.reach.trace":"Trace authored reachability","viewer.passport.upstream":"Upstream","viewer.passport.downstream":"Downstream","viewer.passport.upstream.trace":"Trace upstream authored reachability","viewer.passport.downstream.trace":"Trace downstream authored reachability","viewer.passport.close":"Close semantic passport","viewer.passport.copy":"Copy link","viewer.passport.copy.focus":"Copy link to focused node","viewer.passport.relations":"Relations","viewer.passport.relations.show":"Show connected relationships","viewer.passport.relations.hide":"Hide connected relationships","viewer.passport.relations.list":"Connected relationships","viewer.passport.copyRelation":"Copy relation","viewer.passport.copyNode":"Copy node","viewer.passport.copyPinned":"Copy link to pinned relationship","viewer.passport.copySource":"Copy link to source node","viewer.passport.copy.focused.success":"Focused node link copied","viewer.passport.copy.pinned.success":"Pinned relationship link copied","viewer.passport.copy.focused.failed":"Could not copy focused node link","viewer.passport.copy.pinned.failed":"Could not copy pinned relationship link","viewer.passport.relationship.none":"No connected relationships","viewer.passport.relationship.count.one":"{count} relation","viewer.passport.relationship.count.other":"{count} relations","viewer.passport.relationship.show.one":"Show {count} connected relationship","viewer.passport.relationship.show.other":"Show {count} connected relationships","viewer.passport.relationship.summary":"{out} outgoing · {in} incoming{loops}","viewer.passport.relationship.loops":" · {count} loop","viewer.passport.relationship.explorer":"Direct relationship explorer","viewer.passport.relationship.help":"Use arrow keys to explore relationships. Press Enter or Space to pin details; Escape clears.","viewer.passport.relationship.loopsBack":"loops back","viewer.passport.relationship.connectsTo":"connects to","viewer.passport.relationship.connectsFrom":"connects from","viewer.passport.relationship.pinned":"Pinned relationship · {from} → {to} · {label}","viewer.passport.relationship.inspect":"Inspect relationship {index} of {total}: {from} to {to}, {label}. Press Enter for details.","viewer.passport.relationship.group.out":"Outgoing","viewer.passport.relationship.group.in":"Incoming","viewer.passport.relationship.group.loop":"Self loops","viewer.passport.relationship.row":"{group}: {relationship}, {neighbor}","viewer.passport.relationship.direction.out":"OUT →","viewer.passport.relationship.direction.in":"← IN","viewer.passport.relationship.direction.loop":"LOOP","viewer.passport.sourceCount.one":"{count} verified source reference","viewer.passport.sourceCount.other":"{count} verified source references","viewer.passport.sourceMarker":"SRC","viewer.passport.beacon.one":"{count} verified source; focus this node to inspect","viewer.passport.beacon.other":"{count} verified sources; focus this node to inspect","viewer.passport.repository.open":"Open verified repository revision {revision}","viewer.passport.source.open":"Open verified source {path} at revision {revision}","viewer.passport.source.openLink":"Open ↗","viewer.passport.reach.upstream.one":"Trace {count} upstream authored node","viewer.passport.reach.upstream.other":"Trace {count} upstream authored nodes","viewer.passport.reach.downstream.one":"Trace {count} downstream authored node","viewer.passport.reach.downstream.other":"Trace {count} downstream authored nodes","viewer.passport.reach.noUpstream":"No upstream authored nodes","viewer.passport.reach.noDownstream":"No downstream authored nodes","viewer.passport.reach.status":"{direction} · {nodes} nodes · {links} links · max {hops} hops","viewer.route.eyebrow":"Route probe","viewer.route.start":"Choose a start node","viewer.route.start.find":"Find start","viewer.route.start.find.aria":"Find a route start","viewer.route.copy":"Copy link","viewer.route.copy.aria":"Copy link to traced route","viewer.route.clear":"Clear","viewer.route.clear.aria":"Clear route probe","viewer.route.traced":"Traced route","viewer.route.pickTwo":"Pick two semantic nodes on the diagram","viewer.route.pickOne":"Pick a semantic node on the diagram","viewer.route.controls":"Route journey controls","viewer.route.previous":"Previous route position","viewer.route.play":"Play route journey","viewer.route.pause":"Pause route journey","viewer.route.replay":"Replay route journey","viewer.route.next":"Next route position","viewer.route.journey":"Journey","viewer.route.pause.label":"Pause","viewer.route.replay.label":"Replay","viewer.route.overview":"Overview","viewer.route.overview.aria":"Show complete route overview","viewer.route.instructions":"Choose the source, then the destination. Direction matters.","viewer.route.destination":"Choose a destination from {label}","viewer.route.destination.find":"Find target","viewer.route.destination.find.aria":"Find a reachable route destination","viewer.route.differentDestination":"Choose a different destination","viewer.route.distinct":"A route needs two distinct semantic nodes.","viewer.route.unreachable":"No directed route to {label}","viewer.route.unreachable.detail":"{target} is not reachable from {source}. Pick a highlighted destination.","viewer.route.start.instructions":"Select the source. The next step will reveal only directed destinations.","viewer.route.copy.success":"Traced route link copied","viewer.route.copy.failed":"Could not copy traced route link","viewer.route.position":"Route position {index} of {total}: {label}","viewer.route.step":"Step {index} of {total} · {phase} · {label}","viewer.route.motionRequired":"Automatic journey requires Live motion","viewer.route.trigger.clear":"Clear traced route","viewer.route.overview.status":"{nodes} · {hops} · shortest authored route","viewer.route.overview.node.one":"{count} node","viewer.route.overview.node.other":"{count} nodes","viewer.route.overview.hop.one":"{count} directed hop","viewer.route.overview.hop.other":"{count} directed hops","viewer.route.phase.playing":"Playing","viewer.route.phase.complete":"Complete","viewer.route.phase.inspecting":"Inspecting","viewer.route.destination.count.one":"{count} directed destination available. Pick a highlighted node.","viewer.route.destination.count.other":"{count} directed destinations available. Pick a highlighted node.","viewer.route.noOutgoing":"No outgoing route starts here. Clear and choose another source.","viewer.route.result.title":"{source} to {target}","viewer.route.finder.source.title":"Choose route start","viewer.route.finder.source.placeholder":"Search route sources","viewer.route.finder.source.empty":"No matching route sources","viewer.route.finder.source.results":"Nodes that can start a route","viewer.route.finder.source.noun":"route sources","viewer.route.finder.source.badge":"start","viewer.route.finder.target.title":"Destination from {label}","viewer.route.finder.target.placeholder":"Search reachable destinations","viewer.route.finder.target.empty":"No matching reachable destinations","viewer.route.finder.target.results":"Reachable route destinations","viewer.route.finder.target.noun":"reachable destinations","viewer.route.hop.one":"{count} hop","viewer.route.hop.other":"{count} hops","viewer.lens.eyebrow":"Semantic lens","viewer.lens.title":"Compare system roles","viewer.lens.close":"Close semantic lens","viewer.lens.instruction":"Choose up to two semantic kinds. One reveals its real traffic; two compare only direct authored relationships.","viewer.lens.kinds":"Semantic kinds","viewer.lens.choose":"Choose a kind to inspect its nodes and touching relationships.","viewer.lens.copy":"Copy link to semantic lens","viewer.lens.clear":"Clear semantic lens","viewer.lens.open":"Open semantic lens","viewer.lens.openActive":"Open active semantic lens","viewer.lens.legend":"Semantic legend","viewer.lens.legend.inspect.one":"Inspect {label}, {count} node","viewer.lens.legend.inspect.other":"Inspect {label}, {count} nodes","viewer.lens.kind.count.one":"{label}, {count} node","viewer.lens.kind.count.other":"{label}, {count} nodes","viewer.lens.compare.one":"{first} → {second}: {forward} · {second} → {first}: {reverse} · {count} direct relationship","viewer.lens.compare.other":"{first} → {second}: {forward} · {second} → {first}: {reverse} · {count} direct relationships","viewer.lens.single":"{nodes} · {relationships} · connected peers remain visible","viewer.lens.node.one":"{count} {label} node","viewer.lens.node.other":"{count} {label} nodes","viewer.lens.relationship.one":"{count} touching relationship","viewer.lens.relationship.other":"{count} touching relationships","viewer.radar.title":"Semantic radar","viewer.radar.building":"Building overview","viewer.radar.openFull":"Open full semantic radar","viewer.radar.open":"Open radar","viewer.radar.close":"Close semantic radar","viewer.radar.surface":"Diagram overview. Click a node to focus it, or use arrow keys to pan.","viewer.radar.click":"Click node","viewer.radar.drag":"Drag to pan","viewer.radar.space":"Semantic radar needs more MAP space.","viewer.radar.nodes":"Semantic diagram radar nodes","viewer.radar.focus":"Focus {label} from Semantic Radar","viewer.radar.status":"{count} nodes · {viewport}","viewer.radar.fullMap":"{count} nodes · full map","viewer.radar.compacted":"Radar compacted to avoid covering the Semantic Passport or MAP controls.","viewer.radar.cancelWaiting":"Cancel semantic radar waiting for more MAP space","viewer.radar.needsSpace":"Semantic radar needs more visible MAP space","viewer.radar.viewport.full":"full map","viewer.radar.viewport.width":"{percent}% width","viewer.radar.viewport.scale":"{percent}% viewport","viewer.nav.controls":"Diagram view controls","viewer.nav.route":"Trace a directed route","viewer.nav.route.title":"Trace route (R)","viewer.nav.route.short":"PATH","viewer.nav.radar":"Open semantic radar","viewer.nav.radar.title":"Semantic radar (M)","viewer.nav.radar.short":"MAP","viewer.nav.lens":"Open semantic lens","viewer.nav.lens.title":"Semantic lens (L)","viewer.nav.lens.short":"LENS","viewer.nav.find":"Find a node","viewer.nav.find.title":"Find a node (/)","viewer.nav.guide":"Open diagram guide","viewer.nav.guide.title":"Diagram guide (?)","viewer.nav.zoomOut":"Zoom out","viewer.nav.zoomOut.title":"Zoom out (-)","viewer.nav.reset":"Reset diagram view","viewer.nav.reset.title":"Reset view (0)","viewer.nav.read":"READ","viewer.nav.zoomIn":"Zoom in","viewer.nav.zoomIn.title":"Zoom in (+)","viewer.nav.camera":"{hint}. Reset diagram view","viewer.nav.camera.title":"{semantic}{hint} · reset view (0)","viewer.nav.camera.semantic":"Semantic camera active · ","viewer.nav.level.map":"MAP","viewer.nav.level.read":"READ","viewer.nav.level.full":"FULL","viewer.nav.level.auto":"AUTO","viewer.nav.detail.map":"Zoom in to reveal relationship labels and node context","viewer.nav.detail.read":"Zoom in again to reveal tags and annotations","viewer.nav.detail.full":"Full diagram detail","viewer.intent.summary":"{label}. {out} outgoing, {in} incoming{loops}. {total} connections. Press Enter for details.","viewer.intent.loops":", {count} self loop","viewer.common.copied":"Copied","viewer.common.copyFailed":"Copy failed","viewer.common.copyLink":"Copy link","viewer.common.clear":"Clear","viewer.common.close":"Close"}}</script>
     <div class="guided-views no-print" id="guided-views" hidden aria-label="Guided diagram views">
@@ -5130,8 +5130,8 @@ OTHER DEALINGS IN THE FONT SOFTWARE.
     <!-- Main Diagram -->
     <div class="diagram-container" data-detail-level="read"
          data-preset-badge-editorial-plate="ARCHIFY / PLATE 04">
-      <svg viewBox="0 0 1050 593" role="img" lang="en" aria-labelledby="archify-diagram-title archify-diagram-description" data-animation="trace" data-preset="classic" data-quality-profile="showcase">
-        <title id="archify-diagram-title">Casa Escondida — Hybrid AI, Hono Quotation Studio &amp; Odoo GAIS Architecture</title>
+      <svg viewBox="0 0 1085 448" role="img" lang="en" aria-labelledby="archify-diagram-title archify-diagram-description" data-animation="trace" data-preset="classic" data-quality-profile="showcase">
+        <title id="archify-diagram-title">Casa Escondida — Hybrid AI Reservation Intake &amp; Edge BFF Architecture</title>
         <desc id="archify-diagram-description">An architecture diagram generated by Archify.</desc>
         <!-- Definitions -->
         <defs>
@@ -5156,198 +5156,173 @@ OTHER DEALINGS IN THE FONT SOFTWARE.
         <rect width="100%" height="100%" fill="url(#grid)" />
 
         <!-- Boundaries (behind everything) -->
-        <rect data-graph-role="structural-frame" data-composition-frame-kind="region" data-composition-frame-id="0" data-composition-frame-label="Vercel Production Edge &amp; Serverless (technext-edge-casa-bff)" x="220" y="115" width="610" height="410" rx="12" class="c-region" stroke-width="1"/>
+        <rect data-graph-role="structural-frame" data-composition-frame-kind="region" data-composition-frame-id="0" data-composition-frame-label="Vercel Production Edge &amp; Serverless (technext-edge-casa-bff)" x="225" y="115" width="635" height="265" rx="12" class="c-region" stroke-width="1"/>
 
         <!-- Connection paths (before components for correct z-order) -->
-        <path data-edge-from="guest" data-edge-to="bff" data-edge-label="HTTPS" data-edge-key="0" data-edge-id="guest-to-bff" data-composition-points="165,330;250,330" d="M 165 330 L 250 330" class="a-emphasis" data-animate="edge" style="--step:0" stroke-width="1.8" marker-end="url(#arrowhead-emphasis)"/>
-        <path data-edge-from="auth" data-edge-to="bff" data-edge-label="verify HMAC" data-edge-key="1" data-edge-id="auth-to-bff" data-composition-points="165,142;205,142;205,250;315,250;315,300" d="M 165 142 L 197 142 Q 205 142 205 150 L 205 242 Q 205 250 213 250 L 307 250 Q 315 250 315 258 L 315 300" class="a-security" data-animate="edge" style="--step:1" stroke-width="1.5" marker-end="url(#arrowhead-security)"/>
-        <path data-edge-from="bff" data-edge-to="redis" data-edge-label="claim + lock" data-edge-key="2" data-edge-id="bff-to-redis" data-composition-points="315,300;315,205" d="M 315 300 L 315 205" class="a-default" data-animate="edge" style="--step:2" stroke-width="1.5" marker-end="url(#arrowhead)"/>
-        <path data-edge-from="bff" data-edge-to="extractor" data-edge-label="converse()" data-edge-key="3" data-edge-id="bff-to-extractor" data-composition-points="380,330;460,330" d="M 380 330 L 460 330" class="a-emphasis" data-animate="edge" style="--step:3" stroke-width="1.8" marker-end="url(#arrowhead-emphasis)"/>
-        <path data-edge-from="extractor" data-edge-to="gemini" data-edge-label="JSON + Tools" data-edge-key="4" data-edge-id="extractor-to-gemini" data-composition-points="525,300;525,205" d="M 525 300 L 525 205" class="a-default" data-animate="edge" style="--step:4" stroke-width="1.5" marker-end="url(#arrowhead)"/>
-        <path data-edge-from="extractor" data-edge-to="studio" data-edge-label="submit tool" data-edge-key="5" data-edge-id="extractor-to-studio" data-composition-points="590,330;670,330" d="M 590 330 L 670 330" class="a-emphasis" data-animate="edge" style="--step:5" stroke-width="1.8" marker-end="url(#arrowhead-emphasis)"/>
-        <path data-edge-from="studio" data-edge-to="quote_link" data-edge-label="publish /q/:slug" data-edge-key="6" data-edge-id="studio-to-quote-link" data-composition-points="735,360;735,445" d="M 735 360 L 735 445" class="a-dashed" data-animate="edge" style="--step:6" stroke-width="1.5" marker-end="url(#arrowhead-dashed)"/>
-        <path data-edge-from="studio" data-edge-to="odoo" data-edge-label="GAIS upsert" data-edge-key="7" data-edge-id="studio-to-odoo" data-composition-points="800,330;880,330" d="M 800 330 L 880 330" class="a-security" data-animate="edge" style="--step:7" stroke-width="1.5" marker-end="url(#arrowhead-security)"/>
+        <path data-edge-from="guest" data-edge-to="bff" data-edge-label="HTTPS" data-edge-key="0" data-edge-id="guest-to-bff" data-composition-points="170,330;255,330" d="M 170 330 L 255 330" class="a-emphasis" data-animate="edge" style="--step:0" stroke-width="1.8" marker-end="url(#arrowhead-emphasis)"/>
+        <path data-edge-from="auth" data-edge-to="bff" data-edge-label="verify HMAC" data-edge-key="1" data-edge-id="auth-to-bff" data-composition-points="170,147;210,147;210,250;320,250;320,300" d="M 170 147 L 202 147 Q 210 147 210 155 L 210 242 Q 210 250 218 250 L 312 250 Q 320 250 320 258 L 320 300" class="a-security" data-animate="edge" style="--step:1" stroke-width="1.5" marker-end="url(#arrowhead-security)"/>
+        <path data-edge-from="bff" data-edge-to="redis" data-edge-label="claim + lock" data-edge-key="2" data-edge-id="bff-to-redis" data-composition-points="320,300;320,205" d="M 320 300 L 320 205" class="a-default" data-animate="edge" style="--step:2" stroke-width="1.5" marker-end="url(#arrowhead)"/>
+        <path data-edge-from="bff" data-edge-to="extractor" data-edge-label="converse()" data-edge-key="3" data-edge-id="bff-to-extractor" data-composition-points="385,330;470,330" d="M 385 330 L 470 330" class="a-emphasis" data-animate="edge" style="--step:3" stroke-width="1.8" marker-end="url(#arrowhead-emphasis)"/>
+        <path data-edge-from="extractor" data-edge-to="llm_pool" data-edge-label="Pass 1 + Pass 2" data-edge-key="4" data-edge-id="extractor-to-llm" data-composition-points="540,300;540,205" d="M 540 300 L 540 205" class="a-default" data-animate="edge" style="--step:4" stroke-width="1.5" marker-end="url(#arrowhead)"/>
+        <path data-edge-from="extractor" data-edge-to="gates" data-edge-label="reconcile" data-edge-key="5" data-edge-id="extractor-to-gates" data-composition-points="610,330;690,330" d="M 610 330 L 690 330" class="a-emphasis" data-animate="edge" style="--step:5" stroke-width="1.8" marker-end="url(#arrowhead-emphasis)"/>
+        <path data-edge-from="gates" data-edge-to="handoff" data-edge-label="done + alerts" data-edge-key="6" data-edge-id="gates-to-handoff" data-composition-points="830,330;905,330" d="M 830 330 L 905 330" class="a-emphasis" data-animate="edge" style="--step:6" stroke-width="1.8" marker-end="url(#arrowhead-emphasis)"/>
 
         <!-- Components -->
-        <g id="node-guest" data-node-id="guest" data-node-label="Guest Channels" tabindex="0" role="button" aria-label="Focus Guest Channels, WhatsApp / Web, Architecture component" aria-pressed="false" data-node-kind="external" data-node-sublabel="WhatsApp / Web" data-node-context="Architecture component">
-          <title>Guest Channels · WhatsApp / Web · Architecture component</title>
-          <rect x="40" y="300" width="125" height="60" rx="6" class="c-mask"/>
-          <rect x="40" y="300" width="125" height="60" rx="6" class="c-external" data-animate="node" style="--step:0" stroke-width="1.5"/>
+        <g id="node-guest" data-node-id="guest" data-node-label="Guest Channels" tabindex="0" role="button" aria-label="Focus Guest Channels, WhatsApp / Web Console, Architecture component" aria-pressed="false" data-node-kind="external" data-node-sublabel="WhatsApp / Web Console" data-node-context="Architecture component">
+          <title>Guest Channels · WhatsApp / Web Console · Architecture component</title>
+          <rect x="40" y="300" width="130" height="60" rx="6" class="c-mask"/>
+          <rect x="40" y="300" width="130" height="60" rx="6" class="c-external" data-animate="node" style="--step:0" stroke-width="1.5"/>
           <g aria-hidden="true" data-semantic-sigil="external" class="semantic-sigil s-external" transform="translate(46 306) scale(0.6875)">
             <rect x="2.5" y="5" width="8.5" height="8" rx="1.5"/>
             <path d="M8 2.5h5.5V8M13.5 2.5 7.5 8.5"/>
           </g>
-          <text data-node-label="" data-detail-anchor="" x="102.5" y="328" class="t-primary" font-size="11" font-weight="600" text-anchor="middle">Guest Channels</text>
-        <text data-detail="context" x="102.5" y="344" class="t-muted" font-size="9" text-anchor="middle">WhatsApp / Web</text>
+          <text data-node-label="" data-detail-anchor="" x="105" y="328" class="t-primary" font-size="11" font-weight="600" text-anchor="middle">Guest Channels</text>
+        <text data-detail="context" x="105" y="344" class="t-muted" font-size="9" text-anchor="middle">WhatsApp / Web Console</text>
         </g>
 
-        <g id="node-auth" data-node-id="auth" data-node-label="GAIS &amp; Webhook Auth" tabindex="0" role="button" aria-label="Focus GAIS &amp; Webhook Auth, HMAC-SHA256, Architecture component" aria-pressed="false" data-node-kind="security" data-node-sublabel="HMAC-SHA256" data-node-tag="X-Hub + GAIS" data-node-context="Architecture component">
-          <title>GAIS &amp; Webhook Auth · HMAC-SHA256 · Architecture component · X-Hub + GAIS</title>
-          <rect x="40" y="110" width="125" height="64" rx="6" class="c-mask"/>
-          <rect x="40" y="110" width="125" height="64" rx="6" class="c-security" data-animate="node" style="--step:1" stroke-width="1.5"/>
-          <g aria-hidden="true" data-semantic-sigil="security" class="semantic-sigil s-security" transform="translate(46 116) scale(0.6875)">
+        <g id="node-auth" data-node-id="auth" data-node-label="Webhook Auth" tabindex="0" role="button" aria-label="Focus Webhook Auth, X-Hub-Signature-256, Architecture component" aria-pressed="false" data-node-kind="security" data-node-sublabel="X-Hub-Signature-256" data-node-tag="HMAC-SHA256" data-node-context="Architecture component">
+          <title>Webhook Auth · X-Hub-Signature-256 · Architecture component · HMAC-SHA256</title>
+          <rect x="40" y="115" width="130" height="64" rx="6" class="c-mask"/>
+          <rect x="40" y="115" width="130" height="64" rx="6" class="c-security" data-animate="node" style="--step:1" stroke-width="1.5"/>
+          <g aria-hidden="true" data-semantic-sigil="security" class="semantic-sigil s-security" transform="translate(46 121) scale(0.6875)">
             <path d="M8 2.2 13 4v3.5c0 3.1-1.8 5.4-5 6.5-3.2-1.1-5-3.4-5-6.5V4Z"/>
             <path d="m5.8 8 1.5 1.5 3-3"/>
           </g>
-          <text data-node-label="" data-detail-anchor="" x="102.5" y="140" class="t-primary" font-size="10.2" font-weight="600" text-anchor="middle">GAIS &amp; Webhook Auth</text>
-        <text data-detail="context" x="102.5" y="156" class="t-muted" font-size="9" text-anchor="middle">HMAC-SHA256</text>
-        <text data-detail="fine" x="102.5" y="166" class="t-security" font-size="7" text-anchor="middle">X-Hub + GAIS</text>
+          <text data-node-label="" data-detail-anchor="" x="105" y="145" class="t-primary" font-size="11" font-weight="600" text-anchor="middle">Webhook Auth</text>
+        <text data-detail="context" x="105" y="161" class="t-muted" font-size="9" text-anchor="middle">X-Hub-Signature-256</text>
+        <text data-detail="fine" x="105" y="171" class="t-security" font-size="7" text-anchor="middle">HMAC-SHA256</text>
         </g>
 
-        <g id="node-bff" data-node-id="bff" data-node-label="Hono Edge BFF" tabindex="0" role="button" aria-label="Focus Hono Edge BFF, Webhook &amp; API, Vercel Production Edge &amp; Serverless (technext-edge-casa-bff)" aria-pressed="false" data-node-kind="backend" data-node-sublabel="Webhook &amp; API" data-node-context="Vercel Production Edge &amp; Serverless (technext-edge-casa-bff)">
-          <title>Hono Edge BFF · Webhook &amp; API · Vercel Production Edge &amp; Serverless (technext-edge-casa-bff)</title>
-          <rect x="250" y="300" width="130" height="60" rx="6" class="c-mask"/>
-          <rect x="250" y="300" width="130" height="60" rx="6" class="c-backend" data-animate="node" style="--step:1" stroke-width="1.5"/>
-          <g aria-hidden="true" data-semantic-sigil="backend" class="semantic-sigil s-backend" transform="translate(256 306) scale(0.6875)">
+        <g id="node-bff" data-node-id="bff" data-node-label="Hono Edge BFF" tabindex="0" role="button" aria-label="Focus Hono Edge BFF, /webhook &amp; /v1/converse, Vercel Production Edge &amp; Serverless (technext-edge-casa-bff)" aria-pressed="false" data-node-kind="backend" data-node-sublabel="/webhook &amp; /v1/converse" data-node-context="Vercel Production Edge &amp; Serverless (technext-edge-casa-bff)">
+          <title>Hono Edge BFF · /webhook &amp; /v1/converse · Vercel Production Edge &amp; Serverless (technext-edge-casa-bff)</title>
+          <rect x="255" y="300" width="130" height="60" rx="6" class="c-mask"/>
+          <rect x="255" y="300" width="130" height="60" rx="6" class="c-backend" data-animate="node" style="--step:1" stroke-width="1.5"/>
+          <g aria-hidden="true" data-semantic-sigil="backend" class="semantic-sigil s-backend" transform="translate(261 306) scale(0.6875)">
             <path d="M6 3 3 8l3 5M10 3l3 5-3 5"/>
           </g>
-          <text data-node-label="" data-detail-anchor="" x="315" y="328" class="t-primary" font-size="11" font-weight="600" text-anchor="middle">Hono Edge BFF</text>
-        <text data-detail="context" x="315" y="344" class="t-muted" font-size="9" text-anchor="middle">Webhook &amp; API</text>
+          <text data-node-label="" data-detail-anchor="" x="320" y="328" class="t-primary" font-size="11" font-weight="600" text-anchor="middle">Hono Edge BFF</text>
+        <text data-detail="context" x="320" y="344" class="t-muted" font-size="8.8" text-anchor="middle">/webhook &amp; /v1/converse</text>
         </g>
 
-        <g id="node-redis" data-node-id="redis" data-node-label="Upstash Redis" tabindex="0" role="button" aria-label="Focus Upstash Redis, Lock &amp; Thread, Vercel Production Edge &amp; Serverless (technext-edge-casa-bff)" aria-pressed="false" data-node-kind="database" data-node-sublabel="Lock &amp; Thread" data-node-context="Vercel Production Edge &amp; Serverless (technext-edge-casa-bff)">
-          <title>Upstash Redis · Lock &amp; Thread · Vercel Production Edge &amp; Serverless (technext-edge-casa-bff)</title>
-          <rect x="250" y="145" width="130" height="60" rx="6" class="c-mask"/>
-          <rect x="250" y="145" width="130" height="60" rx="6" class="c-database" data-animate="node" style="--step:3" stroke-width="1.5"/>
-          <g aria-hidden="true" data-semantic-sigil="database" class="semantic-sigil s-database" transform="translate(256 151) scale(0.6875)">
+        <g id="node-redis" data-node-id="redis" data-node-label="Upstash Redis" tabindex="0" role="button" aria-label="Focus Upstash Redis, Phone Lock &amp; WAMID, Vercel Production Edge &amp; Serverless (technext-edge-casa-bff)" aria-pressed="false" data-node-kind="database" data-node-sublabel="Phone Lock &amp; WAMID" data-node-context="Vercel Production Edge &amp; Serverless (technext-edge-casa-bff)">
+          <title>Upstash Redis · Phone Lock &amp; WAMID · Vercel Production Edge &amp; Serverless (technext-edge-casa-bff)</title>
+          <rect x="255" y="145" width="130" height="60" rx="6" class="c-mask"/>
+          <rect x="255" y="145" width="130" height="60" rx="6" class="c-database" data-animate="node" style="--step:3" stroke-width="1.5"/>
+          <g aria-hidden="true" data-semantic-sigil="database" class="semantic-sigil s-database" transform="translate(261 151) scale(0.6875)">
             <ellipse cx="8" cy="4" rx="5" ry="2"/>
             <path d="M3 4v8c0 1.1 2.2 2 5 2s5-.9 5-2V4M3 8c0 1.1 2.2 2 5 2s5-.9 5-2"/>
           </g>
-          <text data-node-label="" data-detail-anchor="" x="315" y="173" class="t-primary" font-size="11" font-weight="600" text-anchor="middle">Upstash Redis</text>
-        <text data-detail="context" x="315" y="189" class="t-muted" font-size="9" text-anchor="middle">Lock &amp; Thread</text>
+          <text data-node-label="" data-detail-anchor="" x="320" y="173" class="t-primary" font-size="11" font-weight="600" text-anchor="middle">Upstash Redis</text>
+        <text data-detail="context" x="320" y="189" class="t-muted" font-size="9" text-anchor="middle">Phone Lock &amp; WAMID</text>
         </g>
 
-        <g id="node-extractor" data-node-id="extractor" data-node-label="Hybrid AI Pod" tabindex="0" role="button" aria-label="Focus Hybrid AI Pod, Pass 1/2 + Gates, Vercel Production Edge &amp; Serverless (technext-edge-casa-bff)" aria-pressed="false" data-node-kind="backend" data-node-sublabel="Pass 1/2 + Gates" data-node-context="Vercel Production Edge &amp; Serverless (technext-edge-casa-bff)">
-          <title>Hybrid AI Pod · Pass 1/2 + Gates · Vercel Production Edge &amp; Serverless (technext-edge-casa-bff)</title>
-          <rect x="460" y="300" width="130" height="60" rx="6" class="c-mask"/>
-          <rect x="460" y="300" width="130" height="60" rx="6" class="c-backend" data-animate="node" style="--step:4" stroke-width="1.5"/>
-          <g aria-hidden="true" data-semantic-sigil="backend" class="semantic-sigil s-backend" transform="translate(466 306) scale(0.6875)">
+        <g id="node-extractor" data-node-id="extractor" data-node-label="Hybrid AI Pod" tabindex="0" role="button" aria-label="Focus Hybrid AI Pod, Pass 1 Trip + Pass 2 Guests, Vercel Production Edge &amp; Serverless (technext-edge-casa-bff)" aria-pressed="false" data-node-kind="backend" data-node-sublabel="Pass 1 Trip + Pass 2 Guests" data-node-context="Vercel Production Edge &amp; Serverless (technext-edge-casa-bff)">
+          <title>Hybrid AI Pod · Pass 1 Trip + Pass 2 Guests · Vercel Production Edge &amp; Serverless (technext-edge-casa-bff)</title>
+          <rect x="470" y="300" width="140" height="60" rx="6" class="c-mask"/>
+          <rect x="470" y="300" width="140" height="60" rx="6" class="c-backend" data-animate="node" style="--step:4" stroke-width="1.5"/>
+          <g aria-hidden="true" data-semantic-sigil="backend" class="semantic-sigil s-backend" transform="translate(476 306) scale(0.6875)">
             <path d="M6 3 3 8l3 5M10 3l3 5-3 5"/>
           </g>
-          <text data-node-label="" data-detail-anchor="" x="525" y="328" class="t-primary" font-size="11" font-weight="600" text-anchor="middle">Hybrid AI Pod</text>
-        <text data-detail="context" x="525" y="344" class="t-muted" font-size="9" text-anchor="middle">Pass 1/2 + Gates</text>
+          <text data-node-label="" data-detail-anchor="" x="540" y="328" class="t-primary" font-size="11" font-weight="600" text-anchor="middle">Hybrid AI Pod</text>
+        <text data-detail="context" x="540" y="344" class="t-muted" font-size="8.1" text-anchor="middle">Pass 1 Trip + Pass 2 Guests</text>
         </g>
 
-        <g id="node-gemini" data-node-id="gemini" data-node-label="Gemini 3.1 Lite" tabindex="0" role="button" aria-label="Focus Gemini 3.1 Lite, 60s Circuit Breaker, Vercel Production Edge &amp; Serverless (technext-edge-casa-bff)" aria-pressed="false" data-node-kind="cloud" data-node-sublabel="60s Circuit Breaker" data-node-tag="&lt; 2.5s SLA" data-node-context="Vercel Production Edge &amp; Serverless (technext-edge-casa-bff)">
-          <title>Gemini 3.1 Lite · 60s Circuit Breaker · Vercel Production Edge &amp; Serverless (technext-edge-casa-bff) · &lt; 2.5s SLA</title>
-          <rect x="460" y="145" width="130" height="60" rx="6" class="c-mask"/>
-          <rect x="460" y="145" width="130" height="60" rx="6" class="c-cloud" data-animate="node" style="--step:5" stroke-width="1.5"/>
-          <g aria-hidden="true" data-semantic-sigil="cloud" class="semantic-sigil s-cloud" transform="translate(466 151) scale(0.6875)">
+        <g id="node-llm_pool" data-node-id="llm_pool" data-node-label="DeepSeek + Gemini" tabindex="0" role="button" aria-label="Focus DeepSeek + Gemini, 60s Circuit Breaker, Vercel Production Edge &amp; Serverless (technext-edge-casa-bff)" aria-pressed="false" data-node-kind="cloud" data-node-sublabel="60s Circuit Breaker" data-node-tag="&lt; 2.5s SLA" data-node-context="Vercel Production Edge &amp; Serverless (technext-edge-casa-bff)">
+          <title>DeepSeek + Gemini · 60s Circuit Breaker · Vercel Production Edge &amp; Serverless (technext-edge-casa-bff) · &lt; 2.5s SLA</title>
+          <rect x="470" y="145" width="140" height="60" rx="6" class="c-mask"/>
+          <rect x="470" y="145" width="140" height="60" rx="6" class="c-cloud" data-animate="node" style="--step:5" stroke-width="1.5"/>
+          <g aria-hidden="true" data-semantic-sigil="cloud" class="semantic-sigil s-cloud" transform="translate(476 151) scale(0.6875)">
             <path d="M4.3 12.5h7.3a2.4 2.4 0 0 0 .2-4.8 4 4 0 0 0-7.5-1.3A3.1 3.1 0 0 0 4.3 12.5Z"/>
           </g>
-          <text data-node-label="" data-detail-anchor="" x="525" y="173" class="t-primary" font-size="11" font-weight="600" text-anchor="middle">Gemini 3.1 Lite</text>
-        <text data-detail="context" x="525" y="189" class="t-muted" font-size="9" text-anchor="middle">60s Circuit Breaker</text>
-        <text data-detail="fine" x="525" y="197" class="t-cloud" font-size="7" text-anchor="middle">&lt; 2.5s SLA</text>
+          <text data-node-label="" data-detail-anchor="" x="540" y="173" class="t-primary" font-size="11" font-weight="600" text-anchor="middle">DeepSeek + Gemini</text>
+        <text data-detail="context" x="540" y="189" class="t-muted" font-size="9" text-anchor="middle">60s Circuit Breaker</text>
+        <text data-detail="fine" x="540" y="197" class="t-cloud" font-size="7" text-anchor="middle">&lt; 2.5s SLA</text>
         </g>
 
-        <g id="node-studio" data-node-id="studio" data-node-label="Hono Studio" tabindex="0" role="button" aria-label="Focus Hono Studio, /quotes Editor, Vercel Production Edge &amp; Serverless (technext-edge-casa-bff)" aria-pressed="false" data-node-kind="frontend" data-node-sublabel="/quotes Editor" data-node-tag="Editable Table" data-node-context="Vercel Production Edge &amp; Serverless (technext-edge-casa-bff)">
-          <title>Hono Studio · /quotes Editor · Vercel Production Edge &amp; Serverless (technext-edge-casa-bff) · Editable Table</title>
-          <rect x="670" y="300" width="130" height="60" rx="6" class="c-mask"/>
-          <rect x="670" y="300" width="130" height="60" rx="6" class="c-frontend" data-animate="node" style="--step:6" stroke-width="1.5"/>
-          <g aria-hidden="true" data-semantic-sigil="frontend" class="semantic-sigil s-frontend" transform="translate(676 306) scale(0.6875)">
-            <rect x="2" y="3" width="12" height="10" rx="2"/>
-            <path d="M2 6.5h12"/>
-            <circle cx="4.1" cy="4.8" r=".7" class="sigil-fill"/>
-            <circle cx="6.3" cy="4.8" r=".7" class="sigil-fill"/>
+        <g id="node-gates" data-node-id="gates" data-node-label="Math &amp; Fact Gates" tabindex="0" role="button" aria-label="Focus Math &amp; Fact Gates, No Re-Ask &amp; Price Guard, Vercel Production Edge &amp; Serverless (technext-edge-casa-bff)" aria-pressed="false" data-node-kind="security" data-node-sublabel="No Re-Ask &amp; Price Guard" data-node-tag="0% Fabrication" data-node-context="Vercel Production Edge &amp; Serverless (technext-edge-casa-bff)">
+          <title>Math &amp; Fact Gates · No Re-Ask &amp; Price Guard · Vercel Production Edge &amp; Serverless (technext-edge-casa-bff) · 0% Fabrication</title>
+          <rect x="690" y="300" width="140" height="60" rx="6" class="c-mask"/>
+          <rect x="690" y="300" width="140" height="60" rx="6" class="c-security" data-animate="node" style="--step:6" stroke-width="1.5"/>
+          <g aria-hidden="true" data-semantic-sigil="security" class="semantic-sigil s-security" transform="translate(696 306) scale(0.6875)">
+            <path d="M8 2.2 13 4v3.5c0 3.1-1.8 5.4-5 6.5-3.2-1.1-5-3.4-5-6.5V4Z"/>
+            <path d="m5.8 8 1.5 1.5 3-3"/>
           </g>
-          <text data-node-label="" data-detail-anchor="" x="735" y="328" class="t-primary" font-size="11" font-weight="600" text-anchor="middle">Hono Studio</text>
-        <text data-detail="context" x="735" y="344" class="t-muted" font-size="9" text-anchor="middle">/quotes Editor</text>
-        <text data-detail="fine" x="735" y="352" class="t-frontend" font-size="7" text-anchor="middle">Editable Table</text>
+          <text data-node-label="" data-detail-anchor="" x="760" y="328" class="t-primary" font-size="11" font-weight="600" text-anchor="middle">Math &amp; Fact Gates</text>
+        <text data-detail="context" x="760" y="344" class="t-muted" font-size="9" text-anchor="middle">No Re-Ask &amp; Price Guard</text>
+        <text data-detail="fine" x="760" y="352" class="t-security" font-size="7" text-anchor="middle">0% Fabrication</text>
         </g>
 
-        <g id="node-quote_link" data-node-id="quote_link" data-node-label="Customer Quote" tabindex="0" role="button" aria-label="Focus Customer Quote, /q/:slug Link, Vercel Production Edge &amp; Serverless (technext-edge-casa-bff)" aria-pressed="false" data-node-kind="frontend" data-node-sublabel="/q/:slug Link" data-node-context="Vercel Production Edge &amp; Serverless (technext-edge-casa-bff)">
-          <title>Customer Quote · /q/:slug Link · Vercel Production Edge &amp; Serverless (technext-edge-casa-bff)</title>
-          <rect x="670" y="445" width="130" height="60" rx="6" class="c-mask"/>
-          <rect x="670" y="445" width="130" height="60" rx="6" class="c-frontend" data-animate="node" style="--step:7" stroke-width="1.5"/>
-          <g aria-hidden="true" data-semantic-sigil="frontend" class="semantic-sigil s-frontend" transform="translate(676 451) scale(0.6875)">
-            <rect x="2" y="3" width="12" height="10" rx="2"/>
-            <path d="M2 6.5h12"/>
-            <circle cx="4.1" cy="4.8" r=".7" class="sigil-fill"/>
-            <circle cx="6.3" cy="4.8" r=".7" class="sigil-fill"/>
-          </g>
-          <text data-node-label="" data-detail-anchor="" x="735" y="473" class="t-primary" font-size="11" font-weight="600" text-anchor="middle">Customer Quote</text>
-        <text data-detail="context" x="735" y="489" class="t-muted" font-size="9" text-anchor="middle">/q/:slug Link</text>
-        </g>
-
-        <g id="node-odoo" data-node-id="odoo" data-node-label="Odoo 18 ERP" tabindex="0" role="button" aria-label="Focus Odoo 18 ERP, sale.order GAIS, Architecture component" aria-pressed="false" data-node-kind="external" data-node-sublabel="sale.order GAIS" data-node-tag="Idempotent" data-node-context="Architecture component">
-          <title>Odoo 18 ERP · sale.order GAIS · Architecture component · Idempotent</title>
-          <rect x="880" y="300" width="130" height="60" rx="6" class="c-mask"/>
-          <rect x="880" y="300" width="130" height="60" rx="6" class="c-external" data-animate="node" style="--step:8" stroke-width="1.5"/>
-          <g aria-hidden="true" data-semantic-sigil="external" class="semantic-sigil s-external" transform="translate(886 306) scale(0.6875)">
+        <g id="node-handoff" data-node-id="handoff" data-node-label="Reservation Handoff" tabindex="0" role="button" aria-label="Focus Reservation Handoff, Verified Trip + Staff Alerts, Architecture component" aria-pressed="false" data-node-kind="external" data-node-sublabel="Verified Trip + Staff Alerts" data-node-tag="Odoo Ready" data-node-context="Architecture component">
+          <title>Reservation Handoff · Verified Trip + Staff Alerts · Architecture component · Odoo Ready</title>
+          <rect x="905" y="300" width="140" height="60" rx="6" class="c-mask"/>
+          <rect x="905" y="300" width="140" height="60" rx="6" class="c-external" data-animate="node" style="--step:7" stroke-width="1.5"/>
+          <g aria-hidden="true" data-semantic-sigil="external" class="semantic-sigil s-external" transform="translate(911 306) scale(0.6875)">
             <rect x="2.5" y="5" width="8.5" height="8" rx="1.5"/>
             <path d="M8 2.5h5.5V8M13.5 2.5 7.5 8.5"/>
           </g>
-          <text data-node-label="" data-detail-anchor="" x="945" y="328" class="t-primary" font-size="11" font-weight="600" text-anchor="middle">Odoo 18 ERP</text>
-        <text data-detail="context" x="945" y="344" class="t-muted" font-size="9" text-anchor="middle">sale.order GAIS</text>
-        <text data-detail="fine" x="945" y="352" class="t-external" font-size="7" text-anchor="middle">Idempotent</text>
+          <text data-node-label="" data-detail-anchor="" x="975" y="328" class="t-primary" font-size="11" font-weight="600" text-anchor="middle">Reservation Handoff</text>
+        <text data-detail="context" x="975" y="344" class="t-muted" font-size="7.8" text-anchor="middle">Verified Trip + Staff Alerts</text>
+        <text data-detail="fine" x="975" y="352" class="t-external" font-size="7" text-anchor="middle">Odoo Ready</text>
         </g>
 
         <!-- Connection labels -->
         <g data-detail="context" data-edge-from="guest" data-edge-to="bff" data-edge-label="HTTPS" data-edge-key="0" data-edge-id="guest-to-bff">
-          <rect x="190.5" y="310" width="34" height="14" rx="3" class="c-mask"/>
-          <text x="207.5" y="320" class="t-backend" font-size="8" text-anchor="middle">HTTPS</text>
+          <rect x="195.5" y="310" width="34" height="14" rx="3" class="c-mask"/>
+          <text x="212.5" y="320" class="t-backend" font-size="8" text-anchor="middle">HTTPS</text>
         </g>
         <g data-detail="context" data-edge-from="auth" data-edge-to="bff" data-edge-label="verify HMAC" data-edge-key="1" data-edge-id="auth-to-bff">
-          <rect x="173.6" y="176" width="62.8" height="14" rx="3" class="c-mask"/>
-          <text x="205" y="186" class="t-security" font-size="8" text-anchor="middle">verify HMAC</text>
+          <rect x="178.6" y="178.5" width="62.8" height="14" rx="3" class="c-mask"/>
+          <text x="210" y="188.5" class="t-security" font-size="8" text-anchor="middle">verify HMAC</text>
         </g>
         <g data-detail="context" data-edge-from="bff" data-edge-to="redis" data-edge-label="claim + lock" data-edge-key="2" data-edge-id="bff-to-redis">
-          <rect x="281.2" y="212" width="67.6" height="14" rx="3" class="c-mask"/>
-          <text x="315" y="222" class="t-muted" font-size="8" text-anchor="middle">claim + lock</text>
+          <rect x="286.2" y="212" width="67.6" height="14" rx="3" class="c-mask"/>
+          <text x="320" y="222" class="t-muted" font-size="8" text-anchor="middle">claim + lock</text>
         </g>
         <g data-detail="context" data-edge-from="bff" data-edge-to="extractor" data-edge-label="converse()" data-edge-key="3" data-edge-id="bff-to-extractor">
-          <rect x="391" y="310" width="58" height="14" rx="3" class="c-mask"/>
-          <text x="420" y="320" class="t-backend" font-size="8" text-anchor="middle">converse()</text>
+          <rect x="398.5" y="310" width="58" height="14" rx="3" class="c-mask"/>
+          <text x="427.5" y="320" class="t-backend" font-size="8" text-anchor="middle">converse()</text>
         </g>
-        <g data-detail="context" data-edge-from="extractor" data-edge-to="gemini" data-edge-label="JSON + Tools" data-edge-key="4" data-edge-id="extractor-to-gemini">
-          <rect x="491.2" y="212" width="67.6" height="14" rx="3" class="c-mask"/>
-          <text x="525" y="222" class="t-muted" font-size="8" text-anchor="middle">JSON + Tools</text>
+        <g data-detail="context" data-edge-from="extractor" data-edge-to="llm_pool" data-edge-label="Pass 1 + Pass 2" data-edge-key="4" data-edge-id="extractor-to-llm">
+          <rect x="499" y="212" width="82" height="14" rx="3" class="c-mask"/>
+          <text x="540" y="222" class="t-muted" font-size="8" text-anchor="middle">Pass 1 + Pass 2</text>
         </g>
-        <g data-detail="context" data-edge-from="extractor" data-edge-to="studio" data-edge-label="submit tool" data-edge-key="5" data-edge-id="extractor-to-studio">
-          <rect x="598.6" y="310" width="62.8" height="14" rx="3" class="c-mask"/>
-          <text x="630" y="320" class="t-backend" font-size="8" text-anchor="middle">submit tool</text>
+        <g data-detail="context" data-edge-from="extractor" data-edge-to="gates" data-edge-label="reconcile" data-edge-key="5" data-edge-id="extractor-to-gates">
+          <rect x="623.4" y="310" width="53.199999999999996" height="14" rx="3" class="c-mask"/>
+          <text x="650" y="320" class="t-backend" font-size="8" text-anchor="middle">reconcile</text>
         </g>
-        <g data-detail="context" data-edge-from="studio" data-edge-to="quote_link" data-edge-label="publish /q/:slug" data-edge-key="6" data-edge-id="studio-to-quote-link">
-          <rect x="691.6" y="398" width="86.8" height="14" rx="3" class="c-mask"/>
-          <text x="735" y="408" class="t-messagebus" font-size="8" text-anchor="middle">publish /q/:slug</text>
-        </g>
-        <g data-detail="context" data-edge-from="studio" data-edge-to="odoo" data-edge-label="GAIS upsert" data-edge-key="7" data-edge-id="studio-to-odoo">
-          <rect x="808.6" y="310" width="62.8" height="14" rx="3" class="c-mask"/>
-          <text x="840" y="320" class="t-security" font-size="8" text-anchor="middle">GAIS upsert</text>
+        <g data-detail="context" data-edge-from="gates" data-edge-to="handoff" data-edge-label="done + alerts" data-edge-key="6" data-edge-id="gates-to-handoff">
+          <rect x="831.3" y="310" width="72.4" height="14" rx="3" class="c-mask"/>
+          <text x="867.5" y="320" class="t-backend" font-size="8" text-anchor="middle">done + alerts</text>
         </g>
 
         <!-- Boundary labels (foreground masks keep routes out of titles) -->
         <g data-graph-role="structural-frame-label" data-composition-frame-id="0" data-composition-frame-kind="region" data-composition-frame-label="Vercel Production Edge &amp; Serverless (technext-edge-casa-bff)">
-          <rect data-graph-role="structural-frame-label-mask" x="224" y="125" width="334" height="16" rx="3" class="c-mask"/>
-          <text data-boundary-label="" x="228" y="138" class="t-cloud" font-size="9" font-weight="600">Vercel Production Edge &amp; Serverless (technext-edge-casa-bff)</text>
+          <rect data-graph-role="structural-frame-label-mask" x="229" y="125" width="334" height="16" rx="3" class="c-mask"/>
+          <text data-boundary-label="" x="233" y="138" class="t-cloud" font-size="9" font-weight="600">Vercel Production Edge &amp; Serverless (technext-edge-casa-bff)</text>
         </g>
 
         <!-- Legend -->
         <g data-legend="" data-legend-bridge="">
-          <text x="40" y="557" class="t-primary" font-size="12" font-weight="650">Legend</text>
-          <g data-legend-semantic-kind="frontend" data-legend-kind="frontend" data-legend-label="Frontend" data-legend-x="40" data-legend-baseline="577" data-legend-width="83">
-            <rect x="40" y="568" width="16" height="10" rx="2.5" class="c-frontend" stroke-width="1"/>
-            <text x="62" y="577" class="t-muted" font-size="10" font-weight="500">Frontend</text>
+          <text x="40" y="412" class="t-primary" font-size="12" font-weight="650">Legend</text>
+          <g data-legend-semantic-kind="backend" data-legend-kind="backend" data-legend-label="Backend" data-legend-x="40" data-legend-baseline="432" data-legend-width="78">
+            <rect x="40" y="423" width="16" height="10" rx="2.5" class="c-backend" stroke-width="1"/>
+            <text x="62" y="432" class="t-muted" font-size="10" font-weight="500">Backend</text>
           </g>
-          <g data-legend-semantic-kind="backend" data-legend-kind="backend" data-legend-label="Backend" data-legend-x="145" data-legend-baseline="577" data-legend-width="78">
-            <rect x="145" y="568" width="16" height="10" rx="2.5" class="c-backend" stroke-width="1"/>
-            <text x="167" y="577" class="t-muted" font-size="10" font-weight="500">Backend</text>
+          <g data-legend-semantic-kind="database" data-legend-kind="database" data-legend-label="Database" data-legend-x="140" data-legend-baseline="432" data-legend-width="83">
+            <rect x="140" y="423" width="16" height="10" rx="2.5" class="c-database" stroke-width="1"/>
+            <text x="162" y="432" class="t-muted" font-size="10" font-weight="500">Database</text>
           </g>
-          <g data-legend-semantic-kind="database" data-legend-kind="database" data-legend-label="Database" data-legend-x="245" data-legend-baseline="577" data-legend-width="83">
-            <rect x="245" y="568" width="16" height="10" rx="2.5" class="c-database" stroke-width="1"/>
-            <text x="267" y="577" class="t-muted" font-size="10" font-weight="500">Database</text>
+          <g data-legend-semantic-kind="cloud" data-legend-kind="cloud" data-legend-label="Cloud" data-legend-x="245" data-legend-baseline="432" data-legend-width="68">
+            <rect x="245" y="423" width="16" height="10" rx="2.5" class="c-cloud" stroke-width="1"/>
+            <text x="267" y="432" class="t-muted" font-size="10" font-weight="500">Cloud</text>
           </g>
-          <g data-legend-semantic-kind="cloud" data-legend-kind="cloud" data-legend-label="Cloud" data-legend-x="350" data-legend-baseline="577" data-legend-width="68">
-            <rect x="350" y="568" width="16" height="10" rx="2.5" class="c-cloud" stroke-width="1"/>
-            <text x="372" y="577" class="t-muted" font-size="10" font-weight="500">Cloud</text>
+          <g data-legend-semantic-kind="security" data-legend-kind="security" data-legend-label="Security" data-legend-x="335" data-legend-baseline="432" data-legend-width="83">
+            <rect x="335" y="423" width="16" height="10" rx="2.5" class="c-security" stroke-width="1"/>
+            <text x="357" y="432" class="t-muted" font-size="10" font-weight="500">Security</text>
           </g>
-          <g data-legend-semantic-kind="security" data-legend-kind="security" data-legend-label="Security" data-legend-x="440" data-legend-baseline="577" data-legend-width="83">
-            <rect x="440" y="568" width="16" height="10" rx="2.5" class="c-security" stroke-width="1"/>
-            <text x="462" y="577" class="t-muted" font-size="10" font-weight="500">Security</text>
-          </g>
-          <g data-legend-semantic-kind="external" data-legend-kind="external" data-legend-label="External" data-legend-x="545" data-legend-baseline="577" data-legend-width="83">
-            <rect x="545" y="568" width="16" height="10" rx="2.5" class="c-external" stroke-width="1"/>
-            <text x="567" y="577" class="t-muted" font-size="10" font-weight="500">External</text>
+          <g data-legend-semantic-kind="external" data-legend-kind="external" data-legend-label="External" data-legend-x="440" data-legend-baseline="432" data-legend-width="83">
+            <rect x="440" y="423" width="16" height="10" rx="2.5" class="c-external" stroke-width="1"/>
+            <text x="462" y="432" class="t-muted" font-size="10" font-weight="500">External</text>
           </g>
         </g>
       </svg>
@@ -5539,36 +5514,36 @@ OTHER DEALINGS IN THE FONT SOFTWARE.
       <div class="card">
         <div class="card-header">
           <div class="card-dot cyan"></div>
-          <h3>1. Edge Intake &amp; Hybrid AI Pod</h3>
+          <h3>1. Edge Security &amp; Concurrency Control</h3>
         </div>
         <ul>
-          <li>&bull; Meta Cloud API webhook verified via X-Hub-Signature-256 + Redis WAMID deduplication</li>
-          <li>&bull; Gemini 3.1 Flash-Lite primary with 60s circuit breaker prevents 20s WhatsApp timeouts</li>
-          <li>&bull; Pass 1 (Trip JSON) + Pass 2 (Guest Manifest) + Deterministic Math &amp; Fact Gates</li>
+          <li>&bull; Meta Cloud API webhook verified via X-Hub-Signature-256 before parsing</li>
+          <li>&bull; Upstash Redis claims WAMID fence token and serializes turns per phone number</li>
+          <li>&bull; Coalesces rapid guest messages and supports instant &#39;reset&#39; commands</li>
         </ul>
       </div>
 
       <div class="card">
         <div class="card-header">
           <div class="card-dot orange"></div>
-          <h3>2. Tool Calling -&gt; Hono Quotation Studio</h3>
+          <h3>2. Resilient Dual-Pass Hybrid AI Pod</h3>
         </div>
         <ul>
-          <li>&bull; When 6 core fields are complete, AI calls submit_quotation_to_hono (&lt;35ms compute)</li>
-          <li>&bull; Staff edits itemized table (Room, Split-Day Dives, Meals, 30% Partner Discount) at /quotes</li>
-          <li>&bull; Generates custom shareable customer quotation link (/q/sky-oct10-group)</li>
+          <li>&bull; Runs Pass 1 (Trip JSON) + Isolated Pass 2 (Guests, Check-In, Dive Window) in parallel</li>
+          <li>&bull; 60s circuit breaker between DeepSeek Flash and Gemini 3.1 Flash-Lite prevents timeouts</li>
+          <li>&bull; Deterministic Reconciler resolves mid-chat headcount changes and split-day diving</li>
         </ul>
       </div>
 
       <div class="card">
         <div class="card-header">
           <div class="card-dot emerald"></div>
-          <h3>3. Hono Confirm -&gt; Odoo GAIS &amp; Guest Reply</h3>
+          <h3>3. Fact Gate &amp; Staff Alert Handoff</h3>
         </div>
         <ul>
-          <li>&bull; Clicking Confirm triggers POST /v1/quotes/:id/confirm and synthesizes verified AI reply</li>
-          <li>&bull; Signs outbound Odoo payload with X-GAIS-Signature (HMAC-SHA256) + Idempotency-Key</li>
-          <li>&bull; Upserts clean Odoo sale.order without polluting ERP with unverified chat drafts</li>
+          <li>&bull; NEVER RE-ASK rule ensures the bot never asks for a field already stated</li>
+          <li>&bull; Post-generation Fact Gate blocks unauthorized price promises or invented discounts</li>
+          <li>&bull; Emits structured Trip JSON + Staff Alerts (30% partner discount, split dive schedule)</li>
         </ul>
       </div>
     </div>

@@ -67,7 +67,7 @@ export async function converse(
     provider,
   );
 
-  if (done) {
+  if (done && process.env.ENABLE_HONO_QUOTATION_TOOL === "true") {
     const quotationDraft = buildHonoQuotationDraft(outcome.trip);
     const toolCall: HonoToolCallTrace = {
       toolName: "submit_quotation_to_hono",
