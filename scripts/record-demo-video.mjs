@@ -10,14 +10,43 @@ const TMP_DIR = path.resolve("docs/.demo-frames");
 const OUT_MP4_DOCS = path.resolve("docs/casa-escondida-demo.mp4");
 const OUT_MP4_PUBLIC = path.resolve("public/casa-escondida-demo.mp4");
 
+const NARRATIONS = [
+  "Step 1. On the Web Console, a guest sends an initial inquiry for 6 guests, 4 divers and 2 non-divers, checking in on November 15.",
+  "Step 2. Pass 1 and Pass 2 extract every stated fact with verbatim evidence, and the AI asks only for the missing fields, never re-asking known slots.",
+  "Step 3. In Turn 2, the guest provides the remaining details: 3 nights, 3 Deluxe rooms, full-board meals, and diving dates November 16 to 17.",
+  "Step 4. All 6 core booking slots are now complete, producing a verified structured Trip payload ready for the reservation team.",
+  "Step 5. Switching to WhatsApp, Sir Sky messages the resort to book for 10 guests across 4 nights, October 10 to 14, in 5 twin rooms with full-board meals.",
+  "Step 6. Within 2 seconds, the WhatsApp bot confirms the check-in window, 5 rooms, and full-board meal plan, then asks if the group will be diving.",
+  "Step 7. Next, Sir Sky updates the group to 8 divers, splits the dive schedule into 4 divers for 3 days and 4 divers for 2 days, and asks for a 30 percent partner discount.",
+  "Step 8. The Symbolic Math Gate updates guests from 10 to 8 without double-counting, while the Fact Gate blocks unauthorized price promises and triggers a Staff Alert."
+];
+
 fs.mkdirSync(TMP_DIR, { recursive: true });
+
+function synthesizeWav(text, wavPath) {
+  const escapedText = text.replace(/'/g, "''");
+  const escapedPath = wavPath.replace(/'/g, "''");
+  const psScript = `
+    Add-Type -AssemblyName System.Speech;
+    $s = New-Object System.Speech.Synthesis.SpeechSynthesizer;
+    try { $s.SelectVoice('Microsoft Zira Desktop'); } catch {}
+    $s.Rate = 0;
+    $s.SetOutputToWaveFile('${escapedPath}');
+    $s.Speak('${escapedText}');
+    $s.Dispose();
+  `;
+  execFileSync("powershell.exe", ["-NoProfile", "-Command", psScript], { stdio: "ignore" });
+  // Read WAV duration from header/bytes (22050 Hz, 16-bit mono = 44100 bytes/sec)
+  const buf = fs.readFileSync(wavPath);
+  const byteRate = buf.readUInt32LE(28) || 44100;
+  const dataBytes = Math.max(0, buf.length - 44);
+  return Math.max(5.5, Number((dataBytes / byteRate + 0.6).toFixed(2)));
+}
 
 const chrome = findChrome();
 if (!chrome) {
   throw new Error("Could not find Chrome executable");
 }
-
-console.log("[record] Using Chrome:", chrome);
 
 class SimplePipeCdp {
   constructor(child) {
@@ -56,6 +85,19 @@ class SimplePipeCdp {
 }
 
 async function main() {
+  console.log("[record] Step A: Generating English Voiceover WAV files (Microsoft Zira en-US)...");
+  const durations = [];
+  for (let i = 0; i < NARRATIONS.length; i++) {
+    const wavPath = path.join(TMP_DIR, `voice-${i}.wav`);
+    const dur = synthesizeWav(NARRATIONS[i], wavPath);
+    durations.push(dur);
+    console.log(`  - Step ${i + 1}: ${dur}s (${wavPath})`);
+  }
+
+  const totalDuration = Math.round(durations.reduce((a, b) => a + b, 0));
+  const totalMM = String(Math.floor(totalDuration / 60)).padStart(2, "0");
+  const totalSS = String(totalDuration % 60).padStart(2, "0");
+
   const userDataDir = path.join(TMP_DIR, "profile");
   fs.mkdirSync(userDataDir, { recursive: true });
   const child = spawn(
@@ -90,58 +132,68 @@ async function main() {
   await cdp.send("Page.navigate", { url }, sessionId);
   await new Promise((r) => setTimeout(r, 1200));
 
-  const stepDurations = [5, 7, 5, 6, 5, 6, 6, 8]; // total 48 seconds
   let elapsed = 0;
-  const concatLines = [];
+  const segmentFiles = [];
 
   for (let i = 0; i < 8; i++) {
-    const dur = stepDurations[i];
-    const mm = String(Math.floor(elapsed / 60)).padStart(2, "0");
-    const ss = String(elapsed % 60).padStart(2, "0");
-    const label = `${mm}:${ss} / 00:48`;
+    const dur = durations[i];
+    const curSec = Math.round(elapsed);
+    const mm = String(Math.floor(curSec / 60)).padStart(2, "0");
+    const ss = String(curSec % 60).padStart(2, "0");
+    const label = `${mm}:${ss} / ${totalMM}:${totalSS}`;
+
     await cdp.send(
       "Runtime.evaluate",
       { expression: `window.__setDemoStep(${i}, ${JSON.stringify(label)})` },
       sessionId
     );
-    await new Promise((r) => setTimeout(r, 350));
+    await new Promise((r) => setTimeout(r, 400));
     const { data } = await cdp.send("Page.captureScreenshot", { format: "png" }, sessionId);
     const frameFile = path.join(TMP_DIR, `step-${i}.png`);
+    const wavFile = path.join(TMP_DIR, `voice-${i}.wav`);
+    const segMp4 = path.join(TMP_DIR, `seg-${i}.mp4`);
     fs.writeFileSync(frameFile, Buffer.from(data, "base64"));
-    concatLines.push(`file '${frameFile.replace(/\\/g, "/")}'`);
-    concatLines.push(`duration ${dur}`);
-    elapsed += dur;
-    console.log(`[record] Captured Step ${i + 1}/8 (${dur}s)`);
-  }
 
-  // Repeat last frame for ffmpeg concat demuxer
-  concatLines.push(`file '${path.join(TMP_DIR, "step-7.png").replace(/\\/g, "/")}'`);
-  const listPath = path.join(TMP_DIR, "frames.txt");
-  fs.writeFileSync(listPath, concatLines.join("\n"));
+    // Encode each step as a synced video+audio segment
+    execFileSync(
+      FFMPEG,
+      [
+        "-y",
+        "-loop", "1",
+        "-i", frameFile,
+        "-i", wavFile,
+        "-c:v", "libx264",
+        "-t", String(dur),
+        "-pix_fmt", "yuv420p",
+        "-vf", "fps=24",
+        "-c:a", "aac",
+        "-b:a", "192k",
+        "-ar", "44100",
+        "-ac", "2",
+        segMp4,
+      ],
+      { stdio: "ignore" }
+    );
+    segmentFiles.push(`file '${segMp4.replace(/\\/g, "/")}'`);
+    elapsed += dur;
+    console.log(`[record] Encoded QA/QC Step ${i + 1}/8 with Audio + Red Markers + EN Subtitles (${dur}s)`);
+  }
 
   child.kill();
 
-  console.log("[record] Encoding 1920x1080 H.264 MP4 via ffmpeg...");
+  const concatList = path.join(TMP_DIR, "segments.txt");
+  fs.writeFileSync(concatList, segmentFiles.join("\n"));
+
+  console.log("[record] Stitching final 1920x1080 MP4 with English Voiceover & QA/QC Markers...");
   execFileSync(
     FFMPEG,
     [
       "-y",
-      "-f",
-      "concat",
-      "-safe",
-      "0",
-      "-i",
-      listPath,
-      "-vf",
-      "fps=24,format=yuv420p",
-      "-c:v",
-      "libx264",
-      "-preset",
-      "fast",
-      "-crf",
-      "20",
-      "-movflags",
-      "+faststart",
+      "-f", "concat",
+      "-safe", "0",
+      "-i", concatList,
+      "-c", "copy",
+      "-movflags", "+faststart",
       OUT_MP4_DOCS,
     ],
     { stdio: "inherit" }
@@ -151,7 +203,7 @@ async function main() {
   fs.copyFileSync(HTML_PATH, path.resolve("public/demo-theatre.html"));
   fs.rmSync(TMP_DIR, { recursive: true, force: true });
   const stat = fs.statSync(OUT_MP4_DOCS);
-  console.log(`[record] DONE! Video saved to ${OUT_MP4_DOCS} (${(stat.size / 1024).toFixed(1)} KB)`);
+  console.log(`[record] DONE! Narrated QA/QC Video saved to ${OUT_MP4_DOCS} (${(stat.size / 1024).toFixed(1)} KB)`);
 }
 
 main().catch((err) => {

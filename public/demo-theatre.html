@@ -387,6 +387,85 @@
       margin-top: 4px;
     }
 
+    /* QA/QC Workflow Top Step Banner (annotate.mjs style) */
+    .qa-top-banner {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 48px;
+      z-index: 1000001;
+      background: linear-gradient(90deg, #3b1f14 0%, #7b3f2a 65%, #c0703a 100%);
+      color: #fff;
+      font-family: 'Plus Jakarta Sans', 'Segoe UI', Arial, sans-serif;
+      padding: 0 24px;
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      box-shadow: 0 3px 12px rgba(0,0,0,0.45);
+      border-bottom: 1.5px solid rgba(255,255,255,0.22);
+    }
+    .qa-step-num {
+      background: rgba(255,255,255,0.22);
+      border: 1.5px solid rgba(255,255,255,0.55);
+      border-radius: 50%;
+      width: 30px;
+      height: 30px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 14px;
+      font-weight: 800;
+      flex-shrink: 0;
+    }
+    .qa-step-main {
+      font-size: 14.5px;
+      font-weight: 700;
+      letter-spacing: 0.01em;
+    }
+    .qa-step-sub {
+      font-size: 12.5px;
+      opacity: 0.88;
+      margin-left: 12px;
+      font-weight: 500;
+      color: #fde68a;
+    }
+    .topbar {
+      margin-top: 48px;
+    }
+
+    /* QA/QC Red Highlight Outline & Floating Callout Tag (__pw_ann__) */
+    .qa-mark-tag {
+      position: fixed;
+      z-index: 999999;
+      pointer-events: none;
+      background: #e53935;
+      color: #fff;
+      font-family: 'Plus Jakarta Sans', 'Segoe UI', Arial, sans-serif;
+      font-size: 12.5px;
+      font-weight: 800;
+      padding: 4px 11px;
+      border-radius: 5px;
+      white-space: nowrap;
+      box-shadow: 0 4px 12px rgba(229, 57, 53, 0.55);
+      border: 1.5px solid #fff;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .qa-mark-circle {
+      background: #fff;
+      color: #e53935;
+      border-radius: 50%;
+      width: 18px;
+      height: 18px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 11px;
+      font-weight: 900;
+    }
+
     /* Bottom Burnt-In English Subtitle Cinema Bar */
     .subtitle-bar {
       position: fixed;
@@ -434,6 +513,15 @@
   </style>
 </head>
 <body>
+  <!-- QA/QC Workflow Top Step Banner -->
+  <div class="qa-top-banner" id="qa-top-banner">
+    <span class="qa-step-num" id="qa-step-num">1</span>
+    <div style="flex:1;">
+      <span class="qa-step-main" id="qa-step-main">Step 1 — Web Console: Initial Guest Inquiry</span>
+      <span class="qa-step-sub" id="qa-step-sub">POST /v1/converse · Capturing stated fields without re-asking</span>
+    </div>
+    <span style="font-family:'JetBrains Mono',monospace;font-size:11.5px;background:rgba(0,0,0,0.3);padding:4px 10px;border-radius:6px;">QA/QC Guided Recording · Audio + EN CC</span>
+  </div>
   <div class="topbar">
     <div class="brand">
       <span class="brand-badge">LIVE DEMO</span>
@@ -541,20 +629,66 @@
   </div>
 
   <script>
+    function setQaBanner(num, title, sub) {
+      document.getElementById("qa-step-num").textContent = String(num);
+      document.getElementById("qa-step-main").textContent = title;
+      document.getElementById("qa-step-sub").textContent = sub;
+    }
+
+    function clearQaMarks() {
+      document.querySelectorAll(".qa-mark-tag").forEach(e => e.remove());
+      document.querySelectorAll("[data-qa-outline]").forEach(el => {
+        el.style.outline = "";
+        el.style.outlineOffset = "";
+        delete el.dataset.qaOutline;
+      });
+    }
+
+    function addQaMark(selector, num, label, pos = "above") {
+      const el = document.querySelector(selector);
+      if (!el) return;
+      el.style.outline = "3px solid #e53935";
+      el.style.outlineOffset = "3px";
+      el.dataset.qaOutline = "1";
+      const r = el.getBoundingClientRect();
+      const tag = document.createElement("div");
+      tag.className = "qa-mark-tag";
+      tag.innerHTML = `<span class="qa-mark-circle">${num}</span><span>${label}</span>`;
+      if (pos === "above") {
+        tag.style.top = Math.max(54, r.top - 32) + "px";
+        tag.style.left = r.left + "px";
+      } else if (pos === "right") {
+        tag.style.top = (r.top + r.height / 2 - 14) + "px";
+        tag.style.left = (r.right + 10) + "px";
+      } else {
+        tag.style.top = (r.bottom + 8) + "px";
+        tag.style.left = r.left + "px";
+      }
+      document.body.appendChild(tag);
+    }
+
     const steps = [
       {
         atSec: 0,
+        stepNum: 1,
+        bannerTitle: "Step 1 — Web Console: Guest Sends Partial Booking Inquiry",
+        bannerSub: "POST /v1/converse · Guest states 6 guests (4 divers, 2 non-divers) checking in Nov 15",
         scene: "Scene 1 / 2 · Web Console Intake",
-        subtitle: "Scene 1: On the Web Console (/test-console), a guest sends an initial inquiry for 6 guests (4 divers, 2 non-divers) checking in on Nov 15.",
+        subtitle: "Step 1: On the Web Console, a guest sends an initial inquiry for 6 guests (4 divers, 2 non-divers) checking in on November 15.",
         action: () => {
           resetUI();
           appendWeb("guest", "Hi Casa Escondida! My name is Alex Chen. We have a group of 6 guests planning to check in on November 15, 2026. 4 of us are divers and 2 are non-divers.");
+          clearQaMarks();
+          addQaMark("#web-chat-log .msg-row.guest:last-child .msg-bubble", "1", "Web Guest Inquiry (Partial Facts)", "below");
         }
       },
       {
-        atSec: 5,
+        atSec: 6,
+        stepNum: 2,
+        bannerTitle: "Step 2 — Dual-Pass Extraction & NEVER RE-ASK Guardrail",
+        bannerSub: "Pass 1 & Pass 2 lock stated slots; bot asks ONLY missing fields (nights, rooms, meals, dive dates)",
         scene: "Scene 1 / 2 · Dual-Pass Extraction",
-        subtitle: "Pass 1 & Pass 2 extract every stated fact with verbatim evidence, and the AI asks ONLY for the missing fields—never re-asking known slots.",
+        subtitle: "Step 2: Pass 1 and Pass 2 extract every stated fact with verbatim evidence, and the AI asks only for the missing fields—never re-asking known slots.",
         action: () => {
           setSlot("guestName", "stated", "Alex Chen");
           setSlot("checkIn", "stated", "2026-11-15 (nights: ?)");
@@ -562,20 +696,31 @@
           setSlot("divers", "stated", "true (4 divers, 2 non-divers)");
           highlightGate("gate-never-reask", "active-gate", "Captured guestName, checkIn, guests (6), divers (4). Asking only nights, rooms, meals & dive dates.");
           appendWeb("bot", "Warm greetings from Casa Escondida in Anilao, Alex! We have noted your group of 6 guests (4 divers and 2 non-divers) checking in on November 15, 2026. Could you share how many nights and rooms you need, your preferred meal plan, and which dates the 4 divers plan to dive?");
+          clearQaMarks();
+          addQaMark("#slot-guests", "1", "Extracted: 6 Staying Guests", "above");
+          addQaMark("#gate-never-reask", "2", "NEVER RE-ASK Guardrail Active", "above");
         }
       },
       {
-        atSec: 12,
+        atSec: 13,
+        stepNum: 3,
+        bannerTitle: "Step 3 — Web Console: Guest Completes Remaining Slots",
+        bannerSub: "Turn 2 supplies 3 nights, 3 Deluxe rooms, full-board meals, and diving window Nov 16–17",
         scene: "Scene 1 / 2 · Completing All 6 Booking Slots",
-        subtitle: "In Turn 2, the guest provides the remaining details: 3 nights, 3 Deluxe rooms, full-board meals, and diving dates (Nov 16–17).",
+        subtitle: "Step 3: In Turn 2, the guest provides the remaining details: 3 nights, 3 Deluxe rooms, full-board meals, and diving dates November 16 to 17.",
         action: () => {
           appendWeb("guest", "We will stay for 3 nights in 3 Deluxe rooms with full-board meals, and the 4 divers will dive from Nov 16 to Nov 17.");
+          clearQaMarks();
+          addQaMark("#web-chat-log .msg-row.guest:last-child .msg-bubble", "1", "Turn 2: Remaining 4 Slots Provided", "above");
         }
       },
       {
-        atSec: 17,
+        atSec: 19,
+        stepNum: 4,
+        bannerTitle: "Step 4 — Web Intake Complete: All 6 Core Slots Verified (done = true)",
+        bannerSub: "Structured Trip JSON is 100% populated and ready for downstream reservation handoff",
         scene: "Scene 1 / 2 · All 6 Slots Verified (done = true)",
-        subtitle: "All 6 core booking slots are now complete (done = true), producing a verified structured Trip payload ready for the reservation team.",
+        subtitle: "Step 4: All 6 core booking slots are now complete (done equals true), producing a verified structured Trip payload ready for the reservation team.",
         action: () => {
           setSlot("checkIn", "stated", "2026-11-15 → 11-18 (3 nights)");
           setSlot("rooms", "stated", "3 Deluxe · Full-Board");
@@ -583,12 +728,17 @@
           document.getElementById("done-chip").textContent = "✓ done: true (6/6 slots)";
           document.getElementById("done-chip").style.color = "#34d399";
           appendWeb("bot", "Thank you, Alex! Your enquiry is complete: 6 guests (4 divers, 2 non-divers) checking in Nov 15–18, 2026 (3 nights) in 3 Deluxe rooms with full-board meals, diving Nov 16–17. Our reservation team is preparing your official availability & package details.");
+          clearQaMarks();
+          addQaMark("#slots-grid", "1", "All 6/6 Core Slots Verified (done = true)", "above");
         }
       },
       {
-        atSec: 23,
+        atSec: 25,
+        stepNum: 5,
+        bannerTitle: "Step 5 — WhatsApp Channel: Initial Group Booking Inquiry",
+        bannerSub: "POST /v1/channels/whatsapp/webhook · Sir Sky requests 10 guests, Oct 10–14 (4 nights, 5 twin rooms)",
         scene: "Scene 2 / 2 · Real-Time WhatsApp Interaction",
-        subtitle: "Scene 2: On WhatsApp, Sir Sky messages the resort to book for 10 guests across 4 nights (October 10–14) in 5 twin rooms with full-board meals.",
+        subtitle: "Step 5: On WhatsApp, Sir Sky messages the resort to book for 10 guests across 4 nights (October 10 to 14) in 5 twin rooms with full-board meals.",
         action: () => {
           appendWA("user", "Hello, I am Sir Sky. We want to book for 10 guests checking in on October 10, 2026 for 4 nights (5 twin rooms, full-board meals).", "09:18 AM");
           setSlot("guestName", "stated", "Sir Sky");
@@ -599,28 +749,43 @@
           setSlot("diveNotes", "missing", "null");
           document.getElementById("done-chip").textContent = "done: false (5/6 slots)";
           document.getElementById("done-chip").style.color = "#fbbf24";
+          clearQaMarks();
+          addQaMark("#wa-chat-log .wa-bubble.user:last-child", "1", "WhatsApp Inbound: 10 Guests, 4 Nights", "below");
         }
       },
       {
-        atSec: 28,
+        atSec: 31,
+        stepNum: 6,
+        bannerTitle: "Step 6 — WhatsApp Bot Reply (<2.5s SLA): Confirming & Asking Dive Status",
+        bannerSub: "Upstash Redis locks phone thread; AI confirms 5 stated slots and asks only about diving",
         scene: "Scene 2 / 2 · Sub-2.5s WhatsApp Follow-Up",
-        subtitle: "Within 2 seconds, the WhatsApp bot confirms the check-in window, 5 rooms, and full-board meal plan, then asks if the group will be diving.",
+        subtitle: "Step 6: Within 2 seconds, the WhatsApp bot confirms the check-in window, 5 rooms, and full-board meal plan, then asks if the group will be diving.",
         action: () => {
           appendWA("bot", "Welcome to Casa Escondida, Sir Sky! We have recorded your booking request for 10 guests checking in October 10–14, 2026 (4 nights, 5 twin rooms, full-board meals).\n\nWill anyone in your group be scuba diving during the stay, and if so, how many divers and on which dates?", "09:18 AM");
+          clearQaMarks();
+          addQaMark("#wa-chat-log .wa-bubble.bot:last-child", "1", "Bot Confirms 5 Slots & Asks Only Diving", "below");
         }
       },
       {
-        atSec: 34,
+        atSec: 37,
+        stepNum: 7,
+        bannerTitle: "Step 7 — Complex Turn: Headcount Change (10 → 8), Split Dive & 30% Discount",
+        bannerSub: "Guest changes total to 8 divers (4×3 days, 4×2 days) and asks for a 30% partner discount",
         scene: "Scene 2 / 2 · Mid-Chat Headcount Change + Split Dive + 30% Partner Request",
-        subtitle: "Next, Sir Sky updates the group to 8 divers, splits the dive schedule (4 divers × 3 days, 4 divers × 2 days), and asks for a 30% partner discount.",
+        subtitle: "Step 7: Next, Sir Sky updates the group to 8 divers, splits the dive schedule (4 divers for 3 days, 4 divers for 2 days), and asks for a 30% partner discount.",
         action: () => {
           appendWA("user", "Actually update the total group to 8 guests in 4 rooms. All 8 are divers, but 4 divers will dive for 3 days (Oct 11-13) and the other 4 divers will only dive for 2 days (Oct 11-12). Also, I am a resort partner—can we get a 30% partner discount?", "09:19 AM");
+          clearQaMarks();
+          addQaMark("#wa-chat-log .wa-bubble.user:last-child", "1", "Update: 10→8 Pax + Split Dives + 30% Discount", "above");
         }
       },
       {
-        atSec: 40,
+        atSec: 44,
+        stepNum: 8,
+        bannerTitle: "Step 8 — Symbolic Math Reconciler & Post-Gen Fact Gate (Staff Alert)",
+        bannerSub: "Headcount updated 10 → 8 without double-counting; Fact Gate blocks price promise & flags Staff Alert",
         scene: "Scene 2 / 2 · Symbolic Math Reconciler & Fact Gate Protection",
-        subtitle: "The Symbolic Math Gate updates guests from 10 → 8 without double-counting, while the Fact Gate blocks unauthorized price promises and triggers a Staff Alert.",
+        subtitle: "Step 8: The Symbolic Math Gate updates guests from 10 to 8 without double-counting, while the Fact Gate blocks unauthorized price promises and triggers a Staff Alert.",
         action: () => {
           setSlot("guests", "reconciled", "8 guests (updated 10 → 8)", true);
           setSlot("rooms", "reconciled", "4 Twin · Full-Board", true);
@@ -631,6 +796,9 @@
           highlightGate("gate-math", "active-gate", "Headcount reconciled 10 → 8 guests (4 rooms); split dive manifest stored in diveNotes.");
           highlightGate("gate-fact", "alert-gate", "ALERT: 30% Partner Discount + Split-Day Dive Schedule flagged for human reservation approval.");
           appendWA("bot", "Thank you, Sir Sky! We have updated your group to 8 guests in 4 twin rooms (Oct 10–14, 2026, 4 nights, full-board meals) with your split diving schedule: 4 divers for 3 days (Oct 11–13) and 4 divers for 2 days (Oct 11–12).\n\nWe have also noted your 30% resort partner discount request for our reservation team to verify and send your official itemized quotation shortly.", "09:19 AM");
+          clearQaMarks();
+          addQaMark("#slot-guests", "1", "Math Gate: 10 → 8 Guests Reconciled", "above");
+          addQaMark("#gate-fact", "2", "Fact Gate: 30% Discount Flagged for Staff", "above");
         }
       }
     ];
@@ -649,6 +817,7 @@
       ["gate-never-reask","gate-math","gate-fact"].forEach(id => {
         document.getElementById(id).className = "gate-item";
       });
+      clearQaMarks();
     }
 
     function setSlot(key, badgeType, value, updated = false) {
@@ -685,23 +854,36 @@
       log.scrollTop = log.scrollHeight;
     }
 
+    function speakEnglish(text) {
+      try {
+        if (!("speechSynthesis" in window)) return;
+        window.speechSynthesis.cancel();
+        const u = new SpeechSynthesisUtterance(text);
+        u.lang = "en-US";
+        u.rate = 1.02;
+        window.speechSynthesis.speak(u);
+      } catch {}
+    }
+
     let timers = [];
     function runFullDemo() {
       timers.forEach(clearTimeout);
       timers = [];
-      const totalSec = 46;
+      const totalSec = 52;
       for (let s = 0; s <= totalSec; s++) {
         timers.push(setTimeout(() => {
           const mm = String(Math.floor(s / 60)).padStart(2, "0");
           const ss = String(s % 60).padStart(2, "0");
-          document.getElementById("timer-box").textContent = `${mm}:${ss} / 00:46`;
+          document.getElementById("timer-box").textContent = `${mm}:${ss} / 00:52`;
         }, s * 1000));
       }
       for (const step of steps) {
         timers.push(setTimeout(() => {
+          setQaBanner(step.stepNum, step.bannerTitle, step.bannerSub);
           document.getElementById("scene-indicator").textContent = step.scene;
           document.getElementById("subtitle-box").textContent = step.subtitle;
           step.action();
+          speakEnglish(step.subtitle);
         }, step.atSec * 1000));
       }
     }
@@ -710,9 +892,10 @@
     window.__setDemoStep = function(idx, secLabel) {
       const step = steps[idx];
       if (!step) return;
+      setQaBanner(step.stepNum, step.bannerTitle, step.bannerSub);
       document.getElementById("scene-indicator").textContent = step.scene;
       document.getElementById("subtitle-box").textContent = step.subtitle;
-      document.getElementById("timer-box").textContent = secLabel || `00:${String(step.atSec).padStart(2, "0")} / 00:46`;
+      document.getElementById("timer-box").textContent = secLabel || `00:${String(step.atSec).padStart(2, "0")} / 00:52`;
       step.action();
     };
 
