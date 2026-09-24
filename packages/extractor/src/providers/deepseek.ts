@@ -7,14 +7,13 @@
 // and response to the team's spend dashboard.
 import type { ExtractCall, ExtractProvider, ExtractResult, GuestsReadResult, CheckInReadResult, DiveWindowReadResult } from "../provider.js";
 
-const GATEWAY_BASE_URL = "https://litellm-production-7402.up.railway.app/v1";
+const GATEWAY_BASE_URL = (process.env.DEEPSEEK_BASE_URL || process.env.DEEPSEEK_GATEWAY_URL || "https://litellm-production-7402.up.railway.app/v1").replace(/\/+$/, "");
 const TOOL_NAME = "extract_trip";
 
-// Deliberately higher than Gemini's 8s: DeepSeek's own measured p95 on a
-// *successful* call is ~15.9s (ADR-005a) — an 8s cap here would misclassify
-// normal latency as a hang and force a pointless doubling retry. 20s sits
-// comfortably above the measured baseline.
-const TIMEOUT_MS = 20_000;
+// Keep timeout at 8,000ms so if the Railway LiteLLM gateway stalls or 502s,
+// createResilientProvider trips the 60s circuit-breaker to Gemini well before
+// Meta WhatsApp's 20,000ms webhook deadline.
+const TIMEOUT_MS = Number(process.env.DEEPSEEK_TIMEOUT_MS ?? 8_000);
 
 // zod-to-json-schema with the OpenAPI target emits `exclusiveMinimum: true`
 // for positive numbers. DeepSeek's tool-schema validator expects the newer

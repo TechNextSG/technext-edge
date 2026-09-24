@@ -188,21 +188,10 @@ export function createProviderFromEnv(env: NodeJS.ProcessEnv = process.env): Ext
     case "deepseek-pro": {
       const key = env.DEEPSEEK_GATEWAY_KEY;
       const model = which === "deepseek" ? (env.DEEPSEEK_MODEL as "deepseek-flash" | "deepseek-pro" | undefined) ?? "deepseek-flash" : which;
-      // When both GEMINI_API_KEY and DEEPSEEK_GATEWAY_KEY are present in production,
-      // prefer Gemini 3.1 Flash-Lite as primary so dead DeepSeek gateway 502s never
-      // burn the 20s WhatsApp webhook deadline.
-      if (env.GEMINI_API_KEY && env.FORCE_DEEPSEEK_PRIMARY !== "true") {
-        const primary = createGeminiProvider(env.GEMINI_API_KEY, env.GEMINI_MODEL ?? "gemini-3.1-flash-lite");
-        if (key) {
-          const fallback = createDeepSeekProvider(key, model);
-          return createResilientProvider(primary, fallback);
-        }
-        return primary;
-      }
       if (key) {
         const primary = createDeepSeekProvider(key, model);
         if (env.GEMINI_API_KEY) {
-          const fallback = createGeminiProvider(env.GEMINI_API_KEY, env.GEMINI_MODEL);
+          const fallback = createGeminiProvider(env.GEMINI_API_KEY, env.GEMINI_MODEL ?? "gemini-3.1-flash-lite");
           return createResilientProvider(primary, fallback);
         }
         return primary;
@@ -210,7 +199,7 @@ export function createProviderFromEnv(env: NodeJS.ProcessEnv = process.env): Ext
       if (env.GEMINI_API_KEY) {
         // eslint-disable-next-line no-console
         console.warn(`[provider] DEEPSEEK_GATEWAY_KEY not set; falling back to secondary provider Gemini (${env.GEMINI_MODEL ?? "gemini-3.1-flash-lite"})`);
-        return createGeminiProvider(env.GEMINI_API_KEY, env.GEMINI_MODEL);
+        return createGeminiProvider(env.GEMINI_API_KEY, env.GEMINI_MODEL ?? "gemini-3.1-flash-lite");
       }
       throw new Error("DEEPSEEK_GATEWAY_KEY not set (and no fallback GEMINI_API_KEY found)");
     }

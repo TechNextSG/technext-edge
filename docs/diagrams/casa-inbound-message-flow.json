@@ -1,0 +1,98 @@
+{
+  "schema_version": 1,
+  "diagram_type": "sequence",
+  "meta": {
+    "title": "Single Inbound Message Lifecycle — WhatsApp to Hybrid AI, Hono Studio & Odoo GAIS",
+    "output": "docs/diagrams/casa-inbound-message-flow.html",
+    "viewBox": [1040, 960],
+    "column_fit": "spread",
+    "animation": "trace",
+    "quality_profile": "showcase",
+    "views": [
+      {
+        "id": "gate-and-lock",
+        "label": "1. Webhook Gate & Redis Lock",
+        "focus": ["guest", "bff", "redis"],
+        "note": "Every inbound WhatsApp message is signature-verified, deduplicated by WAMID, and serialized per phone number."
+      },
+      {
+        "id": "hybrid-ai-extraction",
+        "label": "2. Pass 1/2 Extraction & Fact Gate",
+        "focus": ["bff", "ai", "guest"],
+        "note": "Neuro-Symbolic AI extracts Trip + Guest Manifest, reconciles split-day diving math, and replies or triggers tool calling."
+      },
+      {
+        "id": "tool-call-and-odoo-sync",
+        "label": "3. Hono Tool Call, Edit & Odoo GAIS",
+        "focus": ["ai", "studio", "bff", "odoo", "guest"],
+        "note": "AI submits draft to Hono Studio; staff edits table/link and confirms to upsert Odoo sale.order and notify the guest."
+      }
+    ]
+  },
+  "participants": [
+    { "id": "guest", "type": "external", "label": "Guest", "sublabel": "WhatsApp / Web" },
+    { "id": "bff", "type": "backend", "label": "Hono Edge BFF", "sublabel": "Webhook & API" },
+    { "id": "redis", "type": "database", "label": "Upstash Redis", "sublabel": "Lock & Thread" },
+    { "id": "ai", "type": "cloud", "label": "Hybrid AI Pod", "sublabel": "Gemini 3.1 + Gates" },
+    { "id": "studio", "type": "frontend", "label": "Hono Studio", "sublabel": "/quotes & /q/:slug" },
+    { "id": "odoo", "type": "external", "label": "Odoo ERP", "sublabel": "GAIS sale.order" }
+  ],
+  "segments": [
+    { "from": 145, "to": 295, "label": "1. Security Gate, WAMID Deduplication & Thread Lock" },
+    { "from": 310, "to": 510, "label": "2. Neuro-Symbolic Extraction (Pass 1 + Pass 2 + Fact Gate)" },
+    { "from": 525, "to": 685, "label": "3. AI Tool Call -> Hono Quotation Studio (Submit & Compute)" },
+    { "from": 700, "to": 890, "label": "4. Staff Edit & Confirm -> GAIS Odoo Sync + WhatsApp Reply" }
+  ],
+  "messages": [
+    { "from": "guest", "to": "bff", "y": 175, "label": "POST /v1/channels/whatsapp/webhook", "variant": "emphasis" },
+    { "from": "bff", "to": "redis", "y": 215, "label": "verify HMAC + claimMessage(wamid)", "variant": "default" },
+    { "from": "redis", "to": "bff", "y": 255, "label": "withPhoneLock(phone) + load thread", "variant": "return" },
+    { "from": "bff", "to": "ai", "y": 340, "label": "converse(history, message)", "variant": "emphasis" },
+    { "from": "ai", "to": "bff", "y": 385, "label": "Pass 1 Trip + Pass 2 Manifest + Math Gate", "variant": "return" },
+    { "from": "bff", "to": "guest", "y": 435, "label": "[If incomplete] Natural English follow-up (<2.5s)", "variant": "dashed" },
+    { "from": "ai", "to": "studio", "y": 555, "label": "Tool Call: submit_quotation_to_hono(trip)", "variant": "emphasis" },
+    { "from": "studio", "to": "ai", "y": 600, "label": "200 Draft QT-1010-SKY + /q/sky-oct10-group", "variant": "return" },
+    { "from": "ai", "to": "guest", "y": 645, "label": "Recap + Pending Hono Review + /q/:slug link", "variant": "return" },
+    { "from": "studio", "to": "bff", "y": 730, "label": "Staff edits table/30% discount -> POST /confirm", "variant": "emphasis" },
+    { "from": "bff", "to": "odoo", "y": 775, "label": "POST /quotations (X-GAIS-Signature + Idempotency)", "variant": "emphasis" },
+    { "from": "odoo", "to": "bff", "y": 820, "label": "200 Upserted sale.order (SO-1010-SKY)", "variant": "return" },
+    { "from": "bff", "to": "guest", "y": 865, "label": "WhatsApp Confirmed Total (PHP 200,270) + /q/:slug", "variant": "emphasis" }
+  ],
+  "activations": [
+    { "participant": "bff", "from": 168, "to": 655, "type": "backend" },
+    { "participant": "redis", "from": 208, "to": 265, "type": "database" },
+    { "participant": "ai", "from": 332, "to": 650, "type": "cloud" },
+    { "participant": "studio", "from": 548, "to": 740, "type": "frontend" },
+    { "participant": "bff", "from": 722, "to": 875, "type": "backend" },
+    { "participant": "odoo", "from": 768, "to": 828, "type": "external" }
+  ],
+  "cards": [
+    {
+      "dot": "cyan",
+      "title": "Stage 1–2: Sub-2.5s Edge Gate & Neuro-Symbolic AI",
+      "items": [
+        "Verifies X-Hub-Signature-256, claims WAMID fence token, and locks phone thread",
+        "Gemini 3.1 Flash-Lite extracts Trip + Guest Manifest with deterministic math overrides",
+        "If fields are missing, replies immediately without re-asking known slots (NEVER RE-ASK)"
+      ]
+    },
+    {
+      "dot": "orange",
+      "title": "Stage 3: AI Tool Calling -> Editable Hono Studio",
+      "items": [
+        "When all 6 core fields are captured (done=true), AI calls submit_quotation_to_hono",
+        "Hono computes itemized lines (5 rooms, 4x3d + 4x2d split dives, full-board meals)",
+        "Returns editable Studio URL (/quotes/QT-1010-SKY) and shareable link (/q/sky-oct10-group)"
+      ]
+    },
+    {
+      "dot": "emerald",
+      "title": "Stage 4: Staff Confirm -> GAIS Odoo Upsert & Push",
+      "items": [
+        "Staff edits unit prices, rows, or 30% partner discount in /quotes and clicks Confirm",
+        "Hono signs payload with X-GAIS-Signature + Idempotency-Key to upsert Odoo sale.order",
+        "Confirmed grand total and interactive quotation link are pushed back to guest WhatsApp"
+      ]
+    }
+  ]
+}

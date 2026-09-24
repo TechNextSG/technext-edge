@@ -74,3 +74,12 @@ export function getConversationFlowHtml(): string {
   return loadHtmlFile("diagrams/conversation-flow-plain.html");
 }
 
+export function getProjectArchitectureHtml(): string {
+  return loadHtmlFile("diagrams/casa-project-architecture.html");
+}
+
+export function getInboundMessageFlowHtml(): string {
+  return loadHtmlFile("diagrams/casa-inbound-message-flow.html");
+}
+
+

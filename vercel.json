@@ -28,6 +28,8 @@
     { "source": "/showcase", "destination": "/api" },
     { "source": "/extractor-pod-showcase.html", "destination": "/api" },
     { "source": "/flow", "destination": "/api" },
+    { "source": "/project-architecture", "destination": "/api" },
+    { "source": "/message-flow", "destination": "/api" },
     { "source": "/quotes", "destination": "/api" },
     { "source": "/quotes/:id", "destination": "/api" },
     { "source": "/q/:slug", "destination": "/api" },
