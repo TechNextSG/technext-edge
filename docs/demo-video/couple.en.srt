@@ -1,0 +1,67 @@
+1
+00:00:00,000 --> 00:00:05,704
+Not every enquiry is complicated. Sometimes a guest just says what
+they want.
+
+2
+00:00:05,784 --> 00:00:13,312
+Anna writes four lines: two of them, three nights from October
+seventeenth, and a question about diving.
+
+3
+00:00:13,392 --> 00:00:17,560
+That is everything a booking needs — and nothing is written in a
+form.
+
+4
+00:00:17,640 --> 00:00:19,432
+Watch what comes back.
+
+5
+00:00:19,512 --> 00:00:30,352
+Every fact Anna gave is already recorded — her name, the date, the
+nights, both guests. Each one carries the exact words she used as
+its evidence.
+
+6
+00:00:30,432 --> 00:00:36,232
+One thing is genuinely open: she mentioned diving but never said
+which days.
+
+7
+00:00:36,312 --> 00:00:39,352
+So the assistant asks that, and only that.
+
+8
+00:00:39,432 --> 00:00:45,544
+Anna answers in one message: one room, diving on the eighteenth and
+nineteenth.
+
+9
+00:00:45,624 --> 00:00:53,176
+The assistant fills in the remaining fields — and note the transfer,
+which it works out from her asking about airport pickup.
+
+10
+00:00:53,256 --> 00:00:56,848
+Every field a quote depends on is now complete.
+
+11
+00:00:56,928 --> 00:01:01,672
+The assistant reads the whole booking back, so Anna can check it
+herself.
+
+12
+00:01:01,752 --> 00:01:08,008
+And notice what it does not do. It quotes no price. It confirms
+nothing as booked.
+
+13
+00:01:08,088 --> 00:01:12,472
+It says plainly that someone from the team will follow up.
+
+14
+00:01:12,552 --> 00:01:22,456
+Meals and the transfer type are marked as assumptions, because the
+guest never chose them — a house norm did, and a guest should be
+able to correct that.

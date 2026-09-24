@@ -1,0 +1,60 @@
+1
+00:00:00,000 --> 00:00:06,784
+Every booking starts as a message. On the web console, a guest
+writes the way people actually write.
+
+2
+00:00:06,864 --> 00:00:14,704
+Alex describes six guests, four divers and two non-divers, arriving
+November fifteenth — and stops there.
+
+3
+00:00:14,784 --> 00:00:19,864
+No form. No fields to fill in. Just what he happened to say.
+
+4
+00:00:19,944 --> 00:00:21,736
+Watch what comes back.
+
+5
+00:00:21,816 --> 00:00:29,992
+Every fact Alex stated is already recorded — his name, the date, all
+six guests, and which four of them dive.
+
+6
+00:00:30,072 --> 00:00:38,944
+So the assistant asks only for what is genuinely missing: how many
+nights, how many rooms, and which dates the divers dive.
+
+7
+00:00:39,024 --> 00:00:42,688
+It never asks him to repeat something he already said.
+
+8
+00:00:42,768 --> 00:00:51,928
+Alex fills in the gaps in one sentence — three nights, three rooms,
+full board, diving on the sixteenth and seventeenth.
+
+9
+00:00:52,008 --> 00:00:55,240
+All six booking details are now confirmed.
+
+10
+00:00:55,320 --> 00:01:00,520
+The assistant reads them back so Alex can check every figure
+himself.
+
+11
+00:01:00,600 --> 00:01:06,472
+And notice what it does not do: it quotes no price, and it confirms
+nothing as booked.
+
+12
+00:01:06,552 --> 00:01:12,184
+It says plainly that someone from the team will follow up to confirm
+availability and pricing.
+
+13
+00:01:12,264 --> 00:01:19,600
+That is the whole idea. The assistant handles the conversation; your
+team still makes every call about money.

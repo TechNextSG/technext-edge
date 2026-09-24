@@ -630,6 +630,28 @@ node packages/extractor/eval/runner.mjs --provider deepseek-flash
   response body plus a `whatsapp turn failed` stderr line (or `WhatsApp turn exceeded …ms`
   when the deadline was the cause). Grep for those two.
 
+- **A priced value used to be guessed by code, and the guess handed to the guest as a fact.**
+  `transportType` was written by `postProcess` as `roundtrip, derived` whenever the guest
+  asked for a transfer without saying which kind — "we need the airport pickup" does not
+  distinguish one way from a return, and the transfer is a priced line, so the estimate sat
+  on a value code had invented. It then asked the guest to confirm it, which is a symptom
+  fix, not a correction. Fixed 2026-09-24: only a declined transfer is still derived (`none`,
+  which needs no question); a wanted transfer with no stated type stays `missing`, so the
+  guest's own answer is what gets priced. **If you add a field that money depends on, code
+  must not fill it in** — leave it `missing` and add a question rule.
+- **"Ready to hand off" and "nothing left to ask" used to be the same expression**, so a
+  field that stopped being asked silently stopped being required. `done` is now
+  `isReadyForHandoff(trip)`, backed by `HANDOFF_REQUIRED_FIELDS` and `NEVER_ASKED_FIELDS` in
+  `questions.ts`, with the question list and the handoff check read off one open-question
+  pass. **Applicability is the part to get right:** a required field is only checked when
+  its own rule applies to this trip. The three dive fields are the reason — they are
+  required for a diving enquiry, but their rules are gated on `diver === true` and on
+  `diveNotes` being absent, so treating them as unconditionally required makes a
+  non-diving guest, or the split-day schedule the NEVER-RE-ASK guardrail exists to serve,
+  impossible to hand off at all. That mistake was made and caught by test on 2026-09-24.
+  Adding a required field without deciding whether the guest is asked about it fails the
+  coverage test in `questions.test.ts`.
+
 - **An optional field the model leaves out used to delete its own question.** The
   Tier-2 Odoo fields (`diver`, `diveFrom`, `diveTo`, `transportType`) are optional in
   the Trip schema, so a provider can return a tool call that simply has no `diver` key

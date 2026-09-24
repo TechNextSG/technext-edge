@@ -1,0 +1,51 @@
+1
+00:00:00,000 --> 00:00:03,736
+Now the hard one. A dive club books for a group.
+
+2
+00:00:03,816 --> 00:00:09,976
+Ten guests, four nights, five twin rooms, full board, airport
+transfer — and they mention diving.
+
+3
+00:00:10,056 --> 00:00:12,712
+All of that lands in one message.
+
+4
+00:00:12,792 --> 00:00:17,128
+Six of the eight booking fields are captured from that single
+message.
+
+5
+00:00:17,208 --> 00:00:23,320
+The assistant confirms what it understood, and asks only about the
+diving schedule it was not given.
+
+6
+00:00:23,400 --> 00:00:25,960
+Here is the part that used to break.
+
+7
+00:00:26,040 --> 00:00:33,136
+The whole group does not dive the same days. Six dive for four days;
+the other four dive for two.
+
+8
+00:00:33,216 --> 00:00:40,864
+There is no single number that describes that, so the assistant
+keeps Marco's own words as the schedule rather than inventing one.
+
+9
+00:00:40,944 --> 00:00:44,800
+And this is the boundary that matters most on a group booking.
+
+10
+00:00:44,880 --> 00:00:54,664
+A partner rate is a commercial decision, so the assistant does not
+quote it and does not decline it. It routes the request to a person
+and says so.
+
+11
+00:00:54,744 --> 00:01:00,616
+The guest gets a fast, complete answer. Every decision about money
+stays with your team.

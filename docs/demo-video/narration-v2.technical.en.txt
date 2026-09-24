@@ -1,0 +1,43 @@
+CASA ESCONDIDA — TECHNICAL WALKTHROUGH (WhatsApp + data panel)
+Voice: Kokoro af_heart, speed 1.0. Target ~2:30.
+Same conversation as the customer video, but the narration explains the
+underlying pipeline instead of just the guest experience. Pair with the
+extractor-pod diagram or the trip-state panel on screen where noted.
+
+---
+
+[1] Here's the same enquiry from Elena — but this time, let's look at what
+    happens behind the scenes.
+
+[2] Her message hits two AI providers in parallel — a fast one, and a
+    fallback in case the first one is unavailable.
+
+[3] [Show trip-state panel] Every fact she stated gets tagged: her name,
+    the dates, the headcount — each one marked "stated," with the exact
+    words she used kept as evidence.
+
+[4] This matters because the assistant never invents a number it wasn't
+    given. If she hadn't said how many were diving, that field would stay
+    empty — not guessed.
+
+[5] Here, she did say it: three divers out of seven. That number is what
+    later prices the dive package, so it has to be exact.
+
+[6] The system also catches her phrase for a one-way transfer, and flags
+    her as a partner account from "Manila Dive Club" and "our usual
+    partner rate" — which routes this enquiry to a staff member instead of
+    an automatic quote.
+
+[7] Once every required field is filled, a second, separate pass writes
+    the actual reply — in plain, warm language.
+
+[8] But that reply passes through one more gate first: it's not allowed to
+    contain a price, or confirm a discount, or claim anything's booked.
+    If it ever tried to, the system would fall back to a plain templated
+    reply instead.
+
+[9] That's the split: one layer keeps the facts honest, a second layer
+    makes the conversation feel human — and neither one can override the
+    other.
+
+[10] Casa Escondida — built by TechNext Edge.

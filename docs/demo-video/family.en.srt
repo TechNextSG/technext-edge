@@ -1,0 +1,57 @@
+1
+00:00:00,000 --> 00:00:02,872
+Families are where the numbers get tangled.
+
+2
+00:00:02,952 --> 00:00:09,592
+Four people are coming. Two of them dive. There is also a
+six-year-old who will not be diving.
+
+3
+00:00:09,672 --> 00:00:15,448
+It would be easy for a system to record six guests here, or to price
+four divers.
+
+4
+00:00:15,528 --> 00:00:18,112
+Look at the two numbers it keeps apart.
+
+5
+00:00:18,192 --> 00:00:22,816
+Four guests is the booking. Two divers is what gets priced.
+
+6
+00:00:22,896 --> 00:00:32,872
+The six-year-old is noted as a detail, not added on as another guest
+— and because the children will not dive, the assistant asks who
+exactly will.
+
+7
+00:00:32,952 --> 00:00:38,248
+Rachel answers, and mentions the children's ages again along with
+what she wants for them.
+
+8
+00:00:38,328 --> 00:00:43,000
+The assistant does not lose the booking over it — the guest count
+stays at four.
+
+9
+00:00:43,080 --> 00:00:48,520
+The booking is complete, and the guest count is still four — not
+six, and not two.
+
+10
+00:00:48,600 --> 00:00:55,168
+The summary separates what is booked from what is assumed, so Rachel
+can correct anything that looks wrong.
+
+11
+00:00:55,248 --> 00:01:01,528
+And it ends the same way every time: no price, no promise, a person
+follows up.
+
+12
+00:01:01,608 --> 00:01:08,776
+That is the whole idea. The assistant handles the conversation. Your
+team still makes every call about money.

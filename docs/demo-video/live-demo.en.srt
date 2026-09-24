@@ -1,0 +1,72 @@
+1
+00:00:00,300 --> 00:00:03,264
+Every booking starts as a message. This is the real console, on the
+live service.
+
+2
+00:00:03,264 --> 00:00:12,960
+Anna gives everything in one go — two guests, three nights from
+October seventeenth, one room, both of them diving, and a ride from
+the airport.
+
+3
+00:00:12,960 --> 00:00:14,832
+Watch what comes back.
+
+4
+00:00:14,832 --> 00:00:23,208
+One message in, one complete enquiry out. Every detail read back,
+and a person still confirms the price.
+
+5
+00:00:52,860 --> 00:00:53,460
+Same assistant, a different shape of booking.
+
+6
+00:00:54,312 --> 00:00:54,912
+Lucia writes for three people — two rooms, full board, and only two
+of them dive. She names the days she wants to dive, and asks for the
+airport pickup.
+
+7
+00:01:04,872 --> 00:01:05,472
+Three guests, two divers. Those are different numbers, and the
+system keeps them apart.
+
+8
+00:01:11,065 --> 00:01:11,665
+Nothing to chase and nothing invented. The diving is priced from two
+people, not three.
+
+9
+00:01:44,380 --> 00:01:44,980
+Now the hard one. A dive club books for a group.
+
+10
+00:01:46,288 --> 00:01:46,888
+Marco needs five twin rooms for ten guests, four nights, full board,
+and airport transfer from Manila.
+
+11
+00:01:53,440 --> 00:01:54,040
+Six fields from one message. All it asks back is about the diving.
+
+12
+00:01:58,408 --> 00:01:59,008
+The group does not dive on the same days.
+
+13
+00:02:01,168 --> 00:02:01,768
+Six dive for four days, the other four dive for two — and he asks
+about their partner rate.
+
+14
+00:02:07,984 --> 00:02:08,584
+No single number describes that, so the assistant keeps his own
+words as the schedule instead of inventing one.
+
+15
+00:02:15,232 --> 00:02:15,832
+The partner rate is routed to your team, never quoted by the
+assistant. That is the whole idea: the conversation is instant, and
+every decision about money stays with your people.
