@@ -1,0 +1,726 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Casa Escondida — Web & WhatsApp Hybrid AI Interactive Demo</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #0b1120;
+      --panel: #111827;
+      --panel-2: #1e293b;
+      --border: #334155;
+      --text: #f8fafc;
+      --muted: #94a3b8;
+      --teal: #14b8a6;
+      --teal-dark: #0f766e;
+      --wa-bg: #0b141a;
+      --wa-header: #202c33;
+      --wa-in: #202c33;
+      --wa-out: #005c4b;
+      --amber: #f59e0b;
+      --emerald: #10b981;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: 'Plus Jakarta Sans', -apple-system, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+    /* Top Executive Bar */
+    .topbar {
+      height: 58px;
+      background: rgba(17, 24, 39, 0.95);
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 24px;
+      flex-shrink: 0;
+    }
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .brand-badge {
+      background: linear-gradient(135deg, #14b8a6, #0d9488);
+      color: #042f2e;
+      font-weight: 800;
+      font-size: 12px;
+      padding: 4px 10px;
+      border-radius: 6px;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+    }
+    .brand-title {
+      font-size: 16px;
+      font-weight: 700;
+      color: #fff;
+    }
+    .brand-sub {
+      font-size: 12.5px;
+      color: var(--muted);
+      margin-left: 8px;
+    }
+    .controls {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .scene-pill {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 12px;
+      padding: 5px 12px;
+      border-radius: 999px;
+      background: var(--panel-2);
+      border: 1px solid var(--border);
+      color: #38bdf8;
+    }
+    .btn-play {
+      background: linear-gradient(135deg, #10b981, #059669);
+      color: #fff;
+      border: none;
+      font-weight: 700;
+      font-size: 13px;
+      padding: 8px 16px;
+      border-radius: 8px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      box-shadow: 0 4px 14px rgba(16, 185, 129, 0.3);
+    }
+    .btn-secondary {
+      background: var(--panel-2);
+      color: var(--text);
+      border: 1px solid var(--border);
+      font-weight: 600;
+      font-size: 12.5px;
+      padding: 7px 13px;
+      border-radius: 8px;
+      text-decoration: none;
+      cursor: pointer;
+    }
+
+    /* Split Workspace */
+    .workspace {
+      flex: 1;
+      display: grid;
+      grid-template-columns: 56% 44%;
+      gap: 16px;
+      padding: 16px 24px 100px 24px;
+      overflow: hidden;
+    }
+
+    /* Left Panel: Web Console + Live JSON State */
+    .web-panel {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      box-shadow: 0 20px 40px rgba(0, 0, 0, 0.35);
+    }
+    .panel-header {
+      padding: 12px 18px;
+      background: rgba(30, 41, 59, 0.7);
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .panel-title {
+      font-size: 13.5px;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .dot-row { display: flex; gap: 6px; }
+    .dot { width: 10px; height: 10px; border-radius: 50%; }
+    .dot.r { background: #ef4444; }
+    .dot.y { background: #f59e0b; }
+    .dot.g { background: #10b981; }
+    .endpoint-tag {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 11px;
+      padding: 3px 8px;
+      border-radius: 6px;
+      background: rgba(20, 184, 166, 0.15);
+      color: #2dd4bf;
+      border: 1px solid rgba(20, 184, 166, 0.3);
+    }
+
+    .web-body {
+      flex: 1;
+      display: grid;
+      grid-template-rows: 48% 52%;
+      overflow: hidden;
+    }
+    .web-chat {
+      padding: 14px 18px;
+      overflow-y: auto;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+    .msg-row {
+      display: flex;
+      flex-direction: column;
+      max-width: 86%;
+      animation: fadeIn 0.25s ease-out;
+    }
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(6px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    .msg-row.guest { align-self: flex-end; align-items: flex-end; }
+    .msg-row.bot { align-self: flex-start; align-items: flex-start; }
+    .msg-label {
+      font-size: 10.5px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: var(--muted);
+      margin-bottom: 3px;
+    }
+    .msg-bubble {
+      padding: 10px 14px;
+      border-radius: 12px;
+      font-size: 13px;
+      line-height: 1.48;
+    }
+    .msg-row.guest .msg-bubble {
+      background: #0f766e;
+      color: #fff;
+      border-bottom-right-radius: 3px;
+    }
+    .msg-row.bot .msg-bubble {
+      background: var(--panel-2);
+      color: #e2e8f0;
+      border: 1px solid var(--border);
+      border-bottom-left-radius: 3px;
+    }
+
+    /* Structured JSON & Guardrail Inspector */
+    .inspector {
+      padding: 14px 18px;
+      background: #0d1322;
+      display: grid;
+      grid-template-columns: 58% 42%;
+      gap: 14px;
+      overflow: hidden;
+    }
+    .sub-title {
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: #94a3b8;
+      margin-bottom: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .slots-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 7px;
+    }
+    .slot-card {
+      background: rgba(30, 41, 59, 0.65);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 7px 10px;
+      transition: all 0.25s ease;
+    }
+    .slot-card.filled {
+      border-color: rgba(20, 184, 166, 0.55);
+      background: rgba(20, 184, 166, 0.08);
+    }
+    .slot-card.updated {
+      border-color: #f59e0b;
+      background: rgba(245, 158, 11, 0.14);
+      box-shadow: 0 0 12px rgba(245, 158, 11, 0.25);
+    }
+    .slot-key {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 10.5px;
+      color: var(--muted);
+      display: flex;
+      justify-content: space-between;
+    }
+    .slot-badge {
+      font-size: 9.5px;
+      padding: 1px 5px;
+      border-radius: 4px;
+      font-weight: 700;
+      text-transform: uppercase;
+    }
+    .badge-stated { background: rgba(16, 185, 129, 0.2); color: #34d399; }
+    .badge-missing { background: rgba(239, 68, 68, 0.2); color: #f87171; }
+    .badge-reconciled { background: rgba(245, 158, 11, 0.25); color: #fbbf24; }
+    .slot-val {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 12px;
+      font-weight: 600;
+      color: #f8fafc;
+      margin-top: 3px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .guardrails-box {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    .gate-item {
+      background: rgba(30, 41, 59, 0.65);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 8px 10px;
+      font-size: 11.5px;
+      line-height: 1.4;
+    }
+    .gate-item.active-gate {
+      border-color: #10b981;
+      background: rgba(16, 185, 129, 0.1);
+    }
+    .gate-item.alert-gate {
+      border-color: #f59e0b;
+      background: rgba(245, 158, 11, 0.12);
+    }
+    .gate-title {
+      font-weight: 700;
+      color: #e2e8f0;
+      margin-bottom: 2px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .gate-desc { color: var(--muted); font-size: 11px; }
+
+    /* Right Panel: WhatsApp Business Live Window */
+    .wa-panel {
+      background: var(--wa-bg);
+      border: 1px solid #2a3942;
+      border-radius: 14px;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      box-shadow: 0 20px 40px rgba(0, 0, 0, 0.45);
+    }
+    .wa-header {
+      background: var(--wa-header);
+      padding: 11px 18px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      border-bottom: 1px solid #2a3942;
+    }
+    .wa-profile {
+      display: flex;
+      align-items: center;
+      gap: 11px;
+    }
+    .wa-avatar {
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, #25d366, #128c7e);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 800;
+      font-size: 14px;
+      color: #fff;
+    }
+    .wa-name { font-size: 14px; font-weight: 700; color: #e9edef; }
+    .wa-status { font-size: 11.5px; color: #25d366; }
+    .wa-chat {
+      flex: 1;
+      padding: 16px 18px;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      background-image: radial-gradient(rgba(255,255,255,0.03) 1px, transparent 0);
+      background-size: 20px 20px;
+    }
+    .wa-bubble {
+      max-width: 85%;
+      padding: 9px 13px;
+      border-radius: 10px;
+      font-size: 13px;
+      line-height: 1.46;
+      position: relative;
+      animation: fadeIn 0.25s ease-out;
+    }
+    .wa-bubble.user {
+      align-self: flex-end;
+      background: var(--wa-out);
+      color: #e9edef;
+      border-top-right-radius: 2px;
+    }
+    .wa-bubble.bot {
+      align-self: flex-start;
+      background: var(--wa-in);
+      color: #e9edef;
+      border-top-left-radius: 2px;
+      border: 1px solid #2a3942;
+    }
+    .wa-time {
+      font-size: 10px;
+      color: rgba(233, 237, 239, 0.6);
+      text-align: right;
+      margin-top: 4px;
+    }
+
+    /* Bottom Burnt-In English Subtitle Cinema Bar */
+    .subtitle-bar {
+      position: fixed;
+      bottom: 14px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 88%;
+      max-width: 1360px;
+      background: rgba(3, 7, 18, 0.92);
+      border: 1.5px solid rgba(56, 189, 248, 0.45);
+      border-radius: 12px;
+      padding: 12px 24px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 18px;
+      box-shadow: 0 12px 32px rgba(0, 0, 0, 0.7);
+      z-index: 100;
+    }
+    .cc-badge {
+      background: #38bdf8;
+      color: #082f49;
+      font-family: 'JetBrains Mono', monospace;
+      font-weight: 800;
+      font-size: 11px;
+      padding: 4px 8px;
+      border-radius: 5px;
+      flex-shrink: 0;
+    }
+    .subtitle-text {
+      flex: 1;
+      font-size: 16.5px;
+      font-weight: 600;
+      color: #fef08a;
+      text-align: center;
+      letter-spacing: 0.01em;
+      line-height: 1.35;
+    }
+    .timer-badge {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 12.5px;
+      color: #94a3b8;
+      flex-shrink: 0;
+    }
+  </style>
+</head>
+<body>
+  <div class="topbar">
+    <div class="brand">
+      <span class="brand-badge">LIVE DEMO</span>
+      <span class="brand-title">Casa Escondida — Hybrid AI Intake (Web & WhatsApp)</span>
+      <span class="brand-sub">Pass 1/2 Extraction · Symbolic Math Gate · Post-Gen Fact Gate</span>
+    </div>
+    <div class="controls">
+      <span class="scene-pill" id="scene-indicator">Scene 1 / 2 · Web Console Intake</span>
+      <button class="btn-play" id="btn-replay" onclick="runFullDemo()">▶ Replay Guided Demo</button>
+      <a class="btn-secondary" href="/casa-escondida-demo.mp4" download="casa-escondida-demo.mp4">⬇ Download MP4 Video</a>
+      <a class="btn-secondary" href="/test-console">Open Raw Console</a>
+    </div>
+  </div>
+
+  <div class="workspace">
+    <!-- Left Half: Web Test Console + Structured JSON & Guardrails -->
+    <div class="web-panel">
+      <div class="panel-header">
+        <div class="panel-title">
+          <div class="dot-row"><span class="dot r"></span><span class="dot y"></span><span class="dot g"></span></div>
+          <span>🌐 Web Channel — Casa Extractor Test Console</span>
+        </div>
+        <span class="endpoint-tag">POST /v1/converse · Dual-Pass JSON</span>
+      </div>
+
+      <div class="web-body">
+        <div class="web-chat" id="web-chat-log"></div>
+
+        <div class="inspector">
+          <div>
+            <div class="sub-title">
+              <span>Structured Trip State (6 Core Slots + Dive Notes)</span>
+              <span id="done-chip" style="color:#94a3b8;">done: false</span>
+            </div>
+            <div class="slots-grid" id="slots-grid">
+              <div class="slot-card" id="slot-guestName">
+                <div class="slot-key"><span>guestName</span><span class="slot-badge badge-missing" id="b-guestName">missing</span></div>
+                <div class="slot-val" id="v-guestName">null</div>
+              </div>
+              <div class="slot-card" id="slot-checkIn">
+                <div class="slot-key"><span>checkIn / nights</span><span class="slot-badge badge-missing" id="b-checkIn">missing</span></div>
+                <div class="slot-val" id="v-checkIn">null</div>
+              </div>
+              <div class="slot-card" id="slot-guests">
+                <div class="slot-key"><span>guests (staying)</span><span class="slot-badge badge-missing" id="b-guests">missing</span></div>
+                <div class="slot-val" id="v-guests">null</div>
+              </div>
+              <div class="slot-card" id="slot-rooms">
+                <div class="slot-key"><span>rooms / meals</span><span class="slot-badge badge-missing" id="b-rooms">missing</span></div>
+                <div class="slot-val" id="v-rooms">null</div>
+              </div>
+              <div class="slot-card" id="slot-divers">
+                <div class="slot-key"><span>diver / divers</span><span class="slot-badge badge-missing" id="b-divers">missing</span></div>
+                <div class="slot-val" id="v-divers">null</div>
+              </div>
+              <div class="slot-card" id="slot-diveNotes">
+                <div class="slot-key"><span>diveWindow / notes</span><span class="slot-badge badge-missing" id="b-diveNotes">missing</span></div>
+                <div class="slot-val" id="v-diveNotes">null</div>
+              </div>
+            </div>
+          </div>
+
+          <div class="guardrails-box">
+            <div class="sub-title"><span>Neuro-Symbolic Guardrails</span></div>
+            <div class="gate-item" id="gate-never-reask">
+              <div class="gate-title">🛡️ NEVER RE-ASK Guardrail</div>
+              <div class="gate-desc" id="desc-never-reask">Tracks stated slots across turns so the bot only asks missing fields.</div>
+            </div>
+            <div class="gate-item" id="gate-math">
+              <div class="gate-title">🧮 Symbolic Math Reconciler</div>
+              <div class="gate-desc" id="desc-math">Resolves mid-chat headcount updates (10 → 8 pax) & split dive days.</div>
+            </div>
+            <div class="gate-item" id="gate-fact">
+              <div class="gate-title">🚨 Post-Gen Fact Gate & Staff Alerts</div>
+              <div class="gate-desc" id="desc-fact">Blocks unauthorized price promises; flags 30% partner discount for staff.</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Right Half: Live WhatsApp Business Channel -->
+    <div class="wa-panel">
+      <div class="wa-header">
+        <div class="wa-profile">
+          <div class="wa-avatar">CE</div>
+          <div>
+            <div class="wa-name">Casa Escondida Resort · Anilao</div>
+            <div class="wa-status">● Official WhatsApp Business API (/webhook)</div>
+          </div>
+        </div>
+        <span class="endpoint-tag" style="background:rgba(37,211,102,0.15);color:#4ade80;border-color:rgba(37,211,102,0.3);">WAMID Lock Active</span>
+      </div>
+      <div class="wa-chat" id="wa-chat-log"></div>
+    </div>
+  </div>
+
+  <!-- Burnt-in English Subtitle Bar -->
+  <div class="subtitle-bar">
+    <span class="cc-badge">CC · EN</span>
+    <div class="subtitle-text" id="subtitle-box">
+      Casa Escondida — Hybrid AI Reservation Intake & Qualification across Web Console and WhatsApp.
+    </div>
+    <span class="timer-badge" id="timer-box">00:00 / 00:45</span>
+  </div>
+
+  <script>
+    const steps = [
+      {
+        atSec: 0,
+        scene: "Scene 1 / 2 · Web Console Intake",
+        subtitle: "Scene 1: On the Web Console (/test-console), a guest sends an initial inquiry for 6 guests (4 divers, 2 non-divers) checking in on Nov 15.",
+        action: () => {
+          resetUI();
+          appendWeb("guest", "Hi Casa Escondida! My name is Alex Chen. We have a group of 6 guests planning to check in on November 15, 2026. 4 of us are divers and 2 are non-divers.");
+        }
+      },
+      {
+        atSec: 5,
+        scene: "Scene 1 / 2 · Dual-Pass Extraction",
+        subtitle: "Pass 1 & Pass 2 extract every stated fact with verbatim evidence, and the AI asks ONLY for the missing fields—never re-asking known slots.",
+        action: () => {
+          setSlot("guestName", "stated", "Alex Chen");
+          setSlot("checkIn", "stated", "2026-11-15 (nights: ?)");
+          setSlot("guests", "stated", "6 staying guests");
+          setSlot("divers", "stated", "true (4 divers, 2 non-divers)");
+          highlightGate("gate-never-reask", "active-gate", "Captured guestName, checkIn, guests (6), divers (4). Asking only nights, rooms, meals & dive dates.");
+          appendWeb("bot", "Warm greetings from Casa Escondida in Anilao, Alex! We have noted your group of 6 guests (4 divers and 2 non-divers) checking in on November 15, 2026. Could you share how many nights and rooms you need, your preferred meal plan, and which dates the 4 divers plan to dive?");
+        }
+      },
+      {
+        atSec: 12,
+        scene: "Scene 1 / 2 · Completing All 6 Booking Slots",
+        subtitle: "In Turn 2, the guest provides the remaining details: 3 nights, 3 Deluxe rooms, full-board meals, and diving dates (Nov 16–17).",
+        action: () => {
+          appendWeb("guest", "We will stay for 3 nights in 3 Deluxe rooms with full-board meals, and the 4 divers will dive from Nov 16 to Nov 17.");
+        }
+      },
+      {
+        atSec: 17,
+        scene: "Scene 1 / 2 · All 6 Slots Verified (done = true)",
+        subtitle: "All 6 core booking slots are now complete (done = true), producing a verified structured Trip payload ready for the reservation team.",
+        action: () => {
+          setSlot("checkIn", "stated", "2026-11-15 → 11-18 (3 nights)");
+          setSlot("rooms", "stated", "3 Deluxe · Full-Board");
+          setSlot("diveNotes", "stated", "2026-11-16 → 2026-11-17");
+          document.getElementById("done-chip").textContent = "✓ done: true (6/6 slots)";
+          document.getElementById("done-chip").style.color = "#34d399";
+          appendWeb("bot", "Thank you, Alex! Your enquiry is complete: 6 guests (4 divers, 2 non-divers) checking in Nov 15–18, 2026 (3 nights) in 3 Deluxe rooms with full-board meals, diving Nov 16–17. Our reservation team is preparing your official availability & package details.");
+        }
+      },
+      {
+        atSec: 23,
+        scene: "Scene 2 / 2 · Real-Time WhatsApp Interaction",
+        subtitle: "Scene 2: On WhatsApp, Sir Sky messages the resort to book for 10 guests across 4 nights (October 10–14) in 5 twin rooms with full-board meals.",
+        action: () => {
+          appendWA("user", "Hello, I am Sir Sky. We want to book for 10 guests checking in on October 10, 2026 for 4 nights (5 twin rooms, full-board meals).", "09:18 AM");
+          setSlot("guestName", "stated", "Sir Sky");
+          setSlot("checkIn", "stated", "2026-10-10 → 10-14 (4 nights)");
+          setSlot("guests", "stated", "10 staying guests");
+          setSlot("rooms", "stated", "5 Twin · Full-Board");
+          setSlot("divers", "missing", "null (asking guest)");
+          setSlot("diveNotes", "missing", "null");
+          document.getElementById("done-chip").textContent = "done: false (5/6 slots)";
+          document.getElementById("done-chip").style.color = "#fbbf24";
+        }
+      },
+      {
+        atSec: 28,
+        scene: "Scene 2 / 2 · Sub-2.5s WhatsApp Follow-Up",
+        subtitle: "Within 2 seconds, the WhatsApp bot confirms the check-in window, 5 rooms, and full-board meal plan, then asks if the group will be diving.",
+        action: () => {
+          appendWA("bot", "Welcome to Casa Escondida, Sir Sky! We have recorded your booking request for 10 guests checking in October 10–14, 2026 (4 nights, 5 twin rooms, full-board meals).\n\nWill anyone in your group be scuba diving during the stay, and if so, how many divers and on which dates?", "09:18 AM");
+        }
+      },
+      {
+        atSec: 34,
+        scene: "Scene 2 / 2 · Mid-Chat Headcount Change + Split Dive + 30% Partner Request",
+        subtitle: "Next, Sir Sky updates the group to 8 divers, splits the dive schedule (4 divers × 3 days, 4 divers × 2 days), and asks for a 30% partner discount.",
+        action: () => {
+          appendWA("user", "Actually update the total group to 8 guests in 4 rooms. All 8 are divers, but 4 divers will dive for 3 days (Oct 11-13) and the other 4 divers will only dive for 2 days (Oct 11-12). Also, I am a resort partner—can we get a 30% partner discount?", "09:19 AM");
+        }
+      },
+      {
+        atSec: 40,
+        scene: "Scene 2 / 2 · Symbolic Math Reconciler & Fact Gate Protection",
+        subtitle: "The Symbolic Math Gate updates guests from 10 → 8 without double-counting, while the Fact Gate blocks unauthorized price promises and triggers a Staff Alert.",
+        action: () => {
+          setSlot("guests", "reconciled", "8 guests (updated 10 → 8)", true);
+          setSlot("rooms", "reconciled", "4 Twin · Full-Board", true);
+          setSlot("divers", "stated", "true (8 divers total)");
+          setSlot("diveNotes", "reconciled", "4 pax × 3d (11-13), 4 pax × 2d (11-12)", true);
+          document.getElementById("done-chip").textContent = "✓ done: true + Staff Alert";
+          document.getElementById("done-chip").style.color = "#34d399";
+          highlightGate("gate-math", "active-gate", "Headcount reconciled 10 → 8 guests (4 rooms); split dive manifest stored in diveNotes.");
+          highlightGate("gate-fact", "alert-gate", "ALERT: 30% Partner Discount + Split-Day Dive Schedule flagged for human reservation approval.");
+          appendWA("bot", "Thank you, Sir Sky! We have updated your group to 8 guests in 4 twin rooms (Oct 10–14, 2026, 4 nights, full-board meals) with your split diving schedule: 4 divers for 3 days (Oct 11–13) and 4 divers for 2 days (Oct 11–12).\n\nWe have also noted your 30% resort partner discount request for our reservation team to verify and send your official itemized quotation shortly.", "09:19 AM");
+        }
+      }
+    ];
+
+    function resetUI() {
+      document.getElementById("web-chat-log").innerHTML = "";
+      document.getElementById("wa-chat-log").innerHTML = "";
+      ["guestName","checkIn","guests","rooms","divers","diveNotes"].forEach(k => {
+        const card = document.getElementById("slot-" + k);
+        card.className = "slot-card";
+        const b = document.getElementById("b-" + k);
+        b.className = "slot-badge badge-missing";
+        b.textContent = "missing";
+        document.getElementById("v-" + k).textContent = "null";
+      });
+      ["gate-never-reask","gate-math","gate-fact"].forEach(id => {
+        document.getElementById(id).className = "gate-item";
+      });
+    }
+
+    function setSlot(key, badgeType, value, updated = false) {
+      const card = document.getElementById("slot-" + key);
+      card.className = "slot-card " + (updated ? "updated" : (badgeType === "missing" ? "" : "filled"));
+      const b = document.getElementById("b-" + key);
+      b.className = "slot-badge badge-" + badgeType;
+      b.textContent = badgeType;
+      document.getElementById("v-" + key).textContent = value;
+    }
+
+    function highlightGate(id, cls, text) {
+      const el = document.getElementById(id);
+      el.className = "gate-item " + cls;
+      const desc = el.querySelector(".gate-desc");
+      if (desc && text) desc.textContent = text;
+    }
+
+    function appendWeb(role, text) {
+      const log = document.getElementById("web-chat-log");
+      const row = document.createElement("div");
+      row.className = "msg-row " + role;
+      row.innerHTML = `<div class="msg-label">${role === "guest" ? "Guest (Web Console)" : "Casa Hybrid AI Pod"}</div><div class="msg-bubble">${text}</div>`;
+      log.appendChild(row);
+      log.scrollTop = log.scrollHeight;
+    }
+
+    function appendWA(role, text, time) {
+      const log = document.getElementById("wa-chat-log");
+      const bubble = document.createElement("div");
+      bubble.className = "wa-bubble " + role;
+      bubble.innerHTML = `<div>${text.replace(/\n/g, "<br>")}</div><div class="wa-time">${time} ✓✓</div>`;
+      log.appendChild(bubble);
+      log.scrollTop = log.scrollHeight;
+    }
+
+    let timers = [];
+    function runFullDemo() {
+      timers.forEach(clearTimeout);
+      timers = [];
+      const totalSec = 46;
+      for (let s = 0; s <= totalSec; s++) {
+        timers.push(setTimeout(() => {
+          const mm = String(Math.floor(s / 60)).padStart(2, "0");
+          const ss = String(s % 60).padStart(2, "0");
+          document.getElementById("timer-box").textContent = `${mm}:${ss} / 00:46`;
+        }, s * 1000));
+      }
+      for (const step of steps) {
+        timers.push(setTimeout(() => {
+          document.getElementById("scene-indicator").textContent = step.scene;
+          document.getElementById("subtitle-box").textContent = step.subtitle;
+          step.action();
+        }, step.atSec * 1000));
+      }
+    }
+
+    // Expose deterministic step trigger for automated 1080p video recording
+    window.__setDemoStep = function(idx, secLabel) {
+      const step = steps[idx];
+      if (!step) return;
+      document.getElementById("scene-indicator").textContent = step.scene;
+      document.getElementById("subtitle-box").textContent = step.subtitle;
+      document.getElementById("timer-box").textContent = secLabel || `00:${String(step.atSec).padStart(2, "0")} / 00:46`;
+      step.action();
+    };
+
+    window.addEventListener("DOMContentLoaded", () => {
+      if (!location.search.includes("manual=1")) {
+        runFullDemo();
+      }
+    });
+  </script>
+</body>
+</html>

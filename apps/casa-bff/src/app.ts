@@ -44,6 +44,7 @@ import {
   getConversationFlowHtml,
   getProjectArchitectureHtml,
   getInboundMessageFlowHtml,
+  getDemoTheatreHtml,
 } from "./reportsHtml.js";
 import {
   saveQuotationDraft,
@@ -607,6 +608,8 @@ export function createApp(options: AppOptions = {}) {
   app.get("/project-architecture", (c) => c.html(getProjectArchitectureHtml()));
   app.get("/diagrams/casa-inbound-message-flow.html", (c) => c.html(getInboundMessageFlowHtml()));
   app.get("/message-flow", (c) => c.html(getInboundMessageFlowHtml()));
+  app.get("/demo-theatre.html", (c) => c.html(getDemoTheatreHtml()));
+  app.get("/demo", (c) => c.html(getDemoTheatreHtml()));
 
   // ---- Hono Tool-Calling Quotation Studio & Editable Quotation Links -------
   app.get("/quotes", (c) => {

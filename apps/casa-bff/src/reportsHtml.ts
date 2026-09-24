@@ -82,4 +82,9 @@ export function getInboundMessageFlowHtml(): string {
   return loadHtmlFile("diagrams/casa-inbound-message-flow.html");
 }
 
+export function getDemoTheatreHtml(): string {
+  return loadHtmlFile("demo-theatre.html");
+}
+
+
 
