@@ -1,31 +1,63 @@
 1
-00:00:00,025 --> 00:00:15,285
-Welcome to the Casa Escondida AI Test Console. The interface features multi-turn Chat and Single Message modes, quick test presets, and real-time conversation controls to test how the engine interacts with guests.
+00:00:00,006 --> 00:00:05,190
+Welcome to the Casa Extractor test bench on our live Edge environment.
 
 2
-00:00:15,301 --> 00:00:27,761
-First, in Chat mode, we type a natural enquiry for four guests in two rooms. The assistant acknowledges the dates and rooms, and immediately asks whether the group plans to dive.
+00:00:05,407 --> 00:00:11,359
+Here, we can switch between multi-turn Chat and Single Message extraction modes.
 
 3
-00:00:27,804 --> 00:00:39,465
-In the second turn, the guest adds boat diving and airport pickup. The assistant updates the trip state in real time and asks to confirm how many people are diving.
+00:00:11,569 --> 00:00:16,801
+The bench provides quick scenario presets and real-time conversation controls.
 
 4
-00:00:39,472 --> 00:00:50,222
-Once the guest confirms two divers, all required fields are satisfied. The completion banner triggers, locking the trip state for staff quotation.
+00:00:17,013 --> 00:00:23,589
+First, in Chat mode, we type Sarah Jenkins's booking enquiry for four guests in two rooms.
 
 5
-00:00:50,226 --> 00:01:04,167
-Now, we switch to Single Message mode. Here, the engine is stress-tested against dense, unstructured paragraphs with self-corrections, traps, and missing variables in one single pass.
+00:00:27,129 --> 00:00:33,297
+The assistant acknowledges dates and rooms, and immediately asks whether the group plans to dive.
 
 6
-00:01:04,171 --> 00:01:18,572
-In Case 1, Dr. Elena Vance sends a booking mixing six overnight guests with four lunch-only visitors. The reconciler captures exactly six sleeping guests, refusing ten-pax inflation.
+00:00:33,500 --> 00:00:39,884
+In the second turn, the guest adds boat diving for two, plus Manila airport pickup.
 
 7
-00:01:18,578 --> 00:01:33,028
-In Case 2, Marcus Tan corrects himself mid-sentence from twelve down to eight guests. The system cleanly ignores the obsolete figure, recording eight guests, five divers, and rental gear.
+00:00:43,015 --> 00:00:49,375
+The engine updates diving and transfer, then asks to confirm the exact diver headcount.
 
 8
-00:01:33,033 --> 00:01:47,603
-In Case 3, Captain David Ross demands an unauthorized thirty percent partner discount and omits the room count. The fact gate flags the discount and generates a single question asking for room count.
+00:00:49,582 --> 00:00:55,341
+Sarah confirms two divers and an eleven AM arrival at Manila airport.
+
+9
+00:01:04,183 --> 00:01:10,735
+All required fields are satisfied. The completion banner locks the trip state for staff quotation.
+
+10
+00:01:10,941 --> 00:01:17,277
+Now, we switch to Single Message mode to benchmark dense unstructured paragraphs.
+
+11
+00:01:17,483 --> 00:01:25,115
+Case 1 tests Dr. Elena Vance: six overnight guests mixing with four lunch visitors.
+
+12
+00:01:25,326 --> 00:01:31,519
+The reconciler captures exactly six sleeping guests, refusing ten-pax inflation.
+
+13
+00:01:31,736 --> 00:01:36,968
+Case 2 tests a mid-sentence cancellation from twelve down to eight guests.
+
+14
+00:01:37,177 --> 00:01:43,345
+The system cleanly ignores the cancelled figure, recording eight guests and five divers.
+
+15
+00:01:43,558 --> 00:01:48,982
+Case 3 tests a demand for an unauthorized thirty percent partner discount.
+
+16
+00:01:49,183 --> 00:01:55,255
+The fact gate flags the discount and generates a targeted question asking for the room count.

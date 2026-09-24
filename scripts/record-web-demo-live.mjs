@@ -13,20 +13,20 @@ const OUT_SRT_PUBLIC = path.resolve("public/casa-web-single-message-demo.srt");
 
 fs.mkdirSync(TMP, { recursive: true });
 
-// Voice matched directly against docs/demo-video/voice-samples/2-new-script-female.mp3
-// (en-US-AvaMultilingualNeural at rate -8%, warm, human, natural tone picked by the team)
 const VOICE = "en-US-AvaMultilingualNeural";
 const VOICE_RATE = "-8%";
 const VIEW = { width: 1920, height: 1080 };
 
-function synthesizeNeuralAudio(text, mp3Path, voice = VOICE, rate = VOICE_RATE) {
-  console.log(`  [TTS] Synthesizing (${voice}, rate=${rate}): "${text.slice(0, 50)}..."`);
+function synthesizeNeuralAudio(text, mp3Path) {
+  const dir = path.dirname(mp3Path);
+  fs.mkdirSync(dir, { recursive: true });
+  console.log(`  [TTS] Synthesizing: "${text.slice(0, 55)}..."`);
   execFileSync(
     "edge-tts",
     [
       "--voice",
-      voice,
-      `--rate=${rate}`,
+      VOICE,
+      `--rate=${VOICE_RATE}`,
       "--text",
       text,
       "--write-media",
@@ -44,10 +44,10 @@ function getAudioDuration(mp3Path) {
       ["-v", "error", "-show_entries", "format=duration", "-of", "csv=p=0", mp3Path],
       { encoding: "utf8" }
     );
-    const secs = Number(out.trim());
-    return Math.max(5.0, Number((secs + 0.6).toFixed(2)));
+    const secs = parseFloat(out.trim());
+    return Number.isFinite(secs) ? secs : 5.0;
   } catch (err) {
-    return 9.0;
+    return 5.0;
   }
 }
 
@@ -101,15 +101,15 @@ function formatSrtTime(totalSeconds) {
   return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")},${String(ms).padStart(3, "0")}`;
 }
 
-async function setPointers(cdp, sessionId, marks) {
+async function showArrow(cdp, sessionId, sel, label, pos = "above", n = "➔") {
   await cdp.send("Runtime.evaluate", {
-    expression: `window.__showPointers(${JSON.stringify(marks)})`,
+    expression: `window.__showPointer(${JSON.stringify(sel)}, ${JSON.stringify(label)}, ${JSON.stringify(pos)}, ${JSON.stringify(n)})`,
   }, sessionId);
 }
 
-async function clearPointers(cdp, sessionId) {
+async function clearArrow(cdp, sessionId) {
   await cdp.send("Runtime.evaluate", {
-    expression: `window.__clearPointers()`,
+    expression: `window.__clearPointer()`,
   }, sessionId);
 }
 
@@ -119,198 +119,7 @@ async function setSubtitle(cdp, sessionId, text) {
   }, sessionId);
 }
 
-const PHASES = [
-  // 0. Intro & Controls
-  {
-    id: "intro",
-    badge: "INTRO",
-    title: "Casa Escondida AI Test Console — Overview & Controls",
-    sub: "Interactive test bench for evaluating multi-turn chat and single-message extraction",
-    narration: "Welcome to the Casa Escondida AI Test Console. The interface features multi-turn Chat and Single Message modes, quick test presets, and real-time conversation controls to test how the engine interacts with guests.",
-    runLive: async (cdp, sessionId) => {
-      await setPointers(cdp, sessionId, [
-        { sel: ".tabs", n: "1", label: "Mode Switch: Chat vs Single Message", pos: "below" },
-        { sel: ".examples", n: "2", label: "Quick Scenario Presets", pos: "below" },
-        { sel: ".chat-input-row", n: "3", label: "Real-time Guest Chat Input", pos: "above" }
-      ]);
-      await sleep(6500);
-      await clearPointers(cdp, sessionId);
-      await sleep(800);
-    }
-  },
-
-  // 1. Chat Turn 1
-  {
-    id: "chat-turn-1",
-    badge: "CHAT 1",
-    title: "Chat Mode (Turn 1) — Multi-Turn Booking: Sarah Jenkins",
-    sub: "AI acknowledges dates and rooms, and asks targeted diving question without re-asking",
-    narration: "First, in Chat mode, we type a natural enquiry for four guests in two rooms. The assistant acknowledges the dates and rooms, and immediately asks whether the group plans to dive.",
-    runLive: async (cdp, sessionId) => {
-      await setPointers(cdp, sessionId, [
-        { sel: "#chat-text", n: "➔", label: "Type booking enquiry...", pos: "above" }
-      ]);
-      const text = "Hi, I'm Sarah Jenkins. We'd like to book 2 Deluxe rooms for 4 guests checking in Oct 17, 2026 for 3 nights on full board.";
-      await typeInto(cdp, sessionId, "#chat-text", text, 32);
-      await sleep(350);
-      await setPointers(cdp, sessionId, [
-        { sel: "#chat-send", n: "➔", label: "Send to AI Engine", pos: "above" }
-      ]);
-      await clickSel(cdp, sessionId, "#chat-send");
-      await waitForCondition(cdp, sessionId, `document.querySelectorAll('.bubble-assistant').length >= 1`, 30);
-      await setPointers(cdp, sessionId, [
-        { sel: ".bubble-assistant:last-of-type", n: "AI", label: "AI acknowledges dates & rooms, asks if diving", pos: "below" }
-      ]);
-      await sleep(1800);
-    }
-  },
-
-  // 2. Chat Turn 2
-  {
-    id: "chat-turn-2",
-    badge: "CHAT 2",
-    title: "Chat Mode (Turn 2) — Adding Diving Schedule & Airport Transfer",
-    sub: "Trip state updates dynamically in memory with zero duplicate questions",
-    narration: "In the second turn, the guest adds boat diving and airport pickup. The assistant updates the trip state in real time and asks to confirm how many people are diving.",
-    runLive: async (cdp, sessionId) => {
-      await setPointers(cdp, sessionId, [
-        { sel: "#chat-text", n: "➔", label: "Guest adds diving & airport transfer...", pos: "above" }
-      ]);
-      const text = "Yes, 2 of us will do boat diving from Oct 18 to Oct 19, and we need airport pickup from Manila.";
-      await typeInto(cdp, sessionId, "#chat-text", text, 32);
-      await sleep(350);
-      await setPointers(cdp, sessionId, [
-        { sel: "#chat-send", n: "➔", label: "Send update", pos: "above" }
-      ]);
-      await clickSel(cdp, sessionId, "#chat-send");
-      await waitForCondition(cdp, sessionId, `document.querySelectorAll('.bubble-assistant').length >= 2`, 30);
-      await setPointers(cdp, sessionId, [
-        { sel: ".bubble-assistant:last-of-type", n: "AI", label: "AI records transfer, asks for diver count", pos: "below" }
-      ]);
-      await sleep(1800);
-    }
-  },
-
-  // 3. Chat Turn 3
-  {
-    id: "chat-turn-3",
-    badge: "CHAT 3",
-    title: "Chat Mode (Turn 3) — Slot Completion & Handover Gate",
-    sub: "All required variables satisfied · System executes completion gate",
-    narration: "Once the guest confirms two divers, all required fields are satisfied. The completion banner triggers, locking the trip state for staff quotation.",
-    runLive: async (cdp, sessionId) => {
-      await setPointers(cdp, sessionId, [
-        { sel: "#chat-text", n: "➔", label: "Confirming 2 divers & pickup...", pos: "above" }
-      ]);
-      const text = "Exactly 2 divers. Manila pickup for all 4 of us, arriving at 11 AM. Thanks!";
-      await typeInto(cdp, sessionId, "#chat-text", text, 32);
-      await sleep(350);
-      await setPointers(cdp, sessionId, [
-        { sel: "#chat-send", n: "➔", label: "Send confirmation", pos: "above" }
-      ]);
-      await clickSel(cdp, sessionId, "#chat-send");
-      await waitForCondition(cdp, sessionId, `(() => { const b = document.getElementById('done-banner'); return b && b.style.display !== 'none'; })()`, 30);
-      await setPointers(cdp, sessionId, [
-        { sel: "#done-banner", n: "✓", label: "All 8 slots satisfied · Trip state locked", pos: "above" }
-      ]);
-      await sleep(2200);
-    }
-  },
-
-  // 4. Mode Switch
-  {
-    id: "switch",
-    badge: "SWITCH",
-    title: "Mode Switch — Single Message Unstructured Stress Benchmarks",
-    sub: "Testing complex, multi-variable single paragraphs without conversational back-and-forth",
-    narration: "Now, we switch to Single Message mode. Here, the engine is stress-tested against dense, unstructured paragraphs with self-corrections, traps, and missing variables in one single pass.",
-    runLive: async (cdp, sessionId) => {
-      await setPointers(cdp, sessionId, [
-        { sel: "#tab-single", n: "➔", label: "Switch to Single Message Mode", pos: "below" }
-      ]);
-      await sleep(900);
-      await clickSel(cdp, sessionId, "#tab-single");
-      await sleep(600);
-      await setPointers(cdp, sessionId, [
-        { sel: "#text", n: "➔", label: "Unstructured single paragraph input", pos: "below" }
-      ]);
-      await sleep(1600);
-      await clearPointers(cdp, sessionId);
-    }
-  },
-
-  // 5. Single Case 1: Elena Vance
-  {
-    id: "single-1",
-    badge: "CASE 1",
-    title: "Single Message (Case 1) — Overnight (6) vs Lunch Visitors (4)",
-    sub: "Symbolic Math Reconciler captures 6 guests and stores day visitors in evidence",
-    narration: "In Case 1, Dr. Elena Vance sends a booking mixing six overnight guests with four lunch-only visitors. The reconciler captures exactly six sleeping guests, refusing ten-pax inflation.",
-    runLive: async (cdp, sessionId) => {
-      const text = "Hi Casa Escondida! I am Dr. Elena Vance. We want to book 3 Deluxe Twin rooms for 6 overnight guests checking in October 15, 2026 for 4 nights with full-board meals (no airport transfer needed). Note that 4 local colleagues will drive down from Manila just to join us for lunch on Saturday—so 10 people eating lunch, but only 6 sleeping overnight! All 6 overnight guests are certified divers, but 4 will dive for 3 days (Oct 16–18) while the other 2 will only dive for 1 day (Oct 16).";
-      await pasteInto(cdp, sessionId, "#text", text);
-      await sleep(400);
-      await setPointers(cdp, sessionId, [
-        { sel: "#go", n: "➔", label: "Run Extraction", pos: "above" }
-      ]);
-      await clickSel(cdp, sessionId, "#go");
-      await waitForCondition(cdp, sessionId, `(() => { const go = document.getElementById('go'); const rc = document.getElementById('result-card'); return !go.disabled && rc && rc.style.display === 'block'; })()`, 30);
-      await setPointers(cdp, sessionId, [
-        { sel: "#result-card", n: "✓", label: "Extracted: 6 overnight guests (4 lunch visitors excluded)", pos: "above" }
-      ]);
-      await sleep(2000);
-    }
-  },
-
-  // 6. Single Case 2: Marcus Tan
-  {
-    id: "single-2",
-    badge: "CASE 2",
-    title: "Single Message (Case 2) — Mid-Sentence Self-Correction (12 → 8)",
-    sub: "Reconciler ignores obsolete 12 figure and captures rental gear",
-    narration: "In Case 2, Marcus Tan corrects himself mid-sentence from twelve down to eight guests. The system cleanly ignores the obsolete figure, recording eight guests, five divers, and rental gear.",
-    runLive: async (cdp, sessionId) => {
-      const text = "Hello, this is Marcus Tan from Singapore. Originally we wanted 6 rooms for 12 people starting November 20, 2026—wait, scratch that, 2 couples just cancelled this morning so our final headcount is 8 guests in 4 Twin rooms for 3 nights (Nov 20 to Nov 23) with full-board meals and Manila NAIA airport pickup. Out of the 8 guests, only 5 are divers (diving 2 days: Nov 21–22, needing full BCD and regulator rental) and 3 family members do not dive.";
-      await pasteInto(cdp, sessionId, "#text", text);
-      await sleep(400);
-      await setPointers(cdp, sessionId, [
-        { sel: "#go", n: "➔", label: "Run Extraction", pos: "above" }
-      ]);
-      await clickSel(cdp, sessionId, "#go");
-      await waitForCondition(cdp, sessionId, `(() => { const go = document.getElementById('go'); const rc = document.getElementById('result-card'); return !go.disabled && rc && rc.style.display === 'block'; })()`, 30);
-      await setPointers(cdp, sessionId, [
-        { sel: "#result-card", n: "✓", label: "Self-correction: 8 guests captured (12 cancelled ignored)", pos: "above" }
-      ]);
-      await sleep(2000);
-    }
-  },
-
-  // 7. Single Case 3: David Ross
-  {
-    id: "single-3",
-    badge: "CASE 3",
-    title: "Single Message (Case 3) — 30% Partner Discount & Missing Rooms",
-    sub: "Fact Gate escalates discount and generates targeted room question",
-    narration: "In Case 3, Captain David Ross demands an unauthorized thirty percent partner discount and omits the room count. The fact gate flags the discount and generates a single question asking for room count.",
-    runLive: async (cdp, sessionId) => {
-      const text = "Greetings Casa Escondida team! I'm Captain David Ross from Pacific Reef Club. We're bringing 9 guests checking in December 5, 2026 for 5 nights on full-board meals with airport transfer from Manila. 6 of us will do boat diving from Dec 6 to Dec 9 (4 days) and 3 beginners want Open Water courses. Since we are an overseas partner agency, please apply a 30% partner discount to our accommodation and dive packages!";
-      await pasteInto(cdp, sessionId, "#text", text);
-      await sleep(400);
-      await setPointers(cdp, sessionId, [
-        { sel: "#go", n: "➔", label: "Run Extraction", pos: "above" }
-      ]);
-      await clickSel(cdp, sessionId, "#go");
-      await waitForCondition(cdp, sessionId, `(() => { const go = document.getElementById('go'); const rc = document.getElementById('result-card'); return !go.disabled && rc && rc.style.display === 'block'; })()`, 30);
-      await setPointers(cdp, sessionId, [
-        { sel: "#questions-card", n: "!", label: "Fact Gate: 30% discount flagged · Missing room count asked", pos: "above" }
-      ]);
-      await sleep(2200);
-    }
-  }
-];
-
-// Helper functions for CDP live interaction
-async function clickSel(cdp, sessionId, sel) {
+async function clickEl(cdp, sessionId, sel) {
   await cdp.send("Runtime.evaluate", {
     expression: `(() => {
       const el = document.querySelector(${JSON.stringify(sel)});
@@ -320,7 +129,7 @@ async function clickSel(cdp, sessionId, sel) {
   }, sessionId);
 }
 
-async function typeInto(cdp, sessionId, sel, text, cps = 28) {
+async function typeText(cdp, sessionId, sel, text, cps = 32) {
   await cdp.send("Runtime.evaluate", {
     expression: `(() => {
       const el = document.querySelector(${JSON.stringify(sel)});
@@ -329,12 +138,11 @@ async function typeInto(cdp, sessionId, sel, text, cps = 28) {
   }, sessionId);
   await sleep(150);
 
-  // Type smoothly
   for (const ch of text) {
     await cdp.send("Input.dispatchKeyEvent", { type: "char", text: ch, key: ch }, sessionId);
     await sleep(Math.round(1000 / cps + Math.random() * 8));
   }
-  await sleep(200);
+  await sleep(150);
 
   await cdp.send("Runtime.evaluate", {
     expression: `(() => {
@@ -344,7 +152,7 @@ async function typeInto(cdp, sessionId, sel, text, cps = 28) {
   }, sessionId);
 }
 
-async function pasteInto(cdp, sessionId, sel, text) {
+async function pasteText(cdp, sessionId, sel, text) {
   await cdp.send("Runtime.evaluate", {
     expression: `(() => {
       const el = document.querySelector(${JSON.stringify(sel)});
@@ -361,154 +169,20 @@ async function waitForCondition(cdp, sessionId, expression, maxTries = 40) {
   for (let i = 0; i < maxTries; i++) {
     const { result } = await cdp.send("Runtime.evaluate", { expression }, sessionId);
     if (result && result.value) return true;
-    await sleep(400);
+    await sleep(350);
   }
   return false;
 }
 
-function setupPageGuideUI() {
+// Injected overlay functions - purely floating, ZERO interference with native page CSS
+function setupFloatingOverlays() {
   const st = document.createElement("style");
   st.textContent = `
-    body {
-      padding-top: 14px !important;
-      padding-bottom: 96px !important;
-      overflow: hidden !important;
-      background: #0b1120 !important;
-      font-family: system-ui, -apple-system, sans-serif !important;
-    }
-    .topbar { padding: 4px 24px !important; height: 44px !important; }
-    .wrap { max-width: 1880px !important; margin: 6px auto !important; padding: 0 24px !important; }
-    .lede, #override { display: none !important; }
-    .tabs { margin-bottom: 6px !important; }
-    .tab-btn { font-size: 14px !important; padding: 6px 18px !important; }
-    
-    #mode-chat.active {
-      max-width: 1380px !important;
-      margin: 6px auto !important;
-      padding: 16px 24px !important;
-      background: #111827 !important;
-      border: 1px solid #1e293b !important;
-      border-radius: 12px !important;
-      display: flex !important;
-      flex-direction: column !important;
-      gap: 12px !important;
-    }
-    .chat-log {
-      min-height: 250px !important;
-      max-height: 380px !important;
-      overflow-y: auto !important;
-      display: flex !important;
-      flex-direction: column !important;
-      gap: 10px !important;
-    }
-    .bubble {
-      max-width: 78% !important;
-      padding: 10px 16px !important;
-      border-radius: 12px !important;
-      font-size: 14.5px !important;
-      line-height: 1.5 !important;
-    }
-    .bubble-guest {
-      align-self: flex-end !important;
-      background: #0d9488 !important;
-      color: #fff !important;
-      border-bottom-right-radius: 4px !important;
-    }
-    .bubble-assistant {
-      align-self: flex-start !important;
-      background: #1e293b !important;
-      border: 1px solid #334155 !important;
-      color: #f8fafc !important;
-      border-bottom-left-radius: 4px !important;
-    }
-    .chat-input-row {
-      display: flex !important;
-      gap: 10px !important;
-    }
-    #chat-text {
-      flex: 1 !important;
-      min-height: 52px !important;
-      font-size: 14px !important;
-      background: #0f172a !important;
-      border: 2px solid #0d9488 !important;
-      color: #fff !important;
-      border-radius: 8px !important;
-      padding: 10px 14px !important;
-    }
-    #chat-send {
-      padding: 0 24px !important;
-      font-size: 14px !important;
-      font-weight: 700 !important;
-    }
-    .done-banner {
-      margin-top: 4px !important;
-      padding: 8px 14px !important;
-      border-radius: 8px !important;
-      background: #064e3b !important;
-      color: #a7f3d0 !important;
-      font-size: 13.5px !important;
-      font-weight: 700 !important;
-      border: 1px solid #059669 !important;
-    }
-
-    #mode-single.active {
-      display: grid !important;
-      grid-template-columns: 42% 58% !important;
-      gap: 16px !important;
-      align-items: start !important;
-      padding: 10px 16px !important;
-      background: #111827 !important;
-      border: 1px solid #1e293b !important;
-      border-radius: 12px !important;
-    }
-    #mode-single > .section-label,
-    #mode-single > #text,
-    #mode-single > .examples,
-    #mode-single > .actions,
-    #mode-single > #error {
-      grid-column: 1 !important;
-    }
-    #text {
-      min-height: 175px !important;
-      font-size: 13.5px !important;
-      line-height: 1.48 !important;
-      background: #0f172a !important;
-      border: 2px solid #0d9488 !important;
-      color: #f8fafc !important;
-      padding: 10px !important;
-      border-radius: 8px !important;
-    }
-    .examples { margin: 4px 0 !important; }
-    .actions { margin-top: 4px !important; }
-    .btn-primary { font-size: 13.5px !important; padding: 7px 20px !important; font-weight: 700 !important; }
-    #result-card {
-      grid-column: 2 !important;
-      grid-row: 1 / span 5 !important;
-      margin-top: 0 !important;
-      background: #0f172a !important;
-      padding: 8px 14px !important;
-      border: 1px solid #1e293b !important;
-      border-radius: 10px !important;
-    }
-    #questions-card {
-      grid-column: 1 / span 2 !important;
-      margin-top: 4px !important;
-      padding: 8px 14px !important;
-      background: #0f172a !important;
-      border: 1px solid #1e293b !important;
-      border-radius: 10px !important;
-    }
-    #raw { display: none !important; }
-    table { width: 100% !important; border-collapse: collapse !important; }
-    table th, table td { padding: 4px 8px !important; font-size: 12px !important; border-bottom: 1px solid #1e293b !important; }
-    table th { font-size: 10.5px !important; text-transform: uppercase !important; letter-spacing: 0.05em !important; color: #94a3b8 !important; }
-
-    /* CLEAN REAL-TIME POINTERS & DOCK SUBTITLES */
     .pointer-glow-target {
-      outline: 2.5px solid #22d3ee !important;
+      outline: 3px solid #22d3ee !important;
       outline-offset: 4px !important;
-      box-shadow: 0 0 20px rgba(34, 211, 238, 0.45) !important;
-      transition: all 0.25s ease !important;
+      box-shadow: 0 0 20px rgba(34, 211, 238, 0.5) !important;
+      transition: all 0.2s ease !important;
     }
 
     .pointer-wrapper {
@@ -518,15 +192,15 @@ function setupPageGuideUI() {
       flex-direction: column;
       align-items: center;
       pointer-events: none;
-      filter: drop-shadow(0 6px 16px rgba(0,0,0,0.65));
-      animation: pointerFloat 1.3s ease-in-out infinite alternate;
+      filter: drop-shadow(0 6px 16px rgba(0,0,0,0.7));
+      animation: pointerBounce 1.3s ease-in-out infinite alternate;
     }
 
     .pointer-arrow-icon {
-      font-size: 22px;
+      font-size: 24px;
       line-height: 1;
       color: #22d3ee;
-      text-shadow: 0 0 12px rgba(34, 211, 238, 0.85);
+      text-shadow: 0 0 14px rgba(34, 211, 238, 0.9);
       margin: 2px 0;
     }
 
@@ -534,15 +208,15 @@ function setupPageGuideUI() {
       background: rgba(15, 23, 42, 0.96);
       border: 1.5px solid #22d3ee;
       border-radius: 999px;
-      padding: 6px 16px;
-      font-size: 13.5px;
+      padding: 6px 18px;
+      font-size: 14px;
       font-weight: 700;
       color: #ffffff;
       display: flex;
       align-items: center;
       gap: 8px;
       white-space: nowrap;
-      box-shadow: 0 4px 16px rgba(0,0,0,0.5);
+      box-shadow: 0 4px 18px rgba(0,0,0,0.55);
     }
 
     .pointer-badge {
@@ -557,39 +231,20 @@ function setupPageGuideUI() {
       justify-content: center;
     }
 
-    @keyframes pointerFloat {
+    @keyframes pointerBounce {
       0% { transform: translateY(0); }
-      100% { transform: translateY(-6px); }
+      100% { transform: translateY(-7px); }
     }
 
-    /* FLOATING TOP STATUS BADGE */
-    #video-top-tag {
-      position: fixed;
-      top: 14px;
-      right: 24px;
-      background: rgba(15, 23, 42, 0.92);
-      backdrop-filter: blur(10px);
-      border: 1px solid rgba(255, 255, 255, 0.15);
-      border-radius: 999px;
-      padding: 6px 16px;
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      z-index: 999998;
-      box-shadow: 0 4px 16px rgba(0, 0, 0, 0.45);
-    }
-    @keyframes liveDot { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
-
-    /* FLOATING DOCK SUBTITLE BAR */
     #video-subbar {
       position: fixed;
-      bottom: 20px;
+      bottom: 18px;
       left: 50%;
       transform: translateX(-50%);
-      width: min(88%, 1300px);
+      width: min(88%, 1320px);
       min-height: 64px;
-      background: rgba(10, 15, 29, 0.94);
-      backdrop-filter: blur(14px);
+      background: rgba(11, 17, 32, 0.95);
+      backdrop-filter: blur(16px);
       border: 1.5px solid rgba(34, 211, 238, 0.45);
       border-radius: 14px;
       display: flex;
@@ -597,8 +252,9 @@ function setupPageGuideUI() {
       justify-content: center;
       padding: 10px 32px;
       z-index: 999998;
-      box-shadow: 0 10px 32px rgba(0, 0, 0, 0.8);
+      box-shadow: 0 10px 35px rgba(0, 0, 0, 0.85);
     }
+
     #video-sub-text {
       font-size: 22px;
       font-weight: 700;
@@ -611,59 +267,48 @@ function setupPageGuideUI() {
   `;
   document.head.appendChild(st);
 
-  const topTag = document.createElement("div");
-  topTag.id = "video-top-tag";
-  topTag.innerHTML =
-    '<span style="width:8px;height:8px;border-radius:50%;background:#ef4444;box-shadow:0 0 8px #ef4444;animation:liveDot 1.2s infinite ease-in-out;"></span>' +
-    '<span style="font-weight:800;color:#fff;font-size:12px;letter-spacing:0.05em;">LIVE SCREENCAST</span>' +
-    '<span style="color:#94a3b8;font-size:12px;border-left:1px solid #334155;padding-left:8px;">BFF Edge · Console</span>';
-  document.body.appendChild(topTag);
-
   const subbar = document.createElement("div");
   subbar.id = "video-subbar";
   subbar.innerHTML =
     '<div style="display:flex;align-items:center;gap:16px;width:100%;">' +
     '<span style="background:#0d9488;color:#ffffff;font-weight:900;font-size:12.5px;padding:4px 10px;border-radius:6px;letter-spacing:0.06em;flex-shrink:0;">CC · EN</span>' +
-    '<div id="video-sub-text" style="flex:1;text-align:center;">Welcome to Casa Escondida...</div>' +
+    '<div id="video-sub-text" style="flex:1;text-align:center;">Casa Extractor Test Console</div>' +
     '</div>';
   document.body.appendChild(subbar);
 
-  window.__showPointers = function (marks) {
-    window.__clearPointers();
-    for (const m of marks || []) {
-      const el = document.querySelector(m.sel);
-      if (!el) continue;
-      el.classList.add("pointer-glow-target");
-      const r = el.getBoundingClientRect();
-      const w = document.createElement("div");
-      let pos = m.pos || "above";
-      if (pos === "below" && r.bottom + 60 > window.innerHeight - 90) pos = "above";
-      else if (pos === "above" && r.top < 60) pos = "below";
+  window.__showPointer = function (sel, label, pos = "above", badge = "➔") {
+    window.__clearPointer();
+    const el = document.querySelector(sel);
+    if (!el) return;
+    el.classList.add("pointer-glow-target");
+    const r = el.getBoundingClientRect();
+    const w = document.createElement("div");
 
-      w.className = "pointer-wrapper " + (pos === "below" ? "pos-below" : "pos-above");
-      const badge = m.n || "➔";
-      if (pos === "below") {
-        w.innerHTML =
-          '<div class="pointer-arrow-icon">▲</div>' +
-          '<div class="pointer-pill"><span class="pointer-badge">' + badge + '</span><span>' + m.label + '</span></div>';
-        const cx = Math.max(160, Math.min(window.innerWidth - 160, r.left + r.width / 2));
-        w.style.left = cx + "px";
-        w.style.transform = "translateX(-50%)";
-        w.style.top = (r.bottom + 8) + "px";
-      } else {
-        w.innerHTML =
-          '<div class="pointer-pill"><span class="pointer-badge">' + badge + '</span><span>' + m.label + '</span></div>' +
-          '<div class="pointer-arrow-icon">▼</div>';
-        const cx = Math.max(160, Math.min(window.innerWidth - 160, r.left + r.width / 2));
-        w.style.left = cx + "px";
-        w.style.transform = "translateX(-50%)";
-        w.style.top = Math.max(12, r.top - 52) + "px";
-      }
-      document.body.appendChild(w);
+    if (pos === "below" && r.bottom + 65 > window.innerHeight - 85) pos = "above";
+    else if (pos === "above" && r.top < 65) pos = "below";
+
+    w.className = "pointer-wrapper " + (pos === "below" ? "pos-below" : "pos-above");
+    if (pos === "below") {
+      w.innerHTML =
+        '<div class="pointer-arrow-icon">▲</div>' +
+        '<div class="pointer-pill"><span class="pointer-badge">' + badge + '</span><span>' + label + '</span></div>';
+      const cx = Math.max(160, Math.min(window.innerWidth - 160, r.left + r.width / 2));
+      w.style.left = cx + "px";
+      w.style.transform = "translateX(-50%)";
+      w.style.top = (r.bottom + 8) + "px";
+    } else {
+      w.innerHTML =
+        '<div class="pointer-pill"><span class="pointer-badge">' + badge + '</span><span>' + label + '</span></div>' +
+        '<div class="pointer-arrow-icon">▼</div>';
+      const cx = Math.max(160, Math.min(window.innerWidth - 160, r.left + r.width / 2));
+      w.style.left = cx + "px";
+      w.style.transform = "translateX(-50%)";
+      w.style.top = Math.max(12, r.top - 54) + "px";
     }
+    document.body.appendChild(w);
   };
 
-  window.__clearPointers = function () {
+  window.__clearPointer = function () {
     document.querySelectorAll(".pointer-wrapper").forEach((e) => e.remove());
     document.querySelectorAll(".pointer-glow-target").forEach((e) => e.classList.remove("pointer-glow-target"));
   };
@@ -674,21 +319,203 @@ function setupPageGuideUI() {
   };
 }
 
-async function main() {
-  console.log("=== STARTING FULL LIVE RECORDING DEMO (SCREENCAST + AUDIO + SUBTITLES) ===");
+// 16 ATOMIC, TIGHTLY SYNCHRONIZED ACTION-CUES
+const ACTIONS = [
+  // Scene 0: Overview & Controls
+  {
+    id: "01-welcome",
+    text: "Welcome to the Casa Extractor test bench on our live Edge environment.",
+    run: async (cdp, sid) => {
+      await showArrow(cdp, sid, ".topbar", "Casa Extractor · Live Edge Environment", "below", "1");
+      await sleep(1500);
+    }
+  },
+  {
+    id: "02-modes",
+    text: "Here, we can switch between multi-turn Chat and Single Message extraction modes.",
+    run: async (cdp, sid) => {
+      await showArrow(cdp, sid, ".tabs", "Mode Switch: Chat vs Single Message", "below", "2");
+      await sleep(1500);
+    }
+  },
+  {
+    id: "03-controls",
+    text: "The bench provides quick scenario presets and real-time conversation controls.",
+    run: async (cdp, sid) => {
+      await showArrow(cdp, sid, ".examples", "Quick Scenario Presets & Input Controls", "below", "3");
+      await sleep(1500);
+      await clearArrow(cdp, sid);
+    }
+  },
 
-  // 1. Synthesize audio clips
-  console.log("\n--- Phase 1: Synthesizing Neural Speech (AvaMultilingualNeural -8%) ---");
-  for (let i = 0; i < PHASES.length; i++) {
-    const p = PHASES[i];
-    const mp3 = path.join(TMP, `cue-${i}-${p.id}.mp3`);
-    synthesizeNeuralAudio(p.narration, mp3);
-    p.audioPath = mp3;
-    p.audioDuration = getAudioDuration(mp3);
+  // Scene 1: Chat Turn 1
+  {
+    id: "04-chat1-type",
+    text: "First, in Chat mode, we type Sarah Jenkins's booking enquiry for four guests in two rooms.",
+    run: async (cdp, sid) => {
+      await showArrow(cdp, sid, "#chat-text", "Typing Sarah Jenkins's booking enquiry...", "above");
+      const text = "Hi, I'm Sarah Jenkins. We'd like to book 2 Deluxe rooms for 4 guests checking in Oct 17, 2026 for 3 nights on full board.";
+      await typeText(cdp, sid, "#chat-text", text, 32);
+      await sleep(300);
+      await showArrow(cdp, sid, "#chat-send", "Click Send to dispatch to AI engine", "above");
+      await clickEl(cdp, sid, "#chat-send");
+      await waitForCondition(cdp, sid, `document.querySelectorAll('.bubble-assistant').length >= 1`, 30);
+    }
+  },
+  {
+    id: "05-chat1-reply",
+    text: "The assistant acknowledges dates and rooms, and immediately asks whether the group plans to dive.",
+    run: async (cdp, sid) => {
+      await showArrow(cdp, sid, ".bubble-assistant:last-of-type", "AI acknowledges dates & rooms, asks if diving", "below", "AI");
+      await sleep(1800);
+    }
+  },
+
+  // Scene 2: Chat Turn 2
+  {
+    id: "06-chat2-type",
+    text: "In the second turn, the guest adds boat diving for two, plus Manila airport pickup.",
+    run: async (cdp, sid) => {
+      await showArrow(cdp, sid, "#chat-text", "Adding boat diving and airport pickup...", "above");
+      const text = "Yes, 2 of us will do boat diving from Oct 18 to Oct 19, and we need airport pickup from Manila.";
+      await typeText(cdp, sid, "#chat-text", text, 32);
+      await sleep(300);
+      await showArrow(cdp, sid, "#chat-send", "Send update to assistant", "above");
+      await clickEl(cdp, sid, "#chat-send");
+      await waitForCondition(cdp, sid, `document.querySelectorAll('.bubble-assistant').length >= 2`, 30);
+    }
+  },
+  {
+    id: "07-chat2-reply",
+    text: "The engine updates diving and transfer, then asks to confirm the exact diver headcount.",
+    run: async (cdp, sid) => {
+      await showArrow(cdp, sid, ".bubble-assistant:last-of-type", "AI updates state in real time, asks for diver count", "below", "AI");
+      await sleep(1800);
+    }
+  },
+
+  // Scene 3: Chat Turn 3
+  {
+    id: "08-chat3-type",
+    text: "Sarah confirms two divers and an eleven AM arrival at Manila airport.",
+    run: async (cdp, sid) => {
+      await showArrow(cdp, sid, "#chat-text", "Confirming 2 divers and 11 AM pickup...", "above");
+      const text = "Exactly 2 divers. Manila pickup for all 4 of us, arriving at 11 AM. Thanks!";
+      await typeText(cdp, sid, "#chat-text", text, 32);
+      await sleep(300);
+      await showArrow(cdp, sid, "#chat-send", "Send confirmation", "above");
+      await clickEl(cdp, sid, "#chat-send");
+      await waitForCondition(cdp, sid, `(() => { const b = document.getElementById('done-banner'); return b && b.style.display !== 'none'; })()`, 30);
+    }
+  },
+  {
+    id: "09-chat3-reply",
+    text: "All required fields are satisfied. The completion banner locks the trip state for staff quotation.",
+    run: async (cdp, sid) => {
+      await showArrow(cdp, sid, "#done-banner", "All 8 slots satisfied · Trip state locked for quotation", "above", "✓");
+      await sleep(2200);
+    }
+  },
+
+  // Scene 4: Mode Switch
+  {
+    id: "10-switch",
+    text: "Now, we switch to Single Message mode to benchmark dense unstructured paragraphs.",
+    run: async (cdp, sid) => {
+      await showArrow(cdp, sid, "#tab-single", "Click to switch to Single Message mode", "below");
+      await sleep(700);
+      await clickEl(cdp, sid, "#tab-single");
+      await sleep(600);
+      await showArrow(cdp, sid, "#text", "Single message unstructured input benchmarking", "below");
+      await sleep(1200);
+      await clearArrow(cdp, sid);
+    }
+  },
+
+  // Scene 5: Case 1: Elena Vance
+  {
+    id: "11-case1-input",
+    text: "Case 1 tests Dr. Elena Vance: six overnight guests mixing with four lunch visitors.",
+    run: async (cdp, sid) => {
+      const text = "Hi Casa Escondida! I am Dr. Elena Vance. We want to book 3 Deluxe Twin rooms for 6 overnight guests checking in October 15, 2026 for 4 nights with full-board meals (no airport transfer needed). Note that 4 local colleagues will drive down from Manila just to join us for lunch on Saturday—so 10 people eating lunch, but only 6 sleeping overnight! All 6 overnight guests are certified divers, but 4 will dive for 3 days (Oct 16–18) while the other 2 will only dive for 1 day (Oct 16).";
+      await pasteText(cdp, sid, "#text", text);
+      await sleep(300);
+      await showArrow(cdp, sid, "#go", "Click Extract", "above");
+      await clickEl(cdp, sid, "#go");
+      await waitForCondition(cdp, sid, `(() => { const go = document.getElementById('go'); const rc = document.getElementById('result-card'); return !go.disabled && rc && rc.style.display === 'block'; })()`, 30);
+    }
+  },
+  {
+    id: "12-case1-result",
+    text: "The reconciler captures exactly six sleeping guests, refusing ten-pax inflation.",
+    run: async (cdp, sid) => {
+      await showArrow(cdp, sid, "#result-card", "Extracted: 6 overnight guests (4 lunch visitors excluded)", "above", "✓");
+      await sleep(2200);
+    }
+  },
+
+  // Scene 6: Case 2: Marcus Tan
+  {
+    id: "13-case2-input",
+    text: "Case 2 tests a mid-sentence cancellation from twelve down to eight guests.",
+    run: async (cdp, sid) => {
+      const text = "Hello, this is Marcus Tan from Singapore. Originally we wanted 6 rooms for 12 people starting November 20, 2026—wait, scratch that, 2 couples just cancelled this morning so our final headcount is 8 guests in 4 Twin rooms for 3 nights (Nov 20 to Nov 23) with full-board meals and Manila NAIA airport pickup. Out of the 8 guests, only 5 are divers (diving 2 days: Nov 21–22, needing full BCD and regulator rental) and 3 family members do not dive.";
+      await pasteText(cdp, sid, "#text", text);
+      await sleep(300);
+      await showArrow(cdp, sid, "#go", "Click Extract", "above");
+      await clickEl(cdp, sid, "#go");
+      await waitForCondition(cdp, sid, `(() => { const go = document.getElementById('go'); const rc = document.getElementById('result-card'); return !go.disabled && rc && rc.style.display === 'block'; })()`, 30);
+    }
+  },
+  {
+    id: "14-case2-result",
+    text: "The system cleanly ignores the cancelled figure, recording eight guests and five divers.",
+    run: async (cdp, sid) => {
+      await showArrow(cdp, sid, "#result-card", "Self-correction: 8 guests captured (12 cancelled ignored)", "above", "✓");
+      await sleep(2200);
+    }
+  },
+
+  // Scene 7: Case 3: David Ross
+  {
+    id: "15-case3-input",
+    text: "Case 3 tests a demand for an unauthorized thirty percent partner discount.",
+    run: async (cdp, sid) => {
+      const text = "Good day, Captain David Ross here. We are 10 divers checking in Dec 5, 2026 for 5 nights. All 10 need unlimited shore diving and 3 also want PADI Open Water courses. We demand a 30% partner discount based on our veteran status. Please confirm the rate.";
+      await pasteText(cdp, sid, "#text", text);
+      await sleep(300);
+      await showArrow(cdp, sid, "#go", "Click Extract", "above");
+      await clickEl(cdp, sid, "#go");
+      await waitForCondition(cdp, sid, `(() => { const go = document.getElementById('go'); const rc = document.getElementById('result-card'); return !go.disabled && rc && rc.style.display === 'block'; })()`, 30);
+    }
+  },
+  {
+    id: "16-case3-result",
+    text: "The fact gate flags the discount and generates a targeted question asking for the room count.",
+    run: async (cdp, sid) => {
+      await showArrow(cdp, sid, "#questions-card", "Fact Gate: 30% discount flagged · 1 missing room question", "above", "!");
+      await sleep(2400);
+    }
+  }
+];
+
+async function main() {
+  console.log("=== STARTING PERFECTLY SYNCHRONIZED LIVE RECORDING DEMO ===");
+  console.log("Target: https://technext-edge-casa-bff.vercel.app/test-console (Pure Native UI)\n");
+
+  // 1. Synthesize Audio for all 16 atomic cues
+  console.log("--- Phase 1: Synthesizing Audio Cues (en-US-AvaMultilingualNeural -8%) ---");
+  for (let i = 0; i < ACTIONS.length; i++) {
+    const a = ACTIONS[i];
+    const mp3 = path.join(TMP, `cue-${String(i).padStart(2, "0")}-${a.id}.mp3`);
+    synthesizeNeuralAudio(a.text, mp3);
+    a.audioPath = mp3;
+    a.audioDuration = getAudioDuration(mp3);
+    console.log(`  [Cue ${i + 1}/${ACTIONS.length}] ${a.id}: ${a.audioDuration.toFixed(2)}s`);
   }
 
-  // 2. Launch Chrome CDP
-  console.log("\n--- Phase 2: Launching Chrome CDP ---");
+  // 2. Launch Chrome CDP directly on production URL
+  console.log("\n--- Phase 2: Launching Chrome CDP on https://technext-edge-casa-bff.vercel.app/test-console ---");
   const chrome = findChrome();
   const userDataDir = path.join(TMP, "chrome-prof");
   fs.mkdirSync(userDataDir, { recursive: true });
@@ -725,10 +552,10 @@ async function main() {
   await cdp.send("Page.navigate", { url: "https://technext-edge-casa-bff.vercel.app/test-console" }, sessionId);
   await sleep(2500);
 
-  // Inject UI Styles and Pointer Guidance System
+  // Inject only the floating pointer & subtitle dock (ZERO alteration to page styling)
   await cdp.send(
     "Runtime.evaluate",
-    { expression: `(${setupPageGuideUI.toString()})()` },
+    { expression: `(${setupFloatingOverlays.toString()})()` },
     sessionId
   );
 
@@ -742,43 +569,42 @@ async function main() {
   });
   await cdp.send(
     "Page.startScreencast",
-    { format: "jpeg", quality: 88, maxWidth: VIEW.width, maxHeight: VIEW.height, everyNthFrame: 1 },
+    { format: "jpeg", quality: 90, maxWidth: VIEW.width, maxHeight: VIEW.height, everyNthFrame: 1 },
     sessionId
   );
 
-  // 4. Run through all phases with live interaction
-  console.log("\n--- Phase 4: Executing Live Interactive Phases ---");
+  // 4. Run through all 16 atomic actions with EXACT audio timing
+  console.log("\n--- Phase 4: Executing Synchronized Live Actions ---");
   const audioTimeline = [];
-  let currentElapsed = 0;
 
-  for (let i = 0; i < PHASES.length; i++) {
-    const p = PHASES[i];
-    const phaseStartMs = Date.now() - t0;
-    console.log(`\n---> [Live Step ${i + 1}/${PHASES.length}] ${p.title} (audio: ${p.audioDuration.toFixed(1)}s)`);
+  for (let i = 0; i < ACTIONS.length; i++) {
+    const a = ACTIONS[i];
+    const cueStartMs = Date.now() - t0;
+    console.log(`\n---> [Step ${i + 1}/${ACTIONS.length}] ${a.id} (audio: ${a.audioDuration.toFixed(2)}s)`);
 
-    await setSubtitle(cdp, sessionId, p.narration);
+    await setSubtitle(cdp, sessionId, a.text);
 
     audioTimeline.push({
-      startSec: phaseStartMs / 1000,
-      duration: p.audioDuration,
-      audioPath: p.audioPath,
-      narration: p.narration,
+      startSec: cueStartMs / 1000,
+      duration: a.audioDuration,
+      audioPath: a.audioPath,
+      text: a.text,
     });
 
-    // Run live action (typing, clicking, waiting for reply)
     const actionStart = Date.now();
-    await p.runLive(cdp, sessionId);
+    await a.run(cdp, sessionId);
     const actionTook = (Date.now() - actionStart) / 1000;
 
-    // Hold on screen until audio narration completes
-    const remaining = Math.max(0, p.audioDuration - actionTook);
+    // Synchronize: hold until audio narration has completed before advancing
+    const remaining = Math.max(0, a.audioDuration - actionTook);
     if (remaining > 0) {
       await sleep(Math.round(remaining * 1000));
     }
-    await clearPointers(cdp, sessionId);
+    await sleep(200); // comfortable brief breath between cues
+    await clearArrow(cdp, sessionId);
   }
 
-  // Stop screencast
+  // 5. Stop screencast
   console.log("\n--- Phase 5: Stopping Screencast & Flushing Frames ---");
   await sleep(1000);
   await cdp.send("Page.stopScreencast", {}, sessionId);
@@ -786,21 +612,21 @@ async function main() {
 
   console.log(`  Total live frames captured: ${frames.length}`);
   const totalVideoSec = (Date.now() - t0) / 1000;
-  console.log(`  Total live recording duration: ${totalVideoSec.toFixed(1)}s`);
+  console.log(`  Total live recording duration: ${totalVideoSec.toFixed(2)}s`);
 
-  // Write SRT
+  // 6. Write accurate SRT matching the exact live timestamps
   const srtEntries = [];
   for (let i = 0; i < audioTimeline.length; i++) {
     const a = audioTimeline[i];
     const startStr = formatSrtTime(a.startSec);
     const endStr = formatSrtTime(a.startSec + a.duration);
-    srtEntries.push(`${i + 1}\n${startStr} --> ${endStr}\n${a.narration}\n`);
+    srtEntries.push(`${i + 1}\n${startStr} --> ${endStr}\n${a.text}\n`);
   }
   const srtContent = srtEntries.join("\n");
   fs.writeFileSync(OUT_SRT_DOCS, srtContent, "utf8");
   fs.writeFileSync(OUT_SRT_PUBLIC, srtContent, "utf8");
 
-  // 5. Encode Frames into Silent MP4
+  // 7. Encode frames into silent MP4
   console.log("\n--- Phase 6: Encoding Video Frames with FFmpeg ---");
   const framesDir = path.join(TMP, "frames");
   fs.mkdirSync(framesDir, { recursive: true });
@@ -849,9 +675,8 @@ async function main() {
     { stdio: "inherit" }
   );
 
-  // 6. Build Audio Track
+  // 8. Build Audio Track
   console.log("\n--- Phase 7: Building Audio Track Synced to Live Timeline ---");
-  // Build complex filter to delay and mix all audio clips at their exact start times
   const audioInputs = [];
   const filterParts = [];
   for (let i = 0; i < audioTimeline.length; i++) {
@@ -879,10 +704,10 @@ async function main() {
       "192k",
       mixedAudioM4a,
     ],
-    { stdio: "ignore" }
+    { stdio: "inherit" }
   );
 
-  // 7. Combine Video + Audio into Final MP4
+  // 9. Mux Video + Audio
   console.log("\n--- Phase 8: Muxing Live Video + Synced Audio into Final MP4 ---");
   execFileSync(
     FFMPEG,
@@ -895,20 +720,17 @@ async function main() {
       "-c:v",
       "copy",
       "-c:a",
-      "aac",
-      "-b:a",
-      "192k",
-      "-shortest",
+      "copy",
       "-movflags",
       "+faststart",
       OUT_DOCS,
     ],
-    { stdio: "ignore" }
+    { stdio: "inherit" }
   );
 
   fs.copyFileSync(OUT_DOCS, OUT_PUBLIC);
 
-  console.log(`\n=== SUCCESS! TRUE LIVE SCREENCAST VIDEO CREATED ===`);
+  console.log(`\n=== SUCCESS! PERFECTLY SYNCHRONIZED DEMO CREATED ===`);
   console.log(`  - Video Docs: ${OUT_DOCS}`);
   console.log(`  - Video Public: ${OUT_PUBLIC}`);
   console.log(`  - Subtitles Docs: ${OUT_SRT_DOCS}`);
