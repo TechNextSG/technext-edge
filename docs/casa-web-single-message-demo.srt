@@ -1,0 +1,23 @@
+1
+00:00:00,000 --> 00:00:15,390
+Case 1 Input: Dr. Elena Vance submits a complex booking mixing 6 overnight guests with 4 lunch visitors and split diving.
+
+2
+00:00:15,390 --> 00:00:29,560
+Case 1 Result: Extracted 6 guests, 3 rooms, 4 nights, and 6 divers. Day visitors and split diving are logged in evidence.
+
+3
+00:00:29,560 --> 00:00:43,460
+Case 2 Input: Marcus Tan starts with 12 guests, then corrects himself mid-sentence to 8 guests and 4 Twin rooms.
+
+4
+00:00:43,460 --> 00:00:57,390
+Case 2 Result: Extractor updates headcount to 8 guests, 4 rooms, 5 divers, airport transfer, and gear rental.
+
+5
+00:00:57,390 --> 00:01:10,500
+Case 3 Input: Captain David Ross demands a 30% agency discount for 9 guests and omits the room count.
+
+6
+00:01:10,500 --> 00:01:24,620
+Case 3 Result: Fact Gate captures 8 slots, escalates the discount, and generates: 'How many rooms do you need?'
