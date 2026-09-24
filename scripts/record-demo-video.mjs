@@ -15,10 +15,10 @@ const NARRATIONS = [
   "Step 2. Pass 1 and Pass 2 extract every stated fact with verbatim evidence, and the AI asks only for the missing fields, never re-asking known slots.",
   "Step 3. In Turn 2, the guest provides the remaining details: 3 nights, 3 Deluxe rooms, full-board meals, and diving dates November 16 to 17.",
   "Step 4. All 6 core booking slots are now complete, producing a verified structured Trip payload ready for the reservation team.",
-  "Step 5. Switching to WhatsApp, Sir Sky messages the resort to book for 10 guests across 4 nights, October 10 to 14, in 5 twin rooms with full-board meals.",
-  "Step 6. Within 2 seconds, the WhatsApp bot confirms the check-in window, 5 rooms, and full-board meal plan, then asks if the group will be diving.",
-  "Step 7. Next, Sir Sky updates the group to 8 divers, splits the dive schedule into 4 divers for 3 days and 4 divers for 2 days, and asks for a 30 percent partner discount.",
-  "Step 8. The Symbolic Math Gate updates guests from 10 to 8 without double-counting, while the Fact Gate blocks unauthorized price promises and triggers a Staff Alert."
+  "Step 5. Switching to real WhatsApp Web on the official Casa Escondida number, Sir Sky books for 10 guests across 4 nights in 5 twin rooms, and the bot confirms all 5 slots while asking only about diving.",
+  "Step 6. In another real WhatsApp thread, the bot separates 3 overnight guests from 3 day visitors and captures a custom split-day diving schedule.",
+  "Step 7. Back in Sir Sky's WhatsApp thread, he updates the group from 10 to 8 divers, splits diving into 3-day and 2-day sub-groups, and asks for a 30 percent partner discount.",
+  "Step 8. On real WhatsApp Web, the Symbolic Math Gate updates guests from 10 to 8 without double-counting, records the split dive groups, and flags the 30 percent partner discount for human staff review."
 ];
 
 fs.mkdirSync(TMP_DIR, { recursive: true });

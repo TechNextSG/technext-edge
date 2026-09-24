@@ -113,10 +113,40 @@
     .workspace {
       flex: 1;
       display: grid;
-      grid-template-columns: 56% 44%;
+      grid-template-columns: 54% 46%;
       gap: 16px;
       padding: 16px 24px 100px 24px;
       overflow: hidden;
+    }
+    .workspace.wa-focus {
+      grid-template-columns: 35% 65%;
+    }
+    .wa-real-stage {
+      flex: 1;
+      position: relative;
+      background: #0b141a;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      overflow: hidden;
+      padding: 8px;
+    }
+    .wa-real-stage img {
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+      border-radius: 8px;
+      border: 1px solid #2a3942;
+      box-shadow: 0 12px 30px rgba(0,0,0,0.55);
+    }
+    .qa-rect-overlay {
+      position: fixed;
+      border: 3px solid #e53935;
+      border-radius: 6px;
+      background: rgba(229, 57, 53, 0.08);
+      box-shadow: 0 0 16px rgba(229, 57, 53, 0.45);
+      pointer-events: none;
+      z-index: 9998;
     }
 
     /* Left Panel: Web Console + Live JSON State */
@@ -231,10 +261,15 @@
       align-items: center;
       justify-content: space-between;
     }
+    .inspector > div {
+      min-width: 0;
+      overflow: hidden;
+    }
     .slots-grid {
       display: grid;
       grid-template-columns: 1fr 1fr;
       gap: 7px;
+      min-width: 0;
     }
     .slot-card {
       background: rgba(30, 41, 59, 0.65);
@@ -242,6 +277,8 @@
       border-radius: 8px;
       padding: 7px 10px;
       transition: all 0.25s ease;
+      min-width: 0;
+      overflow: hidden;
     }
     .slot-card.filled {
       border-color: rgba(20, 184, 166, 0.55);
@@ -603,19 +640,22 @@
       </div>
     </div>
 
-    <!-- Right Half: Live WhatsApp Business Channel -->
-    <div class="wa-panel">
+    <!-- Right Half: REAL WhatsApp Web (web.whatsapp.com) Live Capture Stage -->
+    <div class="wa-panel" id="wa-panel-box">
       <div class="wa-header">
         <div class="wa-profile">
-          <div class="wa-avatar">CE</div>
+          <div class="wa-avatar">WA</div>
           <div>
-            <div class="wa-name">Casa Escondida Resort · Anilao</div>
-            <div class="wa-status">● Official WhatsApp Business API (/webhook)</div>
+            <div class="wa-name">REAL WhatsApp Web · +1 (555) 150-6595 (Casa Escondida Bot)</div>
+            <div class="wa-status">● Live Chromium Capture on https://web.whatsapp.com · Official Cloud API Webhook</div>
           </div>
         </div>
-        <span class="endpoint-tag" style="background:rgba(37,211,102,0.15);color:#4ade80;border-color:rgba(37,211,102,0.3);">WAMID Lock Active</span>
+        <span class="endpoint-tag" style="background:rgba(37,211,102,0.15);color:#4ade80;border-color:rgba(37,211,102,0.3);">REAL WHATSAPP WEB</span>
       </div>
-      <div class="wa-chat" id="wa-chat-log"></div>
+      <div class="wa-real-stage" id="wa-real-stage">
+        <img id="wa-real-img" src="./demo-captures/wa-real-02-turn1.png" data-file="wa-real-02-turn1.png" onerror="if(!this.dataset.retried){this.dataset.retried='1';this.src='/demo-captures/'+this.dataset.file;}" alt="Real WhatsApp Web Interaction" />
+      </div>
+      <div class="wa-chat" id="wa-chat-log" style="display:none;"></div>
     </div>
   </div>
 
@@ -623,12 +663,22 @@
   <div class="subtitle-bar">
     <span class="cc-badge">CC · EN</span>
     <div class="subtitle-text" id="subtitle-box">
-      Casa Escondida — Hybrid AI Reservation Intake & Qualification across Web Console and WhatsApp.
+      Casa Escondida — Hybrid AI Reservation Intake & Qualification across Web Console and Real WhatsApp Web.
     </div>
-    <span class="timer-badge" id="timer-box">00:00 / 00:45</span>
+    <span class="timer-badge" id="timer-box">00:00 / 00:52</span>
   </div>
 
   <script>
+    function setWaScreenshot(fileName, focusWA = false) {
+      const ws = document.querySelector(".workspace");
+      if (ws) ws.classList.toggle("wa-focus", !!focusWA);
+      const img = document.getElementById("wa-real-img");
+      if (!img) return;
+      delete img.dataset.retried;
+      img.dataset.file = fileName;
+      img.src = "./demo-captures/" + fileName;
+    }
+
     function setQaBanner(num, title, sub) {
       document.getElementById("qa-step-num").textContent = String(num);
       document.getElementById("qa-step-main").textContent = title;
@@ -636,7 +686,7 @@
     }
 
     function clearQaMarks() {
-      document.querySelectorAll(".qa-mark-tag").forEach(e => e.remove());
+      document.querySelectorAll(".qa-mark-tag, .qa-rect-overlay").forEach(e => e.remove());
       document.querySelectorAll("[data-qa-outline]").forEach(el => {
         el.style.outline = "";
         el.style.outlineOffset = "";
@@ -667,6 +717,47 @@
       document.body.appendChild(tag);
     }
 
+    function addQaRectMark(pctLeft, pctTop, pctWidth, pctHeight, num, label, pos = "above") {
+      const img = document.getElementById("wa-real-img");
+      if (!img) return;
+      const r = img.getBoundingClientRect();
+      // Compute displayed image rect (aspect ratio 1536:673 = 2.2823)
+      const natRatio = 1536 / 673;
+      const boxRatio = r.width / r.height;
+      let drawW = r.width, drawH = r.height, offX = r.left, offY = r.top;
+      if (boxRatio > natRatio) {
+        drawW = r.height * natRatio;
+        offX = r.left + (r.width - drawW) / 2;
+      } else {
+        drawH = r.width / natRatio;
+        offY = r.top + (r.height - drawH) / 2;
+      }
+      const x = offX + (pctLeft / 100) * drawW;
+      const y = offY + (pctTop / 100) * drawH;
+      const w = (pctWidth / 100) * drawW;
+      const h = (pctHeight / 100) * drawH;
+
+      const box = document.createElement("div");
+      box.className = "qa-rect-overlay";
+      box.style.left = x + "px";
+      box.style.top = y + "px";
+      box.style.width = w + "px";
+      box.style.height = h + "px";
+      document.body.appendChild(box);
+
+      const tag = document.createElement("div");
+      tag.className = "qa-mark-tag";
+      tag.innerHTML = `<span class="qa-mark-circle">${num}</span><span>${label}</span>`;
+      if (pos === "above") {
+        tag.style.top = Math.max(54, y - 30) + "px";
+        tag.style.left = Math.max(12, x) + "px";
+      } else {
+        tag.style.top = Math.min(window.innerHeight - 95, y + h + 6) + "px";
+        tag.style.left = Math.max(12, x) + "px";
+      }
+      document.body.appendChild(tag);
+    }
+
     const steps = [
       {
         atSec: 0,
@@ -677,6 +768,7 @@
         subtitle: "Step 1: On the Web Console, a guest sends an initial inquiry for 6 guests (4 divers, 2 non-divers) checking in on November 15.",
         action: () => {
           resetUI();
+          setWaScreenshot("wa-real-02-turn1.png", false);
           appendWeb("guest", "Hi Casa Escondida! My name is Alex Chen. We have a group of 6 guests planning to check in on November 15, 2026. 4 of us are divers and 2 are non-divers.");
           clearQaMarks();
           addQaMark("#web-chat-log .msg-row.guest:last-child .msg-bubble", "1", "Web Guest Inquiry (Partial Facts)", "below");
@@ -690,6 +782,7 @@
         scene: "Scene 1 / 2 · Dual-Pass Extraction",
         subtitle: "Step 2: Pass 1 and Pass 2 extract every stated fact with verbatim evidence, and the AI asks only for the missing fields—never re-asking known slots.",
         action: () => {
+          setWaScreenshot("wa-real-02-turn1.png", false);
           setSlot("guestName", "stated", "Alex Chen");
           setSlot("checkIn", "stated", "2026-11-15 (nights: ?)");
           setSlot("guests", "stated", "6 staying guests");
@@ -709,6 +802,7 @@
         scene: "Scene 1 / 2 · Completing All 6 Booking Slots",
         subtitle: "Step 3: In Turn 2, the guest provides the remaining details: 3 nights, 3 Deluxe rooms, full-board meals, and diving dates November 16 to 17.",
         action: () => {
+          setWaScreenshot("wa-real-02-turn1.png", false);
           appendWeb("guest", "We will stay for 3 nights in 3 Deluxe rooms with full-board meals, and the 4 divers will dive from Nov 16 to Nov 17.");
           clearQaMarks();
           addQaMark("#web-chat-log .msg-row.guest:last-child .msg-bubble", "1", "Turn 2: Remaining 4 Slots Provided", "above");
@@ -722,6 +816,7 @@
         scene: "Scene 1 / 2 · All 6 Slots Verified (done = true)",
         subtitle: "Step 4: All 6 core booking slots are now complete (done equals true), producing a verified structured Trip payload ready for the reservation team.",
         action: () => {
+          setWaScreenshot("wa-real-02-turn1.png", false);
           setSlot("checkIn", "stated", "2026-11-15 → 11-18 (3 nights)");
           setSlot("rooms", "stated", "3 Deluxe · Full-Board");
           setSlot("diveNotes", "stated", "2026-11-16 → 2026-11-17");
@@ -735,12 +830,12 @@
       {
         atSec: 25,
         stepNum: 5,
-        bannerTitle: "Step 5 — WhatsApp Channel: Initial Group Booking Inquiry",
-        bannerSub: "POST /v1/channels/whatsapp/webhook · Sir Sky requests 10 guests, Oct 10–14 (4 nights, 5 twin rooms)",
-        scene: "Scene 2 / 2 · Real-Time WhatsApp Interaction",
-        subtitle: "Step 5: On WhatsApp, Sir Sky messages the resort to book for 10 guests across 4 nights (October 10 to 14) in 5 twin rooms with full-board meals.",
+        bannerTitle: "Step 5 — REAL WhatsApp Web (+1 555-150-6595): Initial Group Booking Inquiry",
+        bannerSub: "Live on https://web.whatsapp.com · Sir Sky requests 10 guests, Oct 10–14 (4 nights, 5 twin rooms)",
+        scene: "Scene 2 / 2 · Real WhatsApp Web (+1 555-150-6595)",
+        subtitle: "Step 5: On real WhatsApp Web, Sir Sky messages the official Casa Escondida number to book for 10 guests across 4 nights in 5 twin rooms with full-board meals.",
         action: () => {
-          appendWA("user", "Hello, I am Sir Sky. We want to book for 10 guests checking in on October 10, 2026 for 4 nights (5 twin rooms, full-board meals).", "09:18 AM");
+          setWaScreenshot("wa-real-02-turn1.png", true);
           setSlot("guestName", "stated", "Sir Sky");
           setSlot("checkIn", "stated", "2026-10-10 → 10-14 (4 nights)");
           setSlot("guests", "stated", "10 staying guests");
@@ -750,55 +845,78 @@
           document.getElementById("done-chip").textContent = "done: false (5/6 slots)";
           document.getElementById("done-chip").style.color = "#fbbf24";
           clearQaMarks();
-          addQaMark("#wa-chat-log .wa-bubble.user:last-child", "1", "WhatsApp Inbound: 10 Guests, 4 Nights", "below");
+          setTimeout(() => {
+            clearQaMarks();
+            addQaRectMark(58, 29, 38, 9, "1", "Real WhatsApp Inbound: 10 Guests, Oct 10–14", "above");
+            addQaRectMark(38, 40, 38, 45, "2", "Bot Reply: Confirms 5 Slots & Asks Diving", "above");
+          }, 80);
         }
       },
       {
         atSec: 31,
         stepNum: 6,
-        bannerTitle: "Step 6 — WhatsApp Bot Reply (<2.5s SLA): Confirming & Asking Dive Status",
-        bannerSub: "Upstash Redis locks phone thread; AI confirms 5 stated slots and asks only about diving",
-        scene: "Scene 2 / 2 · Sub-2.5s WhatsApp Follow-Up",
-        subtitle: "Step 6: Within 2 seconds, the WhatsApp bot confirms the check-in window, 5 rooms, and full-board meal plan, then asks if the group will be diving.",
+        bannerTitle: "Step 6 — REAL WhatsApp Web: Overnight Guests (3) vs Day Visitors (3) + Split Dive",
+        bannerSub: "Live WhatsApp thread · Separating 3 overnight guests from 3 day visitors & custom 1d/2d diving",
+        scene: "Scene 2 / 2 · Real WhatsApp Web: Day Visitors & Split Diving",
+        subtitle: "Step 6: In another real WhatsApp thread, the bot separates 3 overnight guests from 3 day visitors and captures a custom split-day diving schedule.",
         action: () => {
-          appendWA("bot", "Welcome to Casa Escondida, Sir Sky! We have recorded your booking request for 10 guests checking in October 10–14, 2026 (4 nights, 5 twin rooms, full-board meals).\n\nWill anyone in your group be scuba diving during the stay, and if so, how many divers and on which dates?", "09:18 AM");
+          setWaScreenshot("wa-real-01-michael.png", true);
+          setSlot("guestName", "stated", "Michael");
+          setSlot("checkIn", "stated", "2026-09-26 → 09-28 (2 nights)");
+          setSlot("guests", "reconciled", "3 overnight (+3 day visitors)", true);
+          setSlot("rooms", "stated", "1 Room · Full-Board");
+          setSlot("divers", "stated", "true (1 pax 1d; 5 pax 2d)");
+          setSlot("diveNotes", "reconciled", "Split schedule + 3 day visitors", true);
           clearQaMarks();
-          addQaMark("#wa-chat-log .wa-bubble.bot:last-child", "1", "Bot Confirms 5 Slots & Asks Only Diving", "below");
+          setTimeout(() => {
+            clearQaMarks();
+            addQaRectMark(66, 17, 30, 6.5, "1", "Real Guest Message: 1 Diver Day 1, 5 Divers Both Days", "above");
+            addQaRectMark(38, 24, 38, 64, "2", "Overnight (3) vs Day Visitors (3) + Custom Dive Alert", "above");
+          }, 80);
         }
       },
       {
         atSec: 37,
         stepNum: 7,
-        bannerTitle: "Step 7 — Complex Turn: Headcount Change (10 → 8), Split Dive & 30% Discount",
-        bannerSub: "Guest changes total to 8 divers (4×3 days, 4×2 days) and asks for a 30% partner discount",
+        bannerTitle: "Step 7 — REAL WhatsApp Web: Headcount Change (10 → 8), Split Dive & 30% Discount",
+        bannerSub: "Live on https://web.whatsapp.com · Sir Sky updates 10 → 8 divers (4×3d, 4×2d) + 30% partner discount",
         scene: "Scene 2 / 2 · Mid-Chat Headcount Change + Split Dive + 30% Partner Request",
-        subtitle: "Step 7: Next, Sir Sky updates the group to 8 divers, splits the dive schedule (4 divers for 3 days, 4 divers for 2 days), and asks for a 30% partner discount.",
+        subtitle: "Step 7: Back in Sir Sky's WhatsApp thread, he updates the group from 10 to 8 divers, splits diving into 3-day and 2-day sub-groups, and asks for a 30% partner discount.",
         action: () => {
-          appendWA("user", "Actually update the total group to 8 guests in 4 rooms. All 8 are divers, but 4 divers will dive for 3 days (Oct 11-13) and the other 4 divers will only dive for 2 days (Oct 11-12). Also, I am a resort partner—can we get a 30% partner discount?", "09:19 AM");
+          setWaScreenshot("wa-real-03-turn2-sent.png", true);
           clearQaMarks();
-          addQaMark("#wa-chat-log .wa-bubble.user:last-child", "1", "Update: 10→8 Pax + Split Dives + 30% Discount", "above");
+          setTimeout(() => {
+            clearQaMarks();
+            addQaRectMark(5, 35, 28, 10, "1", "Live Thread on web.whatsapp.com (+1 555-150-6595)", "above");
+            addQaRectMark(58, 77, 38, 12, "2", "Turn 2: Update 10→8 Pax + Split Dives + 30% Discount", "above");
+          }, 80);
         }
       },
       {
         atSec: 44,
         stepNum: 8,
-        bannerTitle: "Step 8 — Symbolic Math Reconciler & Post-Gen Fact Gate (Staff Alert)",
-        bannerSub: "Headcount updated 10 → 8 without double-counting; Fact Gate blocks price promise & flags Staff Alert",
+        bannerTitle: "Step 8 — REAL WhatsApp Web Reply: Symbolic Math Reconciler & Fact Gate Protection",
+        bannerSub: "Headcount updated 10 → 8 without double-counting; Custom Dive & 30% Partner Discount routed to staff",
         scene: "Scene 2 / 2 · Symbolic Math Reconciler & Fact Gate Protection",
-        subtitle: "Step 8: The Symbolic Math Gate updates guests from 10 to 8 without double-counting, while the Fact Gate blocks unauthorized price promises and triggers a Staff Alert.",
+        subtitle: "Step 8: On real WhatsApp Web, the bot updates guests from 10 to 8, records the 3-day and 2-day dive groups, and flags the 30% partner discount for staff review without unauthorized price promises.",
         action: () => {
+          setWaScreenshot("wa-real-04-turn2-reply-expanded.png", true);
+          setSlot("guestName", "stated", "Sir Sky");
+          setSlot("checkIn", "stated", "2026-10-10 → 10-14 (4 nights)");
           setSlot("guests", "reconciled", "8 guests (updated 10 → 8)", true);
           setSlot("rooms", "reconciled", "4 Twin · Full-Board", true);
           setSlot("divers", "stated", "true (8 divers total)");
           setSlot("diveNotes", "reconciled", "4 pax × 3d (11-13), 4 pax × 2d (11-12)", true);
           document.getElementById("done-chip").textContent = "✓ done: true + Staff Alert";
           document.getElementById("done-chip").style.color = "#34d399";
-          highlightGate("gate-math", "active-gate", "Headcount reconciled 10 → 8 guests (4 rooms); split dive manifest stored in diveNotes.");
-          highlightGate("gate-fact", "alert-gate", "ALERT: 30% Partner Discount + Split-Day Dive Schedule flagged for human reservation approval.");
-          appendWA("bot", "Thank you, Sir Sky! We have updated your group to 8 guests in 4 twin rooms (Oct 10–14, 2026, 4 nights, full-board meals) with your split diving schedule: 4 divers for 3 days (Oct 11–13) and 4 divers for 2 days (Oct 11–12).\n\nWe have also noted your 30% resort partner discount request for our reservation team to verify and send your official itemized quotation shortly.", "09:19 AM");
+          highlightGate("gate-math", "active-gate", "Headcount reconciled 10 → 8 guests (4 twin rooms); split dive manifest stored.");
+          highlightGate("gate-fact", "alert-gate", "ALERT: 30% Partner Discount + Custom Dive Schedule flagged for human reservation team.");
           clearQaMarks();
-          addQaMark("#slot-guests", "1", "Math Gate: 10 → 8 Guests Reconciled", "above");
-          addQaMark("#gate-fact", "2", "Fact Gate: 30% Discount Flagged for Staff", "above");
+          setTimeout(() => {
+            clearQaMarks();
+            addQaRectMark(38, 21, 37, 33, "1", "Reconciled on WhatsApp: 8 Guests, 4 Twin Rooms & Split Dives", "above");
+            addQaRectMark(38, 55, 37, 13, "2", "Guardrail Active: Custom Dive + 30% Discount Routed to Staff", "below");
+          }, 80);
         }
       }
     ];
