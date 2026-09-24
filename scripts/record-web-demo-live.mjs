@@ -101,6 +101,24 @@ function formatSrtTime(totalSeconds) {
   return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")},${String(ms).padStart(3, "0")}`;
 }
 
+async function setPointers(cdp, sessionId, marks) {
+  await cdp.send("Runtime.evaluate", {
+    expression: `window.__showPointers(${JSON.stringify(marks)})`,
+  }, sessionId);
+}
+
+async function clearPointers(cdp, sessionId) {
+  await cdp.send("Runtime.evaluate", {
+    expression: `window.__clearPointers()`,
+  }, sessionId);
+}
+
+async function setSubtitle(cdp, sessionId, text) {
+  await cdp.send("Runtime.evaluate", {
+    expression: `window.__setSubtitle(${JSON.stringify(text)})`,
+  }, sessionId);
+}
+
 const PHASES = [
   // 0. Intro & Controls
   {
@@ -109,13 +127,15 @@ const PHASES = [
     title: "Casa Escondida AI Test Console — Overview & Controls",
     sub: "Interactive test bench for evaluating multi-turn chat and single-message extraction",
     narration: "Welcome to the Casa Escondida AI Test Console. The interface features multi-turn Chat and Single Message modes, quick test presets, and real-time conversation controls to test how the engine interacts with guests.",
-    marks: [
-      { sel: ".tabs", n: "1", label: "Mode Switch: Multi-turn Chat vs Single-shot Extraction", pos: "above" },
-      { sel: ".examples", n: "2", label: "Quick Scenario Presets: EN Starter, EN Agency, Reset", pos: "above" },
-      { sel: ".chat-input-row", n: "3", label: "Interactive Conversation Input: Type & Send real messages", pos: "below" }
-    ],
     runLive: async (cdp, sessionId) => {
-      await sleep(1200);
+      await setPointers(cdp, sessionId, [
+        { sel: ".tabs", n: "1", label: "Mode Switch: Chat vs Single Message", pos: "below" },
+        { sel: ".examples", n: "2", label: "Quick Scenario Presets", pos: "below" },
+        { sel: ".chat-input-row", n: "3", label: "Real-time Guest Chat Input", pos: "above" }
+      ]);
+      await sleep(6500);
+      await clearPointers(cdp, sessionId);
+      await sleep(800);
     }
   },
 
@@ -126,17 +146,22 @@ const PHASES = [
     title: "Chat Mode (Turn 1) — Multi-Turn Booking: Sarah Jenkins",
     sub: "AI acknowledges dates and rooms, and asks targeted diving question without re-asking",
     narration: "First, in Chat mode, we type a natural enquiry for four guests in two rooms. The assistant acknowledges the dates and rooms, and immediately asks whether the group plans to dive.",
-    marks: [
-      { sel: ".bubble-guest", n: "1", label: "Guest enquiry: 4 guests, 2 Deluxe rooms, Oct 17 for 3 nights", pos: "above" },
-      { sel: ".bubble-assistant", n: "2", label: "AI confirms dates & rooms, and asks missing diving question", pos: "below" }
-    ],
     runLive: async (cdp, sessionId) => {
+      await setPointers(cdp, sessionId, [
+        { sel: "#chat-text", n: "➔", label: "Type booking enquiry...", pos: "above" }
+      ]);
       const text = "Hi, I'm Sarah Jenkins. We'd like to book 2 Deluxe rooms for 4 guests checking in Oct 17, 2026 for 3 nights on full board.";
       await typeInto(cdp, sessionId, "#chat-text", text, 32);
       await sleep(350);
+      await setPointers(cdp, sessionId, [
+        { sel: "#chat-send", n: "➔", label: "Send to AI Engine", pos: "above" }
+      ]);
       await clickSel(cdp, sessionId, "#chat-send");
       await waitForCondition(cdp, sessionId, `document.querySelectorAll('.bubble-assistant').length >= 1`, 30);
-      await sleep(800);
+      await setPointers(cdp, sessionId, [
+        { sel: ".bubble-assistant:last-of-type", n: "AI", label: "AI acknowledges dates & rooms, asks if diving", pos: "below" }
+      ]);
+      await sleep(1800);
     }
   },
 
@@ -147,17 +172,22 @@ const PHASES = [
     title: "Chat Mode (Turn 2) — Adding Diving Schedule & Airport Transfer",
     sub: "Trip state updates dynamically in memory with zero duplicate questions",
     narration: "In the second turn, the guest adds boat diving and airport pickup. The assistant updates the trip state in real time and asks to confirm how many people are diving.",
-    marks: [
-      { sel: ".bubble-guest:last-of-type", n: "1", label: "Guest adds: boat diving Oct 18–19 and airport pickup", pos: "above" },
-      { sel: ".bubble-assistant:last-of-type", n: "2", label: "AI updates diving & transfer, asks for exact diver count", pos: "below" }
-    ],
     runLive: async (cdp, sessionId) => {
+      await setPointers(cdp, sessionId, [
+        { sel: "#chat-text", n: "➔", label: "Guest adds diving & airport transfer...", pos: "above" }
+      ]);
       const text = "Yes, 2 of us will do boat diving from Oct 18 to Oct 19, and we need airport pickup from Manila.";
       await typeInto(cdp, sessionId, "#chat-text", text, 32);
       await sleep(350);
+      await setPointers(cdp, sessionId, [
+        { sel: "#chat-send", n: "➔", label: "Send update", pos: "above" }
+      ]);
       await clickSel(cdp, sessionId, "#chat-send");
       await waitForCondition(cdp, sessionId, `document.querySelectorAll('.bubble-assistant').length >= 2`, 30);
-      await sleep(800);
+      await setPointers(cdp, sessionId, [
+        { sel: ".bubble-assistant:last-of-type", n: "AI", label: "AI records transfer, asks for diver count", pos: "below" }
+      ]);
+      await sleep(1800);
     }
   },
 
@@ -168,17 +198,22 @@ const PHASES = [
     title: "Chat Mode (Turn 3) — Slot Completion & Handover Gate",
     sub: "All required variables satisfied · System executes completion gate",
     narration: "Once the guest confirms two divers, all required fields are satisfied. The completion banner triggers, locking the trip state for staff quotation.",
-    marks: [
-      { sel: ".bubble-assistant:last-of-type", n: "1", label: "Final confirmation of all 8 reservation slots", pos: "below" },
-      { sel: "#done-banner", n: "2", label: "Enquiry Complete: Done = true · Ready for staff quotation", pos: "above" }
-    ],
     runLive: async (cdp, sessionId) => {
+      await setPointers(cdp, sessionId, [
+        { sel: "#chat-text", n: "➔", label: "Confirming 2 divers & pickup...", pos: "above" }
+      ]);
       const text = "Exactly 2 divers. Manila pickup for all 4 of us, arriving at 11 AM. Thanks!";
       await typeInto(cdp, sessionId, "#chat-text", text, 32);
       await sleep(350);
+      await setPointers(cdp, sessionId, [
+        { sel: "#chat-send", n: "➔", label: "Send confirmation", pos: "above" }
+      ]);
       await clickSel(cdp, sessionId, "#chat-send");
       await waitForCondition(cdp, sessionId, `(() => { const b = document.getElementById('done-banner'); return b && b.style.display !== 'none'; })()`, 30);
-      await sleep(1000);
+      await setPointers(cdp, sessionId, [
+        { sel: "#done-banner", n: "✓", label: "All 8 slots satisfied · Trip state locked", pos: "above" }
+      ]);
+      await sleep(2200);
     }
   },
 
@@ -189,14 +224,18 @@ const PHASES = [
     title: "Mode Switch — Single Message Unstructured Stress Benchmarks",
     sub: "Testing complex, multi-variable single paragraphs without conversational back-and-forth",
     narration: "Now, we switch to Single Message mode. Here, the engine is stress-tested against dense, unstructured paragraphs with self-corrections, traps, and missing variables in one single pass.",
-    marks: [
-      { sel: "#tab-single", n: "1", label: "Single message mode active (POST /v1/extract)", pos: "above" },
-      { sel: "#text", n: "2", label: "Unstructured single paragraph input benchmarking", pos: "below" }
-    ],
     runLive: async (cdp, sessionId) => {
-      await sleep(400);
+      await setPointers(cdp, sessionId, [
+        { sel: "#tab-single", n: "➔", label: "Switch to Single Message Mode", pos: "below" }
+      ]);
+      await sleep(900);
       await clickSel(cdp, sessionId, "#tab-single");
-      await sleep(1200);
+      await sleep(600);
+      await setPointers(cdp, sessionId, [
+        { sel: "#text", n: "➔", label: "Unstructured single paragraph input", pos: "below" }
+      ]);
+      await sleep(1600);
+      await clearPointers(cdp, sessionId);
     }
   },
 
@@ -207,17 +246,19 @@ const PHASES = [
     title: "Single Message (Case 1) — Overnight (6) vs Lunch Visitors (4)",
     sub: "Symbolic Math Reconciler captures 6 guests and stores day visitors in evidence",
     narration: "In Case 1, Dr. Elena Vance sends a booking mixing six overnight guests with four lunch-only visitors. The reconciler captures exactly six sleeping guests, refusing ten-pax inflation.",
-    marks: [
-      { sel: "#result-card", n: "1", label: "Extracted: 6 guests (overnight), 3 rooms, 4 nights, 6 divers", pos: "above" },
-      { sel: "#questions-card", n: "2", label: "Zero missing questions: 100% complete in 1 shot", pos: "above" }
-    ],
     runLive: async (cdp, sessionId) => {
       const text = "Hi Casa Escondida! I am Dr. Elena Vance. We want to book 3 Deluxe Twin rooms for 6 overnight guests checking in October 15, 2026 for 4 nights with full-board meals (no airport transfer needed). Note that 4 local colleagues will drive down from Manila just to join us for lunch on Saturday—so 10 people eating lunch, but only 6 sleeping overnight! All 6 overnight guests are certified divers, but 4 will dive for 3 days (Oct 16–18) while the other 2 will only dive for 1 day (Oct 16).";
       await pasteInto(cdp, sessionId, "#text", text);
       await sleep(400);
+      await setPointers(cdp, sessionId, [
+        { sel: "#go", n: "➔", label: "Run Extraction", pos: "above" }
+      ]);
       await clickSel(cdp, sessionId, "#go");
       await waitForCondition(cdp, sessionId, `(() => { const go = document.getElementById('go'); const rc = document.getElementById('result-card'); return !go.disabled && rc && rc.style.display === 'block'; })()`, 30);
-      await sleep(1000);
+      await setPointers(cdp, sessionId, [
+        { sel: "#result-card", n: "✓", label: "Extracted: 6 overnight guests (4 lunch visitors excluded)", pos: "above" }
+      ]);
+      await sleep(2000);
     }
   },
 
@@ -228,17 +269,19 @@ const PHASES = [
     title: "Single Message (Case 2) — Mid-Sentence Self-Correction (12 → 8)",
     sub: "Reconciler ignores obsolete 12 figure and captures rental gear",
     narration: "In Case 2, Marcus Tan corrects himself mid-sentence from twelve down to eight guests. The system cleanly ignores the obsolete figure, recording eight guests, five divers, and rental gear.",
-    marks: [
-      { sel: "#result-card", n: "1", label: "Corrected: 8 guests, 4 Twin rooms, 5 divers, airport pickup = true", pos: "above" },
-      { sel: "#questions-card", n: "2", label: "All fields complete: zero questions required", pos: "above" }
-    ],
     runLive: async (cdp, sessionId) => {
       const text = "Hello, this is Marcus Tan from Singapore. Originally we wanted 6 rooms for 12 people starting November 20, 2026—wait, scratch that, 2 couples just cancelled this morning so our final headcount is 8 guests in 4 Twin rooms for 3 nights (Nov 20 to Nov 23) with full-board meals and Manila NAIA airport pickup. Out of the 8 guests, only 5 are divers (diving 2 days: Nov 21–22, needing full BCD and regulator rental) and 3 family members do not dive.";
       await pasteInto(cdp, sessionId, "#text", text);
       await sleep(400);
+      await setPointers(cdp, sessionId, [
+        { sel: "#go", n: "➔", label: "Run Extraction", pos: "above" }
+      ]);
       await clickSel(cdp, sessionId, "#go");
       await waitForCondition(cdp, sessionId, `(() => { const go = document.getElementById('go'); const rc = document.getElementById('result-card'); return !go.disabled && rc && rc.style.display === 'block'; })()`, 30);
-      await sleep(1000);
+      await setPointers(cdp, sessionId, [
+        { sel: "#result-card", n: "✓", label: "Self-correction: 8 guests captured (12 cancelled ignored)", pos: "above" }
+      ]);
+      await sleep(2000);
     }
   },
 
@@ -249,17 +292,19 @@ const PHASES = [
     title: "Single Message (Case 3) — 30% Partner Discount & Missing Rooms",
     sub: "Fact Gate escalates discount and generates targeted room question",
     narration: "In Case 3, Captain David Ross demands an unauthorized thirty percent partner discount and omits the room count. The fact gate flags the discount and generates a single question asking for room count.",
-    marks: [
-      { sel: "#result-card", n: "1", label: "8 stated slots captured · 30% discount escalated to staff", pos: "above" },
-      { sel: "#questions-card", n: "2", label: "Targeted Question Generated: 'How many rooms do you need?'", pos: "above" }
-    ],
     runLive: async (cdp, sessionId) => {
       const text = "Greetings Casa Escondida team! I'm Captain David Ross from Pacific Reef Club. We're bringing 9 guests checking in December 5, 2026 for 5 nights on full-board meals with airport transfer from Manila. 6 of us will do boat diving from Dec 6 to Dec 9 (4 days) and 3 beginners want Open Water courses. Since we are an overseas partner agency, please apply a 30% partner discount to our accommodation and dive packages!";
       await pasteInto(cdp, sessionId, "#text", text);
       await sleep(400);
+      await setPointers(cdp, sessionId, [
+        { sel: "#go", n: "➔", label: "Run Extraction", pos: "above" }
+      ]);
       await clickSel(cdp, sessionId, "#go");
       await waitForCondition(cdp, sessionId, `(() => { const go = document.getElementById('go'); const rc = document.getElementById('result-card'); return !go.disabled && rc && rc.style.display === 'block'; })()`, 30);
-      await sleep(1000);
+      await setPointers(cdp, sessionId, [
+        { sel: "#questions-card", n: "!", label: "Fact Gate: 30% discount flagged · Missing room count asked", pos: "above" }
+      ]);
+      await sleep(2200);
     }
   }
 ];
@@ -321,6 +366,314 @@ async function waitForCondition(cdp, sessionId, expression, maxTries = 40) {
   return false;
 }
 
+function setupPageGuideUI() {
+  const st = document.createElement("style");
+  st.textContent = `
+    body {
+      padding-top: 14px !important;
+      padding-bottom: 96px !important;
+      overflow: hidden !important;
+      background: #0b1120 !important;
+      font-family: system-ui, -apple-system, sans-serif !important;
+    }
+    .topbar { padding: 4px 24px !important; height: 44px !important; }
+    .wrap { max-width: 1880px !important; margin: 6px auto !important; padding: 0 24px !important; }
+    .lede, #override { display: none !important; }
+    .tabs { margin-bottom: 6px !important; }
+    .tab-btn { font-size: 14px !important; padding: 6px 18px !important; }
+    
+    #mode-chat.active {
+      max-width: 1380px !important;
+      margin: 6px auto !important;
+      padding: 16px 24px !important;
+      background: #111827 !important;
+      border: 1px solid #1e293b !important;
+      border-radius: 12px !important;
+      display: flex !important;
+      flex-direction: column !important;
+      gap: 12px !important;
+    }
+    .chat-log {
+      min-height: 250px !important;
+      max-height: 380px !important;
+      overflow-y: auto !important;
+      display: flex !important;
+      flex-direction: column !important;
+      gap: 10px !important;
+    }
+    .bubble {
+      max-width: 78% !important;
+      padding: 10px 16px !important;
+      border-radius: 12px !important;
+      font-size: 14.5px !important;
+      line-height: 1.5 !important;
+    }
+    .bubble-guest {
+      align-self: flex-end !important;
+      background: #0d9488 !important;
+      color: #fff !important;
+      border-bottom-right-radius: 4px !important;
+    }
+    .bubble-assistant {
+      align-self: flex-start !important;
+      background: #1e293b !important;
+      border: 1px solid #334155 !important;
+      color: #f8fafc !important;
+      border-bottom-left-radius: 4px !important;
+    }
+    .chat-input-row {
+      display: flex !important;
+      gap: 10px !important;
+    }
+    #chat-text {
+      flex: 1 !important;
+      min-height: 52px !important;
+      font-size: 14px !important;
+      background: #0f172a !important;
+      border: 2px solid #0d9488 !important;
+      color: #fff !important;
+      border-radius: 8px !important;
+      padding: 10px 14px !important;
+    }
+    #chat-send {
+      padding: 0 24px !important;
+      font-size: 14px !important;
+      font-weight: 700 !important;
+    }
+    .done-banner {
+      margin-top: 4px !important;
+      padding: 8px 14px !important;
+      border-radius: 8px !important;
+      background: #064e3b !important;
+      color: #a7f3d0 !important;
+      font-size: 13.5px !important;
+      font-weight: 700 !important;
+      border: 1px solid #059669 !important;
+    }
+
+    #mode-single.active {
+      display: grid !important;
+      grid-template-columns: 42% 58% !important;
+      gap: 16px !important;
+      align-items: start !important;
+      padding: 10px 16px !important;
+      background: #111827 !important;
+      border: 1px solid #1e293b !important;
+      border-radius: 12px !important;
+    }
+    #mode-single > .section-label,
+    #mode-single > #text,
+    #mode-single > .examples,
+    #mode-single > .actions,
+    #mode-single > #error {
+      grid-column: 1 !important;
+    }
+    #text {
+      min-height: 175px !important;
+      font-size: 13.5px !important;
+      line-height: 1.48 !important;
+      background: #0f172a !important;
+      border: 2px solid #0d9488 !important;
+      color: #f8fafc !important;
+      padding: 10px !important;
+      border-radius: 8px !important;
+    }
+    .examples { margin: 4px 0 !important; }
+    .actions { margin-top: 4px !important; }
+    .btn-primary { font-size: 13.5px !important; padding: 7px 20px !important; font-weight: 700 !important; }
+    #result-card {
+      grid-column: 2 !important;
+      grid-row: 1 / span 5 !important;
+      margin-top: 0 !important;
+      background: #0f172a !important;
+      padding: 8px 14px !important;
+      border: 1px solid #1e293b !important;
+      border-radius: 10px !important;
+    }
+    #questions-card {
+      grid-column: 1 / span 2 !important;
+      margin-top: 4px !important;
+      padding: 8px 14px !important;
+      background: #0f172a !important;
+      border: 1px solid #1e293b !important;
+      border-radius: 10px !important;
+    }
+    #raw { display: none !important; }
+    table { width: 100% !important; border-collapse: collapse !important; }
+    table th, table td { padding: 4px 8px !important; font-size: 12px !important; border-bottom: 1px solid #1e293b !important; }
+    table th { font-size: 10.5px !important; text-transform: uppercase !important; letter-spacing: 0.05em !important; color: #94a3b8 !important; }
+
+    /* CLEAN REAL-TIME POINTERS & DOCK SUBTITLES */
+    .pointer-glow-target {
+      outline: 2.5px solid #22d3ee !important;
+      outline-offset: 4px !important;
+      box-shadow: 0 0 20px rgba(34, 211, 238, 0.45) !important;
+      transition: all 0.25s ease !important;
+    }
+
+    .pointer-wrapper {
+      position: fixed;
+      z-index: 999999;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      pointer-events: none;
+      filter: drop-shadow(0 6px 16px rgba(0,0,0,0.65));
+      animation: pointerFloat 1.3s ease-in-out infinite alternate;
+    }
+
+    .pointer-arrow-icon {
+      font-size: 22px;
+      line-height: 1;
+      color: #22d3ee;
+      text-shadow: 0 0 12px rgba(34, 211, 238, 0.85);
+      margin: 2px 0;
+    }
+
+    .pointer-pill {
+      background: rgba(15, 23, 42, 0.96);
+      border: 1.5px solid #22d3ee;
+      border-radius: 999px;
+      padding: 6px 16px;
+      font-size: 13.5px;
+      font-weight: 700;
+      color: #ffffff;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      white-space: nowrap;
+      box-shadow: 0 4px 16px rgba(0,0,0,0.5);
+    }
+
+    .pointer-badge {
+      background: #22d3ee;
+      color: #042f2e;
+      font-size: 11.5px;
+      font-weight: 900;
+      padding: 2px 8px;
+      border-radius: 999px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    @keyframes pointerFloat {
+      0% { transform: translateY(0); }
+      100% { transform: translateY(-6px); }
+    }
+
+    /* FLOATING TOP STATUS BADGE */
+    #video-top-tag {
+      position: fixed;
+      top: 14px;
+      right: 24px;
+      background: rgba(15, 23, 42, 0.92);
+      backdrop-filter: blur(10px);
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      border-radius: 999px;
+      padding: 6px 16px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      z-index: 999998;
+      box-shadow: 0 4px 16px rgba(0, 0, 0, 0.45);
+    }
+    @keyframes liveDot { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
+
+    /* FLOATING DOCK SUBTITLE BAR */
+    #video-subbar {
+      position: fixed;
+      bottom: 20px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: min(88%, 1300px);
+      min-height: 64px;
+      background: rgba(10, 15, 29, 0.94);
+      backdrop-filter: blur(14px);
+      border: 1.5px solid rgba(34, 211, 238, 0.45);
+      border-radius: 14px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 10px 32px;
+      z-index: 999998;
+      box-shadow: 0 10px 32px rgba(0, 0, 0, 0.8);
+    }
+    #video-sub-text {
+      font-size: 22px;
+      font-weight: 700;
+      line-height: 1.34;
+      color: #ffffff;
+      text-align: center;
+      text-shadow: 0 2px 8px rgba(0, 0, 0, 0.95);
+      letter-spacing: 0.01em;
+    }
+  `;
+  document.head.appendChild(st);
+
+  const topTag = document.createElement("div");
+  topTag.id = "video-top-tag";
+  topTag.innerHTML =
+    '<span style="width:8px;height:8px;border-radius:50%;background:#ef4444;box-shadow:0 0 8px #ef4444;animation:liveDot 1.2s infinite ease-in-out;"></span>' +
+    '<span style="font-weight:800;color:#fff;font-size:12px;letter-spacing:0.05em;">LIVE SCREENCAST</span>' +
+    '<span style="color:#94a3b8;font-size:12px;border-left:1px solid #334155;padding-left:8px;">BFF Edge · Console</span>';
+  document.body.appendChild(topTag);
+
+  const subbar = document.createElement("div");
+  subbar.id = "video-subbar";
+  subbar.innerHTML =
+    '<div style="display:flex;align-items:center;gap:16px;width:100%;">' +
+    '<span style="background:#0d9488;color:#ffffff;font-weight:900;font-size:12.5px;padding:4px 10px;border-radius:6px;letter-spacing:0.06em;flex-shrink:0;">CC · EN</span>' +
+    '<div id="video-sub-text" style="flex:1;text-align:center;">Welcome to Casa Escondida...</div>' +
+    '</div>';
+  document.body.appendChild(subbar);
+
+  window.__showPointers = function (marks) {
+    window.__clearPointers();
+    for (const m of marks || []) {
+      const el = document.querySelector(m.sel);
+      if (!el) continue;
+      el.classList.add("pointer-glow-target");
+      const r = el.getBoundingClientRect();
+      const w = document.createElement("div");
+      let pos = m.pos || "above";
+      if (pos === "below" && r.bottom + 60 > window.innerHeight - 90) pos = "above";
+      else if (pos === "above" && r.top < 60) pos = "below";
+
+      w.className = "pointer-wrapper " + (pos === "below" ? "pos-below" : "pos-above");
+      const badge = m.n || "➔";
+      if (pos === "below") {
+        w.innerHTML =
+          '<div class="pointer-arrow-icon">▲</div>' +
+          '<div class="pointer-pill"><span class="pointer-badge">' + badge + '</span><span>' + m.label + '</span></div>';
+        const cx = Math.max(160, Math.min(window.innerWidth - 160, r.left + r.width / 2));
+        w.style.left = cx + "px";
+        w.style.transform = "translateX(-50%)";
+        w.style.top = (r.bottom + 8) + "px";
+      } else {
+        w.innerHTML =
+          '<div class="pointer-pill"><span class="pointer-badge">' + badge + '</span><span>' + m.label + '</span></div>' +
+          '<div class="pointer-arrow-icon">▼</div>';
+        const cx = Math.max(160, Math.min(window.innerWidth - 160, r.left + r.width / 2));
+        w.style.left = cx + "px";
+        w.style.transform = "translateX(-50%)";
+        w.style.top = Math.max(12, r.top - 52) + "px";
+      }
+      document.body.appendChild(w);
+    }
+  };
+
+  window.__clearPointers = function () {
+    document.querySelectorAll(".pointer-wrapper").forEach((e) => e.remove());
+    document.querySelectorAll(".pointer-glow-target").forEach((e) => e.classList.remove("pointer-glow-target"));
+  };
+
+  window.__setSubtitle = function (text) {
+    const el = document.getElementById("video-sub-text");
+    if (el) el.textContent = text;
+  };
+}
+
 async function main() {
   console.log("=== STARTING FULL LIVE RECORDING DEMO (SCREENCAST + AUDIO + SUBTITLES) ===");
 
@@ -372,246 +725,10 @@ async function main() {
   await cdp.send("Page.navigate", { url: "https://technext-edge-casa-bff.vercel.app/test-console" }, sessionId);
   await sleep(2500);
 
-  // Inject UI Styles, Blinking REC badge, Top QA Banner, and Bottom Subtitle Bar
+  // Inject UI Styles and Pointer Guidance System
   await cdp.send(
     "Runtime.evaluate",
-    {
-      expression: `(() => {
-        const st = document.createElement('style');
-        st.textContent = \`
-          body {
-            padding-top: 48px !important;
-            padding-bottom: 96px !important;
-            overflow: hidden !important;
-            background: #0b1120 !important;
-            font-family: system-ui, -apple-system, sans-serif !important;
-          }
-          .topbar { padding: 4px 24px !important; height: 44px !important; }
-          .wrap { max-width: 1880px !important; margin: 6px auto !important; padding: 0 24px !important; }
-          .lede, #override { display: none !important; }
-          .tabs { margin-bottom: 6px !important; }
-          .tab-btn { font-size: 14px !important; padding: 6px 18px !important; }
-          
-          #mode-chat.active {
-            max-width: 1380px !important;
-            margin: 6px auto !important;
-            padding: 16px 24px !important;
-            background: #111827 !important;
-            border: 1px solid #1e293b !important;
-            border-radius: 12px !important;
-            display: flex !important;
-            flex-direction: column !important;
-            gap: 12px !important;
-          }
-          .chat-log {
-            min-height: 250px !important;
-            max-height: 380px !important;
-            overflow-y: auto !important;
-            display: flex !important;
-            flex-direction: column !important;
-            gap: 10px !important;
-          }
-          .bubble {
-            max-width: 78% !important;
-            padding: 10px 16px !important;
-            border-radius: 12px !important;
-            font-size: 14.5px !important;
-            line-height: 1.5 !important;
-          }
-          .bubble-guest {
-            align-self: flex-end !important;
-            background: #0d9488 !important;
-            color: #fff !important;
-            border-bottom-right-radius: 4px !important;
-          }
-          .bubble-assistant {
-            align-self: flex-start !important;
-            background: #1e293b !important;
-            border: 1px solid #334155 !important;
-            color: #f8fafc !important;
-            border-bottom-left-radius: 4px !important;
-          }
-          .chat-input-row {
-            display: flex !important;
-            gap: 10px !important;
-          }
-          #chat-text {
-            flex: 1 !important;
-            min-height: 52px !important;
-            font-size: 14px !important;
-            background: #0f172a !important;
-            border: 2px solid #0d9488 !important;
-            color: #fff !important;
-            border-radius: 8px !important;
-            padding: 10px 14px !important;
-          }
-          #chat-send {
-            padding: 0 24px !important;
-            font-size: 14px !important;
-            font-weight: 700 !important;
-          }
-          .done-banner {
-            margin-top: 4px !important;
-            padding: 8px 14px !important;
-            border-radius: 8px !important;
-            background: #064e3b !important;
-            color: #a7f3d0 !important;
-            font-size: 13.5px !important;
-            font-weight: 700 !important;
-            border: 1px solid #059669 !important;
-          }
-
-          #mode-single.active {
-            display: grid !important;
-            grid-template-columns: 42% 58% !important;
-            gap: 16px !important;
-            align-items: start !important;
-            padding: 10px 16px !important;
-            background: #111827 !important;
-            border: 1px solid #1e293b !important;
-            border-radius: 12px !important;
-          }
-          #mode-single > .section-label,
-          #mode-single > #text,
-          #mode-single > .examples,
-          #mode-single > .actions,
-          #mode-single > #error {
-            grid-column: 1 !important;
-          }
-          #text {
-            min-height: 175px !important;
-            font-size: 13.5px !important;
-            line-height: 1.48 !important;
-            background: #0f172a !important;
-            border: 2px solid #0d9488 !important;
-            color: #f8fafc !important;
-            padding: 10px !important;
-            border-radius: 8px !important;
-          }
-          .examples { margin: 4px 0 !important; }
-          .actions { margin-top: 4px !important; }
-          .btn-primary { font-size: 13.5px !important; padding: 7px 20px !important; font-weight: 700 !important; }
-          #result-card {
-            grid-column: 2 !important;
-            grid-row: 1 / span 5 !important;
-            margin-top: 0 !important;
-            background: #0f172a !important;
-            padding: 8px 14px !important;
-            border: 1px solid #1e293b !important;
-            border-radius: 10px !important;
-          }
-          #questions-card {
-            grid-column: 1 / span 2 !important;
-            margin-top: 4px !important;
-            padding: 8px 14px !important;
-            background: #0f172a !important;
-            border: 1px solid #1e293b !important;
-            border-radius: 10px !important;
-          }
-          #raw { display: none !important; }
-          table { width: 100% !important; border-collapse: collapse !important; }
-          table th, table td { padding: 4px 8px !important; font-size: 12px !important; border-bottom: 1px solid #1e293b !important; }
-          table th { font-size: 10.5px !important; text-transform: uppercase !important; letter-spacing: 0.05em !important; color: #94a3b8 !important; }
-
-          /* TOP QA/QC BANNER */
-          #qa-top-banner {
-            position: fixed; top: 0; left: 0; right: 0; height: 46px;
-            background: linear-gradient(90deg, #3b1f14 0%, #c0703a 100%);
-            color: #fff; display: flex; align-items: center; justify-content: space-between;
-            padding: 0 24px; z-index: 99999;
-            box-shadow: 0 4px 16px rgba(0,0,0,0.5);
-          }
-
-          /* BOTTOM BURNT-IN LARGE SUBTITLE BAR */
-          #qa-subbar {
-            position: fixed; bottom: 0; left: 0; right: 0; height: 88px;
-            background: rgba(8, 14, 26, 0.98);
-            backdrop-filter: blur(14px);
-            border-top: 2px solid #22d3ee;
-            display: flex; align-items: center; justify-content: space-between;
-            padding: 0 32px; z-index: 99999;
-            box-shadow: 0 -8px 30px rgba(0,0,0,0.85);
-          }
-
-          .qa-box {
-            position: fixed; border: 3px solid #e53935; border-radius: 8px;
-            background: rgba(229, 57, 53, 0.08); box-shadow: 0 0 18px rgba(229, 57, 53, 0.45);
-            z-index: 99998; pointer-events: none;
-          }
-          .qa-tag {
-            position: fixed; background: #e53935; color: #fff; font-weight: 700;
-            font-size: 13px; padding: 4px 12px; border-radius: 999px;
-            display: inline-flex; align-items: center; gap: 7px;
-            box-shadow: 0 4px 14px rgba(0,0,0,0.55); z-index: 99999;
-          }
-          .qa-num {
-            width: 20px; height: 20px; border-radius: 50%; background: #fff; color: #e53935;
-            display: inline-flex; align-items: center; justify-content: center; font-weight: 900; font-size: 12px;
-          }
-
-          @keyframes recBlink { 0%, 49% { opacity: 1 } 50%, 100% { opacity: 0.15 } }
-        \`;
-        document.head.appendChild(st);
-
-        const banner = document.createElement('div');
-        banner.id = 'qa-top-banner';
-        banner.innerHTML = \`
-          <div style="display:flex;align-items:center;gap:14px;">
-            <span id="qa-num-badge" style="min-width:28px;padding:0 8px;height:28px;border-radius:999px;background:#fff;color:#3b1f14;font-weight:900;font-size:13.5px;display:inline-flex;align-items:center;justify-content:center;">INTRO</span>
-            <strong id="qa-title" style="font-size:15.5px;">Title</strong>
-            <span id="qa-sub" style="font-size:13px;opacity:0.92;border-left:1px solid rgba(255,255,255,0.35);padding-left:14px;">Sub</span>
-          </div>
-          <div style="display:flex;align-items:center;gap:14px;">
-            <span style="font:600 12px/1 system-ui;color:#fff;background:rgba(220,38,38,.92);padding:5px 10px;border-radius:999px;display:inline-flex;align-items:center;gap:6px;">
-              <span style="width:7px;height:7px;border-radius:50%;background:#fff;animation:recBlink 1.1s steps(1,end) infinite"></span>LIVE REC
-            </span>
-            <span style="font-family:monospace;font-size:12px;background:rgba(0,0,0,0.35);padding:4px 12px;border-radius:6px;letter-spacing:0.04em;">CASA EXTRACTOR</span>
-          </div>
-        \`;
-        document.body.appendChild(banner);
-
-        const subbar = document.createElement('div');
-        subbar.id = 'qa-subbar';
-        subbar.innerHTML = \`
-          <div style="display:flex;align-items:center;gap:18px;flex:1;max-width:1700px;">
-            <span style="background:#0d9488;color:#ffffff;font-weight:900;font-size:13.5px;padding:6px 14px;border-radius:6px;letter-spacing:0.06em;box-shadow:0 2px 8px rgba(13,148,136,0.5);flex-shrink:0;">CC · EN</span>
-            <div id="qa-sub-text" style="flex:1;font-size:22px;font-weight:700;line-height:1.32;color:#ffffff;text-shadow:0 2px 6px rgba(0,0,0,0.95);letter-spacing:0.01em;">Subtitle</div>
-          </div>
-          <span id="qa-sub-progress" style="font-family:monospace;font-size:13.5px;color:#cbd5e1;background:rgba(255,255,255,0.08);padding:6px 14px;border-radius:6px;margin-left:24px;flex-shrink:0;">INTRO</span>
-        \`;
-        document.body.appendChild(subbar);
-
-        window.__setScreenState = function(badge, title, sub, subtitleText, progressText, marks) {
-          document.getElementById('qa-num-badge').textContent = String(badge);
-          document.getElementById('qa-title').textContent = title;
-          document.getElementById('qa-sub').textContent = sub;
-          document.getElementById('qa-sub-text').textContent = subtitleText;
-          document.getElementById('qa-sub-progress').textContent = progressText;
-
-          document.querySelectorAll('.qa-box, .qa-tag').forEach(e => e.remove());
-          for (const m of (marks || [])) {
-            const el = document.querySelector(m.sel);
-            if (!el) continue;
-            const r = el.getBoundingClientRect();
-            const b = document.createElement('div');
-            b.className = 'qa-box';
-            b.style.left = (r.left - 4) + 'px';
-            b.style.top = (r.top - 4) + 'px';
-            b.style.width = (r.width + 8) + 'px';
-            b.style.height = (r.height + 8) + 'px';
-            document.body.appendChild(b);
-
-            const t = document.createElement('div');
-            t.className = 'qa-tag';
-            t.innerHTML = '<span class="qa-num">' + m.n + '</span><span>' + m.label + '</span>';
-            t.style.left = Math.max(16, r.left) + 'px';
-            t.style.top = (m.pos === 'below' ? (r.bottom + 8) : Math.max(56, r.top - 32)) + 'px';
-            document.body.appendChild(t);
-          }
-        };
-        return "ready";
-      })()`,
-    },
+    { expression: `(${setupPageGuideUI.toString()})()` },
     sessionId
   );
 
@@ -637,26 +754,9 @@ async function main() {
   for (let i = 0; i < PHASES.length; i++) {
     const p = PHASES[i];
     const phaseStartMs = Date.now() - t0;
-    const progressLabel = `STEP ${i + 1} OF ${PHASES.length}`;
     console.log(`\n---> [Live Step ${i + 1}/${PHASES.length}] ${p.title} (audio: ${p.audioDuration.toFixed(1)}s)`);
 
-    // Set screen state
-    await cdp.send(
-      "Runtime.evaluate",
-      {
-        expression: `(() => {
-          window.__setScreenState(
-            ${JSON.stringify(p.badge)},
-            ${JSON.stringify(p.title)},
-            ${JSON.stringify(p.sub)},
-            ${JSON.stringify(p.narration)},
-            ${JSON.stringify(progressLabel)},
-            ${JSON.stringify(p.marks)}
-          );
-        })()`,
-      },
-      sessionId
-    );
+    await setSubtitle(cdp, sessionId, p.narration);
 
     audioTimeline.push({
       startSec: phaseStartMs / 1000,
@@ -675,6 +775,7 @@ async function main() {
     if (remaining > 0) {
       await sleep(Math.round(remaining * 1000));
     }
+    await clearPointers(cdp, sessionId);
   }
 
   // Stop screencast

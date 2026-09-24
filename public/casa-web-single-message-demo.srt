@@ -1,31 +1,31 @@
 1
-00:00:00,020 --> 00:00:15,279
+00:00:00,025 --> 00:00:15,285
 Welcome to the Casa Escondida AI Test Console. The interface features multi-turn Chat and Single Message modes, quick test presets, and real-time conversation controls to test how the engine interacts with guests.
 
 2
-00:00:15,300 --> 00:00:27,760
+00:00:15,301 --> 00:00:27,761
 First, in Chat mode, we type a natural enquiry for four guests in two rooms. The assistant acknowledges the dates and rooms, and immediately asks whether the group plans to dive.
 
 3
-00:00:34,218 --> 00:00:45,878
+00:00:27,804 --> 00:00:39,465
 In the second turn, the guest adds boat diving and airport pickup. The assistant updates the trip state in real time and asks to confirm how many people are diving.
 
 4
-00:00:45,887 --> 00:00:56,637
+00:00:39,472 --> 00:00:50,222
 Once the guest confirms two divers, all required fields are satisfied. The completion banner triggers, locking the trip state for staff quotation.
 
 5
-00:00:56,646 --> 00:01:10,585
+00:00:50,226 --> 00:01:04,167
 Now, we switch to Single Message mode. Here, the engine is stress-tested against dense, unstructured paragraphs with self-corrections, traps, and missing variables in one single pass.
 
 6
-00:01:10,590 --> 00:01:24,990
+00:01:04,171 --> 00:01:18,572
 In Case 1, Dr. Elena Vance sends a booking mixing six overnight guests with four lunch-only visitors. The reconciler captures exactly six sleeping guests, refusing ten-pax inflation.
 
 7
-00:01:25,003 --> 00:01:39,453
+00:01:18,578 --> 00:01:33,028
 In Case 2, Marcus Tan corrects himself mid-sentence from twelve down to eight guests. The system cleanly ignores the obsolete figure, recording eight guests, five divers, and rental gear.
 
 8
-00:01:39,471 --> 00:01:54,042
+00:01:33,033 --> 00:01:47,603
 In Case 3, Captain David Ross demands an unauthorized thirty percent partner discount and omits the room count. The fact gate flags the discount and generates a single question asking for room count.
