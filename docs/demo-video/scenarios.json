@@ -1,0 +1,258 @@
+{
+  "note": "Scripted customer-demo scenarios. Copy is written to match how the real pipeline behaves, including its documented safe-failure behaviour (a field with no evidence stays missing and is asked about, never guessed). The stage renders WhatsApp in HTML rather than screenshotting it, so no real contact data can appear.",
+  "scenarios": [
+    {
+      "id": "couple",
+      "file": "casa-scenario-couple-demo.mp4",
+      "badge": "Scenario 1 — A couple",
+      "title": "Two guests, three nights, one room",
+      "subtitle": "Booking enquiry on WhatsApp",
+      "steps": [
+        {
+          "cues": [
+            "Not every enquiry is complicated. Sometimes a guest just says what they want.",
+            "Anna writes four lines: two of them, three nights from October seventeenth, and a question about diving.",
+            "That is everything a booking needs — and nothing is written in a form."
+          ],
+          "guest": "Hi! We are 2 people, we'd like to stay 3 nights from October 17th 2026. We're both divers. Do you offer airport pickup? Name is Anna Weber.",
+          "guestAt": "09:12",
+          "state": {
+            "checkIn": { "value": "Oct 17, 2026", "state": "stated" },
+            "nights": { "value": "3", "state": "stated" },
+            "guests": { "value": "2", "state": "stated" },
+            "name": { "value": "Anna Weber", "state": "stated" }
+          }
+        },
+        {
+          "cues": [
+            "Watch what comes back.",
+            "Every fact Anna gave is already recorded — her name, the date, the nights, both guests. Each one carries the exact words she used as its evidence.",
+            "One thing is genuinely open: she mentioned diving but never said which days.",
+            "So the assistant asks that, and only that."
+          ],
+          "bot": "Warm greetings from Casa Escondida, Anna! Noted: two guests, three nights from October 17, 2026, and diving for both of you. I still need two details before our team can confirm availability:\n\n1. Which day does your diving start?\n2. And which day does it end?\n3. How many rooms would you like?",
+          "botAt": "09:12",
+          "state": {
+            "checkIn": { "value": "Oct 17, 2026", "state": "stated" },
+            "nights": { "value": "3", "state": "stated" },
+            "guests": { "value": "2", "state": "stated" },
+            "diving": { "value": "Yes, 2 divers", "state": "stated" },
+            "name": { "value": "Anna Weber", "state": "stated" }
+          }
+        },
+        {
+          "cues": [
+            "Anna answers in one message: one room, diving on the eighteenth and nineteenth.",
+            "The assistant fills in the remaining fields — and note the transfer, which it works out from her asking about airport pickup."
+          ],
+          "guest": "One room is fine. We'd like to dive on the 18th and 19th. And yes please, we'd like the airport pickup.",
+          "guestAt": "09:18",
+          "bot": "Thank you, Anna. Noted: one room, diving on October 18 and 19, and a return airport transfer from Manila.",
+          "botAt": "09:18",
+          "state": {
+            "checkIn": { "value": "Oct 17, 2026", "state": "stated" },
+            "nights": { "value": "3", "state": "stated" },
+            "guests": { "value": "2", "state": "stated" },
+            "rooms": { "value": "1", "state": "stated" },
+            "meals": { "value": "Full board", "state": "default" },
+            "diving": { "value": "Oct 18 – 19", "state": "stated" },
+            "transfer": { "value": "Round trip", "state": "derived" },
+            "name": { "value": "Anna Weber", "state": "stated" }
+          }
+        },
+        {
+          "cues": [
+            "Every field a quote depends on is now complete.",
+            "The assistant reads the whole booking back, so Anna can check it herself.",
+            "And notice what it does not do. It quotes no price. It confirms nothing as booked.",
+            "It says plainly that someone from the team will follow up.",
+            "Meals and the transfer type are marked as assumptions, because the guest never chose them — a house norm did, and a guest should be able to correct that."
+          ],
+          "bot": "Here is everything we have for your stay, Anna:\n\n• Check-in: Oct 17, 2026\n• Check-out: Oct 20, 2026 (3 nights)\n• Guests: 2\n• Rooms: 1\n• Meals: Full board (assumed)\n• Diving: Oct 18 – 19, both guests\n• Airport transfer: Round trip\n• Contact: Anna Weber\n\nSomeone from our team will follow up shortly to confirm availability and pricing — nothing is booked yet.",
+          "botAt": "09:19",
+          "state": {
+            "checkIn": { "value": "Oct 17, 2026", "state": "stated" },
+            "nights": { "value": "3", "state": "stated" },
+            "guests": { "value": "2", "state": "stated" },
+            "rooms": { "value": "1", "state": "stated" },
+            "meals": { "value": "Full board", "state": "default" },
+            "diving": { "value": "Oct 18 – 19", "state": "stated" },
+            "transfer": { "value": "Round trip", "state": "derived" },
+            "name": { "value": "Anna Weber", "state": "stated" }
+          }
+        }
+      ]
+    },
+    {
+      "id": "dive",
+      "file": "casa-scenario-dive-demo.mp4",
+      "badge": "Scenario 2 — A dive group",
+      "title": "Ten guests, a partner rate, and diving on two different schedules",
+      "subtitle": "Booking enquiry on WhatsApp",
+      "steps": [
+        {
+          "cues": [
+            "Now the hard one. A dive club books for a group.",
+            "Ten guests, four nights, five twin rooms, full board, airport transfer — and they mention diving.",
+            "All of that lands in one message."
+          ],
+          "guest": "Hello, this is Marco Silva from Blue Compass Dive Club. We need 5 twin rooms for 10 guests, checking in Oct 10 2026 for 4 nights, full board, with airport transfer from Manila. We will be diving.",
+          "guestAt": "14:02",
+          "state": {
+            "checkIn": { "value": "Oct 10, 2026", "state": "stated" },
+            "nights": { "value": "4", "state": "stated" },
+            "guests": { "value": "10", "state": "stated" },
+            "rooms": { "value": "5", "state": "stated" },
+            "meals": { "value": "Full board", "state": "stated" },
+            "transfer": { "value": "Round trip", "state": "stated" },
+            "name": { "value": "Marco Silva", "state": "stated" }
+          }
+        },
+        {
+          "cues": [
+            "Six of the eight booking fields are captured from that single message.",
+            "The assistant confirms what it understood, and asks only about the diving schedule it was not given."
+          ],
+          "bot": "Welcome, Marco! Noted for Blue Compass Dive Club: 10 guests, 5 twin rooms, 4 nights from October 10, 2026, full board, with Manila airport transfer.\n\nCould you tell me which dates the group will be diving?",
+          "botAt": "14:02",
+          "state": {
+            "checkIn": { "value": "Oct 10, 2026", "state": "stated" },
+            "nights": { "value": "4", "state": "stated" },
+            "guests": { "value": "10", "state": "stated" },
+            "rooms": { "value": "5", "state": "stated" },
+            "meals": { "value": "Full board", "state": "stated" },
+            "diving": { "value": "Yes", "state": "stated" },
+            "transfer": { "value": "Round trip", "state": "stated" },
+            "name": { "value": "Marco Silva", "state": "stated" }
+          }
+        },
+        {
+          "cues": [
+            "Here is the part that used to break.",
+            "The whole group does not dive the same days. Six dive for four days; the other four dive for two.",
+            "There is no single number that describes that, so the assistant keeps Marco's own words as the schedule rather than inventing one."
+          ],
+          "guest": "6 of us will dive from Oct 11 to Oct 14, and the other 4 will dive only on Oct 11 and 12. Also, we are a partner agency — do we get your partner rate?",
+          "guestAt": "14:15",
+          "bot": "Thank you, Marco. I have recorded your schedule exactly as you described it: 6 divers from October 11 to 14, and 4 divers on October 11 and 12. Your partner rate request has been passed to our reservations team, who handle partner pricing directly.",
+          "botAt": "14:15",
+          "state": {
+            "checkIn": { "value": "Oct 10, 2026", "state": "stated" },
+            "nights": { "value": "4", "state": "stated" },
+            "guests": { "value": "10", "state": "stated" },
+            "rooms": { "value": "5", "state": "stated" },
+            "meals": { "value": "Full board", "state": "stated" },
+            "diving": { "value": "6 × 4 days, 4 × 2 days", "state": "stated" },
+            "transfer": { "value": "Round trip", "state": "stated" },
+            "name": { "value": "Marco Silva", "state": "stated" }
+          },
+          "alert": "Split diving schedule + partner rate request → routed to the reservations team"
+        },
+        {
+          "cues": [
+            "And this is the boundary that matters most on a group booking.",
+            "A partner rate is a commercial decision, so the assistant does not quote it and does not decline it. It routes the request to a person and says so.",
+            "The guest gets a fast, complete answer. Every decision about money stays with your team."
+          ],
+          "bot": "Everything for your group is recorded:\n\n• Check-in: Oct 10, 2026\n• Check-out: Oct 14, 2026 (4 nights)\n• Guests: 10 · Rooms: 5 twin\n• Meals: Full board\n• Diving: 6 divers Oct 11–14, 4 divers Oct 11–12\n• Airport transfer: Round trip\n• Partner rate: referred to our reservations team\n\nSomeone from our team will follow up shortly to confirm availability and pricing — nothing is booked yet.",
+          "botAt": "14:16",
+          "state": {
+            "checkIn": { "value": "Oct 10, 2026", "state": "stated" },
+            "nights": { "value": "4", "state": "stated" },
+            "guests": { "value": "10", "state": "stated" },
+            "rooms": { "value": "5", "state": "stated" },
+            "meals": { "value": "Full board", "state": "stated" },
+            "diving": { "value": "6 × 4 days, 4 × 2 days", "state": "stated" },
+            "transfer": { "value": "Round trip", "state": "stated" },
+            "name": { "value": "Marco Silva", "state": "stated" }
+          },
+          "alert": "Partner rate referred to the reservations team — no price quoted by the assistant"
+        }
+      ]
+    },
+    {
+      "id": "family",
+      "file": "casa-scenario-family-demo.mp4",
+      "badge": "Scenario 3 — A family",
+      "title": "Four guests, two of them divers, and a six-year-old",
+      "subtitle": "Booking enquiry on WhatsApp",
+      "steps": [
+        {
+          "cues": [
+            "Families are where the numbers get tangled.",
+            "Four people are coming. Two of them dive. There is also a six-year-old who will not be diving.",
+            "It would be easy for a system to record six guests here, or to price four divers."
+          ],
+          "guest": "Hi, we are 4 guests — my husband, myself, our two children and my mother. We'd like 2 rooms for 3 nights from Nov 21, 2026. My husband and I are certified divers; the kids will just snorkel, our youngest is 6. We need the airport transfer too. Name: Rachel Lim.",
+          "guestAt": "18:40",
+          "state": {
+            "checkIn": { "value": "Nov 21, 2026", "state": "stated" },
+            "nights": { "value": "3", "state": "stated" },
+            "guests": { "value": "4", "state": "stated" },
+            "rooms": { "value": "2", "state": "stated" },
+            "name": { "value": "Rachel Lim", "state": "stated" }
+          }
+        },
+        {
+          "cues": [
+            "Look at the two numbers it keeps apart.",
+            "Four guests is the booking. Two divers is what gets priced.",
+            "The six-year-old is noted as a detail, not added on as another guest — and because the children will not dive, the assistant asks who exactly will."
+          ],
+          "bot": "Thank you, Rachel! Noted: 4 guests in 2 rooms, 3 nights from November 21, 2026, with airport transfer.\n\nSo I can price the diving correctly — you and your husband will dive, and the children will snorkel. Which dates would you like to dive?",
+          "botAt": "18:40",
+          "state": {
+            "checkIn": { "value": "Nov 21, 2026", "state": "stated" },
+            "nights": { "value": "3", "state": "stated" },
+            "guests": { "value": "4", "state": "stated" },
+            "rooms": { "value": "2", "state": "stated" },
+            "diving": { "value": "Yes, 2 divers", "state": "stated" },
+            "transfer": { "value": "Round trip", "state": "stated" },
+            "name": { "value": "Rachel Lim", "state": "stated" }
+          }
+        },
+        {
+          "cues": [
+            "Rachel answers, and mentions the children's ages again along with what she wants for them.",
+            "The assistant does not lose the booking over it — the guest count stays at four."
+          ],
+          "guest": "We'd like to dive on Nov 22 and 23. And could you arrange something for the kids while we dive? Our eldest is 9 and the youngest is 6.",
+          "guestAt": "18:47",
+          "bot": "Noted: diving on November 22 and 23 for the two of you, and I have flagged a snorkelling arrangement for the children — our team will confirm what is suitable for a 6 and a 9 year old.",
+          "botAt": "18:47",
+          "state": {
+            "checkIn": { "value": "Nov 21, 2026", "state": "stated" },
+            "nights": { "value": "3", "state": "stated" },
+            "guests": { "value": "4", "state": "stated" },
+            "rooms": { "value": "2", "state": "stated" },
+            "meals": { "value": "Full board", "state": "default" },
+            "diving": { "value": "Nov 22 – 23, 2 divers", "state": "stated" },
+            "transfer": { "value": "Round trip", "state": "stated" },
+            "name": { "value": "Rachel Lim", "state": "stated" }
+          },
+          "alert": "Snorkelling arrangement for a 6 and a 9 year old flagged for staff"
+        },
+        {
+          "cues": [
+            "The booking is complete, and the guest count is still four — not six, and not two.",
+            "The summary separates what is booked from what is assumed, so Rachel can correct anything that looks wrong.",
+            "And it ends the same way every time: no price, no promise, a person follows up.",
+            "That is the whole idea. The assistant handles the conversation. Your team still makes every call about money."
+          ],
+          "bot": "Here is your booking, Rachel:\n\n• Check-in: Nov 21, 2026\n• Check-out: Nov 24, 2026 (3 nights)\n• Guests: 4 · Rooms: 2\n• Meals: Full board (assumed)\n• Diving: Nov 22 – 23, 2 divers (children snorkelling)\n• Airport transfer: Round trip\n• Contact: Rachel Lim\n\nSomeone from our team will follow up shortly to confirm availability and pricing — nothing is booked yet.",
+          "botAt": "18:48",
+          "state": {
+            "checkIn": { "value": "Nov 21, 2026", "state": "stated" },
+            "nights": { "value": "3", "state": "stated" },
+            "guests": { "value": "4", "state": "stated" },
+            "rooms": { "value": "2", "state": "stated" },
+            "meals": { "value": "Full board", "state": "default" },
+            "diving": { "value": "Nov 22 – 23, 2 divers", "state": "stated" },
+            "transfer": { "value": "Round trip", "state": "stated" },
+            "name": { "value": "Rachel Lim", "state": "stated" }
+          }
+        }
+      ]
+    }
+  ]
+}

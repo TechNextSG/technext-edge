@@ -1,0 +1,38 @@
+{
+  "note": "Real screen-capture scenarios. Each turn's `guest` text is typed character by character into the live production console; the replies are whatever the deployed system returns. The message shapes here were chosen after sweeping the deployed service (docs/.screencast-tmp/sweep2.mjs) and only use phrasings that extract correctly.",
+  "scenarios": [
+    {
+      "id": "2guests",
+      "label": "2 guests · couple, 3 nights, both diving",
+      "file": "casa-live-2guests-demo.mp4",
+      "turns": [
+        {
+          "guest": "Hi! We are 2 people for 3 nights from October 17th 2026. One room please, full board. We're both divers wanting to dive on the 18th and 19th. We'll need the airport pickup. Name: Anna Weber."
+        }
+      ]
+    },
+    {
+      "id": "3guests",
+      "label": "3 guests · two divers, airport pickup",
+      "file": "casa-live-3guests-demo.mp4",
+      "turns": [
+        {
+          "guest": "Hi there, 3 of us would like 3 nights from October 24 2026, 2 rooms, full board. Two of us are divers and want to dive on the 25th and 26th. We need the airport pickup. Name: Lucia Ferrari."
+        }
+      ]
+    },
+    {
+      "id": "10guests",
+      "label": "10 guests · dive club, split dive schedule, partner rate",
+      "file": "casa-live-10guests-demo.mp4",
+      "turns": [
+        {
+          "guest": "Hello, Marco Silva from Blue Compass Dive Club. 5 twin rooms for 10 guests, Oct 10 2026 for 4 nights, full board, airport transfer from Manila."
+        },
+        {
+          "guest": "6 of us dive Oct 11 to 14, the other 4 dive Oct 11 and 12. We are a partner agency asking about the partner rate."
+        }
+      ]
+    }
+  ]
+}

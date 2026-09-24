@@ -1,0 +1,264 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>Casa Escondida — Scenario Demo Stage</title>
+<!--
+  Recording stage for the three scripted customer scenarios.
+
+  The conversation here is RENDERED IN HTML rather than screenshotted from
+  web.whatsapp.com. That is deliberate and has two consequences worth knowing:
+
+  1. Privacy. The real captures in public/demo-captures/ are full WhatsApp Web
+     screenshots whose sidebar carries live contact names and phone numbers. A
+     rendered stage has no account behind it, so nothing real can leak.
+  2. Honesty. Nothing here is a live capture, so the video must not imply it is
+     one. It is a faithful reproduction of WhatsApp's layout carrying copy that
+     was verified against the real system; the unedited screen recordings remain
+     the separate, genuine captures.
+
+  The page exposes window.__renderScene(scene, stepIndex) for the recorder.
+-->
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    width: 1920px; height: 1080px; overflow: hidden;
+    background: radial-gradient(1200px 700px at 50% -10%, #16283a 0%, #0a1119 55%, #070c12 100%);
+    font-family: "Segoe UI", system-ui, -apple-system, "Helvetica Neue", sans-serif;
+    color: #e8eef4;
+    display: flex; flex-direction: column;
+    /* 110px at the bottom + MarginV=235 in the burn-in filter (≈345px from the
+       bottom edge) keeps the subtitle clear of the fact strip, at every step. */
+    padding: 0 0 110px;
+  }
+
+  /* ---------- header ---------- */
+  #hdr {
+    flex: 0 0 auto; padding: 22px 0 12px; text-align: center;
+  }
+  #hdr .brand {
+    font-size: 25px; font-weight: 700; letter-spacing: 0.2px;
+    color: #f3f7fa;
+  }
+  #hdr .brand span { color: #34d399; }
+  #hdr .sub {
+    margin-top: 7px; font-size: 15px; color: #8aa0b4; font-weight: 500;
+  }
+
+  /* ---------- chat window ---------- */
+  #wrap {
+    flex: 1 1 auto; min-height: 0;
+    display: flex; justify-content: center;
+    /* top-aligned: the bottom band is reserved for the burned-in subtitle, so the
+       content block must not drift down into it. */
+    align-items: flex-start;
+    padding: 0 24px;
+  }
+  #chat {
+    width: 1180px;
+    /* Capped so a short thread does not leave half a screen of empty wallpaper. */
+    max-height: 620px;
+    background: #0b141a;
+    border: 1px solid #22333f; border-radius: 16px;
+    box-shadow: 0 28px 60px rgba(0,0,0,0.6);
+    display: flex; flex-direction: column; overflow: hidden;
+    position: relative;
+  }
+  /* WhatsApp's faint doodle wallpaper, approximated */
+  #chat::before {
+    content: ""; position: absolute; inset: 0;
+    background-image:
+      radial-gradient(circle at 12% 22%, rgba(255,255,255,0.022) 0 2px, transparent 2px),
+      radial-gradient(circle at 42% 62%, rgba(255,255,255,0.018) 0 3px, transparent 3px),
+      radial-gradient(circle at 74% 32%, rgba(255,255,255,0.020) 0 2px, transparent 2px),
+      radial-gradient(circle at 88% 78%, rgba(255,255,255,0.016) 0 3px, transparent 3px);
+    pointer-events: none;
+  }
+
+  #chat-hdr {
+    flex: 0 0 auto; display: flex; align-items: center; gap: 12px;
+    padding: 10px 18px; background: #202c33; border-bottom: 1px solid #2a3942;
+    position: relative; z-index: 2;
+  }
+  #avatar {
+    width: 42px; height: 42px; border-radius: 50%;
+    background: linear-gradient(135deg, #0f766e, #14b8a6);
+    display: flex; align-items: center; justify-content: center;
+    font-weight: 800; font-size: 15px; color: #04211f; flex: 0 0 auto;
+  }
+  #chat-hdr .who { line-height: 1.35; }
+  #chat-hdr .who .nm { font-size: 16.5px; font-weight: 600; color: #e9edef; }
+  #chat-hdr .who .st { font-size: 12.5px; color: #8696a0; }
+  #chat-hdr .verified { margin-left: auto; font-size: 12.5px; color: #25d366; font-weight: 600;
+    border: 1px solid rgba(37,211,102,0.35); background: rgba(37,211,102,0.08);
+    padding: 4px 11px; border-radius: 999px; }
+
+  #log {
+    flex: 1 1 auto; overflow: hidden; display: flex; flex-direction: column;
+    /* Centred rather than bottom-anchored: a one- or two-bubble step then reads as a
+       deliberate panel instead of a message stranded at the bottom of a void. */
+    justify-content: center;
+    gap: 8px; padding: 12px 18px 14px; position: relative; z-index: 2;
+  }
+
+  .row { display: flex; }
+  .row.guest { justify-content: flex-end; }
+  .bubble {
+    max-width: 80%; padding: 8px 12px 5px; border-radius: 10px;
+    font-size: 14.5px; line-height: 1.42; white-space: pre-wrap;
+    position: relative; box-shadow: 0 1px 1px rgba(0,0,0,0.3);
+    animation: pop 260ms ease-out both;
+  }
+  @keyframes pop { from { opacity: 0; transform: translateY(9px); } to { opacity: 1; transform: none; } }
+  .row.guest .bubble { background: #005c4b; color: #e9edef; border-top-right-radius: 3px; }
+  .row.bot .bubble { background: #202c33; color: #e9edef; border-top-left-radius: 3px; }
+  .bubble .meta {
+    display: block; text-align: right; font-size: 11px; color: rgba(233,237,239,0.55);
+    margin-top: 4px; letter-spacing: 0.3px;
+  }
+
+  /* ---------- fact panel ---------- */
+  #facts {
+    flex: 0 0 auto; margin-top: 14px;
+    display: flex; justify-content: center; gap: 10px; flex-wrap: nowrap;
+  }
+  .fact {
+    min-width: 124px; padding: 9px 13px; border-radius: 10px;
+    background: rgba(20,33,45,0.92); border: 1px solid #1f3242;
+    opacity: 0.4; transition: opacity 200ms ease, border-color 200ms ease, background 200ms ease;
+  }
+  .fact.on { opacity: 1; border-color: rgba(52,211,153,0.55); background: rgba(16,42,45,0.95); }
+  .fact .k { font-size: 10px; letter-spacing: 0.9px; text-transform: uppercase; color: #7c93a8; font-weight: 700; }
+  .fact .v { font-size: 15px; font-weight: 600; color: #eaf2f7; margin-top: 3px; }
+  .fact .v.muted { color: #5d7387; font-weight: 500; }
+  .fact .tag {
+    display: inline-block; margin-top: 5px; font-size: 9.5px; font-weight: 800;
+    letter-spacing: 0.6px; padding: 2px 6px; border-radius: 4px; text-transform: uppercase;
+  }
+  .fact .tag.stated { background: rgba(52,211,153,0.16); color: #34d399; }
+  .fact .tag.derived { background: rgba(96,165,250,0.16); color: #60a5fa; }
+  .fact .tag.missing { background: rgba(148,163,184,0.14); color: #94a3b8; }
+
+  #alert {
+    flex: 0 0 auto; margin-top: 14px; text-align: center;
+    font-size: 14.5px; font-weight: 600; color: #fbbf24;
+    min-height: 22px; opacity: 0; transition: opacity 220ms ease;
+  }
+  #alert.on { opacity: 1; }
+</style>
+</head>
+<body>
+  <div id="hdr">
+    <div class="brand">Casa Escondida <span>·</span> Anilao, Batangas</div>
+    <div class="sub" id="hdr-sub">Booking enquiry on WhatsApp</div>
+  </div>
+
+  <div id="wrap">
+    <div id="chat">
+      <div id="chat-hdr">
+        <div id="avatar">CE</div>
+        <div class="who">
+          <div class="nm">Casa Escondida · Reservations</div>
+          <div class="st">online</div>
+        </div>
+        <div class="verified">Official business account</div>
+      </div>
+      <div id="log"></div>
+    </div>
+  </div>
+
+  <div id="facts"></div>
+  <div id="alert"></div>
+
+<script>
+const FACT_DEFS = [
+  { key: "checkIn",  label: "Check-in" },
+  { key: "nights",   label: "Nights" },
+  { key: "guests",   label: "Guests" },
+  { key: "rooms",    label: "Rooms" },
+  { key: "meals",    label: "Meals" },
+  { key: "diving",   label: "Diving" },
+  { key: "transfer", label: "Transfer" },
+  { key: "name",     label: "Contact" },
+];
+
+let current = null;
+
+function paintFacts(state) {
+  const host = document.getElementById("facts");
+  host.innerHTML = "";
+  for (const def of FACT_DEFS) {
+    const got = state[def.key];
+    const el = document.createElement("div");
+    el.className = "fact" + (got ? " on" : "");
+    el.innerHTML =
+      '<div class="k">' + def.label + '</div>' +
+      '<div class="v' + (got ? "" : " muted") + '">' + (got ? got.value : "—") + '</div>' +
+      (got ? '<span class="tag ' + got.state + '">' + got.state + '</span>' : '<span class="tag missing">missing</span>');
+    host.appendChild(el);
+  }
+}
+
+function bubble(role, text, time) {
+  const log = document.getElementById("log");
+  const row = document.createElement("div");
+  row.className = "row " + (role === "guest" ? "guest" : "bot");
+  row.innerHTML = '<div class="bubble">' + text + '<span class="meta">' + time + (role === "guest" ? " ✓✓" : "") + '</span></div>';
+  log.appendChild(row);
+}
+
+function scrollLog() {
+  const log = document.getElementById("log");
+  log.scrollTop = log.scrollHeight;
+}
+
+/**
+ * Receives docs/demo-video/scenarios.json from the recorder.
+ *
+ * Injected rather than fetched on purpose: this stage is opened over file://, where
+ * fetch() on a sibling file is blocked, and a CDP evaluate has no such restriction.
+ */
+window.__setScenarios = function (data) {
+  window.__scenarios = (data && data.scenarios) || [];
+  return 'scenarios:' + window.__scenarios.length;
+};
+
+/**
+ * Renders one step of a scenario. Called by scripts/record-scenario-videos.mjs.
+ * `stepIndex` < 0 renders the empty opening state.
+ */
+window.__renderScene = function (scenarioId, stepIndex) {
+  const scene = (window.__scenarios || []).find((s) => s.id === scenarioId);
+  if (!scene) return 'no-scene';
+  current = scene;
+  document.getElementById("hdr-sub").textContent = scene.subtitle;
+
+  const log = document.getElementById("log");
+  log.innerHTML = "";
+  document.getElementById("alert").className = "";
+
+  if (stepIndex < 0) {
+    paintFacts({});
+    return "empty";
+  }
+
+  const step = scene.steps[stepIndex];
+  // Replay every exchange up to this step so the thread builds like a real chat.
+  for (let i = 0; i <= stepIndex; i++) {
+    const s = scene.steps[i];
+    if (s.guest) bubble("guest", s.guest, s.guestAt || "10:0" + i);
+    if (s.bot) bubble("bot", s.bot, s.botAt || "10:0" + i);
+  }
+  paintFacts(step.state || {});
+  if (step.alert) {
+    const a = document.getElementById("alert");
+    a.textContent = step.alert;
+    a.className = "on";
+  }
+  scrollLog();
+  return "step-" + stepIndex;
+};
+</script>
+</body>
+</html>

@@ -1,0 +1,118 @@
+1
+00:00:00,400 --> 00:00:07,576
+This is the booking assistant, running live. Chat mode — and
+the guest opens with almost nothing.
+
+2
+00:00:07,576 --> 00:00:10,288
+Just: we would like to book a room.
+
+3
+00:00:20,736 --> 00:00:27,432
+So the assistant asks for what it does not have yet — the
+date, the nights, how many guests, a name.
+
+4
+00:00:27,432 --> 00:00:29,376
+The guest adds two of them.
+
+5
+00:00:29,376 --> 00:00:33,576
+Two people, from October seventeenth, for three nights.
+
+6
+00:00:50,201 --> 00:00:59,321
+Now it can work out the check-out, the room and the meal plan
+itself. Only two things are still missing: diving, and a name.
+
+7
+00:00:59,321 --> 00:01:01,385
+Yes to diving, one room.
+
+8
+00:01:01,385 --> 00:01:06,353
+Notice the room count is one — the guest's own answer, not a
+guess.
+
+9
+00:01:29,367 --> 00:01:31,239
+One left.
+
+10
+00:01:31,239 --> 00:01:33,855
+A name, and the airport pickup.
+
+11
+00:01:33,855 --> 00:01:38,727
+That answer also settles the transfer, so nothing more is
+owed.
+
+12
+00:01:53,765 --> 00:02:02,573
+Four turns, and the enquiry is complete — every figure read
+back, and it never asked twice for anything the guest had
+already said.
+
+13
+00:02:02,573 --> 00:02:04,283
+Now the other mode.
+
+14
+00:02:04,283 --> 00:02:05,867
+Single message — three cases in a row.
+
+15
+00:02:05,867 --> 00:02:09,875
+Case one: three guests, two of them divers.
+
+16
+00:02:12,480 --> 00:02:15,576
+Extract reads the whole message at once.
+
+17
+00:02:23,670 --> 00:02:28,950
+Every field filled, each with the exact words the guest used
+as evidence.
+
+18
+00:02:35,590 --> 00:02:37,462
+Case two.
+
+19
+00:02:37,462 --> 00:02:44,926
+A dive club: ten guests, five rooms, and a split schedule —
+six people dive four days, four dive two.
+
+20
+00:02:48,864 --> 00:02:53,328
+Plus a partner rate request, which is not the assistant's to
+answer.
+
+21
+00:02:58,985 --> 00:03:05,153
+The split schedule is kept whole, and the partner rate is
+routed to the reservations team.
+
+22
+00:03:11,786 --> 00:03:13,658
+Case three.
+
+23
+00:03:13,658 --> 00:03:16,922
+A family of four, where only two dive.
+
+24
+00:03:20,416 --> 00:03:25,936
+Guest count and diver count are different numbers, and the
+dive line is priced per head.
+
+25
+00:03:34,184 --> 00:03:39,032
+Four guests, two divers, and the two children noted as
+snorkelling.
+
+26
+00:03:39,032 --> 00:03:47,280
+Both modes end the same way: nothing is booked, and no price
+is quoted. The assistant handles the conversation; your team
+makes every call about money.
