@@ -147,6 +147,9 @@ describe("extract", () => {
   it("normalizes uncertain metadata so the UI never presents it as stated evidence", async () => {
     const uncertain = {
       ...HAPPY_RAW,
+      // "vi" is not even a language the schema allows any more. A provider that still returns
+      // one — or labels any language "stated" on the strength of a two-letter greeting — is
+      // overruled by detection from the guest's own text.
       language: { value: "vi", state: "stated", evidence: "Hi!" },
       checkIn: { value: "2026-09-19", state: "stated", evidence: "19/9/2026" },
       guests: { value: 4, state: "inferred", evidence: "4,2,4,2" },
@@ -160,7 +163,7 @@ describe("extract", () => {
     expect(outcome.questions.map((q) => q.field)).toContain("guests");
   });
 
-  it("still derives guestType and transportType, but no longer infers diving from a keyword", async () => {
+  it("still derives guestType, but no longer guesses transportType or infers diving from a keyword", async () => {
     const diveMsg = "Hi, we are a travel agency booking 4 guests for diving next Saturday, 3 nights. airport transfer.";
     const rawWithTransport = {
       ...HAPPY_RAW,
@@ -171,8 +174,11 @@ describe("extract", () => {
     // Agent detected from "travel agency" — a phrase about *who is booking* rather
     // than a priced field, so a regex is the right tool for it.
     expect(outcome.trip.guestType?.value).toBe("agent");
-    // Transport roundtrip derived from transport boolean
-    expect(outcome.trip.transportType?.value).toBe("roundtrip");
+    // A wanted transfer gets no type guessed for it: "airport transfer" does not say one way
+    // or return, and the transfer is a priced line, so the field stays `missing` and the
+    // guest is asked instead (see the test below).
+    expect(outcome.trip.transportType).toEqual({ value: null, state: "missing", evidence: null });
+    expect(outcome.questions.map((q) => q.field)).toContain("transportType");
     // The word "diving" is no longer turned into diver=true with the whole stay as
     // its window: that regex fed dive revenue off a keyword nobody confirmed. The
     // guest is asked instead, and only their answer fills it.
@@ -182,7 +188,11 @@ describe("extract", () => {
     expect(outcome.trip.diveTo?.state).toBe("missing");
   });
 
-  it("derives transportType as an assumption and asks the guest when transfer is requested without specifying type", async () => {
+  it("leaves a wanted transfer's type to the guest instead of pricing a guessed one", async () => {
+    // The old code wrote `roundtrip, derived` whenever the guest asked for a transfer and then
+    // asked them to confirm it — a symptom fix, with the transfer (a priced line) sitting on a
+    // value code had invented. "We need airport transfer" does not say one-way or return, so
+    // the field stays missing and the guest's own answer is what the estimate is priced from.
     const raw = {
       ...HAPPY_RAW,
       transport: { value: true, state: "stated", evidence: "need airport transfer" },
@@ -190,9 +200,21 @@ describe("extract", () => {
     };
     const outcome = await extract("We need airport transfer", fakeProvider(raw));
     expect(outcome.trip.transport?.value).toBe(true);
-    expect(outcome.trip.transportType?.state).toBe("derived");
-    expect(outcome.trip.transportType?.value).toBe("roundtrip");
+    expect(outcome.trip.transportType).toEqual({ value: null, state: "missing", evidence: null });
+    // Missing is what makes the question fire, rather than the guest being read back a type
+    // nobody chose.
     expect(outcome.questions.map((q) => q.field)).toContain("transportType");
+
+    // The one transfer case code still settles is a declined one: "no transfer" needs no
+    // further question, so it is derived as `none` and is not asked about at all.
+    const declined = {
+      ...HAPPY_RAW,
+      transport: { value: false, state: "stated", evidence: "no transfer" },
+      transportType: { value: null, state: "missing", evidence: null },
+    };
+    const declinedOutcome = await extract("No transfer needed, thanks.", fakeProvider(declined));
+    expect(declinedOutcome.trip.transportType).toEqual({ value: "none", state: "derived", evidence: null });
+    expect(declinedOutcome.questions.map((q) => q.field)).not.toContain("transportType");
   });
 
   // The live WhatsApp run of 2026-09-19 that sent the team looking: the same guest
@@ -254,19 +276,19 @@ describe("extract", () => {
 
   it("reads evidence and language from the guest's words, never from the bot's own reply", async () => {
     // The transcript converse.ts sends carries both sides of the conversation. This
-    // assistant turn is Vietnamese and full of facts the bot said out loud; if those
+    // assistant turn is Chinese and full of facts the bot said out loud; if those
     // counted, a value the bot printed would come back as a guest-stated fact on the
     // next turn, and the conversation would stay in Casa's language rather than the
     // guest's.
     const transcript =
       "Guest: 4 of us next Saturday, 3 nights " +
-      "Assistant: Dạ em ghi nhận bữa ăn bán phần, đưa đón sân bay và 1 phòng nhé. " +
+      "Assistant: 好的，已记录半餐、机场接送和 1 间房。 " +
       "Guest: yes that's right";
     const raw = {
       ...HAPPY_RAW,
-      meals: { value: "half_board", state: "stated", evidence: "bán phần" },
-      transport: { value: true, state: "stated", evidence: "đưa đón sân bay" },
-      rooms: { value: 1, state: "stated", evidence: "1 phòng" },
+      meals: { value: "half_board", state: "stated", evidence: "半餐" },
+      transport: { value: true, state: "stated", evidence: "机场接送" },
+      rooms: { value: 1, state: "stated", evidence: "1 间房" },
     };
 
     const outcome = await extract(transcript, fakeProvider(raw));
@@ -274,7 +296,7 @@ describe("extract", () => {
     expect(outcome.trip.meals).toEqual({ value: null, state: "missing", evidence: null });
     expect(outcome.trip.transport).toEqual({ value: null, state: "missing", evidence: null });
     expect(outcome.trip.rooms).toEqual({ value: null, state: "missing", evidence: null });
-    // The bot's Vietnamese is not the guest's language either.
+    // The bot's Chinese is not the guest's language either.
     expect(outcome.trip.language).toEqual({ value: "en", state: "inferred", evidence: null });
     // What the guest did say is untouched by the scoping.
     expect(outcome.trip.guests).toEqual({ value: 4, state: "stated", evidence: "4 of us" });
@@ -358,11 +380,11 @@ describe("extract", () => {
   });
 
   it("asks rather than accept a model's date for a phrase the guest never pinned down", async () => {
-    // eval's vi-02: "chưa chốt ngày, khoảng cuối tháng này". A model will offer 30
+    // A guest who says "大概这个月底" (roughly the end of this month). A model will offer 30
     // September; a month end is not a check-in date, so the question stays.
     const message =
-      "Guest: Nhóm mình 6 bạn muốn đi lặn, chưa chốt ngày, khoảng cuối tháng này, bên mình có phòng không?";
-    const raw = { ...HAPPY_RAW, checkIn: { value: "2026-09-30", state: "stated", evidence: "cuối tháng này" } };
+      "Guest: 我们6个人想潜水，还没定日期，大概这个月底，你们有房间吗？";
+    const raw = { ...HAPPY_RAW, checkIn: { value: "2026-09-30", state: "stated", evidence: "这个月底" } };
 
     const outcome = await extract(message, fakeProvider(raw));
 
@@ -382,25 +404,25 @@ describe("extract", () => {
   });
 
   it("reads an ambiguous day/month pair the way the guest's own language writes it", async () => {
-    // eval's vi-10: "từ 12/10" is 12 October to a Vietnamese guest and 10 December to an
-    // English-speaking one. Both are real dates, so the resolver used to refuse the pair and
-    // the model's own reading was the only candidate — which is one wrong month whenever the
-    // model read it the other way. The language was already being detected from this same
-    // message for trip.language, so it decides the reading too (dates.ts).
-    const message = "Guest: Nhóm mình 2 người, thuê xe riêng, check in từ 12/10 ở 3 đêm.";
+    // "12/10" is 12 October to a Chinese guest and 10 December to an English-speaking one.
+    // Both are real dates, so the resolver used to refuse the pair and the model's own reading
+    // was the only candidate — which is one wrong month whenever the model read it the other
+    // way. The language was already being detected from this same message for trip.language,
+    // so it decides the reading too (dates.ts).
+    const message = "Guest: 我们2个人，12/10入住，住3晚。";
     const raw = {
       ...HAPPY_RAW,
-      nights: { value: 3, state: "stated", evidence: "3 đêm" },
-      guests: { value: 2, state: "stated", evidence: "2 người" },
-      checkIn: { value: "2026-12-10", state: "stated", evidence: "từ 12/10" },
+      nights: { value: 3, state: "stated", evidence: "住3晚" },
+      guests: { value: 2, state: "stated", evidence: "2个人" },
+      checkIn: { value: "2026-12-10", state: "stated", evidence: "12/10" },
     };
 
     const outcome = await extract(message, fakeProvider(raw));
 
     // The model offered December 10 — the English reading. Code read the phrase itself here,
-    // so the Vietnamese guest's own 12 October is what gets priced.
-    expect(outcome.trip.language).toEqual({ value: "vi", state: "inferred", evidence: null });
-    expect(outcome.trip.checkIn).toEqual({ value: "2026-10-12", state: "stated", evidence: "từ 12/10" });
+    // so the Chinese guest's own 12 October is what gets priced.
+    expect(outcome.trip.language).toEqual({ value: "zh", state: "inferred", evidence: null });
+    expect(outcome.trip.checkIn).toEqual({ value: "2026-10-12", state: "stated", evidence: "12/10" });
     expect(outcome.trip.checkOut.value).toBe("2026-10-15"); // +3 nights
     expect(outcome.questions.map((q) => q.field)).not.toContain("checkIn");
   });

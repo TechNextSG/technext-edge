@@ -11,7 +11,17 @@ export { resolveRelativeDate, deriveCheckOut, manilaToday } from "./dates.js";
 // the first such caller. extract() itself deliberately does not mask what it
 // sends to the provider (see normalize.ts).
 export { maskForLogging, detectLanguage, guestTextOf } from "./normalize.js";
-export { generateQuestions, renderReply, fallbackReply, wantsHuman, getStaffAlerts, ASK_LIMIT } from "./questions.js";
+export {
+  generateQuestions,
+  renderReply,
+  fallbackReply,
+  wantsHuman,
+  getStaffAlerts,
+  ASK_LIMIT,
+  isReadyForHandoff,
+  HANDOFF_REQUIRED_FIELDS,
+  NEVER_ASKED_FIELDS,
+} from "./questions.js";
 export type { ReplyKind, RenderedReply, FallbackKind, GuestLanguage } from "./questions.js";
 export { verifySynthesizedReply, synthesizeHospitalityReply } from "./synthesis.js";
 export type { FactGateResult, SynthesisInput } from "./synthesis.js";

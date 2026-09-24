@@ -78,8 +78,8 @@ const CHECKIN_ONLY_PROMPT =
   "that names a specific enough day to check in on. If found, compute your best ISO date " +
   "(YYYY-MM-DD) from today's date, and return state 'stated' with a verbatim quote of that phrase " +
   "as evidence. If the guest explicitly says they have not decided or not confirmed a date yet " +
-  "(e.g. 'chưa chốt ngày', 'not sure yet', 'haven't decided'), or only gives a vague range too " +
-  "wide to pin to one day (e.g. 'end of this month', 'cuối tháng này', 'sometime next month'), " +
+  "(e.g. 'not sure yet', 'haven't decided'), or only gives a vague range too " +
+  "wide to pin to one day (e.g. 'end of this month', 'sometime next month'), " +
   "that is 'missing' — do not invent a specific day for a vague range, even one that sounds " +
   "plausible. Only use 'inferred' if a specific day is implied with no expressible phrase at all, " +
   "and 'missing' if there is truly no timing information. Never invent a date the guest has not " +
@@ -260,10 +260,10 @@ export function createGeminiProvider(apiKey: string, model = process.env.GEMINI_
         "When a message gives a diving window as two dates joined by 'and' with no 'to'/'through' between them (e.g. 'dive on October 16th and 17th'), extract diveFrom as the first date and diveTo as the second date, both stated. " +
         "'transport' is true (stated) only when the guest asks the resort for an airport " +
         "pickup or transfer. Set it to false (stated) when they say they have their own " +
-        "vehicle, are driving themselves, or do not need a transfer — 'xe tụi mình tự đi', " +
-        "'tự chạy xe', 'own van', 'we have a car', '自己开车', '不需要接送'. Otherwise mark it " +
+        "vehicle, are driving themselves, or do not need a transfer — 'own van', " +
+        "'we have a car', '自己开车', '不需要接送'. Otherwise mark it " +
         "missing: a guest who never mentions the airport has not asked for anything. " +
-        "'diver' is true (stated) when the guest asks to dive, take a dive course, or are divers. Set it to false (stated) when they say they are not diving, do not want to dive, or have no diving plans — 'no diving', 'không lặn', 'không có nhu cầu lặn', '不潜水'. Otherwise mark it missing. " +
+        "'diver' is true (stated) when the guest asks to dive, take a dive course, or are divers. Set it to false (stated) when they say they are not diving, do not want to dive, or have no diving plans — 'no diving', '不潜水'. Otherwise mark it missing. " +
         "For 'divers': how many people will actually dive, which is routinely fewer than 'guests' — '2 certified divers, grandma and 2 snorkelling kids' is guests 5 and divers 2; '6 AOW divers' is divers 6; 'both of us are divers' is divers 2. Mark it 'stated' only when the guest's own words give one number for how many dive. When different people dive on different days and no single number covers it (e.g. 'one person on the first day and five on both'), leave divers missing and put that breakdown in diveNotes instead — never average, split the difference, or fall back to the guest count. " +
         "For 'diveNotes': when the guest mentions specific diver schedules, splits, or arrangements (e.g. 'one person will dive on the first day and five will dive on both'), extract that breakdown as a concise string (state 'stated', evidence quoting the phrase). Otherwise missing. " +
         "For 'specialRequests': when the guest mentions special arrangements or requirements (e.g. 'day visitors joining', 'rollaway bed', 'photographer guide'), extract that as a concise string (state 'stated', evidence quoting the phrase). Otherwise missing. " +

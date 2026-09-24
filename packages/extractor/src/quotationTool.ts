@@ -84,7 +84,7 @@ export interface HonoToolCallTrace {
 export const SUBMIT_QUOTATION_TO_HONO_DECLARATION = {
   name: "submit_quotation_to_hono",
   description:
-    "Calls the Hono Quotation Service to create an editable quotation table (bảng báo giá) and shareable quotation link (link báo giá). Hono staff can edit any line item, price, discount, or URL slug and confirm to send back to the AI.",
+    "Calls the Hono Quotation Service to create an editable quotation table and shareable quotation link. Hono staff can edit any line item, price, discount, or URL slug and confirm to send back to the AI.",
   parameters: {
     type: "OBJECT",
     properties: {
@@ -193,8 +193,8 @@ export function buildHonoQuotationDraft(
   let totalGroupSize = stayingGuests;
   if (diver) {
     const note = diveNotes ?? "";
-    const day1Match = note.match(/(\d+)\s*(?:person|people|pax|diver|divers|người)\s*dives?\s*(?:on\s*)?day\s*1/i);
-    const bothDaysMatch = note.match(/(\d+)\s*(?:person|people|pax|diver|divers|người)\s*dives?\s*(?:on\s*)?(?:both\s*days|all\s*days|2\s*days)/i);
+    const day1Match = note.match(/(\d+)\s*(?:person|people|pax|diver|divers)\s*dives?\s*(?:on\s*)?day\s*1/i);
+    const bothDaysMatch = note.match(/(\d+)\s*(?:person|people|pax|diver|divers)\s*dives?\s*(?:on\s*)?(?:both\s*days|all\s*days|2\s*days)/i);
 
     if (day1Match && bothDaysMatch) {
       const d1Count = Number(day1Match[1]);

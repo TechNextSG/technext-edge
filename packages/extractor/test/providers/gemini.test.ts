@@ -43,7 +43,7 @@ describe("createGeminiProvider prompt", () => {
   // Gemini is the configured fallback (providerFromEnv.ts), so it has to carry the same
   // transport rule DeepSeek's prompt does: a rule that lives in one prompt only is a bug
   // waiting for a missing API key. test/providers/deepseek.test.ts has the reasoning — the
-  // recorded live run priced an airport transfer for two guests who were driving themselves.
+  // recorded live run priced an airport transfer for a guest who was driving themselves.
   it("tells the model how to read transport, self-driving included", async () => {
     vi.useRealTimers(); // the call below has no timers to advance
     let request: Record<string, any> | undefined;
@@ -62,10 +62,15 @@ describe("createGeminiProvider prompt", () => {
     });
 
     const prompt: string = request?.systemInstruction?.parts?.[0]?.text ?? "";
+    // The rule itself…
     expect(prompt).toContain("airport pickup or transfer");
     expect(prompt).toContain("driving themselves");
-    expect(prompt).toContain("xe tụi mình tự đi"); // vi-07, verbatim from the eval corpus
-    expect(prompt).toContain("自己开车"); // zh-09
+    // …and the self-driving examples, in both supported languages — the same set DeepSeek's
+    // prompt carries, so the fallback is not a weaker prompt.
+    expect(prompt).toContain("'own van'");
+    expect(prompt).toContain("'we have a car'");
+    expect(prompt).toContain("自己开车");
+    expect(prompt).toContain("不需要接送");
     expect(prompt).toMatch(/Otherwise mark it missing/);
   });
 });

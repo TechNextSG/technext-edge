@@ -216,7 +216,7 @@ details pre{background:var(--card2);border:1px solid var(--hairline);padding:12p
         <button class="chip-btn" data-text="Are you running an Open Water diving course? 4 of us would like to start on Oct 15, staying 4 nights, full board, and we need a pickup from Manila airport.">EN Open Water course</button>
         <button class="chip-btn" data-text="Our travel company needs 5 rooms for 10 guests from Nov 20 to Nov 23 (3 nights). Half board, own transport.">EN group booking</button>
         <button class="chip-btn" data-text="你好，我们2个人想考OW潜水证，计划11月5号入住，住4晚，需要全包餐和马尼拉机场接送。">ZH 考潜水证+接送</button>
-        <button class="chip-btn" data-text="Is the room rate 6500 pesos per night? We are 2 people planning 2 nights on Oct 18.">Trap: hỏi giá (bẫy bịa đặt)</button>
+        <button class="chip-btn" data-text="Is the room rate 6500 pesos per night? We are 2 people planning 2 nights on Oct 18.">Trap: asks for a price (fabrication bait)</button>
       </div>
 
       <div class="actions">

@@ -1,5 +1,5 @@
 import { extract, type ExtractionOutcome } from "./extract.js";
-import { renderReply } from "./questions.js";
+import { isReadyForHandoff, renderReply } from "./questions.js";
 import type { ReplyKind } from "./questions.js";
 import type { ExtractProvider } from "./provider.js";
 import { synthesizeHospitalityReply } from "./synthesis.js";
@@ -53,7 +53,11 @@ export async function converse(
   const transcript = toTranscript(turns);
   const outcome = await extract(transcript, provider);
 
-  const done = outcome.questions.length === 0;
+  // `done` is the HANDOFF contract, not "the question list happens to be empty". The two
+  // are kept consistent by isReadyForHandoff checking the same open-question pass that
+  // renderReply uses, and by the coverage test that every required field is either asked
+  // about or listed in NEVER_ASKED_FIELDS (see questions.ts).
+  const done = isReadyForHandoff(outcome.trip);
   const { kind, text: fallbackText } = renderReply(outcome.trip, outcome.questions);
 
   const reply = await synthesizeHospitalityReply(

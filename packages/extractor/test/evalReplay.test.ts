@@ -57,6 +57,26 @@ const baselineById = new Map<
   { id: string; trip: Record<string, { value: unknown; state: string; evidence: string | null }> }
 >(baseline.cases.map((c: { id: string }) => [c.id, c]));
 
+// Vietnamese was removed from the product on 2026-09-24 (normalize.ts, questions.ts): there
+// is no `vi` reply language and no Vietnamese date convention any more. The corpus still
+// carries its ten vi-* messages — these files are the recorded run, they are left as they
+// are, and the provenance test at the bottom still reads them — but the cases can no longer
+// be replayed *as Vietnamese*. A vi-* message has no Han character in it, so it now detects
+// as English, and a yearless pair like vi-09's "05/12" reads month-first for English: the
+// replay would have to assert 2027-05-12 as "the day the guest actually wrote", which is a
+// date that guest never meant. So every loop below runs over the 20 non-Vietnamese cases.
+//
+// Coverage this drops, recorded here so it is a known gap rather than a silent one:
+//   * language: the recorded run's `language` is no longer compared for the vi-* cases (it
+//     still is for every en/zh case, which is the assertion that matters);
+//   * vi-09 and vi-10, the two `resolver-language` pairs, no longer exercise the detected
+//     language settling a yearless pair — dates.test.ts and extract.test.ts pin that for zh;
+//   * vi-04's `diveFrom` was the only dive window the recorded run stated, so no window is
+//     kept by this replay any more — robustness.test.ts pins the same phrase-resolution rule;
+//   * vi-09's `guests: 8` count is no longer replayed here — robustness.test.ts replays it.
+const VI_CASE = /^vi-/;
+const replayable = (dataset as Array<{ id: string; text: string }>).filter((item) => !VI_CASE.test(item.id));
+
 
 // The cases whose check-in the pre-fix pipeline deleted, marked by the generator rather than
 // re-listed here. Two tags, and the difference between them is the whole story of the date
@@ -70,13 +90,17 @@ const baselineById = new Map<
 //                          refused them and corroboration had to judge the model's date. The
 //                          guest's language — detected from that same message, the detection
 //                          that fills trip.language — leaves exactly one reading now (dates.ts
-//                          numericPairReadings). Both messages are Vietnamese, so both are
-//                          day/month.
+//                          numericPairReadings). Both messages are Vietnamese, so both were
+//                          day/month; with the vi language gone they are no longer replayed
+//                          (see VI_CASE above), and zh is what pins the day-first reading now.
 //
 // `:model` is gone, and it is asserted gone rather than deleted, because it was the tag for the
 // cases where the model's own date decided a money field — a model that read the pair
 // backwards priced the wrong month. A tag with no cases behind it is the fix.
 const recovered = fixtures.cases.filter((c: { provenance: string }) => c.provenance !== "recorded");
+// The same list, minus the six Vietnamese cases the replay no longer runs: vi-04/05/06/07 are
+// `:resolver` and vi-09/vi-10 are the `:resolver-language` pairs.
+const recoveredReplayable = recovered.filter((c: { id: string }) => !VI_CASE.test(c.id));
 const idsWithTag = (tag: string) =>
   recovered.filter((c: { provenance: string }) => c.provenance.endsWith(":" + tag)).map((c: { id: string }) => c.id);
 const modelDecided = idsWithTag("model");
@@ -88,6 +112,12 @@ const languageRead = idsWithTag("resolver-language");
  * compared against. `addDays` counts from RECORDED_TODAY, a Friday (weekday phrases count
  * from there); `monthDay` is the guest's own day and month, with the year implied by "the
  * next time that day comes"; `noDate` is a message that genuinely has no date on it.
+ *
+ * The vi-* entries are here because the completeness check at the bottom requires an entry
+ * for every dataset message, but they are inert: those cases are not replayed (VI_CASE
+ * above), so nothing reads them. Their values stay as the Vietnamese reading they were
+ * written with, which is what the corpus message meant — it is simply no longer a date this
+ * pipeline has any way to arrive at.
  *
  * Two entries disagree with the recorded run on purpose, because the run was wrong:
  * zh-08 (下周五 said on a Friday, which the old resolver pushed out to 2026-10-02) and
@@ -161,16 +191,19 @@ function providerReturning(raw: unknown): ExtractProvider {
 }
 
 /**
- * Every dataset message through extract() with its recorded answer — optionally rewritten
- * by `edit`, which is how the three model behaviours below are produced. `calls` counts
- * provider invocations: more than one per case means a retry, i.e. that a fixture answer
- * failed schema validation and the model would have been asked again.
+ * Every replayed dataset message through extract() with its recorded answer — optionally
+ * rewritten by `edit`, which is how the three model behaviours below are produced. `calls`
+ * counts provider invocations: more than one per case means a retry, i.e. that a fixture
+ * answer failed schema validation and the model would have been asked again.
+ *
+ * The vi-* cases are not replayed at all (see VI_CASE above); the dataset's own file-level
+ * checks still read all 30.
  */
 async function replay(edit: (id: string, model: Model) => void = () => {}) {
   const trips = new Map<string, Trip>();
   const questions = new Map<string, string[]>();
   let calls = 0;
-  for (const item of dataset as Array<{ id: string; text: string }>) {
+  for (const item of replayable) {
     const fixture = fixtureById.get(item.id)!;
     const model = structuredClone(fixture.model) as Model;
     edit(item.id, model);
@@ -204,20 +237,22 @@ function withWeekLateDates(id: string, model: Model): void {
 
 /** A model date with nothing in the guest's words to hold it to, which must be refused. */
 function withSpeculativeDate(id: string, model: Model): void {
-  if (id !== "vi-02-missing-dates") return;
-  model.checkIn = { value: "2026-09-30", state: "stated", evidence: "cuối tháng này" };
+  // zh-02 asks only for a price — no day, no month, no weekday in the message at all, so a
+  // model that offers the 30th has nothing in the guest's own words behind it.
+  if (id !== "zh-02-missing-most") return;
+  model.checkIn = { value: "2026-09-30", state: "stated", evidence: "请问潜水套餐多少钱一位？" };
 }
 
 const DIVE_FIELDS = ["diver", "diveFrom", "diveTo"];
 
 describe("eval replay — the recorded deepseek-flash run, re-run offline", () => {
-  it("replays all 30 cases through the pipeline, with no provider and no retry", async () => {
+  it("replays all 20 non-Vietnamese cases through the pipeline, with no provider and no retry", async () => {
     const { trips, calls } = await replay();
-    expect(trips.size).toBe(dataset.length);
+    expect(trips.size).toBe(replayable.length);
     // One call per case: every recorded answer still passes schema validation, so none of
     // them would have cost the model a second round-trip.
-    expect(calls).toBe(dataset.length);
-    for (const item of dataset) {
+    expect(calls).toBe(replayable.length);
+    for (const item of replayable) {
       const trip = trips.get(item.id)!;
       for (const key of Object.keys(baselineById.get(item.id)!.trip)) {
         expect(trip[key], `${item.id}.${key} came back with no state at all`).toBeDefined();
@@ -231,17 +266,20 @@ describe("eval replay — the recorded deepseek-flash run, re-run offline", () =
     // tightened after that run (below), and the two fields below those belong to code: the
     // recording has the model answering `transportType` itself — quoting the guest's words
     // as its "evidence", the one thing the model is not trusted with — and the fixture
-    // deliberately leaves it out so postProcess derives it from `transport` again. The
-    // value still has to match; only the state and the invented evidence differ.
+    // deliberately leaves it out so postProcess settles it from `transport` instead. For a
+    // declined transfer that is still a value (`none`); for a wanted one it is now `missing`,
+    // so this field differs in state and value, not only in the invented evidence. The
+    // assertion below pins which of the two shapes each case must have.
     // `guests` is here for the same kind of reason: the recording has vi-09's `guests: 8`
     // for a message that says both 8 and 4, and corroborateCount (counts.ts) turns a count
     // the guest's own words contradict into a question instead of a price. The fixture
     // still carries the model's 8 — the answer is replayed wrong on purpose — so this is
-    // the field where the current pipeline is meant to differ from that run.
+    // the field where the current pipeline is meant to differ from that run. (That case is
+    // Vietnamese and is not replayed any more; robustness.test.ts replays the same answer.)
     const intended = new Set([...DIVE_FIELDS, "checkIn", "checkOut", "transportType", "guests"]);
     const changedDates: string[] = [];
 
-    for (const item of dataset) {
+    for (const item of replayable) {
       const before = baselineById.get(item.id)!.trip;
       const after = trips.get(item.id)!;
 
@@ -251,15 +289,27 @@ describe("eval replay — the recorded deepseek-flash run, re-run offline", () =
         expect(after[field], `${item.id}.${field} changed since that run`).toEqual(previous);
       }
 
-      // transportType follows the guest's transport answer, whatever the model offered:
-      // en-06's recording has it as `oneway` for a message that only says "need van from
-      // NAIA airport" — a guess, not a quote, and one the guest would be priced for.
-      const derivedFromTransport = after.transport.value === true ? "roundtrip" : "none";
-      expect(after.transportType.value, `${item.id}.transportType must follow the transport answer`).toBe(
-        derivedFromTransport,
-      );
-      expect(["derived", "default"]).toContain(after.transportType.state);
-      expect(after.transportType.evidence).toBeNull();
+      // transportType is never guessed from the transport answer any more. Only the case the
+      // guest has settled is filled in: a declined transfer becomes `none` in postProcess,
+      // because "no transfer" needs no further question. A guest who *wants* one without
+      // saying one-way or return stays `missing` on purpose, so the question fires and their
+      // own answer is what the estimate is priced from. en-06's recording had the model's own
+      // `oneway` for a message that only says "need van from NAIA airport" — a guess, not a
+      // quote, and one the guest would have been priced for. No fixture states a transfer type
+      // of its own, so those two shapes are the only ones this replay can produce.
+      if (after.transport.value === true) {
+        expect(after.transportType, `${item.id}.transportType must not be guessed from a wanted transfer`).toEqual({
+          value: null,
+          state: "missing",
+          evidence: null,
+        });
+      } else {
+        expect(after.transportType, `${item.id}.transportType of a declined transfer`).toEqual({
+          value: "none",
+          state: "derived",
+          evidence: null,
+        });
+      }
 
       // A date that run had already resolved must resolve to the same day — this is the
       // guard on the phrase table: adding entries must not move a date that was right.
@@ -273,7 +323,7 @@ describe("eval replay — the recorded deepseek-flash run, re-run offline", () =
       if (before.checkIn.state === "missing" && after.checkIn.state === "stated") {
         changedDates.push(item.id);
         expect(
-          recovered.map((c: { id: string }) => c.id),
+          recoveredReplayable.map((c: { id: string }) => c.id),
           `${item.id} gained a date on its own — the fixture never proposed one`,
         ).toContain(item.id);
       }
@@ -287,14 +337,14 @@ describe("eval replay — the recorded deepseek-flash run, re-run offline", () =
       expect(after.checkOut.state === "derived" || after.checkOut.state === "missing").toBe(true);
     }
 
-    expect(changedDates.sort()).toEqual(recovered.map((c: { id: string }) => c.id).sort());
+    expect(changedDates.sort()).toEqual(recoveredReplayable.map((c: { id: string }) => c.id).sort());
   });
 
   it("keeps a dive window only as a date inside the stay, and asks about every other one", async () => {
     const { trips } = await replay();
     const windowsKept: string[] = [];
 
-    for (const item of dataset) {
+    for (const item of replayable) {
       const before = baselineById.get(item.id)!.trip;
       const after = trips.get(item.id)!;
       const stayFrom = after.checkIn.state === "stated" ? (after.checkIn.value as string) : null;
@@ -322,32 +372,12 @@ describe("eval replay — the recorded deepseek-flash run, re-run offline", () =
       }
     }
 
-    // The one window that run stated was vi-04's `diveFrom: "15/10"` — the guest's own
-    // phrase, handed back where a date belongs. Code resolves it (dates.ts) instead of
-    // asking the guest for the date they already wrote, and the stay that came out of the
-    // same message (check-in 15/10, four nights) contains it.
-    expect(windowsKept).toEqual(["vi-04-khoa-hoc-lan-ow.diveFrom"]);
-    expect(trips.get("vi-04-khoa-hoc-lan-ow")!.diveFrom.value).toBe("2026-10-15");
-  });
-
-  it("turns the count the guest's own words contradict into a question (vi-09)", async () => {
-    const { trips, questions } = await replay();
-    const trip = trips.get("vi-09-bay-so-dien-thoai")!;
-
-    // "nhóm mình có 8 người nhưng chỉ 4 người ở lại 2 đêm": the recorded answer took the 8,
-    // and its evidence was the guest's own words — a verbatim substring, so evidence
-    // enforcement had nothing to object to — and the estimate would have been priced for a
-    // group twice the size of the one actually staying. counts.ts asks instead of choosing.
-    expect(trip.guests.state).toBe("missing");
-    expect(trip.guests.value).toBeNull();
-    expect(trip.guests.evidence).toBeNull();
-    expect(questions.get("vi-09-bay-so-dien-thoai")).toContain("guests");
-
-    // The rest of that sentence survives: one number for the nights, and the check-in the
-    // recording never stored comes back as the day the guest wrote.
-    expect(trip.nights.value).toBe(2);
-    expect(trip.nights.state).toBe("stated");
-    expect(trip.checkIn.value).toBe("2026-12-05");
+    // The one window the recorded run stated was vi-04's `diveFrom: "15/10"` — the guest's own
+    // phrase handed back where a date belongs, which code resolves (dates.ts) rather than asking
+    // for a date the guest had already written. vi-04 is a Vietnamese case and is no longer
+    // replayed, so no recorded window survives here; robustness.test.ts pins the same resolution
+    // rule ("resolves the guest's own phrase the way it resolves a check-in").
+    expect(windowsKept).toEqual([]);
   });
 
   it("never keeps a required field with a value the guest did not give — it asks instead", async () => {
@@ -356,7 +386,7 @@ describe("eval replay — the recorded deepseek-flash run, re-run offline", () =
     const asked: string[] = [];
     let stated = 0;
 
-    for (const item of dataset) {
+    for (const item of replayable) {
       const trip = trips.get(item.id)!;
       const askedHere = questions.get(item.id) ?? [];
       for (const field of REQUIRED_FIELDS) {
@@ -379,27 +409,26 @@ describe("eval replay — the recorded deepseek-flash run, re-run offline", () =
 
     // The invariant, and the acceptance check for this work: of the required fields the
     // corpus says the guest stated, none is kept with a value the guest did not give.
-    // vi-09's `guests: 8` used to be exactly that — priced, and never asked about.
-    expect(stated).toBe(87);
+    // vi-09's `guests: 8` used to be exactly that — priced, and never asked about — but that
+    // case is Vietnamese and is not replayed here (robustness.test.ts replays it).
+    expect(stated).toBe(60);
     expect(keptWrong).toEqual([]);
-    // Five of the 87 are not kept, and each is a question rather than a silence (asserted
-    // above). Four are answers the recorded model never supplied — en-09's whole message
-    // scored 0/3 in that run's own log, and en-10 says "Solo diver" without the model
-    // recording a count — and the fifth is vi-09's `guests`, the count the guest's own words
-    // contradict. Pinned so a new gap shows up as a failure here rather than as a field that
-    // quietly stopped being asked about.
+    // Four of the counted fields are not kept, and each is a question rather than a silence
+    // (asserted above): en-09's whole message scored 0/3 in that run's own log, and en-10 says
+    // "Solo diver" without the model recording a count. Pinned so a new gap shows up as a
+    // failure here rather than as a field that quietly stopped being asked about.
     expect(asked).toEqual([
       "en-09-trap-price-inquiry.checkIn",
       "en-09-trap-price-inquiry.guests",
       "en-09-trap-price-inquiry.nights",
       "en-10-solo-diver.guests",
-      "vi-09-bay-so-dien-thoai.guests",
     ]);
   });
 
   it("recovers every deleted date as the day the guest actually wrote", async () => {
     const { trips } = await replay();
-    expect(recovered).toHaveLength(19);
+    // The 19 the corpus marked recovered, minus the six Vietnamese cases not replayed.
+    expect(recoveredReplayable).toHaveLength(13);
 
     for (const [id, trip] of trips) {
       const expected = GUEST_DATE[id];
@@ -427,7 +456,7 @@ describe("eval replay — the recorded deepseek-flash run, re-run offline", () =
       let requiredCorrect = 0;
       let stated = 0;
       let evidenceOk = 0;
-      for (const item of dataset as Array<{ id: string; text: string }>) {
+      for (const item of replayable) {
         const trip = tripOf(item.id);
         const scored = scoreCase(item, trip);
         fabricated += scored.fabricated;
@@ -444,19 +473,21 @@ describe("eval replay — the recorded deepseek-flash run, re-run offline", () =
     const after = aggregate((id) => trips.get(id)!);
 
     // The recording's own report, re-derived from the baseline file by the live runner's
-    // scoring code (results-deepseek.log: "Required fields correct: 63/87").
-    expect(before.requiredTotal).toBe(87);
-    expect(before.requiredCorrect).toBe(63);
+    // scoring code over the non-Vietnamese cases (results-deepseek.log reports "Required
+    // fields correct: 63/87" for all 30; the vi-* cases are not part of this replay).
+    expect(before.requiredTotal).toBe(60);
+    expect(before.requiredCorrect).toBe(43);
 
     expect(after.fabricated, "a field was invented for a message that never stated it").toBe(0);
     expect(after.evidenceOk).toBe(after.stated); // verbatim, checked in code, 100%
     expect(after.stated).toBeGreaterThan(before.stated);
 
-    // Exactly the 19 date fields, and nothing else, changed hands. The live run's ≥95%
-    // threshold is not reachable with *these* answers — vi-09's `guests: 8` and en-09's
-    // three missing fields are the model's errors, preserved in the fixture on purpose.
+    // Exactly the recovered date fields, and nothing else, changed hands. The live run's ≥95%
+    // threshold is not reachable with *these* answers — en-09's three missing fields are the
+    // model's errors, preserved in the fixture on purpose. (vi-09's `guests: 8` was the other
+    // preserved error; it is Vietnamese and not replayed here.)
     expect(after.requiredTotal).toBe(before.requiredTotal);
-    expect(after.requiredCorrect).toBe(before.requiredCorrect + recovered.length);
+    expect(after.requiredCorrect).toBe(before.requiredCorrect + recoveredReplayable.length);
   });
 });
 
@@ -479,7 +510,7 @@ describe("eval replay — what the pipeline does with the date a model offers", 
   });
 
   it("refuses a week-late date, and never records one as stated", async () => {
-    const { trips, questions } = await replay(withWeekLateDates);
+    const { trips } = await replay(withWeekLateDates);
 
     for (const [id, trip] of trips) {
       if (trip.checkIn.state !== "stated") continue;
@@ -488,28 +519,24 @@ describe("eval replay — what the pipeline does with the date a model offers", 
       expect(trip.checkIn.value, `${id} recorded a date the guest did not write`).toBe(guestIso(id));
     }
 
-    // Nothing is left to the model any more. The two cases that were are the ambiguous day/month
-    // pairs "05/12" (vi-09) and "12/10" (vi-10): code reads both from the guest's own language
-    // now, so a week-late model date neither moves them nor gets them deleted — the guest keeps
-    // the day they wrote instead of being asked for it again, which is the point of reading the
-    // pair rather than asking about it.
+    // Nothing is left to the model any more. The two cases that were — the ambiguous day/month
+    // pairs "05/12" (vi-09) and "12/10" (vi-10) — are Vietnamese and are excluded from this
+    // replay (see VI_CASE). dates.test.ts and extract.test.ts pin the same mechanism for zh,
+    // where the detected language settles a yearless pair before the model's date is consulted.
     expect(modelDecided).toEqual([]);
-    expect(languageRead).toEqual(["vi-09-bay-so-dien-thoai", "vi-10-thue-xe-rieng"]);
-    for (const id of languageRead) {
-      expect(trips.get(id)!.checkIn.value, `${id} lost the day its own guest wrote`).toBe(guestIso(id));
-      expect(questions.get(id)).not.toContain("checkIn");
-    }
+    expect(languageRead.filter((id) => !VI_CASE.test(id))).toEqual([]);
   });
 
   it("refuses a date the guest's own words do not support", async () => {
     const { trips, questions } = await replay(withSpeculativeDate);
-    const trip = trips.get("vi-02-missing-dates")!;
-    // "chưa chốt ngày, khoảng cuối tháng này" — a month, not a day. A model offering the
-    // 30th is guessing, and a guessed check-in is a wrong price (dates.ts, vi-02).
+    const trip = trips.get("zh-02-missing-most")!;
+    // zh-02 asks only what a dive package costs: no day, no month and no weekday anywhere in
+    // it. A model offering the 30th is guessing, and a guessed check-in is a wrong price
+    // (dates.ts, corroborateDatePhrase).
     expect(trip.checkIn.state).toBe("missing");
     expect(trip.checkIn.value).toBeNull();
     expect(trip.checkIn.evidence).toBeNull();
-    expect(questions.get("vi-02-missing-dates")).toContain("checkIn");
+    expect(questions.get("zh-02-missing-most")).toContain("checkIn");
   });
 });
 
@@ -519,24 +546,23 @@ describe("eval replay — the priced fields the score used to ignore", () => {
     const mismatched: string[] = [];
     let checked = 0;
 
-    for (const item of dataset) {
+    for (const item of replayable) {
       const priced = checkPricedFields(item, trips.get(item.id)!);
       checked += priced.checked;
       for (const m of priced.mismatches) mismatched.push(`${item.id}.${m.field}`);
     }
 
-    // 20 of the 30 messages say something about the airport transfer, one way or the other.
-    expect(checked).toBe(20);
+    // Some of the messages say something about the airport transfer, one way or the other.
+    expect(checked).toBe(14);
 
-    // Two recorded answers make this mistake, in two languages, and both are the same one:
-    // a guest who says they are driving themselves comes back as `transport: true`, with
-    // their own sentence ("xe tụi mình tự đi", "自己开车过去") as the evidence — so evidence
-    // enforcement could not see it, and nothing scored it. vi-07 is Vietnamese, zh-09
-    // Chinese: that the model does it twice says it is a prompt/schema problem rather than
-    // a one-off, which is exactly what this assertion is for. The answers are replayed
-    // wrong on purpose (make-fixtures.mjs); what the assertion buys is that the mistake is
-    // *visible* in the score, and that a third one cannot appear without failing here.
-    expect(mismatched).toEqual(["vi-07-cuoi-tuan-lan-bien.transport", "zh-09-room-only.transport"]);
+    // The recorded answers make this mistake — a guest who says they are driving themselves
+    // comes back as `transport: true`, with their own sentence ("自己开车过去") as the
+    // evidence, so evidence enforcement could not see it and nothing scored it. It was made
+    // twice in the recording, the other time in Vietnamese (vi-07); that case is no longer
+    // replayed (see VI_CASE). The answers are replayed wrong on purpose (make-fixtures.mjs);
+    // what the assertion buys is that the mistake is *visible* in the score, and that a second
+    // one cannot appear without failing here.
+    expect(mismatched).toEqual(["zh-09-room-only.transport"]);
   });
 });
 
@@ -557,8 +583,9 @@ describe("eval fixtures", () => {
     const authored = fixtures.cases.filter((c: { provenance: string }) => c.provenance !== "recorded");
     expect(authored).toHaveLength(19);
     for (const c of authored) expect(c.provenance.startsWith("authored-checkIn:")).toBe(true);
-    // No check-in is decided by the model's own date any more: the two that were are the
-    // ambiguous pairs the guest's detected language settles (see the week-late test above).
+    // Two of those 19 are the `resolver-language` pairs (vi-09, vi-10), which are Vietnamese
+    // and so are not replayed any more; the tag survives in the files as provenance. No
+    // check-in is decided by the model's own date any more.
     expect(modelDecided).toEqual([]);
     expect(languageRead).toHaveLength(2);
 

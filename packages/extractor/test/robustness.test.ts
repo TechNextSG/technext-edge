@@ -20,9 +20,9 @@ import type { ExtractProvider } from "../src/provider.js";
 // reach a log. A model that fails to break them on a mangled message is the property
 // under test, so there is no expected Trip to compare against.
 //
-// Vietnamese and Chinese carry more weight here than message volume would suggest: they
-// are where the input is least predictable (Telex tone keys, unmarked Vietnamese, Han
-// homophones) and where normalize.ts reads raw guest text character by character.
+// Chinese carries more weight here than message volume would suggest: it is where the input
+// is least predictable (Han homophones, no spaces to bound a word) and where normalize.ts
+// reads raw guest text character by character.
 
 // Same anchor as dates.test.ts and extract.test.ts.
 beforeEach(() => {
@@ -123,9 +123,10 @@ function assertTripContract(trip: Record<string, Field<unknown>>, sourceText: st
 
   // ADR-006 Decision 4, applied to the three counts the estimate is priced from: a stated
   // number has to be one the guest's own words put on that count. vi-09 of the eval corpus
-  // is the case — "nhóm mình có 8 người nhưng chỉ 4 người ở lại" recorded as `guests: 8`,
-  // with the guest's own sentence as the evidence — and it is held to on every payload in
-  // this file, including the 200 generated ones.
+  // is the case — eight in the group, four of them staying, recorded as `guests: 8` with the
+  // guest's own sentence as the evidence (replayed in en/zh above, the vi case no longer
+  // being a supported input language) — and it is held to on every payload in this file,
+  // including the 200 generated ones.
   for (const key of ["nights", "guests", "rooms"] as const) {
     if (trip[key].state !== "stated") continue;
     expect(
@@ -346,8 +347,8 @@ describe("structure-aware fuzz — 200 generated payloads, seeded", () => {
     guestNames: [123, "not-an-array"],
   };
   const PLAUSIBLE_VALUES: Record<string, unknown[]> = {
-    language: ["vi", "en", "zh"],
-    checkIn: ["next Saturday", "thứ 7 tuần sau", "2026-09-26"],
+    language: ["en", "zh"],
+    checkIn: ["next Saturday", "下周六", "2026-09-26"],
     checkOut: [null, "2026-09-29"],
     nights: [1, 2, 3],
     guests: [2, 4],
@@ -462,10 +463,8 @@ function mutantsOf(text: string, count: number): string[] {
   return out;
 }
 
-describe("input fuzz — the same messages, typed badly, in three languages", () => {
-  const CORPUS: Array<[string, "vi" | "en" | "zh"]> = [
-    ["Chào anh, nhóm mình 4 người muốn đi lặn, ở 3 đêm, nhận phòng thứ 7 tuần sau", "vi"],
-    ["chao anh, nhom minh 4 nguoi muon di lan, o 3 dem, nhan phong thu 7 tuan sau", "vi"],
+describe("input fuzz — the same messages, typed badly, in both languages", () => {
+  const CORPUS: Array<[string, "en" | "zh"]> = [
     ["Hi, 4 of us want to dive, 3 nights from next Saturday, can you confirm the price", "en"],
     ["你好，我们四个人想潜水，下周六入住，住三晚，请问价格是多少", "zh"],
   ];
@@ -477,10 +476,10 @@ describe("input fuzz — the same messages, typed badly, in three languages", ()
   it("keeps each message in its own language through the typos", () => {
     for (const [text, expected] of CORPUS) {
       for (const mutant of mutantsOf(text, MUTANTS)) {
-        // This is normalize.ts's two stated rules under load: unmarked Vietnamese ("khach
-        // san 2 nguoi") is still Vietnamese, and an English guest with typos must not be
-        // answered in Vietnamese. Both are decided by counting word shapes, which is the
-        // part of the pipeline a typo can actually flip.
+        // This is normalize.ts's one stated rule under load: only a Han character makes a
+        // message Chinese, so a typo in Latin script can never move an English guest into
+        // another language — and it cannot move a Chinese message either, because the
+        // mutation never removes enough Han characters to empty the message of them.
         expect(detectLanguage(mutant), `"${mutant}" stopped reading as ${expected}`).toBe(expected);
       }
     }
@@ -569,10 +568,10 @@ describe("counts — a number the guest's own words contradict never gets priced
   // vi-09 of the eval corpus is the case that produced src/counts.ts: the group is 8 and 4
   // of them are staying, the model recorded the 8, and its evidence *was* the guest's own
   // sentence — so evidence enforcement had nothing to object to and the estimate would have
-  // been priced for the wrong half of the sentence. The turn is replayed here in all three
-  // languages, with that same answer.
+  // been priced for the wrong half of the sentence. Vietnamese is no longer a supported
+  // input language (counts.ts, 2026-09-24), so the turn is replayed here in English and
+  // Chinese, with that same answer.
   const CASES: Array<[string, string, string, number]> = [
-    ["vi", "Alo mình là Tuấn, sđt 0988776655, nhóm mình có 8 người nhưng chỉ 4 người ở lại 2 đêm", "nhóm mình có 8 người", 8],
     ["en", "Family of 8 coming in 5 days, but only 4 of us are staying for 2 nights", "Family of 8", 8],
     ["zh", "我们一共8位客人，但只有4位入住，住2晚", "一共8位客人", 8],
   ];
@@ -592,12 +591,12 @@ describe("counts — a number the guest's own words contradict never gets priced
   }
 
   it("keeps the number when the guest stated only one, and asks when the model moved it", async () => {
-    const message = "Guest: nhóm mình có 4 người ở lại 2 đêm";
+    const message = "Guest: 我们一共4位客人，住2晚";
     const kept = await extract(
       message,
       providerReturning({
-        guests: { value: 4, state: "stated", evidence: "4 người" },
-        nights: { value: 2, state: "stated", evidence: "2 đêm" },
+        guests: { value: 4, state: "stated", evidence: "4位客人" },
+        nights: { value: 2, state: "stated", evidence: "住2晚" },
       }),
     );
     expect(kept.trip.guests.value).toBe(4);
@@ -609,7 +608,7 @@ describe("counts — a number the guest's own words contradict never gets priced
     // count is the guest's to give, so this is a question rather than a price.
     const moved = await extract(
       message,
-      providerReturning({ guests: { value: 6, state: "stated", evidence: "4 người" } }),
+      providerReturning({ guests: { value: 6, state: "stated", evidence: "4位客人" } }),
     );
     expect(moved.trip.guests.state).toBe("missing");
     expect(moved.questions.map((q) => q.field)).toContain("guests");
@@ -664,17 +663,19 @@ describe("the dive window — a date on a field dive revenue is priced from", ()
     expect(phrase.trip.diveFrom.state).toBe("missing");
   });
 
-  it("resolves the guest's own phrase the way it resolves a check-in (vi-04)", async () => {
-    // "từ ngày 15/10" with four nights: check-in 2026-10-15, check-out 2026-10-19, and the
-    // window the model handed back as the phrase itself — the shape the recording has.
+  it("resolves the guest's own phrase the way it resolves a check-in", async () => {
+    // "from 15/10" with four nights: check-in 2026-10-15, check-out 2026-10-19, and the
+    // window the model handed back as the phrase itself — the shape the recording has. Only
+    // one of the two readings of "15/10" is a date (there is no month 15), so no language is
+    // needed to settle it.
     const outcome = await extract(
-      "Guest: 4 người muốn lặn, từ ngày 15/10 ở 4 đêm",
+      "Guest: 4 of us want to dive, from 15/10 for 4 nights",
       providerReturning({
-        guests: { value: 4, state: "stated", evidence: "4 người" },
-        checkIn: { value: null, state: "stated", evidence: "từ ngày 15/10" },
-        nights: { value: 4, state: "stated", evidence: "ở 4 đêm" },
-        diver: { value: true, state: "stated", evidence: "muốn lặn" },
-        diveFrom: { value: "15/10", state: "stated", evidence: "từ ngày 15/10" },
+        guests: { value: 4, state: "stated", evidence: "4 of us" },
+        checkIn: { value: null, state: "stated", evidence: "from 15/10" },
+        nights: { value: 4, state: "stated", evidence: "for 4 nights" },
+        diver: { value: true, state: "stated", evidence: "want to dive" },
+        diveFrom: { value: "15/10", state: "stated", evidence: "from 15/10" },
       }),
     );
 
@@ -730,21 +731,21 @@ describe("latency ceiling on the longest inputs the API accepts", () => {
   });
 
   it("answers a 4,000-character date phrase quickly, and claims only dates it can read", () => {
-    const phrases = ["thứ ".repeat(MAX_MESSAGE / 5), "1".repeat(MAX_MESSAGE), "a".repeat(MAX_MESSAGE)];
+    const phrases = ["下".repeat(MAX_MESSAGE / 5), "1".repeat(MAX_MESSAGE), "a".repeat(MAX_MESSAGE)];
 
     for (const phrase of phrases) {
       const elapsed = msOf(() => expect(resolveRelativeDate(phrase, TODAY)).toBeNull());
       expect(elapsed, `resolving a ${phrase.length}-char phrase took ${elapsed.toFixed(1)}ms`).toBeLessThan(CEILING_MS);
     }
 
-    // A phrase the parser does claim, repeated to the cap, is still a cheap lookup. "ngày
-    // mai" resolves here now that the offset words are read wherever they sit in a quote
-    // (the anchoring that used to stop at the whole phrase is what cost en-03 and en-05
-    // their dates) — the point being asserted is the cost, not the silence.
-    const tomorrow = msOf(() => expect(resolveRelativeDate("ngày mai ".repeat(500), TODAY)).toBe("2026-09-16"));
+    // A phrase the parser does claim, repeated to the cap, is still a cheap lookup. "tomorrow"
+    // resolves here now that the offset words are read wherever they sit in a quote (the
+    // anchoring that used to stop at the whole phrase is what cost en-03 and en-05 their
+    // dates) — the point being asserted is the cost, not the silence.
+    const tomorrow = msOf(() => expect(resolveRelativeDate("tomorrow ".repeat(500), TODAY)).toBe("2026-09-16"));
     expect(tomorrow, `resolving the repeated offset took ${tomorrow.toFixed(1)}ms`).toBeLessThan(CEILING_MS);
 
-    const weekend = "cuối tuần sau ".repeat(250);
+    const weekend = "next weekend ".repeat(250);
     const elapsed = msOf(() => resolveRelativeDate(weekend, TODAY));
     expect(elapsed, `resolving a ${weekend.length}-char phrase took ${elapsed.toFixed(1)}ms`).toBeLessThan(CEILING_MS);
   });

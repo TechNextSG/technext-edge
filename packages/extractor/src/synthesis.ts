@@ -21,11 +21,14 @@ export interface FactGateResult {
     | "mismatched_rooms_count";
 }
 
+// VND is a real currency code and stays in the gate even though Vietnamese replies were
+// removed: the fact gate exists to catch a model quoting money, and a guest or model can
+// still name any currency. Only the Vietnamese words ("đồng", "triệu") were dropped.
 const PRICE_QUOTE_RE =
-  /(?:\$\s*\d|₱\s*\d|\b(?:PHP|USD|VND|EUR)\s*\d|\d[\d,.]*\s*(?:PHP|USD|VND|pesos?|dollars?|đồng|triệu)\b)/i;
+  /(?:\$\s*\d|₱\s*\d|\b(?:PHP|USD|VND|EUR)\s*\d|\d[\d,.]*\s*(?:PHP|USD|VND|pesos?|dollars?)\b)/i;
 
 const FALSE_CONFIRMATION_RE =
-  /\b(?:your booking is confirmed|reservation is confirmed|officially booked|we have booked your room|đã đặt phòng thành công|xác nhận đã giữ phòng|预订已确认|已为您预订成功)\b/i;
+  /\b(?:your booking is confirmed|reservation is confirmed|officially booked|we have booked your room|预订已确认|已为您预订成功)\b/i;
 
 /**
  * Deterministic Symbolic Fact Gate (Post-Generation Verifier):
@@ -52,7 +55,7 @@ export function verifySynthesizedReply(text: string, trip: Trip): FactGateResult
 
   if (trip.nights?.state === "stated" && typeof trip.nights.value === "number") {
     const expectedNights = trip.nights.value;
-    const nightMatches = [...text.matchAll(/\b(\d+)\s*(?:nights?|đêm|晚)\b/gi)];
+    const nightMatches = [...text.matchAll(/\b(\d+)\s*(?:nights?|晚)\b/gi)];
     for (const m of nightMatches) {
       if (Number(m[1]) !== expectedNights) {
         return { ok: false, reason: "mismatched_nights_count" };
@@ -62,7 +65,7 @@ export function verifySynthesizedReply(text: string, trip: Trip): FactGateResult
 
   if (trip.rooms?.state === "stated" && typeof trip.rooms.value === "number") {
     const expectedRooms = trip.rooms.value;
-    const roomMatches = [...text.matchAll(/\b(\d+)\s*(?:rooms?|phòng|间房)\b/gi)];
+    const roomMatches = [...text.matchAll(/\b(\d+)\s*(?:rooms?|间房)\b/gi)];
     for (const m of roomMatches) {
       if (Number(m[1]) !== expectedRooms) {
         return { ok: false, reason: "mismatched_rooms_count" };
@@ -97,7 +100,7 @@ export async function synthesizeHospitalityReply(
 
   try {
     const lang = input.trip.language?.value ?? "en";
-    const langName = lang === "vi" ? "Vietnamese" : lang === "zh" ? "Chinese" : "English";
+    const langName = lang === "zh" ? "Chinese" : "English";
 
     const systemPrompt =
       "You are the warm, professional reservation concierge at Casa Escondida Anilao Resort & PADI Dive Center in Batangas, Philippines. " +
@@ -143,7 +146,7 @@ export async function synthesizeHospitalityReply(
     // Safety check: if situation is summary, ensure the disclaimer is present
     if (input.replyKind === "summary") {
       const lower = text.toLowerCase();
-      if (!lower.includes("nothing is booked yet") && !lower.includes("chưa có gì được đặt") && !lower.includes("chưa đặt gì") && !lower.includes("尚未完成预订") && !lower.includes("尚未预订")) {
+      if (!lower.includes("nothing is booked yet") && !lower.includes("尚未完成预订") && !lower.includes("尚未预订")) {
         return text + "\n\nSomeone from our team will follow up shortly to confirm availability and pricing — nothing is booked yet.";
       }
     }

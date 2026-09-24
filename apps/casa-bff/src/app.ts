@@ -162,12 +162,14 @@ function guestLanguage(history: ConversationTurn[]): GuestLanguage {
 
 function isResetCommand(text: string): boolean {
   const trimmed = text.trim().toLowerCase();
-  return /^(reset|start\s*over|restart|bắt\s*đầu\s*lại|bat\s*dau\s*lai|làm\s*lại|lam\s*lai|xóa|xoa|重置|重新开始)$/i.test(trimmed);
+  // English only now — Vietnamese was removed from the product on 2026-09-24 (see
+  // packages/extractor/src/normalize.ts), so a Vietnamese "reset" phrase is no longer a
+  // command this bot recognises.
+  return /^(reset|start\s*over|restart|重置|重新开始)$/i.test(trimmed);
 }
 
 const RESET_REPLY: Record<GuestLanguage, string> = {
   en: "Conversation reset! Welcome to Casa Escondida — our dive-and-stay resort in Anilao, Batangas.\nCould you share your check-in date, how many nights, how many guests, and a name for the booking?",
-  vi: "Dạ em đã làm mới cuộc trò chuyện! Casa Escondida xin chào mình.\nĐể đội ngũ kiểm tra phòng và giá, mình cho em biết ngày nhận phòng, số đêm, tổng số khách và tên liên hệ nhé.",
   zh: "对话已重置！欢迎来到 Casa Escondida 潜水度假村。\n请告诉我入住日期、住几晚、几位客人以及预订姓名。",
 };
 

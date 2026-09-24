@@ -34,18 +34,17 @@ function addDays(iso: string, days: number): string {
   return d.toISOString().slice(0, 10);
 }
 
-// Vietnamese guests answer a follow-up with the digit form as often as the named
-// one ("thứ 7" / "thu 7" for "thứ bảy"), and the named forms plus t2..t7 alone
-// were not enough: "thứ 7 tuần sau" — a very common reply — resolved to null and
-// silently became a missing check-in. Both spellings of every day are listed.
+// English weekday names and their short forms, plus the bare t2..t7 digits.
+// Vietnamese weekday words were removed with the rest of the Vietnamese support
+// (2026-09-24) — see the note in normalize.ts.
 const WEEKDAYS: Record<string, number> = {
-  sunday: 0, sun: 0, "chủ nhật": 0, "chu nhat": 0, "chúa nhật": 0, "chua nhat": 0, cn: 0,
-  monday: 1, mon: 1, "thứ hai": 1, "thu hai": 1, "thứ 2": 1, "thu 2": 1, t2: 1,
-  tuesday: 2, tue: 2, "thứ ba": 2, "thu ba": 2, "thứ 3": 2, "thu 3": 2, t3: 2,
-  wednesday: 3, wed: 3, "thứ tư": 3, "thu tu": 3, "thứ 4": 3, "thu 4": 3, t4: 3,
-  thursday: 4, thu: 4, "thứ năm": 4, "thu nam": 4, "thứ 5": 4, "thu 5": 4, t5: 4,
-  friday: 5, fri: 5, "thứ sáu": 5, "thu sau": 5, "thứ 6": 5, "thu 6": 5, t6: 5,
-  saturday: 6, sat: 6, "thứ bảy": 6, "thu bay": 6, "thứ 7": 6, "thu 7": 6, t7: 6,
+  sunday: 0, sun: 0, cn: 0,
+  monday: 1, mon: 1, t2: 1,
+  tuesday: 2, tue: 2, t3: 2,
+  wednesday: 3, wed: 3, t4: 3,
+  thursday: 4, thu: 4, t5: 4,
+  friday: 5, fri: 5, t6: 5,
+  saturday: 6, sat: 6, t7: 6,
 };
 
 // ---------------------------------------------------------------------------
@@ -71,8 +70,8 @@ function zhWeekday(phrase: string): number | null {
       if (phrase.includes(prefix + suffix)) return dow;
     }
   }
-  // 周末 ("weekend") is the one form with no weekday in it; like "cuối tuần sau",
-  // it means the coming Saturday unless another weekday word says otherwise.
+  // 周末 ("weekend") is the one form with no weekday in it; it means the coming
+  // Saturday unless another weekday word says otherwise.
   if (/周末|週末/.test(phrase)) return 6;
   return null;
 }
@@ -80,17 +79,9 @@ function zhWeekday(phrase: string): number | null {
 // Week qualifiers live in one place because two callers must agree on them: the
 // resolver strips them before its table lookup, and corroborateDatePhrase reads
 // them as "which week did the guest mean" when it checks a model's date.
-// `tới`/`toi` is Vietnamese "coming" on its own ("thứ Bảy tới", the form in
-// eval/dataset.mock-30.json's vi-07). `tuần tới` above already covers the two-word
-// form and is listed first so it is consumed as a whole; a bare qualifier that
-// survives the strip is what made "thứ Bảy tới" resolve to null and turn a date the
-// guest had written into a question. Unmarked "toi" cannot be confused with "tối"
-// (evening) or "tôi" (I): both carry a diacritic.
-const WEEK_QUALIFIERS =
-  /next|this|coming|tuần sau|tuan sau|tuần tới|tuan toi|cuối tuần sau|cuoi tuan sau|tuần này|tuan nay|này|nay|tới|toi/g;
-const NEXT_WEEK =
-  /next|tuần sau|tuan sau|tuần tới|tuan toi|cuối tuần sau|cuoi tuan sau|下(?:个|個)?(?:周|週|星期|礼拜|禮拜)/;
-const THIS_WEEK = /本周|本週|这周|這週|这星期|thứ\s?\d\s?này|thu\s?\d\s?nay|tuần này|tuan nay/;
+const WEEK_QUALIFIERS = /next|this|coming/g;
+const NEXT_WEEK = /next|下(?:个|個)?(?:周|週|星期|礼拜|禮拜)/;
+const THIS_WEEK = /本周|本週|这周|這週|这星期/;
 
 function calendarIso(year: number, month: number, day: number): string | null {
   if (month < 1 || month > 12 || day < 1 || day > 31) return null;
@@ -202,24 +193,20 @@ export function resolveRelativeDate(phrase: string, today: string, language?: Gu
   const offset = dayOffsetOfPhrase(p);
   if (offset !== null) return addDays(today, offset);
 
-  // "next <weekday>" / "thứ Bảy tuần sau" / "cuối tuần sau" (treated as next Saturday)
-  // / "下周五". The qualifier words are shared with corroborateDatePhrase below.
+  // "next <weekday>" (treated as the coming Saturday) / "下周五". The qualifier words
+  // are shared with corroborateDatePhrase below.
   const isNextWeek = NEXT_WEEK.test(p);
   const weekdayToken = p
-    // "này"/"nay" is Vietnamese "this" — strips both the "tuần này" (this week)
-    // form and a bare trailing "này" on the weekday itself ("thứ Bảy này").
     .replace(WEEK_QUALIFIERS, "")
     .trim();
-  // zhWeekday() reads 周/星期/礼拜 + day, which never survives the strip above;
-  // viWeekdayIn() finds a Vietnamese weekday inside a longer phrase, the way the
-  // full-name scan in weekdayOfPhrase() does for English.
-  const namedDow = WEEKDAYS[weekdayToken] ?? zhWeekday(p) ?? viWeekdayIn(p) ?? undefined;
-  // "cuối tuần" / "weekend" is the coming Saturday, and only when no weekday is named
-  // beside it. This used to be a regex guard — `!/thứ|thu|day/` — in which the "day"
-  // in "weekend" blocked its own phrase, so "this weekend" (eval's en-02, which the
-  // live run resolved to the coming Saturday) depended on which other words the model
+  // zhWeekday() reads 周/星期/礼拜 + day, which never survives the strip above, so it is
+  // asked second — for a phrase like "下周五" the qualifier and the weekday arrive together.
+  const namedDow = WEEKDAYS[weekdayToken] ?? zhWeekday(p) ?? undefined;
+  // "weekend" is the coming Saturday, and only when no weekday is named beside it.
+  // This used to be a regex guard in which the "day" inside "weekend" blocked its own
+  // phrase, so "this weekend" (eval's en-02) depended on which other words the model
   // happened to quote. Asking the tables whether a weekday is named cannot do that.
-  const targetDow = namedDow ?? (/cuối tuần|cuoi tuan|weekend/.test(p) ? 6 : undefined);
+  const targetDow = namedDow ?? (/weekend/.test(p) ? 6 : undefined);
   if (targetDow !== undefined) {
     const todayDate = new Date(`${today}T00:00:00Z`);
     const currentDow = todayDate.getUTCDay();
@@ -272,7 +259,7 @@ function numericPairReadings(a: number, b: number, today: string, language?: Gue
   // language could add: "5/5" is 5 May in either convention.
   if (dayFirst === monthFirst) return [dayFirst];
   if (language === "en") return [monthFirst];
-  if (language === "vi" || language === "zh") return [dayFirst];
+  if (language === "zh") return [dayFirst];
   return [dayFirst, monthFirst];
 }
 
@@ -315,24 +302,6 @@ const EN_MONTHS: Record<string, number> = {
 };
 const EN_MONTH_WORD = /\b(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*\b/;
 
-// Vietnamese weekday words are two words long ("thứ bảy", "chủ nhật", "thứ 7"), so a
-// phrase the model lifts can carry one inside a sentence. The live run's own evidence
-// for vi-03 was "ở 1 đêm cuối tuần sau", not a bare "cuối tuần sau" — evidence is
-// quoted from wherever the guest wrote the date — and an exact-string lookup then
-// misses a weekday the guest plainly wrote. Longest first so "thứ bảy" is not read as
-// "thứ ba". Only the two-word entries are scanned: a bare "thu" is a substring of
-// everyday words like "thuê" (to rent) and is Thursday only when it stands alone.
-const VI_WEEKDAY_TOKENS: ReadonlyArray<readonly [string, number]> = Object.entries(WEEKDAYS)
-  .filter(([word]) => word.includes(" "))
-  .sort((a, b) => b[0].length - a[0].length);
-
-function viWeekdayIn(p: string): number | null {
-  for (const [word, dow] of VI_WEEKDAY_TOKENS) {
-    if (p.includes(word)) return dow;
-  }
-  return null;
-}
-
 function weekdayOfPhrase(p: string): number | null {
   const stripped = p.replace(WEEK_QUALIFIERS, "").replace(/\s+/g, " ").trim();
   if (WEEKDAYS[stripped] !== undefined) return WEEKDAYS[stripped];
@@ -341,24 +310,24 @@ function weekdayOfPhrase(p: string): number | null {
   for (const token of p.split(/[^a-z]+/)) {
     if (token.length >= 6 && WEEKDAYS[token] !== undefined) return WEEKDAYS[token];
   }
-  // A weekday named in either of the two other languages wins over the weekend
-  // default, which is why it is asked first — the resolver orders these the same
-  // way. "cuối tuần" / "weekend" / 周末 is the one form with no weekday in it.
-  const named = viWeekdayIn(p) ?? zhWeekday(p);
+  // A weekday named in Chinese wins over the weekend default, which is why it is asked
+  // first — the resolver orders these the same way. "weekend" / 周末 is the one form with
+  // no weekday in it.
+  const named = zhWeekday(p);
   if (named !== null) return named;
-  if (/cuối tuần|cuoi tuan|weekend|周末|週末/.test(p)) return 6;
+  if (/weekend|周末|週末/.test(p)) return 6;
   return null;
 }
 
-// A date the guest negated is not a date: "not tomorrow" / "không phải ngày mai" /
-// "不是明天" says the opposite of the phrase it contains. Both readers in this file ask
-// this question — resolveRelativeDate reads an offset word wherever it sits in a quote
-// (below), and corroborateDatePhrase holds a model's date to this function's reading — so
-// the guard lives here rather than in either caller. It is deliberately blunt: a negation
-// anywhere in the quoted phrase blocks an offset word in it, and the cost of that is one
-// question, against a stay priced on a day the guest said was not theirs.
+// A date the guest negated is not a date: "not tomorrow" / "不是明天" says the opposite of
+// the phrase it contains. Both readers in this file ask this question —
+// resolveRelativeDate reads an offset word wherever it sits in a quote (below), and
+// corroborateDatePhrase holds a model's date to this function's reading — so the guard
+// lives here rather than in either caller. It is deliberately blunt: a negation anywhere
+// in the quoted phrase blocks an offset word in it, and the cost of that is one question,
+// against a stay priced on a day the guest said was not theirs.
 const NEGATED_DATE =
-  /\b(?:not|no|never|isn'?t|aren'?t|doesn'?t|don'?t|won'?t|cannot|can'?t)\b|không|khong|chưa|chua|chẳng|chang|đừng|不|没|別|别/;
+  /\b(?:not|no|never|isn'?t|aren'?t|doesn'?t|don'?t|won'?t|cannot|can'?t)\b|不|没|別|别/;
 
 function dayOffsetOfPhrase(p: string): number | null {
   if (NEGATED_DATE.test(p)) return null;
@@ -368,31 +337,29 @@ function dayOffsetOfPhrase(p: string): number | null {
   // Longest phrase first: "the day after tomorrow" contains the word "tomorrow", and the
   // anchored tests this replaced read it as +1 day whenever the model quoted anything
   // around it. A date read a day early is a stay priced a day early.
-  if (/\b(the day after tomorrow|ngày kia|ngay kia)\b/.test(p)) return 2;
-  if (/\b(tomorrow|ngày mai|ngay mai)\b/.test(p)) return 1;
-  if (/\b(today|hôm nay|hom nay)\b/.test(p)) return 0;
-  // "in 5 days" / "5 ngày nữa" — a counted offset, the form eval's en-05 uses. The resolver
+  if (/\b(the day after tomorrow)\b/.test(p)) return 2;
+  if (/\b(tomorrow)\b/.test(p)) return 1;
+  if (/\b(today)\b/.test(p)) return 0;
+  // "in 5 days" — a counted offset, the form eval's en-05 uses. The resolver
   // reads it inside a longer quote too ("planning a trip in 5 days"), which is what en-05's
   // model-appended evidence looks like; the corroboration path reads the same helper.
-  const inNDays = p.match(/\bin (\d+) days?\b/) ?? p.match(/(\d+) ngày nữa/) ?? p.match(/(\d+) ngay nua/);
+  const inNDays = p.match(/\bin (\d+) days?\b/);
   if (inNDays) return Number(inNDays[1]);
   return null;
 }
 
-/** The month the phrase names, if it names one (10月, tháng 10, "December"). */
+/** The month the phrase names, if it names one (10月, "December"). */
 function monthOfPhrase(p: string): number | null {
-  const numbered = p.match(/(\d{1,2})\s*月/) ?? p.match(/tháng\s*(\d{1,2})/);
+  const numbered = p.match(/(\d{1,2})\s*月/);
   if (numbered) return Number(numbered[1]);
   const named = p.match(EN_MONTH_WORD);
   return named ? EN_MONTHS[named[1] as string] ?? null : null;
 }
 
-/** The day of the month the phrase names, if it names one (12日, ngày 12, "the 12th"). */
+/** The day of the month the phrase names, if it names one (12日, "the 12th"). */
 function dayOfMonthOfPhrase(p: string): number | null {
   const zh = p.match(/(\d{1,2})\s*[日号號]/);
   if (zh) return Number(zh[1]);
-  const vi = p.match(/ngày\s*(\d{1,2})/);
-  if (vi) return Number(vi[1]);
   const en =
     p.match(/\b(\d{1,2})(?:st|nd|rd|th)\b/) ??
     p.match(/\b(?:jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*\.?\s+(\d{1,2})\b/) ??
@@ -483,7 +450,7 @@ export function corroborateDatePhrase(
   const month = monthOfPhrase(p);
   if (month !== null) constrain(month === isoMonth);
   if (/下个月|下個月|next month/.test(p)) constrain(isoMonth === nextMonth(Number(today.slice(5, 7))));
-  if (/tháng này|thang nay|本月|这个月|這個月|this month/.test(p)) {
+  if (/本月|这个月|這個月|this month/.test(p)) {
     constrain(isoMonth === Number(today.slice(5, 7)));
   }
 

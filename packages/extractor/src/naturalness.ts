@@ -42,7 +42,7 @@ export function scoreReplyNaturalness(
       ["divers", "diveFrom", "diveTo"].includes(q.field as string),
     );
     const askedInText =
-      /how many (?:of you|people) will be diving|có bao nhiêu người sẽ lặn|有几位客人潜水/i.test(
+      /how many (?:of you|people) will be diving|有几位客人潜水/i.test(
         replyText,
       );
     if (askedDiveSlot || askedInText) {
@@ -88,9 +88,9 @@ export function scoreReplyNaturalness(
   // 4. Concierge Warmth & Clarity — Weight: 15%
   let conciergeWarmthScore = 0.0;
   const hasPoliteOpening =
-    /\b(?:thanks|thank you|welcome|hi|hello)\b|cảm ơn|chào|dạ|谢谢|您好/i.test(replyText);
+    /\b(?:thanks|thank you|welcome|hi|hello)\b|谢谢|您好/i.test(replyText);
   const hasStructuredReadback =
-    /noted|ghi nhận|tóm tắt|here's what i have|已为您记录|已经记录|以下是/i.test(replyText);
+    /noted|here's what i have|已为您记录|已经记录|以下是/i.test(replyText);
   if (hasPoliteOpening && hasStructuredReadback) {
     conciergeWarmthScore = 1.0;
   } else if (hasPoliteOpening || hasStructuredReadback) {

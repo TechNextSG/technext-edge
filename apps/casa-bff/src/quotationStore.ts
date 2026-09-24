@@ -1,5 +1,4 @@
 import {
-  buildHonoQuotationDraft,
   recalculateQuotationTotals,
   SUBMIT_QUOTATION_TO_HONO_DECLARATION,
   type HonoQuotationDraft,
@@ -945,13 +944,9 @@ export function renderHonoQuotationEditorHtml(draft: HonoQuotationDraft, allQuot
       document.getElementById('save-toast').textContent = '📋 Copied Quotation Link!';
     }
 
-    function setLang(lang) {
-      document.getElementById('btn-lang-en').classList.toggle('active', lang === 'en');
-      document.getElementById('btn-lang-vi').classList.toggle('active', lang === 'vi');
-      document.querySelectorAll('[data-en]').forEach(el => {
-        el.textContent = el.getAttribute('data-' + lang);
-      });
-    }
+    // setLang() was deleted on 2026-09-24 with the language toggle it drove. It called
+    // getElementById('btn-lang-vi').classList on a button the markup has not rendered
+    // for some time, so it would have thrown if anything had called it — nothing did.
 
     renderSidebar();
     renderTable();

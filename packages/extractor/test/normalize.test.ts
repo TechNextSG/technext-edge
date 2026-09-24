@@ -3,31 +3,24 @@ import { detectLanguage, guestTextOf } from "../src/normalize.js";
 
 // Both functions only ever see one side of the conversation: the guest's. That is
 // the whole point of them, so the tests read like the two failure modes they were
-// written for — an English guest answered in Vietnamese, and the bot's own reply
-// coming back as a guest-stated fact on the next turn.
+// written for — a guest answered in a language they did not write, and the bot's
+// own reply coming back as a guest-stated fact on the next turn.
+//
+// Vietnamese was removed on 2026-09-24 (see src/normalize.ts): the resort receives
+// English and Chinese enquiries, so the only question left for detectLanguage is
+// whether the message carries Han characters.
 
 describe("detectLanguage", () => {
-  it("reads Vietnamese from Vietnamese words and letters", () => {
-    expect(detectLanguage("Mình muốn đi lặn, nhóm mình có 4 người")).toBe("vi");
-    expect(detectLanguage("2 người")).toBe("vi");
-    expect(detectLanguage("đêm nay còn phòng không?")).toBe("vi");
-    // Unmarked Vietnamese is still Vietnamese, as long as the message reads
-    // Vietnamese rather than English.
-    expect(detectLanguage("khach san 2 nguoi")).toBe("vi");
-  });
-
-  it("does not mistake an English typo for Vietnamese", () => {
-    // The reported case: an English guest with a typo must not get a Vietnamese
-    // reply because one accent or one shared word shape looked Vietnamese.
+  it("reads Latin-script text as English, typos and all", () => {
+    // Nothing is left to mistake here: a message with no Han character is English,
+    // however badly it is typed.
     expect(detectLanguage("i dont ned airport")).toBe("en");
     expect(detectLanguage("I need a room for 2 nights please")).toBe("en");
-    // "em" lives inside "email", "thu" inside "Thursday", "dem" inside "demo" —
-    // a substring is not language evidence.
     expect(detectLanguage("email me the invoice")).toBe("en");
     expect(detectLanguage("Thursday the demo was fine")).toBe("en");
   });
 
-  it("prefers English when the text reads English, rather than guessing Vietnamese", () => {
+  it("leaves a plain English enquiry in English", () => {
     expect(detectLanguage("2 rooms for 3 nights, thanks")).toBe("en");
   });
 

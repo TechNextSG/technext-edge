@@ -42,12 +42,12 @@ const COMPLETE_RAW = {
   contactName: { value: "Minh", state: "stated", evidence: "My name is Minh" },
 };
 
-// The same partial extraction with the two dates in Vietnamese, for the
-// language test: "thứ 7 tuần sau" only resolves through WEEKDAYS' digit form.
-const VI_RAW = {
+// The same partial extraction with the two dates in Chinese, for the language
+// test: "下周六" only resolves through dates.ts's 下周 + 周六 form.
+const ZH_RAW = {
   ...PARTIAL_RAW,
-  checkIn: { value: null, state: "stated", evidence: "thứ 7 tuần sau" },
-  nights: { value: 3, state: "stated", evidence: "3 đêm" },
+  checkIn: { value: null, state: "stated", evidence: "下周六" },
+  nights: { value: 3, state: "stated", evidence: "3晚" },
 };
 
 function providerReturning(raw: unknown): ExtractProvider {
@@ -109,6 +109,11 @@ describe("converse", () => {
       provider,
     );
 
+    // NOTE: this is a complete booking for a guest who declined diving, and `done` is the
+    // assertion that matters — but it is false today, because isReadyForHandoff also demands
+    // `divers`/`diveFrom`/`diveTo`, which no rule asks about on a non-diving trip
+    // (questions.ts, HANDOFF_REQUIRED_FIELDS). Left failing rather than weakened: the trip
+    // genuinely owes nothing, so the handoff check is what is wrong.
     expect(outcome.done).toBe(true);
     expect(outcome.replyKind).toBe("summary");
     expect(outcome.questions).toHaveLength(0);
@@ -150,15 +155,15 @@ describe("converse", () => {
   });
 
   it("asks in the guest's detected language, acknowledgment and all", async () => {
-    const provider = providerReturning(VI_RAW);
+    const provider = providerReturning(ZH_RAW);
     const outcome = await converse(
-      [{ role: "guest", text: "Xin chào, tôi muốn nhận phòng thứ 7 tuần sau, ở 3 đêm" }],
+      [{ role: "guest", text: "你好，我想下周六入住，住3晚" }],
       provider,
     );
 
     expect(outcome.replyKind).toBe("questions");
-    expect(outcome.reply).toContain("Em đã ghi nhận kỳ nghỉ từ 26/09, 3 đêm ạ.");
-    expect(outcome.reply).toContain("Tổng cộng có bao nhiêu khách?");
+    expect(outcome.reply).toContain("我已经记录了从 9月26日 开始的 3 晚。");
+    expect(outcome.reply).toContain("一共有几位客人？");
     expect(outcome.reply).not.toContain("How many guests in total?"); // no language mixing
     expect(outcome.reply).not.toContain("Thanks"); // and no English boilerplate
   });

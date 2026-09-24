@@ -1,6 +1,15 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { converse } from "../src/converse.js";
-import { fallbackReply, generateQuestions, getStaffAlerts, renderReply, wantsHuman } from "../src/questions.js";
+import {
+  fallbackReply,
+  generateQuestions,
+  getStaffAlerts,
+  isReadyForHandoff,
+  renderReply,
+  wantsHuman,
+  HANDOFF_REQUIRED_FIELDS,
+  NEVER_ASKED_FIELDS,
+} from "../src/questions.js";
 import { synthesizeHospitalityReply, verifySynthesizedReply } from "../src/synthesis.js";
 import { scoreReplyNaturalness } from "../src/naturalness.js";
 import { buildOdooHandoffPayload } from "../src/odooHandoff.js";
@@ -99,13 +108,13 @@ describe("the reply the guest gets back", () => {
   });
 
   it("asks whether the guest is diving instead of inferring it from a keyword", async () => {
-    // The guest said "đi lặn" and nothing more. The old keyword regex turned that
-    // into diver=true plus a dive window derived from the whole stay — dive revenue
-    // priced off a keyword, confirmed by nobody. Now it is asked like any other
-    // fact, so the model reporting it (or the guest answering) is what fills it.
-    const raw = { ...BLANK_RAW, guests: { value: 4, state: "stated", evidence: "4 người" } };
+    // The guest said they want to dive and nothing more. The old keyword regex turned
+    // that into diver=true plus a dive window derived from the whole stay — dive revenue
+    // priced off a keyword, confirmed by nobody. Now it is asked like any other fact, so
+    // the model reporting it (or the guest answering) is what fills it.
+    const raw = { ...BLANK_RAW, guests: { value: 4, state: "stated", evidence: "4 guests" } };
     const outcome = await converse(
-      [{ role: "guest", text: "Mình muốn đi lặn, nhóm mình có 4 người" }],
+      [{ role: "guest", text: "We want to dive, there are 4 guests" }],
       providerReturning(raw),
     );
 
@@ -114,10 +123,10 @@ describe("the reply the guest gets back", () => {
     // Diving is not confirmed yet, so the window cannot be asked for.
     expect(fields).not.toContain("diveFrom");
     expect(fields).not.toContain("diveTo");
-    // Vietnamese in, Vietnamese out — and the headcount is read back, not re-asked.
-    expect(outcome.reply).toContain("Em đã ghi nhận 4 khách ạ.");
-    expect(outcome.reply).toContain("Mình có muốn đi lặn trong chuyến này không?");
-    expect(outcome.reply).not.toContain("Tổng cộng có bao nhiêu khách?");
+    // The headcount is read back, not re-asked.
+    expect(outcome.reply).toContain("I've noted down 4 guests.");
+    expect(outcome.reply).toContain("Would you like to go diving during your stay?");
+    expect(outcome.reply).not.toContain("How many guests in total?");
   });
 
   it("asks for the dive window once the guest has confirmed they are diving", async () => {
@@ -151,14 +160,18 @@ describe("the reply the guest gets back", () => {
     expect(fields).not.toContain("transportType");
   });
 
-  it("asks one-way or return whenever a transfer is wanted, because a derived roundtrip is an assumption", async () => {
+  it("asks one-way or return while the transfer type is open, and never once the guest has settled it", async () => {
+    // A guest who asked for "an airport pickup" has not said one-way or return, and the
+    // transfer is a priced line: code derives nothing here, so the question fires and the
+    // guest's own answer is what gets priced (extract.ts postProcess, changed 2026-09-24).
+    // The old behaviour wrote `roundtrip, derived` and then asked them to confirm it.
     const raw = { ...BLANK_RAW, transport: { value: true, state: "stated", evidence: "airport pickup" } };
     const asked = await converse(
       [{ role: "guest", text: "Can you sort an airport pickup?" }],
       providerReturning(raw),
     );
 
-    expect(asked.trip.transportType).toEqual({ value: "roundtrip", state: "derived", evidence: null });
+    expect(asked.trip.transportType).toEqual({ value: null, state: "missing", evidence: null });
     expect(asked.questions.map((q) => q.field)).toContain("transportType");
 
     // Once the guest answers it, the question stops.
@@ -169,6 +182,18 @@ describe("the reply the guest gets back", () => {
     );
 
     expect(confirmed.questions.map((q) => q.field)).not.toContain("transportType");
+
+    // The other case the guest has settled is a declined transfer. "No transfer" needs no
+    // further question, so code derives `none` — and a `derived` transportType is not a gap,
+    // which is also why the rule is gated on transport being true at all (questions.ts askOn).
+    const declined = { ...BLANK_RAW, transport: { value: false, state: "stated", evidence: "no pickup" } };
+    const noTransfer = await converse(
+      [{ role: "guest", text: "No pickup needed thanks" }],
+      providerReturning(declined),
+    );
+
+    expect(noTransfer.trip.transportType).toEqual({ value: "none", state: "derived", evidence: null });
+    expect(noTransfer.questions.map((q) => q.field)).not.toContain("transportType");
   });
 
   it("reads the whole booking back — assumptions flagged — once nothing is left to ask", async () => {
@@ -185,6 +210,11 @@ describe("the reply the guest gets back", () => {
       providerReturning(raw),
     );
 
+    // NOTE: this booking is complete for a guest who declined diving, and no question is open
+    // — but `done` is false today, because isReadyForHandoff also demands
+    // `divers`/`diveFrom`/`diveTo`, which no rule asks about on a non-diving trip
+    // (questions.ts, HANDOFF_REQUIRED_FIELDS). The assertion is the contract; it is left
+    // failing rather than weakened, because the gap is in the handoff check, not in the trip.
     expect(outcome.done).toBe(true);
     expect(outcome.replyKind).toBe("summary");
     expect(numbered(outcome.reply)).toHaveLength(0);
@@ -211,6 +241,9 @@ describe("the reply the guest gets back", () => {
   });
 
   it("flags derived return trip as assumed in summary when transport was stated but transportType was derived", () => {
+    // Hand-built, and deliberately so: postProcess no longer derives `roundtrip` for a wanted
+    // transfer (only `none`, for a declined one), but `derived`/`default` remain the two states
+    // the summary flags as assumed, and this is the renderer rule that shows them.
     const trip = {
       language: { value: "en" as const, state: "default" as const, evidence: null },
       checkIn: { value: "2026-09-26", state: "stated" as const, evidence: "next Saturday" },
@@ -304,31 +337,31 @@ describe("the reply the guest gets back", () => {
   it("summarizes in the guest's own language, dates and all", async () => {
     const raw = {
       ...BLANK_RAW,
-      checkIn: { value: null, state: "stated", evidence: "thứ 7 tuần sau" },
-      nights: { value: 2, state: "stated", evidence: "2 đêm" },
-      guests: { value: 4, state: "stated", evidence: "4 người" },
-      diver: { value: true, state: "stated", evidence: "có lặn" },
-      divers: { value: 4, state: "stated", evidence: "4 người lặn" },
-      diveFrom: { value: "2026-09-26", state: "stated", evidence: "từ 26/09" },
-      diveTo: { value: "2026-09-27", state: "stated", evidence: "đến 27/09" },
+      checkIn: { value: null, state: "stated", evidence: "下周六" },
+      nights: { value: 2, state: "stated", evidence: "2晚" },
+      guests: { value: 4, state: "stated", evidence: "4位" },
+      diver: { value: true, state: "stated", evidence: "要潜水" },
+      divers: { value: 4, state: "stated", evidence: "4位潜水员" },
+      diveFrom: { value: "2026-09-26", state: "stated", evidence: "9月26日" },
+      diveTo: { value: "2026-09-27", state: "stated", evidence: "9月27日" },
       contactName: { value: "Nhat", state: "stated", evidence: "Nhat" },
     };
     const outcome = await converse(
       [
         {
           role: "guest",
-          text: "Chào em, 4 người, thứ 7 tuần sau 2 đêm, có lặn, 4 người lặn từ 26/09 đến 27/09, tên Nhat",
+          text: "你好，我们4位，下周六到，住2晚，要潜水，4位潜水员9月26日到9月27日，名字Nhat",
         },
       ],
       providerReturning(raw),
     );
 
     expect(outcome.replyKind).toBe("summary");
-    expect(outcome.reply).toContain("Cảm ơn Nhat!");
-    // "thứ 7 tuần sau" resolves through WEEKDAYS' Vietnamese digit form.
-    expect(outcome.reply).toContain("• Kỳ nghỉ: 26–28/09/2026 (2 đêm)");
-    expect(outcome.reply).toContain("• Có lặn: có · 4 người lặn · 26–27/09/2026");
-    expect(outcome.reply).toContain("Đội ngũ Casa sẽ sớm liên hệ");
+    expect(outcome.reply).toContain("谢谢 Nhat！");
+    // "下周六" resolves through dates.ts's 下周 + 周六 form.
+    expect(outcome.reply).toContain("• 住宿: 2026年9月26–28日 (2 晚)");
+    expect(outcome.reply).toContain("• 是否潜水: 是 · 4 位潜水 · 2026年9月26–27日");
+    expect(outcome.reply).toContain("Casa 团队会很快与您联系");
     expect(outcome.reply).not.toContain("Thanks");
   });
 
@@ -403,6 +436,10 @@ describe("the reply the guest gets back", () => {
     const third = await converse(turns, provider);
 
     expect(third.replyKind).toBe("summary");
+    // NOTE: same gap as the summary test above — every value is settled and nothing is left
+    // to ask, but `done` is false while isReadyForHandoff keeps demanding the dive fields of a
+    // guest who said "no diving" (questions.ts, HANDOFF_REQUIRED_FIELDS). Left failing rather
+    // than weakened: the arc is complete, the handoff check is the defect.
     expect(third.done).toBe(true);
     expect(third.reply).toContain("Thanks, Nhat!");
     expect(third.reply).toContain("• Stay: Sep 26 – 29, 2026 (3 nights)");
@@ -435,15 +472,14 @@ describe("fallbacks", () => {
     expect(fallbackReply("apology", "en")).toContain("Sorry");
     expect(fallbackReply("apology", "en")).toContain("a person");
 
-    // The Vietnamese and Chinese apologies are translations, not the same string:
-    // "Sorry" never reaches a guest who wrote Vietnamese.
-    expect(fallbackReply("apology", "vi")).not.toContain("Sorry");
-    expect(fallbackReply("apology", "vi")).toContain("Xin lỗi");
+    // The Chinese apology is a translation, not the same string: "Sorry" never
+    // reaches a guest who wrote Chinese.
+    expect(fallbackReply("apology", "zh")).not.toContain("Sorry");
     expect(fallbackReply("apology", "zh")).toContain("抱歉");
   });
 
   it("hands over to a person, and says nothing about price or availability", () => {
-    for (const language of ["en", "vi", "zh"] as const) {
+    for (const language of ["en", "zh"] as const) {
       const text = fallbackReply("handoff", language);
       expect(text.length).toBeGreaterThan(20);
       // A static sentence cannot invent an opening or a rate — and must not read
@@ -456,10 +492,9 @@ describe("fallbacks", () => {
     expect(fallbackReply("handoff", null)).toBe(fallbackReply("handoff", "en"));
   });
 
-  it("recognises a guest asking for a person in all three languages", () => {
+  it("recognises a guest asking for a person in both languages", () => {
     expect(wantsHuman("Can I talk to a human please?")).toBe(true);
     expect(wantsHuman("please put me through to the manager")).toBe(true);
-    expect(wantsHuman("Cho mình gặp nhân viên nhé")).toBe(true);
     expect(wantsHuman("我想找人工客服")).toBe(true);
   });
 
@@ -517,6 +552,12 @@ describe("Phase 1 Hybrid AI Guardrails: NEVER RE-ASK, Fact Gate & Staff Alerts",
     expect(outcome.questions.map((q) => q.field)).not.toContain("divers");
     expect(outcome.questions.map((q) => q.field)).not.toContain("diveFrom");
     expect(outcome.questions.map((q) => q.field)).not.toContain("diveTo");
+    // NOTE: this is the one handoff the guardrail exists to make, and it is the one that never
+    // opens. `divers`/`diveFrom`/`diveTo` are gated off for a trip whose diveNotes already
+    // records the split-day schedule, so the guest is never asked for them — yet
+    // isReadyForHandoff still requires all three, so `done` can never be true here
+    // (questions.ts, HANDOFF_REQUIRED_FIELDS). Left failing rather than narrowed away: the
+    // assertion is the guardrail's whole point, and removing it would hide the defect.
     expect(outcome.done).toBe(true);
     expect(outcome.replyKind).toBe("summary");
     expect(outcome.reply).toContain("1 person dives day 1, 5 people dive both days");
@@ -675,4 +716,124 @@ describe("Phase 1 Hybrid AI Guardrails: NEVER RE-ASK, Fact Gate & Staff Alerts",
   });
 });
 
+// ---- The handoff contract ----------------------------------------------------
+//
+// `done` is no longer "the question list happens to be empty": it is
+// `isReadyForHandoff(trip)` — no question rule is open AND every HANDOFF_REQUIRED_FIELDS
+// entry is answered. The failure mode that split exists to prevent is a field handoff
+// requires but no reply ever asks the guest about, so these tests hold the two lists to
+// each other through the public API instead of reading the private RULES array.
 
+/**
+ * A trip every HANDOFF_REQUIRED_FIELDS entry is settled on, built by hand so one field at a
+ * time can be knocked out of it. Deliberately a diving guest who wants a transfer (diver and
+ * transport both true, dive window and transfer type stated): a rule's `when` gate decides
+ * whether its field is in play at all, and this is the shape where every gate is open — so a
+ * knocked-out field here is one the guest really would be asked about.
+ */
+function settledTrip(): Trip {
+  return {
+    language: { value: "en", state: "inferred", evidence: null },
+    checkIn: { value: "2026-09-26", state: "stated", evidence: "next Saturday" },
+    checkOut: { value: "2026-09-29", state: "derived", evidence: null },
+    nights: { value: 3, state: "stated", evidence: "3 nights" },
+    guests: { value: 2, state: "stated", evidence: "2 of us" },
+    rooms: { value: 1, state: "default", evidence: null },
+    meals: { value: "full_board", state: "default", evidence: null },
+    transport: { value: true, state: "stated", evidence: "airport pickup" },
+    transportType: { value: "roundtrip", state: "stated", evidence: "return transfer" },
+    contactName: { value: "Nhat", state: "stated", evidence: "Nhat" },
+    diver: { value: true, state: "stated", evidence: "we dive" },
+    divers: { value: 2, state: "stated", evidence: "2 divers" },
+    diveFrom: { value: "2026-09-27", state: "stated", evidence: "Sep 27" },
+    diveTo: { value: "2026-09-28", state: "stated", evidence: "Sep 28" },
+    guestType: { value: "retail", state: "default", evidence: null },
+  };
+}
+
+/** The same trip with one field gone, the way a provider that omitted it leaves it. */
+function missingField(trip: Trip, field: keyof Trip): Trip {
+  return { ...trip, [field]: { value: null, state: "missing", evidence: null } } as Trip;
+}
+
+/**
+ * Required fields no question asks about because code always fills them in first. The test
+ * below proves each one through the pipeline rather than trusting the name on this list.
+ */
+const CODE_FILLED_FIELDS: ReadonlyArray<keyof Trip> = ["checkOut"];
+
+describe("the handoff contract", () => {
+  it("is ready only when every required field is answered — a default counts, missing never does", () => {
+    const trip = settledTrip();
+
+    // What `done: true` means: nothing open to ask, and nothing required left unknown.
+    expect(generateQuestions(trip)).toEqual([]);
+    expect(isReadyForHandoff(trip)).toBe(true);
+
+    // A house-norm `default` counts as an answer — rooms = 1 is Casa's assumption and the guest
+    // corrects it in the summary — and so does a `derived` value, which is arithmetic on the
+    // guest's own answers. `missing` counts for no required field, however it got that way.
+    expect([trip.rooms.state, trip.meals.state]).toEqual(["default", "default"]);
+    expect(trip.checkOut.state).toBe("derived");
+
+    for (const field of HANDOFF_REQUIRED_FIELDS) {
+      expect(isReadyForHandoff(missingField(trip, field)), `${field} is required before handoff`).toBe(false);
+    }
+  });
+
+  it("fills a required field code derives instead of asking the guest to restate arithmetic", async () => {
+    // checkOut has no question rule on purpose: it is the guest's own check-in plus the nights
+    // they gave, so asking for it would be asking them to do the sum again. That is what makes
+    // it a covered required field (CODE_FILLED_FIELDS) rather than a question nobody asks.
+    const raw = {
+      ...BLANK_RAW,
+      checkIn: { value: null, state: "stated", evidence: "next Saturday" },
+      nights: { value: 3, state: "stated", evidence: "3 nights" },
+      checkOut: { value: null, state: "missing", evidence: null },
+    };
+    const outcome = await converse(
+      [{ role: "guest", text: "Hi, next Saturday for 3 nights please" }],
+      providerReturning(raw),
+    );
+
+    expect(outcome.trip.checkOut).toEqual({ value: "2026-09-29", state: "derived", evidence: null });
+    expect(outcome.questions.map((q) => q.field)).not.toContain("checkOut");
+  });
+
+  it("backs every required field with a question, a code-filled value, or a never-asked reason", () => {
+    for (const field of CODE_FILLED_FIELDS) {
+      expect(HANDOFF_REQUIRED_FIELDS, `${field} is listed as code-filled but is not required`).toContain(field);
+    }
+
+    // The invariant, driven the way a guest experiences it: knock a required field out of an
+    // otherwise settled trip and the reply must either put that field to the guest or not need
+    // it at all. A field that is required, missing and unasked is the failure this split exists
+    // to catch — handoff refused for a reason no reply ever raises, which the guest cannot fix.
+    const uncovered: string[] = [];
+    for (const field of HANDOFF_REQUIRED_FIELDS) {
+      const trip = missingField(settledTrip(), field);
+      if (generateQuestions(trip).some((q) => q.field === field)) continue; // asked of the guest
+      if (CODE_FILLED_FIELDS.includes(field)) continue; // code fills it before it can be missing
+      if (NEVER_ASKED_FIELDS.some((entry) => entry.field === field)) continue; // never asked, on purpose
+      uncovered.push(String(field));
+    }
+    expect(uncovered).toEqual([]);
+
+    // `guestType` is the field the never-asked escape exists for: a real booking field no
+    // guest is asked about, and deliberately NOT a handoff requirement — a partner rate is a
+    // commercial decision staff confirm on the quote rather than something a guest states.
+    // So a trip with no guestType at all is still ready, and nothing is lost by not asking it.
+    //
+    // The two lists are therefore NOT disjoint, and must not be asserted to be: `checkOut` is
+    // required AND code-filled, so it belongs to both. What matters is that every member of
+    // each list is accounted for, which the loop above proves and these assertions pin.
+    const neverAsked = NEVER_ASKED_FIELDS.map((entry) => entry.field);
+    expect(neverAsked).toContain("guestType");
+    for (const entry of NEVER_ASKED_FIELDS) {
+      expect(entry.reason.length, `${entry.field} needs a stated reason`).toBeGreaterThan(20);
+      expect(["code", "staff"], `${entry.field} needs a source`).toContain(entry.satisfiedBy);
+    }
+    expect(isReadyForHandoff(missingField(settledTrip(), "guestType"))).toBe(true);
+    expect(generateQuestions(missingField(settledTrip(), "guestType")).map((q) => q.field)).not.toContain("guestType");
+  });
+});

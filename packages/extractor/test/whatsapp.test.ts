@@ -506,10 +506,10 @@ describe("WhatsApp webhook (Meta Cloud API)", () => {
     const provider = providerReturning(PARTIAL_RAW);
     const { app, sent, store } = harness(provider);
 
-    // Vietnamese, so the holding reply has to be Vietnamese: the guest's words are
-    // the only evidence of which language to be stuck in, and the model is never
-    // asked — that is the point of reading the escalate keywords before the call.
-    expect(await (await post(app, textEvent("wamid.1", "Cho mình gặp nhân viên nhé"))).json()).toEqual({
+    // Chinese, so the holding reply has to be Chinese: the guest's words are the only
+    // evidence of which language to be stuck in, and the model is never asked — that is
+    // the point of reading the escalate keywords before the call.
+    expect(await (await post(app, textEvent("wamid.1", "我想找人工客服"))).json()).toEqual({
       received: 1,
       replied: 1,
       duplicates: 0,
@@ -518,7 +518,7 @@ describe("WhatsApp webhook (Meta Cloud API)", () => {
     });
     expect(provider.call).not.toHaveBeenCalled();
     expect(sent).toHaveLength(1);
-    expect(sent[0].body).toContain("Đội ngũ Casa");
+    expect(sent[0].body).toContain("Casa 团队正在处理您的咨询");
     expect(await store.paused(GUEST)).toMatchObject({ reason: "guest_asked_for_human" });
   });
 

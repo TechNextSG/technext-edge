@@ -67,27 +67,30 @@ const COUNT_NOUNS: Record<CountField, string> = {
   // like two different guest numbers and `guests` goes back to being a question it has
   // already been told the answer to.
   guests:
-    "người|nguoi|khách|khach|pax|of\\s+us|people|persons?|adults?|kids?|children|guests?|bạn|ban|客人|大人|小孩|位|名|人|口|are\\s+staying|is\\s+staying|staying|ở\\s*lại|o\\s*lai|入住",
-  rooms: "phòng|phong|rooms?|房间|房間|房",
-  nights: "đêm|dem|nights?|晚上|晚",
+    "pax|of\\s+us|people|persons?|adults?|kids?|children|guests?|客人|大人|小孩|位|名|人|口|are\\s+staying|is\\s+staying|staying|入住",
+  rooms: "rooms?|房间|房間|房",
+  nights: "nights?|晚上|晚",
   // The dive line is priced per head, so this count is money the same way `guests` is, and
   // it gets the same reader. Only nouns that mean "a person who dives" — never the activity
   // ("2 boat dives" is a number of dives, not of divers).
-  divers: "divers?|thợ\\s*lặn|tho\\s*lan|người\\s*lặn|nguoi\\s*lan|潜水员|潛水員|潜水者",
+  divers: "divers?|潜水员|潛水員|潜水者",
 };
 
 // A measure word may sit between the number and the noun it counts: "8位客人", "3間房",
-// "2個人". Optional, because most Vietnamese and English guests write the number straight
-// against the noun ("8 người", "4 of us").
+// "2個人". Optional, because English guests write the number straight against the noun
+// ("4 of us").
 const CLASSIFIER = "(?:位|個|个|名|間|间)?";
 
 // Numbers written as words. The Han forms cannot take a \p{L} boundary — Chinese is
 // written without spaces, so 两 in 我们有两位 is a letter to Unicode — which is why they are
 // matched separately from the Latin ones below.
+//
+// The Vietnamese number words were removed on 2026-09-24 with the rest of the Vietnamese
+// support, and that removal also closed a real bug: "nam" (five), "sau" (six) and "bay"
+// (seven) are ordinary English words, so an English message containing them could be read
+// as a guest count.
 const LATIN_NUMBER_WORDS: Record<string, number> = {
   one: 1, two: 2, three: 3, four: 4, five: 5, six: 6, seven: 7, eight: 8, nine: 9, ten: 10, eleven: 11, twelve: 12,
-  "một": 1, mot: 1, hai: 2, ba: 3, "bốn": 4, bon: 4, "năm": 5, nam: 5, "sáu": 6, sau: 6,
-  "bảy": 7, bay: 7, "tám": 8, tam: 8, "chín": 9, chin: 9, "mười": 10, muoi: 10,
 };
 const HAN_NUMBER_WORDS: Record<string, number> = {
   "一": 1, "二": 2, "两": 2, "兩": 2, "三": 3, "四": 4, "五": 5, "六": 6, "七": 7, "八": 8, "九": 9, "十": 10,
@@ -126,7 +129,7 @@ const COLLECTIVE_OF = new RegExp(`(?:party|group|family|team)\\s+of\\s+${NUMBER}
 // prevents `corroborateCount("guests", ...)` from misreading diver head-counts as conflicting
 // total guest counts and wiping the stated `guests` field back to `missing`.
 const DIVE_CLAUSE_AFTER_NOUN =
-  "(?!\\s+(?:will\\s+|want\\s+to\\s+|going\\s+to\\s+|are\\s+|is\\s+)?(?:dive|dives|diving)\\b|\\s+(?:sẽ\\s+|đi\\s+|muốn\\s+)?(?:lặn|lan)\\b|\\s*(?:去|要|会)?(?:潜水|潛水))";
+  "(?!\\s+(?:will\\s+|want\\s+to\\s+|going\\s+to\\s+|are\\s+|is\\s+)?(?:dive|dives|diving)\\b|\\s*(?:去|要|会)?(?:潜水|潛水))";
 
 function patternFor(field: CountField): RegExp {
   let pattern = PATTERNS.get(field);
@@ -185,9 +188,9 @@ function countsNamedIn(quote: string): CountField[] {
   return COUNT_FIELDS.filter((field) => NOUN_PATTERNS[field].some((pattern) => pattern.test(quote)));
 }
 
-const ADULT_NOUNS = "adults?|người\\s+lớn|nguoi\\s+lon|大人";
-const CHILD_NOUNS = "kids?|children|child|trẻ\\s+em|tre\\s+em|em\\s+bé|bé|小孩|儿童|孩子";
-const STAYING_NOUNS = "are\\s+staying|is\\s+staying|staying|stay\\s+overnight|overnight|ở\\s*lại|o\\s*lai|入住";
+const ADULT_NOUNS = "adults?|大人";
+const CHILD_NOUNS = "kids?|children|child|小孩|儿童|孩子";
+const STAYING_NOUNS = "are\\s+staying|is\\s+staying|staying|stay\\s+overnight|overnight|入住";
 
 const ADULT_PATTERN = new RegExp(`${NUMBER}\\s*${CLASSIFIER}\\s*(?:${ADULT_NOUNS})`, "giu");
 const CHILD_PATTERN = new RegExp(`${NUMBER}\\s*${CLASSIFIER}\\s*(?:${CHILD_NOUNS})`, "giu");
@@ -263,7 +266,7 @@ export function corroborateCount(
   const turns = guestText.split("\n").map((t) => t.trim()).filter(Boolean);
   if (turns.length > 0) {
     const lastTurn = turns[turns.length - 1];
-    const bareMatch = /^\s*(?:just|only|tầm|khoảng|chỉ|khoang)?\s*(\d{1,3})\s*(?:nhé|nha|ạ|thôi|nhe)?\s*$/iu.exec(lastTurn);
+    const bareMatch = /^\s*(?:just|only)?\s*(\d{1,3})\s*$/iu.exec(lastTurn);
     if (bareMatch && Number(bareMatch[1]) === proposed) {
       return "consistent";
     }

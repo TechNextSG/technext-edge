@@ -37,7 +37,9 @@ export const TransportType = z.enum(["none", "roundtrip", "oneway"]);
 export type TransportType = z.infer<typeof TransportType>;
 
 export const Trip = z.object({
-  language: field(z.enum(["vi", "en", "zh"])),
+  // Vietnamese was removed from this project on 2026-09-24 (see normalize.ts and
+  // questions.ts): the resort receives English and Chinese enquiries.
+  language: field(z.enum(["en", "zh"])),
   checkIn: field(z.string()), // ISO date, resolved in code — never trust a relative date from the model
   checkOut: field(z.string()), // ISO date — usually "derived" from checkIn + nights
   nights: field(z.number().int().positive()),

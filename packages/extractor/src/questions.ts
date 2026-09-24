@@ -20,7 +20,11 @@ import type { FieldState, Trip } from "./schema.js";
 // norm is a guess Casa made rather than an answer the guest owes. Assumptions are
 // surfaced in the summary instead, flagged, which is where a guest expects to
 // correct them.
-export type GuestLanguage = "en" | "vi" | "zh";
+// Vietnamese was removed from this project on 2026-09-24 (see the note in
+// normalize.ts): the resort receives English and Chinese enquiries, and the Vietnamese
+// reply tables carried a real risk — a misdetected language sent a guest wording the
+// reservations staff cannot read.
+export type GuestLanguage = "en" | "zh";
 
 type Lang = GuestLanguage;
 
@@ -51,22 +55,22 @@ function diveStayRange(trip: Trip, lang: Lang): string | null {
 const BASELINE: ReadonlyArray<FieldState> = ["missing"];
 
 const RULES: QuestionRule[] = [
-  { key: "checkIn", question: { en: "What date would you like to check in?", vi: "Bạn muốn nhận phòng vào ngày nào?", zh: "您想在哪天入住？" } },
-  { key: "nights", question: { en: "How many nights will you be staying?", vi: "Bạn sẽ ở bao nhiêu đêm?", zh: "您计划入住几个晚上？" } },
-  { key: "guests", question: { en: "How many guests in total?", vi: "Tổng cộng có bao nhiêu khách?", zh: "一共有几位客人？" } },
-  { key: "rooms", question: { en: "How many rooms do you need?", vi: "Bạn cần bao nhiêu phòng?", zh: "您需要几间房？" } },
-  { key: "meals", question: { en: "Would you like full board, half board, or room only?", vi: "Bạn muốn ăn trọn gói, bán phần hay chỉ thuê phòng?", zh: "您需要全餐、半餐，还是只要住宿？" } },
-  { key: "transport", question: { en: "Do you need an airport transfer?", vi: "Bạn có cần đưa đón sân bay không?", zh: "您需要机场接送吗？" } },
+  { key: "checkIn", question: { en: "What date would you like to check in?", zh: "您想在哪天入住？" } },
+  { key: "nights", question: { en: "How many nights will you be staying?", zh: "您计划入住几个晚上？" } },
+  { key: "guests", question: { en: "How many guests in total?", zh: "一共有几位客人？" } },
+  { key: "rooms", question: { en: "How many rooms do you need?", zh: "您需要几间房？" } },
+  { key: "meals", question: { en: "Would you like full board, half board, or room only?", zh: "您需要全餐、半餐，还是只要住宿？" } },
+  { key: "transport", question: { en: "Do you need an airport transfer?", zh: "您需要机场接送吗？" } },
   // A stay at a dive resort is either a diving trip or it is not, and the answer
   // decides whether a dive package (and its window) belongs on the estimate at
   // all — so it is asked outright instead of being guessed from a keyword. Guests
   // who volunteer it in their first message are never asked.
   {
     key: "diver",
-    question: { en: "Would you like to go diving during your stay?", vi: "Mình có muốn đi lặn trong chuyến này không?", zh: "您这次想潜水吗？" },
+    question: { en: "Would you like to go diving during your stay?", zh: "您这次想潜水吗？" },
     when: (trip) => !notedValue<string>(trip, "diveNotes"),
   },
-  { key: "contactName", question: { en: "What name should we put on the booking?", vi: "Mình nên ghi tên ai trên booking?", zh: "预订时应该登记谁的姓名？" } },
+  { key: "contactName", question: { en: "What name should we put on the booking?", zh: "预订时应该登记谁的姓名？" } },
 
   // Tier 2, from the Odoo API field guide. A missing dive window silently wipes
   // dive revenue off the estimate (see extract.ts's postProcess), and
@@ -86,7 +90,7 @@ const RULES: QuestionRule[] = [
   // questions and hand off `diveNotes` to human staff for custom quotation.
   {
     key: "divers",
-    question: { en: "How many of you will be diving?", vi: "Có bao nhiêu người sẽ lặn?", zh: "有几位客人潜水？" },
+    question: { en: "How many of you will be diving?", zh: "有几位客人潜水？" },
     when: (trip) => trip.diver?.value === true && !notedValue<string>(trip, "diveNotes"),
   },
   {
@@ -94,11 +98,10 @@ const RULES: QuestionRule[] = [
     question: (trip, lang) => {
       const range = diveStayRange(trip, lang);
       if (range) {
-        if (lang === "vi") return `Bạn bắt đầu lặn từ ngày nào? (trong kỳ nghỉ: ${range})`;
         if (lang === "zh") return `潜水从哪天开始？（在住宿期间 ${range} 内）`;
         return `Which day does your diving start? (within your stay: ${range})`;
       }
-      return { en: "Which day does your diving start?", vi: "Bạn bắt đầu lặn từ ngày nào?", zh: "潜水从哪天开始？" }[lang];
+      return { en: "Which day does your diving start?", zh: "潜水从哪天开始？" }[lang];
     },
     when: (trip) => trip.diver?.value === true && !notedValue<string>(trip, "diveNotes"),
   },
@@ -107,39 +110,154 @@ const RULES: QuestionRule[] = [
     question: (trip, lang) => {
       const range = diveStayRange(trip, lang);
       if (range) {
-        if (lang === "vi") return `Và kết thúc vào ngày nào? (trong kỳ nghỉ: ${range})`;
         if (lang === "zh") return `哪天结束？（在住宿期间 ${range} 内）`;
         return `And which day does it end? (within your stay: ${range})`;
       }
-      return { en: "And which day does it end?", vi: "Và kết thúc vào ngày nào?", zh: "哪天结束？" }[lang];
+      return { en: "And which day does it end?", zh: "哪天结束？" }[lang];
     },
     when: (trip) => trip.diver?.value === true && !notedValue<string>(trip, "diveNotes"),
   },
-  { key: "transportType", question: { en: "One-way or return transfer?", vi: "Bạn cần đưa đón một chiều hay khứ hồi?", zh: "需要单程还是往返接送？" }, askOn: ["missing", "default", "derived"], when: (trip) => trip.transport?.value === true },
+  // `derived` is deliberately NOT askable here (2026-09-24). Only code ever derives this
+  // value — and only as "none", for a guest who declined a transfer — so a derived state is
+  // the answer, not a gap. Asking it would re-ask the guest about a transfer they had
+  // already described ("need the airport pickup"), which reads as the assistant not
+  // listening. `default` stays askable: that state means the model guessed a house norm
+  // rather than code computing it, which is exactly what the guest should confirm.
+  { key: "transportType", question: { en: "One-way or return transfer?", zh: "需要单程还是往返接送？" }, askOn: ["missing", "default"], when: (trip) => trip.transport?.value === true },
 ];
 
-export function generateQuestions(trip: Trip): GuestQuestion[] {
-  const language: Lang = trip.language.value ?? "en";
-  const questions: GuestQuestion[] = [];
-  for (const rule of RULES) {
-    if (rule.when && !rule.when(trip)) continue;
+/**
+ * Whether a rule applies to this trip at all — its `when` gate and its applicability
+ * conditions. Shared by the question list and the handoff check so the two can never
+ * disagree about which fields are in play.
+ */
+function ruleApplies(rule: QuestionRule, trip: Trip): boolean {
+  if (rule.when && !rule.when(trip)) return false;
+  return true;
+}
+
+/**
+ * The rules whose field is still missing on this trip — i.e. what the guest still owes.
+ *
+ * Deliberately the single place that decides this, because `done` and the question list
+ * are two views of the same fact: "there is nothing left to ask". Computing them from
+ * separate expressions is how `done: true` could once coexist with a field nobody had
+ * asked about.
+ */
+function openRules(trip: Trip): QuestionRule[] {
+  return RULES.filter((rule) => {
+    if (!ruleApplies(rule, trip)) return false;
     // `keyof Trip` includes optional fields (transportType, guestType, diveFrom,
     // diveTo, diver) — index access is therefore possibly undefined. A field the
     // model never returned cannot be shown or asked about, so skipping is right.
-    // An absent key is not an answer either. The Tier-2 fields are optional in the
+    // An absent key is not an answer either: the Tier-2 fields are optional in the
     // Trip schema, and a key nobody returned used to end the question right here —
-    // which is how the diving question could vanish from a live reply (extract.ts
+    // which is how the diving question could vanish from a live reply. extract.ts
     // normalizes an omitted key to `missing` before this runs, and the same rule
-    // belongs in the layer that decides what to ask).
+    // belongs in the layer that decides what to ask.
     const state = trip[rule.key]?.state ?? "missing";
-    if (!(rule.askOn ?? BASELINE).includes(state)) continue;
-    const qText =
+    return (rule.askOn ?? BASELINE).includes(state);
+  });
+}
+
+export function generateQuestions(trip: Trip): GuestQuestion[] {
+  const language: Lang = trip.language.value ?? "en";
+  return openRules(trip).map((rule) => ({
+    field: rule.key,
+    question:
       typeof rule.question === "function"
         ? rule.question(trip, language)
-        : rule.question[language] ?? rule.question.en;
-    questions.push({ field: rule.key, question: qText });
+        : rule.question[language] ?? rule.question.en,
+  }));
+}
+
+/**
+ * The fields the enquiry must have before it can be handed to the team.
+ *
+ * This is the HANDOFF contract, and it is deliberately a separate list from the questions
+ * (roadmap L3, "tách READY_FIELDS khỏi danh sách hỏi"). Before this existed, "ready for
+ * handoff" was inferred from the question list alone, so *what does the guest still owe
+ * us* and *what must we know before quoting* shared one answer — and any field that
+ * stopped being asked silently stopped being required.
+ *
+ * Membership rule: a field belongs here when a guest-visible figure or a priced line can
+ * depend on it. "Can" is load-bearing — the three dive fields are listed because a diving
+ * enquiry needs them, not because every enquiry does. Membership never means a field must
+ * be present; that is decided per trip in isReadyForHandoff.
+ */
+export const HANDOFF_REQUIRED_FIELDS: ReadonlyArray<keyof Trip> = [
+  "checkIn",
+  "checkOut",
+  "nights",
+  "guests",
+  "rooms",
+  "meals",
+  "transport",
+  "contactName",
+  "diver",
+  "divers",
+  "diveFrom",
+  "diveTo",
+  // Only in play when a transfer was asked for; a guest who declined one gets "none"
+  // derived in postProcess, and asking is gated on transport being true.
+  "transportType",
+] as const;
+
+/**
+ * Handoff fields that no guest is ever asked about, with where the value comes from
+ * instead. Note that these are NOT all members of HANDOFF_REQUIRED_FIELDS: `checkOut` is
+ * required and code-filled, while `guestType` is neither required nor asked. The coverage
+ * test in questions.test.ts proves each entry really is satisfied on a settled trip.
+ */
+export const NEVER_ASKED_FIELDS: ReadonlyArray<{
+  field: keyof Trip;
+  satisfiedBy: "code" | "staff";
+  reason: string;
+}> = [
+  {
+    field: "checkOut",
+    satisfiedBy: "code",
+    reason:
+      "Arithmetic on the guest's own answers: checkIn + nights. A derived date is exact rather than a guess, which is why it is never asked and never flagged as assumed in the summary.",
+  },
+  {
+    field: "guestType",
+    satisfiedBy: "staff",
+    reason:
+      "Read from phrasing (extract.ts isAgent) and defaulted to retail. A 30% partner rate is a commercial decision staff confirm on the quote, so an unknown guest type changes nothing the guest sees and is not worth a question.",
+  },
+];
+
+/** The rule that owns a field, if any. At most one rule per field is meaningful. */
+function ruleFor(field: keyof Trip): QuestionRule | undefined {
+  return RULES.find((rule) => rule.key === field);
+}
+
+/**
+ * True when the team can take the enquiry over: nothing is left to ask, and every required
+ * field that APPLIES to this trip has a value.
+ *
+ * Applicability is the subtle half, and getting it wrong is not symmetric. `divers`,
+ * `diveFrom` and `diveTo` are required for a diving enquiry, but their rules are gated on
+ * `diver === true` and on `diveNotes` being absent. Treating them as unconditionally
+ * required would mean a guest who is not diving — or the split-day schedule the NEVER-RE-ASK
+ * guardrail exists to serve — could never be handed off at all. So a required field is only
+ * checked when its rule applies, and a required field with no rule at all (`checkOut`) is
+ * filled by code, which the coverage test pins.
+ *
+ * Not the same as "the guest owes nothing": a house-norm `default` counts (rooms = 1 is
+ * Casa's assumption, correctable in the summary), while `missing` never does.
+ */
+export function isReadyForHandoff(trip: Trip): boolean {
+  if (openRules(trip).length > 0) return false;
+  for (const field of HANDOFF_REQUIRED_FIELDS) {
+    const rule = ruleFor(field);
+    // A field whose question does not apply to this trip is not owed by this guest.
+    if (rule && !ruleApplies(rule, trip)) continue;
+    // An optional field is absent until something fills it; absent is not an answer.
+    if ((trip[field]?.state ?? "missing") === "missing") return false;
   }
-  return questions;
+  return true;
 }
 
 // ---- Reply rendering --------------------------------------------------------
@@ -161,45 +279,44 @@ export interface RenderedReply {
 const SUMMARY_ORDER: ReadonlyArray<keyof Trip> = ["guests", "rooms", "meals", "contactName"];
 
 const LABELS: Record<keyof Trip, Record<Lang, string>> = {
-  language: { en: "Language", vi: "Ngôn ngữ", zh: "语言" },
-  checkIn: { en: "Check-in", vi: "Nhận phòng", zh: "入住" },
-  checkOut: { en: "Check-out", vi: "Trả phòng", zh: "退房" },
-  nights: { en: "Nights", vi: "Số đêm", zh: "晚数" },
-  guests: { en: "Guests", vi: "Số khách", zh: "客人数" },
-  rooms: { en: "Rooms", vi: "Số phòng", zh: "房间数" },
-  meals: { en: "Meals", vi: "Bữa ăn", zh: "餐食" },
-  transport: { en: "Airport transfer", vi: "Đưa đón sân bay", zh: "机场接送" },
-  contactName: { en: "Contact name", vi: "Tên liên hệ", zh: "联系人姓名" },
-  guestType: { en: "Guest type", vi: "Loại khách", zh: "客人类型" },
-  transportType: { en: "Transfer", vi: "Chiều đưa đón", zh: "接送类型" },
-  diveFrom: { en: "Diving from", vi: "Lặn từ ngày", zh: "潜水开始" },
-  diveTo: { en: "Diving to", vi: "Lặn đến ngày", zh: "潜水结束" },
-  diver: { en: "Diving", vi: "Có lặn", zh: "是否潜水" },
-  divers: { en: "Divers", vi: "Số người lặn", zh: "潜水人数" },
-  diveNotes: { en: "Dive breakdown", vi: "Chi tiết lịch lặn", zh: "潜水安排详情" },
-  specialRequests: { en: "Special notes", vi: "Yêu cầu đặc biệt", zh: "特别要求" },
-  guestNames: { en: "Guest names", vi: "Danh sách khách", zh: "客人名单" },
+  language: { en: "Language", zh: "语言" },
+  checkIn: { en: "Check-in", zh: "入住" },
+  checkOut: { en: "Check-out", zh: "退房" },
+  nights: { en: "Nights", zh: "晚数" },
+  guests: { en: "Guests", zh: "客人数" },
+  rooms: { en: "Rooms", zh: "房间数" },
+  meals: { en: "Meals", zh: "餐食" },
+  transport: { en: "Airport transfer", zh: "机场接送" },
+  contactName: { en: "Contact name", zh: "联系人姓名" },
+  guestType: { en: "Guest type", zh: "客人类型" },
+  transportType: { en: "Transfer", zh: "接送类型" },
+  diveFrom: { en: "Diving from", zh: "潜水开始" },
+  diveTo: { en: "Diving to", zh: "潜水结束" },
+  diver: { en: "Diving", zh: "是否潜水" },
+  divers: { en: "Divers", zh: "潜水人数" },
+  diveNotes: { en: "Dive breakdown", zh: "潜水安排详情" },
+  specialRequests: { en: "Special notes", zh: "特别要求" },
+  guestNames: { en: "Guest names", zh: "客人名单" },
 };
 
 // The stay is not a field but a range of two of them, so it gets its own label
 // rather than being squeezed into LABELS' `keyof Trip` shape.
-const STAY_LABEL: Record<Lang, string> = { en: "Stay", vi: "Kỳ nghỉ", zh: "住宿" };
+const STAY_LABEL: Record<Lang, string> = { en: "Stay", zh: "住宿" };
 
 const ENUM_LABELS: Record<string, Record<Lang, string>> = {
-  full_board: { en: "full board", vi: "ăn trọn gói", zh: "全餐" },
-  half_board: { en: "half board", vi: "bán phần", zh: "半餐" },
-  room_only: { en: "room only", vi: "chỉ thuê phòng", zh: "仅住宿" },
-  none: { en: "none", vi: "không", zh: "无" },
-  roundtrip: { en: "return trip", vi: "khứ hồi", zh: "往返" },
-  oneway: { en: "one way", vi: "một chiều", zh: "单程" },
-  retail: { en: "retail guest", vi: "khách lẻ", zh: "散客" },
-  agent: { en: "agent", vi: "đại lý", zh: "代理" },
-  instructor: { en: "instructor", vi: "giáo viên lặn", zh: "教练" },
+  full_board: { en: "full board", zh: "全餐" },
+  half_board: { en: "half board", zh: "半餐" },
+  room_only: { en: "room only", zh: "仅住宿" },
+  none: { en: "none", zh: "无" },
+  roundtrip: { en: "return trip", zh: "往返" },
+  oneway: { en: "one way", zh: "单程" },
+  retail: { en: "retail guest", zh: "散客" },
+  agent: { en: "agent", zh: "代理" },
+  instructor: { en: "instructor", zh: "教练" },
 };
 
 const YES_NO: Record<Lang, [string, string]> = {
   en: ["yes", "no"],
-  vi: ["có", "không"],
   zh: ["是", "否"],
 };
 
@@ -210,7 +327,6 @@ const YES_NO: Record<Lang, [string, string]> = {
 // the summary noisier.
 const ASSUMED_NOTE: Record<Lang, string> = {
   en: " (assumed)",
-  vi: " (giả định)",
   zh: "（默认）",
 };
 
@@ -223,11 +339,10 @@ function isoParts(iso: string): { year: string; month: string; day: string } | n
   return match ? { year: match[1], month: match[2], day: match[3] } : null;
 }
 
-/** The date the way a guest writes it: "Sep 19, 2026" / "19/09/2026" / "2026年9月19日". */
+/** The date the way a guest writes it: "Sep 19, 2026" / "2026年9月19日". */
 function formatDate(iso: string, lang: Lang): string {
   const p = isoParts(iso);
   if (!p) return iso;
-  if (lang === "vi") return `${p.day}/${p.month}/${p.year}`;
   if (lang === "zh") return `${p.year}年${Number(p.month)}月${Number(p.day)}日`;
   return `${SHORT_MONTHS[Number(p.month) - 1]} ${Number(p.day)}, ${p.year}`;
 }
@@ -236,26 +351,20 @@ function formatDate(iso: string, lang: Lang): string {
 function formatDay(iso: string, lang: Lang): string {
   const p = isoParts(iso);
   if (!p) return iso;
-  if (lang === "vi") return `${p.day}/${p.month}`;
   if (lang === "zh") return `${Number(p.month)}月${Number(p.day)}日`;
   return `${SHORT_MONTHS[Number(p.month) - 1]} ${Number(p.day)}`;
 }
 
 /**
  * A stay as one range rather than two dates, collapsing whatever the two ends
- * share: "Sep 19 – 21, 2026", "28/09 – 02/10/2026", "2026年9月19–21日". Falls back
- * to two full dates when the two ends are in different years.
+ * share: "Sep 19 – 21, 2026", "2026年9月19–21日". Falls back to two full dates when
+ * the two ends are in different years.
  */
 function formatRange(fromIso: string, toIso: string, lang: Lang): string {
   const from = isoParts(fromIso);
   const to = isoParts(toIso);
   if (!from || !to || from.year !== to.year) {
     return `${formatDate(fromIso, lang)} – ${formatDate(toIso, lang)}`;
-  }
-  if (lang === "vi") {
-    return from.month === to.month
-      ? `${Number(from.day)}–${Number(to.day)}/${from.month}/${from.year}`
-      : `${Number(from.day)}/${from.month} – ${Number(to.day)}/${to.month}/${from.year}`;
   }
   if (lang === "zh") {
     return from.month === to.month
@@ -268,13 +377,11 @@ function formatRange(fromIso: string, toIso: string, lang: Lang): string {
 }
 
 function nightsText(nights: number, lang: Lang): string {
-  if (lang === "vi") return `${nights} đêm`;
   if (lang === "zh") return `${nights} 晚`;
   return `${nights} ${nights === 1 ? "night" : "nights"}`;
 }
 
 function diversText(divers: number, lang: Lang): string {
-  if (lang === "vi") return `${divers} người lặn`;
   if (lang === "zh") return `${divers} 位潜水`;
   return `${divers} ${divers === 1 ? "diver" : "divers"}`;
 }
@@ -318,10 +425,6 @@ const GREETING: Record<Lang, string[]> = {
     "Hi! Welcome to Casa Escondida — our dive-and-stay resort in Anilao, Batangas.",
     "So the team can check availability and pricing for you, could you share your check-in date, how many nights, how many guests, and a name for the booking?",
   ],
-  vi: [
-    "Dạ em chào mình! Casa Escondida — khu nghỉ dưỡng kết hợp lặn biển tại Anilao, Batangas.",
-    "Để đội ngũ kiểm tra phòng và giá cho mình, mình cho em biết ngày nhận phòng, số đêm, tổng số khách và tên liên hệ nhé.",
-  ],
   zh: [
     "您好！欢迎来到 Casa Escondida——位于菲律宾 Anilao 的潜水度假村。",
     "为了帮您查询房态和价格，请告诉我入住日期、住几晚、几位客人，以及登记预订的姓名。",
@@ -335,49 +438,41 @@ const GREETING: Record<Lang, string[]> = {
 // answers" arithmetic here for a guest to check against.
 const STAY_PHRASE: Record<Lang, (day: string, nights: string) => string> = {
   en: (day, nights) => `your stay starting ${day} for ${nights}`,
-  vi: (day, nights) => `kỳ nghỉ từ ${day}, ${nights}`,
   zh: (day, nights) => `从 ${day} 开始的 ${nights}`,
 };
 
 const CHECK_IN_PHRASE: Record<Lang, (day: string) => string> = {
   en: (day) => `your check-in on ${day}`,
-  vi: (day) => `ngày nhận phòng ${day}`,
   zh: (day) => `${day} 入住`,
 };
 
 const NIGHTS_PHRASE: Record<Lang, (nights: string) => string> = {
   en: (nights) => `a stay of ${nights}`,
-  vi: (nights) => `thời gian ở ${nights}`,
   zh: (nights) => `${nights} 的住宿`,
 };
 
 const GUESTS_PHRASE: Record<Lang, (guests: number) => string> = {
   en: (guests) => `${guests} ${guests === 1 ? "guest" : "guests"}`,
-  vi: (guests) => `${guests} khách`,
   zh: (guests) => `${guests} 位客人`,
 };
 
 const MEALS_PHRASE: Record<Lang, (label: string) => string> = {
   en: (label) => label,
-  vi: (label) => (label.startsWith("ăn ") ? `bữa ${label}` : `bữa ăn ${label}`),
   zh: (label) => label,
 };
 
 const TRANSPORT_PHRASE: Record<Lang, { yes: string; no: string }> = {
   en: { yes: "an airport transfer", no: "that you don't need a transfer" },
-  vi: { yes: "đưa đón sân bay", no: "không cần đưa đón sân bay" },
   zh: { yes: "机场接送", no: "不需要接送" },
 };
 
 const DIVER_PHRASE: Record<Lang, { yes: string; no: string }> = {
   en: { yes: "diving", no: "no diving" },
-  vi: { yes: "có lặn biển", no: "không lặn biển" },
   zh: { yes: "潜水", no: "不潜水" },
 };
 
 const NAME_PHRASE: Record<Lang, (name: string) => string> = {
   en: (name) => `your name, ${name}`,
-  vi: (name) => `tên liên hệ ${name}`,
   zh: (name) => `联系人 ${name}`,
 };
 
@@ -385,19 +480,16 @@ const THANKS: Record<Lang, (name: string | null) => string> = {
   // The name is echoed exactly as the guest wrote it. Transliterating it
   // ("Nhat" → "Nhật") would be the bot correcting a fact the guest gave it.
   en: (name) => (name ? `Thanks, ${name}!` : "Thanks!"),
-  vi: (name) => (name ? `Cảm ơn ${name}!` : "Dạ em cảm ơn mình!"),
   zh: (name) => (name ? `谢谢 ${name}！` : "谢谢！"),
 };
 
 const NOTED: Record<Lang, (list: string) => string> = {
   en: (list) => `I've noted down ${list}.`,
-  vi: (list) => `Em đã ghi nhận ${list} ạ.`,
   zh: (list) => `我已经记录了${list}。`,
 };
 
 const NEED: Record<Lang, string> = {
   en: "To complete your enquiry, could you let me know:",
-  vi: "Để hoàn tất thông tin, mình cho em biết thêm:",
   zh: "为了完成预订，请告诉我：",
 };
 
@@ -406,7 +498,7 @@ function joinList(items: string[], lang: Lang): string {
   if (items.length === 1) return items[0];
   if (lang === "zh") return items.join("、");
   const last = items[items.length - 1];
-  return `${items.slice(0, -1).join(", ")}${lang === "vi" ? " và " : " and "}${last}`;
+  return `${items.slice(0, -1).join(", ")} and ${last}`;
 }
 
 /**
@@ -438,8 +530,7 @@ function ackParts(trip: Trip, lang: Lang): string[] {
   if (diver !== null) parts.push(DIVER_PHRASE[lang][diver ? "yes" : "no"]);
   const diveNotes = notedValue<string>(trip, "diveNotes");
   if (diveNotes) {
-    if (lang === "vi") parts.push(`chi tiết lặn (${diveNotes})`);
-    else if (lang === "zh") parts.push(`潜水安排（${diveNotes}）`);
+    if (lang === "zh") parts.push(`潜水安排（${diveNotes}）`);
     else parts.push(`diving schedule (${diveNotes})`);
   }
   if (name) parts.push(NAME_PHRASE[lang](name));
@@ -465,10 +556,6 @@ const SUMMARY: Record<Lang, { intro: string; closing: string }> = {
     // guest could mistake for a confirmation, and only a human can confirm
     // availability or a price.
     closing: "Someone from our team will follow up shortly to confirm availability and pricing — nothing is booked yet.",
-  },
-  vi: {
-    intro: "Em xin tóm tắt thông tin mình đã gửi:",
-    closing: "Đội ngũ Casa sẽ sớm liên hệ để xác nhận phòng và giá cho mình ạ — hiện tại mình chưa đặt gì nhé.",
   },
   zh: {
     intro: "以下是您提供的信息：",
@@ -550,9 +637,6 @@ function summaryLines(trip: Trip, lang: Lang): string[] {
 function getNoFlyAdvisory(trip: Trip, lang: Lang): string | null {
   if (trip.diver?.value === true && trip.diveTo?.value && trip.checkOut?.value) {
     if (trip.diveTo.value === trip.checkOut.value) {
-      if (lang === "vi") {
-        return "⚠️ Lưu ý an toàn lặn: Theo chuẩn PADI/DAN, bạn cần nghỉ tối thiểu 18–24 tiếng sau ca lặn trước khi lên máy bay rời Manila.";
-      }
       if (lang === "zh") {
         return "⚠️ 潜水安全提示：根据 PADI/DAN 指南，潜水后乘机离开马尼拉前建议至少间隔 18–24 小时。";
       }
@@ -576,11 +660,7 @@ export function getStaffAlerts(trip: Trip, lang?: GuestLanguage): string[] {
 
   if (guestType === "agent" || guestType === "instructor") {
     const typeLabel = ENUM_LABELS[guestType]?.[l] ?? guestType;
-    if (l === "vi") {
-      alerts.push(
-        `📋 Chính sách Đại lý / Đối tác: Đã ghi nhận nhóm khách (${typeLabel}) — đội ngũ Casa sẽ xác nhận mức chiết khấu đối tác (VD: 30% đại lý) trực tiếp trên báo giá.`,
-      );
-    } else if (l === "zh") {
+    if (l === "zh") {
       alerts.push(
         `📋 合作伙伴/代理价格：已记录为${typeLabel}咨询——我们的团队将在报价单中直接确认适用合作折扣（如 30% 代理折扣）。`,
       );
@@ -593,11 +673,7 @@ export function getStaffAlerts(trip: Trip, lang?: GuestLanguage): string[] {
 
   const diveNotes = notedValue<string>(trip, "diveNotes");
   if (diveNotes && trip.divers?.state === "missing") {
-    if (l === "vi") {
-      alerts.push(
-        `📋 Lịch lặn linh hoạt: Đã chuyển chi tiết (${diveNotes}) cho nhân viên tính báo giá chính xác theo từng ngày.`,
-      );
-    } else if (l === "zh") {
+    if (l === "zh") {
       alerts.push(
         `📋 定制潜水日程：已将具体安排（${diveNotes}）转交工作人员按天核算准确报价。`,
       );
@@ -621,18 +697,15 @@ function renderSummary(trip: Trip, lang: Lang): string {
 
   const notesAck: string[] = [];
   if (diveNotes) {
-    if (lang === "vi") notesAck.push(`Tôi đã ghi nhận chi tiết lịch lặn: ${diveNotes}.`);
-    else if (lang === "zh") notesAck.push(`已为您记录具体潜水安排：${diveNotes}。`);
+    if (lang === "zh") notesAck.push(`已为您记录具体潜水安排：${diveNotes}。`);
     else notesAck.push(`I've noted your diving arrangement: ${diveNotes}.`);
   }
   if (specialRequests) {
-    if (lang === "vi") notesAck.push(`Yêu cầu đặc biệt: ${specialRequests}.`);
-    else if (lang === "zh") notesAck.push(`特别要求：${specialRequests}。`);
+    if (lang === "zh") notesAck.push(`特别要求：${specialRequests}。`);
     else notesAck.push(`Special note: ${specialRequests}.`);
   }
   if (guestNames && guestNames.length > 0) {
-    if (lang === "vi") notesAck.push(`Danh sách thành viên: ${guestNames.join(", ")}.`);
-    else if (lang === "zh") notesAck.push(`同行成员：${guestNames.join(", ")}。`);
+    if (lang === "zh") notesAck.push(`同行成员：${guestNames.join(", ")}。`);
     else notesAck.push(`Party members noted: ${guestNames.join(", ")}.`);
   }
 
@@ -707,7 +780,6 @@ const HUMAN_RE = new RegExp(
     "\\b(?:call|ring)\\s+me\\b",
     "\\b(?:put|get)\\s+me\\s+through\\s+to\\b",
     "\\btransfer\\s+me\\b",
-    "người thật|nhân viên|gặp người|gọi lại cho (?:em|mình|tôi)|nói chuyện với (?:người|nhân viên)|cho (?:em|mình|tôi) gặp",
     "人工|真人|工作人员|客服人员|转接",
   ].join("|"),
   "i",
@@ -725,14 +797,12 @@ const FALLBACKS: Record<FallbackKind, Record<GuestLanguage, string>> = {
   // type everything again — the transcript is kept on our side.
   apology: {
     en: "Sorry — something went wrong on our side while I was reading your last message, so I haven't managed to note the details down yet. I've flagged this for the Casa team and a person will reply to you here.",
-    vi: "Xin lỗi mình, hệ thống bên em gặp lỗi khi đọc tin nhắn vừa rồi nên chưa ghi nhận được thông tin ạ. Em đã báo cho đội ngũ Casa và sẽ có người trả lời mình ngay tại đây ạ.",
     zh: "抱歉，我们这边读取您刚才的消息时出了问题，暂时还没能记录下信息。我已经通知 Casa 团队，会在这里回复您。",
   },
   // Sent while a thread is parked for a human (after a failure, after the guest
   // asked for a person, or once asking has stopped being useful).
   handoff: {
     en: "A member of the Casa team is handling your enquiry now and will reply to you here. Thank you for your patience.",
-    vi: "Đội ngũ Casa đang xử lý yêu cầu của mình và sẽ trả lời ngay tại đây ạ. Cảm ơn mình đã chờ.",
     zh: "Casa 团队正在处理您的咨询，会在这里回复您。感谢您的耐心等待。",
   },
 };

@@ -237,9 +237,9 @@ export async function extract(rawText: string, provider: ExtractProvider): Promi
 }
 
 // The two FieldStates that are this file's to set: `default` (house norms, applied
-// to exactly HOUSE_NORM_FIELDS below) and `derived` (checkOut from checkIn + nights,
-// transportType from the transport boolean). The prompt tells the model its states
-// are 'stated', 'inferred' or 'missing' (see providers/deepseek.ts) — a `default` a
+// to exactly HOUSE_NORM_FIELDS below) and `derived` (checkOut from checkIn + nights, and
+// transportType "none" for a guest who said no transfer). The prompt tells the model its
+// states are 'stated', 'inferred' or 'missing' (see providers/deepseek.ts) — a `default` a
 // model pins on its own guess would otherwise be shown to the guest as a house norm,
 // and, being non-missing, would keep the question from ever being asked.
 const CODE_ONLY_STATES: ReadonlyArray<FieldState> = ["default", "derived"];
@@ -343,21 +343,28 @@ function postProcess(raw: unknown, today: string, sourceText: string): unknown {
 
   // Align with Odoo Estimate API (estimate-api.v1.json / casa-api-guide):
   // 1. guestType: detect agency phrasing or default to "retail"
-  const isAgent = /\b(agency|travel\s+agent|travel\s+agency|agent|tour\s+operator)\b|đại\s*lý|旅行社|代理/i.test(guestText);
+  const isAgent = /\b(agency|travel\s+agent|travel\s+agency|agent|tour\s+operator)\b|旅行社|代理/i.test(guestText);
   if (!trip.guestType || trip.guestType.state === "missing") {
     trip.guestType = isAgent
       ? { value: "agent", state: "inferred", evidence: null }
       : { value: "retail", state: "default", evidence: null };
   }
 
-  // 2. transportType: maps from transport boolean (roundtrip vs none)
+  // 2. transportType: only the case the guest has actually settled is filled in here.
+  //
+  // "No transfer" needs no further question, so a `false` transport is mapped to `none`.
+  // A `true` transport is deliberately NOT mapped to anything: "we need the airport
+  // pickup" does not say whether that is one way or a return, and the transfer is a
+  // priced line, so this file has no business choosing. The old code wrote
+  // `roundtrip, derived` here and then asked the guest to confirm it — a symptom fix
+  // that left the price sitting on a value code had guessed (roadmap L3, "sửa lỗi tiền:
+  // transportType đang bị suy diễn"). Leaving it missing is what makes the question in
+  // questions.ts fire, so the guest's own answer is what the estimate is priced from.
   if (!trip.transportType || trip.transportType.state === "missing") {
-    if (trip.transport?.value === true) {
-      trip.transportType = { value: "roundtrip", state: "derived", evidence: null };
-    } else if (trip.transport?.value === false) {
+    if (trip.transport?.value === false) {
       trip.transportType = { value: "none", state: "derived", evidence: null };
     } else {
-      trip.transportType = { value: "none", state: "default", evidence: null };
+      trip.transportType = { value: null, state: "missing", evidence: null };
     }
   }
 

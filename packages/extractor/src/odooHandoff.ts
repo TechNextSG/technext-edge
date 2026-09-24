@@ -8,7 +8,11 @@ export type OdooHandoffMode =
 
 export interface OdooEstimateDraft {
   contactName: string;
-  language: "en" | "vi" | "zh";
+  // English and Chinese only — Vietnamese was removed from the pipeline on 2026-09-24
+  // (see normalize.ts). Kept as a literal union so this handoff contract cannot
+  // advertise a language the pipeline is unable to produce. NOTE: "vi" is plain ASCII,
+  // so an audit that greps for Vietnamese characters will not find it here.
+  language: "en" | "zh";
   guestType: "retail" | "agent" | "instructor";
   checkIn: string;
   checkOut: string;
