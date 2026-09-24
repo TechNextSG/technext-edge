@@ -5,6 +5,7 @@ import { pathToFileURL } from "node:url";
 import { findChrome } from "../.agents/skills/archify/bin/visual-check.mjs";
 
 const FFMPEG = "C:\\Users\\nguye\\AppData\\Local\\Microsoft\\WinGet\\Links\\ffmpeg.exe";
+const FFPROBE = "C:\\Users\\nguye\\AppData\\Local\\Microsoft\\WinGet\\Links\\ffprobe.exe";
 const EDGE_TTS = "edge-tts";
 
 const VIEW = { width: 1920, height: 1080 };
@@ -21,6 +22,7 @@ fs.mkdirSync(TMP, { recursive: true });
 function synthesizeNeuralAudio(text, outFile) {
   const dir = path.dirname(outFile);
   fs.mkdirSync(dir, { recursive: true });
+  console.log(`  [TTS] Synthesizing: "${text.slice(0, 55)}..."`);
   execFileSync(
     EDGE_TTS,
     [
@@ -34,27 +36,21 @@ function synthesizeNeuralAudio(text, outFile) {
     ],
     { stdio: "ignore" }
   );
+  return getAudioDuration(outFile);
 }
 
 function getAudioDuration(mp3Path) {
   try {
-    const res = execFileSync(
-      FFMPEG,
-      ["-i", mp3Path],
-      { stdio: ["ignore", "pipe", "pipe"], encoding: "utf8" }
+    const out = execFileSync(
+      FFPROBE,
+      ["-v", "error", "-show_entries", "format=duration", "-of", "csv=p=0", mp3Path],
+      { encoding: "utf8" }
     );
-    const m = res.match(/Duration:\s*(\d+):(\d+):(\d+\.\d+)/);
-    if (m) {
-      return parseInt(m[1], 10) * 3600 + parseInt(m[2], 10) * 60 + parseFloat(m[3]);
-    }
+    const secs = parseFloat(out.trim());
+    return Number.isFinite(secs) ? secs : 5.0;
   } catch (err) {
-    const stderr = err.stderr ? err.stderr.toString() : "";
-    const m = stderr.match(/Duration:\s*(\d+):(\d+):(\d+\.\d+)/);
-    if (m) {
-      return parseInt(m[1], 10) * 3600 + parseInt(m[2], 10) * 60 + parseFloat(m[3]);
-    }
+    return 5.0;
   }
-  return 12.0;
 }
 
 class Cdp {
@@ -137,35 +133,45 @@ async function animateTyping(cdp, sessionId, text, totalMs = 1800) {
 }
 
 const PHASES = [
-  // 0. Overview
+  // 1. Overview Header
   {
-    id: "wa-intro",
+    id: "wa-01-intro",
     title: "Casa Escondida WhatsApp Concierge — Overview",
-    narration: "Welcome to the Casa Escondida WhatsApp Concierge. Running directly on the official WhatsApp Business Cloud API, our hybrid AI assistant handles multi-turn booking dialogues naturally across English, Vietnamese, and Chinese.",
+    narration: "Welcome to the Casa Escondida WhatsApp Concierge, running on the official WhatsApp Business Cloud API.",
     runLive: async (cdp, sessionId) => {
       await setPointers(cdp, sessionId, [
         { sel: "#wa-header", n: "1", label: "Official WhatsApp Cloud API (+1 555-150-6595)", pos: "below" },
-        { sel: "#inspector-card", n: "2", label: "Real-time Neuro-Symbolic Trip State & Guardrails", pos: "below" },
-        { sel: "#wa-input-row", n: "3", label: "Natural Conversational Chat Input", pos: "above" }
       ]);
-      await sleep(6500);
-      await clearPointers(cdp, sessionId);
-      await sleep(800);
+      await sleep(2500);
     }
   },
 
-  // 1. Turn 1
+  // 2. Overview Inspector
   {
-    id: "wa-turn-1",
+    id: "wa-02-inspector",
+    title: "Neuro-Symbolic Inspector & Guardrails",
+    narration: "The real-time neuro-symbolic engine monitors trip state, slot completion, and guardrails with each message.",
+    runLive: async (cdp, sessionId) => {
+      await setPointers(cdp, sessionId, [
+        { sel: "#inspector-card", n: "2", label: "Real-time Trip State & Guardrails", pos: "below" }
+      ]);
+      await sleep(2800);
+      await clearPointers(cdp, sessionId);
+    }
+  },
+
+  // 3. Turn 1 Type
+  {
+    id: "wa-03-turn1-type",
     title: "WhatsApp Turn 1 — Booking Enquiry (Sarah Jenkins)",
-    narration: "Sarah Jenkins sends an unstructured WhatsApp enquiry for four guests in two rooms. The assistant immediately locks the dates, rooms, and meals, and asks a single focused question about diving plans.",
+    narration: "Sarah Jenkins sends an enquiry for four guests in two Deluxe rooms for three nights.",
     runLive: async (cdp, sessionId) => {
       await setPointers(cdp, sessionId, [
         { sel: "#wa-input-row", n: "➔", label: "Guest typing reservation enquiry...", pos: "above" }
       ]);
       const guestText = "Hi, I'm Sarah Jenkins. We'd like to book 2 Deluxe rooms for 4 guests checking in Oct 17, 2026 for 3 nights on full board.";
       await animateTyping(cdp, sessionId, guestText, 2200);
-      await sleep(400);
+      await sleep(300);
 
       // Send guest message
       await cdp.send("Runtime.evaluate", {
@@ -175,10 +181,16 @@ const PHASES = [
           window.__showTyping(true);
         })()`,
       }, sessionId);
+      await sleep(1000);
+    }
+  },
 
-      await sleep(1500);
-
-      // Bot reply
+  // 4. Turn 1 Reply
+  {
+    id: "wa-04-turn1-reply",
+    title: "WhatsApp Turn 1 — AI Reply & Slot Capture",
+    narration: "The assistant acknowledges dates, rooms, and meals, and immediately asks whether the group plans to dive.",
+    runLive: async (cdp, sessionId) => {
       const botText = "Hello Sarah! Thanks for reaching out to Casa Escondida Anilao. I've noted 4 guests in 2 Deluxe rooms from Oct 17 to Oct 20 (3 nights) with full-board meals. Will anyone in your group be planning to dive during your stay?";
       await cdp.send("Runtime.evaluate", {
         expression: `(() => {
@@ -195,24 +207,24 @@ const PHASES = [
 
       await setPointers(cdp, sessionId, [
         { sel: ".wa-row.bot:last-of-type", n: "AI", label: "AI locks dates & rooms, asks if diving", pos: "below" },
-        { sel: "#slot-dates", n: "✓", label: "Slots captured without double-asking", pos: "below" }
+        { sel: "#slot-dates", n: "✓", label: "4 slots locked without double-asking", pos: "below" }
       ]);
-      await sleep(2200);
+      await sleep(2400);
     }
   },
 
-  // 2. Turn 2
+  // 5. Turn 2 Type
   {
-    id: "wa-turn-2",
-    title: "WhatsApp Turn 2 — Diving Schedule & Airport Transfer",
-    narration: "In the second turn, Sarah adds boat diving and Manila airport pickup. The assistant updates the trip state in memory and asks to confirm the exact diver headcount.",
+    id: "wa-05-turn2-type",
+    title: "WhatsApp Turn 2 — Adding Diving & Airport Transfer",
+    narration: "In the second turn, Sarah adds boat diving for two, plus Manila airport pickup.",
     runLive: async (cdp, sessionId) => {
       await setPointers(cdp, sessionId, [
         { sel: "#wa-input-row", n: "➔", label: "Guest adds boat diving & airport transfer...", pos: "above" }
       ]);
       const guestText = "Yes, 2 of us will do boat diving from Oct 18 to Oct 19, and we need airport pickup from Manila.";
       await animateTyping(cdp, sessionId, guestText, 2000);
-      await sleep(400);
+      await sleep(300);
 
       // Send guest message
       await cdp.send("Runtime.evaluate", {
@@ -222,10 +234,16 @@ const PHASES = [
           window.__showTyping(true);
         })()`,
       }, sessionId);
+      await sleep(1000);
+    }
+  },
 
-      await sleep(1500);
-
-      // Bot reply
+  // 6. Turn 2 Reply
+  {
+    id: "wa-06-turn2-reply",
+    title: "WhatsApp Turn 2 — Diving & Transfer Extraction",
+    narration: "The engine updates diving and transfer, then asks to confirm the exact diver headcount.",
+    runLive: async (cdp, sessionId) => {
       const botText = "Wonderful! I have added boat diving for Oct 18–19 and private NAIA airport van pickup. Could you please confirm how many people will be diving so we can reserve your dive gear and boat slots?";
       await cdp.send("Runtime.evaluate", {
         expression: `(() => {
@@ -239,25 +257,25 @@ const PHASES = [
       }, sessionId);
 
       await setPointers(cdp, sessionId, [
-        { sel: ".wa-row.bot:last-of-type", n: "AI", label: "AI records diving & transfer, asks for diver count", pos: "below" },
+        { sel: ".wa-row.bot:last-of-type", n: "AI", label: "AI records diving & transfer, asks diver count", pos: "below" },
         { sel: "#slot-diving", n: "✓", label: "Diving & Transfer slots updated in memory", pos: "below" }
       ]);
-      await sleep(2200);
+      await sleep(2400);
     }
   },
 
-  // 3. Turn 3
+  // 7. Turn 3 Type
   {
-    id: "wa-turn-3",
-    title: "WhatsApp Turn 3 — Confirmation & Front Desk Handover",
-    narration: "Once Sarah confirms two divers and an eleven AM airport pickup, all eight required slots are satisfied. The assistant locks the trip state and routes the booking to staff for official quotation.",
+    id: "wa-07-turn3-type",
+    title: "WhatsApp Turn 3 — Final Confirmation",
+    narration: "Sarah confirms two divers and an eleven AM arrival at Manila airport.",
     runLive: async (cdp, sessionId) => {
       await setPointers(cdp, sessionId, [
         { sel: "#wa-input-row", n: "➔", label: "Confirming 2 divers & pickup time...", pos: "above" }
       ]);
       const guestText = "Exactly 2 divers. Manila pickup for all 4 of us, arriving at 11 AM. Thanks!";
       await animateTyping(cdp, sessionId, guestText, 1800);
-      await sleep(400);
+      await sleep(300);
 
       // Send guest message
       await cdp.send("Runtime.evaluate", {
@@ -267,10 +285,16 @@ const PHASES = [
           window.__showTyping(true);
         })()`,
       }, sessionId);
+      await sleep(1000);
+    }
+  },
 
-      await sleep(1500);
-
-      // Bot reply
+  // 8. Turn 3 Reply
+  {
+    id: "wa-08-turn3-reply",
+    title: "WhatsApp Turn 3 — Completion & Handover",
+    narration: "All required fields are satisfied. The assistant locks the trip state and initiates staff handover for quotation.",
+    runLive: async (cdp, sessionId) => {
       const botText = "Everything is set, Sarah! 4 guests in 2 Deluxe rooms (Oct 17–20, 3 nights), 2 divers on Oct 18–19, and Manila van transfer at 11 AM. I have locked your reservation details and notified our reservations desk to issue your official Odoo quotation shortly!";
       await cdp.send("Runtime.evaluate", {
         expression: `(() => {
@@ -289,7 +313,7 @@ const PHASES = [
         { sel: ".wa-row.bot:last-of-type", n: "✓", label: "All 8 slots satisfied · Trip state locked", pos: "below" },
         { sel: "#trip-status-chip", n: "✓", label: "Handover gate triggered for staff quotation", pos: "below" }
       ]);
-      await sleep(2600);
+      await sleep(2800);
     }
   }
 ];
@@ -301,11 +325,10 @@ async function main() {
   console.log("\n--- Phase 1: Synthesizing Neural Speech (AvaMultilingualNeural -8%) ---");
   for (let i = 0; i < PHASES.length; i++) {
     const p = PHASES[i];
-    const mp3 = path.join(TMP, `cue-${i}-${p.id}.mp3`);
-    synthesizeNeuralAudio(p.narration, mp3);
+    const mp3 = path.join(TMP, `cue-${String(i).padStart(2, "0")}-${p.id}.mp3`);
+    p.audioDuration = synthesizeNeuralAudio(p.narration, mp3);
     p.audioPath = mp3;
-    p.audioDuration = getAudioDuration(mp3);
-    console.log(`  [Cue ${i + 1}/${PHASES.length}] ${p.id}: ${p.audioDuration.toFixed(1)}s`);
+    console.log(`  [Cue ${i + 1}/${PHASES.length}] ${p.id}: ${p.audioDuration.toFixed(2)}s`);
   }
 
   // 2. Launch Chrome CDP
@@ -368,7 +391,7 @@ async function main() {
   for (let i = 0; i < PHASES.length; i++) {
     const p = PHASES[i];
     const phaseStartMs = Date.now() - t0;
-    console.log(`\n---> [Live Step ${i + 1}/${PHASES.length}] ${p.title} (audio: ${p.audioDuration.toFixed(1)}s)`);
+    console.log(`\n---> [Live Step ${i + 1}/${PHASES.length}] ${p.id} (audio: ${p.audioDuration.toFixed(2)}s)`);
 
     await setSubtitle(cdp, sessionId, p.narration);
 
@@ -387,6 +410,7 @@ async function main() {
     if (remaining > 0) {
       await sleep(Math.round(remaining * 1000));
     }
+    await sleep(250);
     await clearPointers(cdp, sessionId);
   }
 
@@ -398,7 +422,7 @@ async function main() {
 
   console.log(`  Total live frames captured: ${frames.length}`);
   const totalVideoSec = (Date.now() - t0) / 1000;
-  console.log(`  Total live recording duration: ${totalVideoSec.toFixed(1)}s`);
+  console.log(`  Total live recording duration: ${totalVideoSec.toFixed(2)}s`);
 
   // Write SRT
   const srtEntries = [];
@@ -493,7 +517,7 @@ async function main() {
     { stdio: "inherit" }
   );
 
-  // 8. Combine Video + Audio
+  // 8. Mux Video + Audio
   console.log("\n--- Phase 8: Muxing Live Video + Synced Audio into Final MP4 ---");
   execFileSync(
     FFMPEG,
@@ -516,7 +540,7 @@ async function main() {
 
   fs.copyFileSync(OUT_DOCS, OUT_PUBLIC);
 
-  console.log(`\n=== SUCCESS! WHATSAPP LIVE CONVERSATION DEMO VIDEO CREATED ===`);
+  console.log(`\n=== SUCCESS! WHATSAPP LIVE CONVERSATION DEMO CREATED ===`);
   console.log(`  - Video Docs: ${OUT_DOCS}`);
   console.log(`  - Video Public: ${OUT_PUBLIC}`);
   console.log(`  - Subtitles Docs: ${OUT_SRT_DOCS}`);
