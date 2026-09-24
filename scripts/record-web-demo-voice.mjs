@@ -209,14 +209,14 @@ async function main() {
   const totalVideoDuration = stepMeta.reduce((sum, s) => sum + s.duration, 0);
   console.log(`\nTotal planned video duration: ${totalVideoDuration.toFixed(1)}s across 6 steps.`);
 
-  // Generate SRT Subtitles
+  // Generate SRT Subtitles with full narration
   let currentSec = 0;
   const srtEntries = [];
   for (let i = 0; i < stepMeta.length; i++) {
     const s = stepMeta[i];
     const startStr = formatSrtTime(currentSec);
     const endStr = formatSrtTime(currentSec + s.duration);
-    srtEntries.push(`${i + 1}\n${startStr} --> ${endStr}\n${s.stepObj.subtitle}\n`);
+    srtEntries.push(`${i + 1}\n${startStr} --> ${endStr}\n${s.stepObj.narration}\n`);
     currentSec += s.duration;
   }
   const srtContent = srtEntries.join("\n");
@@ -271,23 +271,23 @@ async function main() {
         const st = document.createElement('style');
         st.textContent = \`
           body {
-            padding-top: 54px !important;
-            padding-bottom: 56px !important;
+            padding-top: 48px !important;
+            padding-bottom: 96px !important;
             overflow: hidden !important;
             background: #0b1120 !important;
             font-family: system-ui, -apple-system, sans-serif !important;
           }
-          .topbar { padding: 6px 24px !important; height: 46px !important; }
+          .topbar { padding: 4px 24px !important; height: 42px !important; }
           .wrap { max-width: 1880px !important; margin: 4px auto !important; padding: 0 24px !important; }
           .lede, #override { display: none !important; }
-          .tabs { margin-bottom: 6px !important; }
-          .tab-btn { font-size: 13.5px !important; padding: 6px 16px !important; }
+          .tabs { margin-bottom: 4px !important; }
+          .tab-btn { font-size: 13px !important; padding: 5px 14px !important; }
           #mode-single.active {
             display: grid !important;
             grid-template-columns: 42% 58% !important;
-            gap: 18px !important;
+            gap: 16px !important;
             align-items: start !important;
-            padding: 12px 18px !important;
+            padding: 10px 16px !important;
             background: #111827 !important;
             border: 1px solid #1e293b !important;
             border-radius: 12px !important;
@@ -300,58 +300,58 @@ async function main() {
             grid-column: 1 !important;
           }
           #text {
-            min-height: 190px !important;
-            font-size: 14px !important;
-            line-height: 1.5 !important;
+            min-height: 175px !important;
+            font-size: 13.5px !important;
+            line-height: 1.48 !important;
             background: #0f172a !important;
             border: 2px solid #0d9488 !important;
             color: #f8fafc !important;
-            padding: 12px !important;
+            padding: 10px !important;
             border-radius: 8px !important;
           }
-          .examples { margin: 6px 0 !important; }
+          .examples { margin: 4px 0 !important; }
           .actions { margin-top: 4px !important; }
-          .btn-primary { font-size: 14px !important; padding: 8px 22px !important; font-weight: 700 !important; }
+          .btn-primary { font-size: 13.5px !important; padding: 7px 20px !important; font-weight: 700 !important; }
           #result-card {
             grid-column: 2 !important;
             grid-row: 1 / span 5 !important;
             margin-top: 0 !important;
             background: #0f172a !important;
-            padding: 10px 16px !important;
+            padding: 8px 14px !important;
             border: 1px solid #1e293b !important;
             border-radius: 10px !important;
           }
           #questions-card {
             grid-column: 1 / span 2 !important;
-            margin-top: 6px !important;
-            padding: 10px 16px !important;
+            margin-top: 4px !important;
+            padding: 8px 14px !important;
             background: #0f172a !important;
             border: 1px solid #1e293b !important;
             border-radius: 10px !important;
           }
           #raw { display: none !important; }
           table { width: 100% !important; border-collapse: collapse !important; }
-          table th, table td { padding: 5px 10px !important; font-size: 12.5px !important; border-bottom: 1px solid #1e293b !important; }
-          table th { font-size: 11px !important; text-transform: uppercase !important; letter-spacing: 0.05em !important; color: #94a3b8 !important; }
+          table th, table td { padding: 4px 8px !important; font-size: 12px !important; border-bottom: 1px solid #1e293b !important; }
+          table th { font-size: 10.5px !important; text-transform: uppercase !important; letter-spacing: 0.05em !important; color: #94a3b8 !important; }
 
           /* TOP QA/QC BANNER */
           #qa-top-banner {
-            position: fixed; top: 0; left: 0; right: 0; height: 50px;
+            position: fixed; top: 0; left: 0; right: 0; height: 46px;
             background: linear-gradient(90deg, #3b1f14 0%, #c0703a 100%);
             color: #fff; display: flex; align-items: center; justify-content: space-between;
-            padding: 0 28px; z-index: 99999;
+            padding: 0 24px; z-index: 99999;
             box-shadow: 0 4px 16px rgba(0,0,0,0.5);
           }
 
-          /* BOTTOM BURNT-IN SUBTITLE BAR */
+          /* BOTTOM BURNT-IN LARGE SUBTITLE BAR */
           #qa-subbar {
-            position: fixed; bottom: 0; left: 0; right: 0; height: 52px;
-            background: rgba(11, 17, 32, 0.96);
-            backdrop-filter: blur(10px);
-            border-top: 1px solid #334155;
+            position: fixed; bottom: 0; left: 0; right: 0; height: 88px;
+            background: rgba(8, 14, 26, 0.98);
+            backdrop-filter: blur(14px);
+            border-top: 2px solid #22d3ee;
             display: flex; align-items: center; justify-content: space-between;
-            padding: 0 28px; z-index: 99999;
-            box-shadow: 0 -4px 16px rgba(0,0,0,0.6);
+            padding: 0 32px; z-index: 99999;
+            box-shadow: 0 -8px 30px rgba(0,0,0,0.85);
           }
 
           .qa-box {
@@ -387,11 +387,11 @@ async function main() {
         const subbar = document.createElement('div');
         subbar.id = 'qa-subbar';
         subbar.innerHTML = \`
-          <div style="display:flex;align-items:center;gap:12px;flex:1;">
-            <span style="background:#14b8a6;color:#042f2e;font-weight:900;font-size:11px;padding:4px 9px;border-radius:5px;letter-spacing:0.06em;">CC · EN</span>
-            <div id="qa-sub-text" style="flex:1;font-size:16px;font-weight:600;color:#fef08a;text-shadow:0 1px 3px rgba(0,0,0,0.8);">Subtitle</div>
+          <div style="display:flex;align-items:center;gap:18px;flex:1;max-width:1700px;">
+            <span style="background:#0d9488;color:#ffffff;font-weight:900;font-size:13.5px;padding:6px 14px;border-radius:6px;letter-spacing:0.06em;box-shadow:0 2px 8px rgba(13,148,136,0.5);flex-shrink:0;">CC · EN</span>
+            <div id="qa-sub-text" style="flex:1;font-size:22.5px;font-weight:700;line-height:1.32;color:#ffffff;text-shadow:0 2px 6px rgba(0,0,0,0.95);letter-spacing:0.01em;">Subtitle</div>
           </div>
-          <span id="qa-sub-progress" style="font-family:monospace;font-size:13px;color:#94a3b8;margin-left:20px;">STEP 1 / 6</span>
+          <span id="qa-sub-progress" style="font-family:monospace;font-size:13.5px;color:#cbd5e1;background:rgba(255,255,255,0.08);padding:6px 14px;border-radius:6px;margin-left:24px;flex-shrink:0;">STEP 1 / 6</span>
         \`;
         document.body.appendChild(subbar);
 
@@ -451,7 +451,7 @@ async function main() {
               ${s.stepNum},
               ${JSON.stringify(s.stepObj.bannerTitle)},
               ${JSON.stringify(s.stepObj.bannerSub)},
-              ${JSON.stringify(s.stepObj.subtitle)},
+              ${JSON.stringify(s.stepObj.narration)},
               ${JSON.stringify(progressLabel)},
               ${JSON.stringify(s.stepObj.marks)}
             );
@@ -497,7 +497,7 @@ async function main() {
               ${s.stepNum},
               ${JSON.stringify(s.stepObj.bannerTitle)},
               ${JSON.stringify(s.stepObj.bannerSub)},
-              ${JSON.stringify(s.stepObj.subtitle)},
+              ${JSON.stringify(s.stepObj.narration)},
               ${JSON.stringify(progressLabel)},
               ${JSON.stringify(s.stepObj.marks)}
             );
