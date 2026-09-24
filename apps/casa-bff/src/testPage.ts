@@ -184,8 +184,7 @@ details pre{background:var(--card2);border:1px solid var(--hairline);padding:12p
       </div>
       <div class="examples">
         <button class="chip-btn" data-chat="Hi, we'd like to book for next Saturday">EN starter</button>
-        <button class="chip-btn" data-chat="Chào shop, nhóm mình 4 người muốn đi lặn biển và ở 3 đêm">VI lặn biển</button>
-        <button class="chip-btn" data-chat="Mình bên đại lý du lịch muốn đặt 4 phòng cho đoàn 8 khách">VI đại lý</button>
+        <button class="chip-btn" data-chat="Booking on behalf of a travel agency: 8 guests, 4 rooms, checking in this Friday, 2 nights, half board, own transport">EN agency</button>
         <button class="chip-btn" data-chat="你好，我们2个人想来考OW潜水证，住4晚">ZH 考证</button>
         <button class="chip-btn" id="reset-chat">↺ reset conversation</button>
       </div>
@@ -214,8 +213,8 @@ details pre{background:var(--card2);border:1px solid var(--hairline);padding:12p
         <button class="chip-btn" data-text="Hi, we are 4 people, want to come next Saturday for 3 nights. Full board please, no need airport transfer.">EN basic</button>
         <button class="chip-btn" data-text="3 certified rescue divers coming for 5 nights starting Nov 2, planning fun diving every day, full board please, we will arrange our own car">EN fun diving</button>
         <button class="chip-btn" data-text="Booking on behalf of a travel agency: 8 guests, need 4 rooms, checking in this Friday, staying 2 nights, half board only, we'll arrange our own transport">EN agency (30% off)</button>
-        <button class="chip-btn" data-text="Bên mình có dạy chứng chỉ lặn biển Open Water không? Nhóm mình 4 người muốn học từ ngày 15/10, ở lại 4 đêm, ăn trọn gói và thuê xe đón từ sân bay Manila.">VI khóa học OW</button>
-        <button class="chip-btn" data-text="Mình bên công ty du lịch cần đặt 5 phòng cho đoàn 10 khách từ ngày 20/11 đến 23/11 (ở 3 đêm). Đoàn ăn half board, tự túc xe.">VI đại lý đặt đoàn</button>
+        <button class="chip-btn" data-text="Are you running an Open Water diving course? 4 of us would like to start on Oct 15, staying 4 nights, full board, and we need a pickup from Manila airport.">EN Open Water course</button>
+        <button class="chip-btn" data-text="Our travel company needs 5 rooms for 10 guests from Nov 20 to Nov 23 (3 nights). Half board, own transport.">EN group booking</button>
         <button class="chip-btn" data-text="你好，我们2个人想考OW潜水证，计划11月5号入住，住4晚，需要全包餐和马尼拉机场接送。">ZH 考潜水证+接送</button>
         <button class="chip-btn" data-text="Is the room rate 6500 pesos per night? We are 2 people planning 2 nights on Oct 18.">Trap: hỏi giá (bẫy bịa đặt)</button>
       </div>
