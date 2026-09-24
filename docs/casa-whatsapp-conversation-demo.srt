@@ -1,0 +1,15 @@
+1
+00:00:00,001 --> 00:00:16,150
+Welcome to the Casa Escondida WhatsApp Concierge. Running directly on the official WhatsApp Business Cloud API, our hybrid AI assistant handles multi-turn booking dialogues naturally across English, Vietnamese, and Chinese.
+
+2
+00:00:16,163 --> 00:00:30,133
+Sarah Jenkins sends an unstructured WhatsApp enquiry for four guests in two rooms. The assistant immediately locks the dates, rooms, and meals, and asks a single focused question about diving plans.
+
+3
+00:00:30,138 --> 00:00:41,468
+In the second turn, Sarah adds boat diving and Manila airport pickup. The assistant updates the trip state in memory and asks to confirm the exact diver headcount.
+
+4
+00:00:41,469 --> 00:00:54,960
+Once Sarah confirms two divers and an eleven AM airport pickup, all eight required slots are satisfied. The assistant locks the trip state and routes the booking to staff for official quotation.

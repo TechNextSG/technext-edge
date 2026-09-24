@@ -1,0 +1,499 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>Casa Escondida — WhatsApp Live Concierge</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    width: 1920px; height: 1080px; overflow: hidden;
+    background: #0b1120;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    color: #e2e8f0;
+    display: flex; flex-direction: column;
+    padding: 16px 28px 100px;
+  }
+
+  /* TOP STATUS TAG */
+  #video-top-tag {
+    position: fixed; top: 14px; right: 28px;
+    background: rgba(15, 23, 42, 0.92);
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    border-radius: 999px; padding: 6px 16px;
+    display: flex; align-items: center; gap: 10px;
+    z-index: 999998; box-shadow: 0 4px 16px rgba(0, 0, 0, 0.45);
+  }
+  @keyframes liveDot { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
+
+  /* HEADER */
+  .header-bar {
+    display: flex; align-items: center; justify-content: space-between;
+    padding-bottom: 12px; border-bottom: 1px solid #1e293b;
+    margin-bottom: 14px;
+  }
+  .brand-group { display: flex; align-items: center; gap: 12px; }
+  .brand-badge {
+    background: #25d366; color: #04211f; font-weight: 900;
+    font-size: 12.5px; padding: 4px 10px; border-radius: 6px;
+    letter-spacing: 0.05em; text-transform: uppercase;
+  }
+  .brand-title { font-size: 19px; font-weight: 700; color: #f8fafc; }
+  .brand-sub { font-size: 13.5px; color: #94a3b8; margin-left: 8px; border-left: 1px solid #334155; padding-left: 12px; }
+
+  /* MAIN WORKSPACE */
+  .workspace {
+    flex: 1; display: grid; grid-template-columns: 58% 42%;
+    gap: 20px; min-height: 0;
+  }
+
+  /* LEFT: WHATSAPP WEB STAGE */
+  .wa-container {
+    background: #0b141a; border: 1px solid #1f2c34; border-radius: 14px;
+    box-shadow: 0 20px 50px rgba(0, 0, 0, 0.55);
+    display: flex; flex-direction: column; overflow: hidden; position: relative;
+  }
+  .wa-container::before {
+    content: ""; position: absolute; inset: 0;
+    background-image:
+      radial-gradient(circle at 15% 25%, rgba(255,255,255,0.018) 0 2px, transparent 2px),
+      radial-gradient(circle at 45% 65%, rgba(255,255,255,0.015) 0 3px, transparent 3px),
+      radial-gradient(circle at 75% 35%, rgba(255,255,255,0.018) 0 2px, transparent 2px),
+      radial-gradient(circle at 85% 80%, rgba(255,255,255,0.015) 0 3px, transparent 3px);
+    pointer-events: none;
+  }
+  .wa-header {
+    background: #202c33; padding: 10px 18px; border-bottom: 1px solid #2a3942;
+    display: flex; align-items: center; justify-content: space-between;
+    position: relative; z-index: 2;
+  }
+  .wa-contact { display: flex; align-items: center; gap: 12px; }
+  .wa-avatar {
+    width: 44px; height: 44px; border-radius: 50%;
+    background: linear-gradient(135deg, #0d9488, #14b8a6);
+    display: flex; align-items: center; justify-content: center;
+    font-weight: 800; font-size: 16px; color: #fff;
+    box-shadow: 0 2px 8px rgba(13, 148, 136, 0.4);
+  }
+  .wa-meta { line-height: 1.35; }
+  .wa-name { font-size: 16px; font-weight: 600; color: #e9edef; display: flex; align-items: center; gap: 6px; }
+  .wa-verified { color: #25d366; font-size: 14px; }
+  .wa-status { font-size: 12px; color: #8696a0; }
+  .wa-badge {
+    background: rgba(37, 211, 102, 0.12); color: #25d366;
+    border: 1px solid rgba(37, 211, 102, 0.3); font-size: 11.5px;
+    font-weight: 700; padding: 4px 10px; border-radius: 999px;
+  }
+
+  .wa-log {
+    flex: 1; overflow-y: auto; padding: 18px 22px;
+    display: flex; flex-direction: column; gap: 12px;
+    position: relative; z-index: 2;
+  }
+  .wa-row { display: flex; width: 100%; }
+  .wa-row.guest { justify-content: flex-end; }
+  .wa-row.bot { justify-content: flex-start; }
+
+  .wa-bubble {
+    max-width: 76%; padding: 9px 14px 7px; border-radius: 10px;
+    font-size: 14px; line-height: 1.44; position: relative;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.25);
+    animation: popBubble 0.25s ease-out both;
+  }
+  @keyframes popBubble { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+  .wa-row.guest .wa-bubble {
+    background: #005c4b; color: #e9edef; border-top-right-radius: 2px;
+  }
+  .wa-row.bot .wa-bubble {
+    background: #202c33; color: #e9edef; border-top-left-radius: 2px;
+  }
+  .wa-bubble .meta {
+    display: flex; align-items: center; justify-content: flex-end; gap: 4px;
+    font-size: 11px; color: rgba(233, 237, 239, 0.6); margin-top: 4px;
+  }
+  .wa-bubble .checkmarks { color: #53bdeb; font-weight: 800; font-size: 12px; }
+
+  .wa-typing {
+    display: none; align-self: flex-start; background: #202c33;
+    padding: 8px 16px; border-radius: 12px; font-size: 13px;
+    color: #8696a0; gap: 6px; align-items: center; margin-bottom: 4px;
+  }
+  .wa-typing.active { display: inline-flex; }
+  .typing-dot {
+    width: 6px; height: 6px; border-radius: 50%; background: #8696a0;
+    animation: typingBounce 1.2s infinite ease-in-out;
+  }
+  .typing-dot:nth-child(2) { animation-delay: 0.2s; }
+  .typing-dot:nth-child(3) { animation-delay: 0.4s; }
+  @keyframes typingBounce { 0%, 80%, 100% { transform: scale(0.6); opacity: 0.4; } 40% { transform: scale(1); opacity: 1; } }
+
+  .wa-input-bar {
+    background: #202c33; padding: 10px 16px; display: flex; align-items: center;
+    gap: 12px; border-top: 1px solid #2a3942; position: relative; z-index: 2;
+  }
+  .wa-icon-btn {
+    font-size: 18px; color: #8696a0; cursor: pointer; padding: 4px;
+  }
+  #wa-input-text {
+    flex: 1; background: #2a3942; border: 1px solid transparent;
+    border-radius: 8px; color: #e9edef; font-size: 14.5px;
+    padding: 10px 14px; outline: none; transition: border-color 0.2s;
+  }
+  #wa-input-text:focus { border-color: #25d366; }
+  .wa-send-btn {
+    background: #00a884; color: #fff; width: 40px; height: 40px;
+    border-radius: 50%; border: none; display: flex; align-items: center;
+    justify-content: center; font-size: 16px; cursor: pointer;
+    box-shadow: 0 2px 6px rgba(0, 168, 132, 0.4);
+  }
+
+  /* RIGHT: AI EXTRACTION INSPECTOR & STATE */
+  .inspector-card {
+    background: #111827; border: 1px solid #1e293b; border-radius: 14px;
+    padding: 18px 20px; display: flex; flex-direction: column; gap: 14px;
+  }
+  .panel-header {
+    display: flex; align-items: center; justify-content: space-between;
+    border-bottom: 1px solid #1e293b; padding-bottom: 12px;
+  }
+  .panel-title { font-size: 15.5px; font-weight: 700; color: #f1f5f9; display: flex; align-items: center; gap: 8px; }
+  .status-chip {
+    font-size: 12px; font-weight: 800; padding: 4px 10px; border-radius: 999px;
+    background: rgba(148, 163, 184, 0.15); color: #94a3b8; border: 1px solid rgba(148, 163, 184, 0.3);
+  }
+  .status-chip.complete {
+    background: rgba(16, 185, 129, 0.2); color: #34d399; border-color: rgba(16, 185, 129, 0.4);
+  }
+
+  .slots-grid {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 10px;
+  }
+  .slot-item {
+    background: #0f172a; border: 1px solid #1e293b; border-radius: 8px;
+    padding: 8px 12px; display: flex; flex-direction: column; gap: 4px;
+    transition: all 0.25s ease;
+  }
+  .slot-item.filled {
+    border-color: #25d366; background: rgba(37, 211, 102, 0.05);
+  }
+  .slot-head {
+    display: flex; align-items: center; justify-content: space-between;
+  }
+  .slot-name { font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em; color: #7c93a8; font-weight: 700; }
+  .slot-badge {
+    font-size: 9.5px; font-weight: 800; padding: 2px 6px; border-radius: 4px; text-transform: uppercase;
+  }
+  .slot-badge.missing { background: rgba(148, 163, 184, 0.15); color: #94a3b8; }
+  .slot-badge.stated { background: rgba(37, 211, 102, 0.2); color: #25d366; }
+  .slot-val { font-size: 13.5px; font-weight: 600; color: #f1f5f9; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .slot-val.empty { color: #475569; font-weight: 500; }
+
+  .guardrails-box {
+    margin-top: 4px; padding: 12px 14px; background: #0f172a; border: 1px solid #1e293b;
+    border-radius: 10px; display: flex; flex-direction: column; gap: 8px;
+  }
+  .guardrail-item {
+    display: flex; align-items: center; gap: 10px; font-size: 12.5px;
+  }
+  .guardrail-icon { font-size: 15px; }
+  .guardrail-title { font-weight: 700; color: #e2e8f0; }
+  .guardrail-status { margin-left: auto; font-size: 11px; font-weight: 800; padding: 2px 8px; border-radius: 4px; }
+  .guardrail-status.active { background: rgba(34, 211, 238, 0.2); color: #22d3ee; }
+
+  /* CLEAN REAL-TIME POINTERS & DOCK SUBTITLES */
+  .pointer-glow-target {
+    outline: 2.5px solid #25d366 !important;
+    outline-offset: 4px !important;
+    box-shadow: 0 0 20px rgba(37, 211, 102, 0.45) !important;
+    transition: all 0.25s ease !important;
+  }
+
+  .pointer-wrapper {
+    position: fixed; z-index: 999999; display: flex; flex-direction: column;
+    align-items: center; pointer-events: none;
+    filter: drop-shadow(0 6px 16px rgba(0,0,0,0.65));
+    animation: pointerFloat 1.3s ease-in-out infinite alternate;
+  }
+  .pointer-arrow-icon {
+    font-size: 22px; line-height: 1; color: #25d366;
+    text-shadow: 0 0 12px rgba(37, 211, 102, 0.85); margin: 2px 0;
+  }
+  .pointer-pill {
+    background: rgba(15, 23, 42, 0.96); border: 1.5px solid #25d366;
+    border-radius: 999px; padding: 6px 16px; font-size: 13.5px;
+    font-weight: 700; color: #ffffff; display: flex; align-items: center;
+    gap: 8px; white-space: nowrap; box-shadow: 0 4px 16px rgba(0,0,0,0.5);
+  }
+  .pointer-badge {
+    background: #25d366; color: #04211f; font-size: 11.5px;
+    font-weight: 900; padding: 2px 8px; border-radius: 999px;
+    display: inline-flex; align-items: center; justify-content: center;
+  }
+  @keyframes pointerFloat { 0% { transform: translateY(0); } 100% { transform: translateY(-6px); } }
+
+  /* FLOATING DOCK SUBTITLE BAR */
+  #video-subbar {
+    position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%);
+    width: min(88%, 1300px); min-height: 64px;
+    background: rgba(10, 15, 29, 0.94); backdrop-filter: blur(14px);
+    border: 1.5px solid rgba(37, 211, 102, 0.45);
+    border-radius: 14px; display: flex; align-items: center;
+    justify-content: center; padding: 10px 32px; z-index: 999998;
+    box-shadow: 0 10px 32px rgba(0, 0, 0, 0.8);
+  }
+  #video-sub-text {
+    font-size: 22px; font-weight: 700; line-height: 1.34;
+    color: #ffffff; text-align: center;
+    text-shadow: 0 2px 8px rgba(0, 0, 0, 0.95); letter-spacing: 0.01em;
+  }
+</style>
+</head>
+<body>
+
+  <!-- Floating Status Badge -->
+  <div id="video-top-tag">
+    <span style="width:8px;height:8px;border-radius:50%;background:#ef4444;box-shadow:0 0 8px #ef4444;animation:liveDot 1.2s infinite ease-in-out;"></span>
+    <span style="font-weight:800;color:#fff;font-size:12px;letter-spacing:0.05em;">LIVE SCREENCAST</span>
+    <span style="color:#94a3b8;font-size:12px;border-left:1px solid #334155;padding-left:8px;">WhatsApp Cloud API · Edge</span>
+  </div>
+
+  <!-- Header Bar -->
+  <div class="header-bar">
+    <div class="brand-group">
+      <span class="brand-badge">WhatsApp Channel</span>
+      <span class="brand-title">Casa Escondida — Conversational AI Concierge</span>
+      <span class="brand-sub">Multi-turn Dialogues · Real-time Slot Extraction · Odoo Handover</span>
+    </div>
+  </div>
+
+  <!-- Main Workspace -->
+  <div class="workspace">
+    <!-- Left: WhatsApp Web Stage -->
+    <div class="wa-container" id="wa-window">
+      <div class="wa-header" id="wa-header">
+        <div class="wa-contact">
+          <div class="wa-avatar">CE</div>
+          <div class="wa-meta">
+            <div class="wa-name">Casa Escondida · Reservations <span class="wa-verified">✓</span></div>
+            <div class="wa-status">Official Business Account · +1 (555) 150-6595</div>
+          </div>
+        </div>
+        <span class="wa-badge">Cloud API Active</span>
+      </div>
+
+      <div class="wa-log" id="wa-chat-log">
+        <!-- Bubbles injected dynamically -->
+      </div>
+
+      <div class="wa-typing" id="wa-typing-indicator">
+        <span>Casa Escondida is typing</span>
+        <div class="typing-dot"></div>
+        <div class="typing-dot"></div>
+        <div class="typing-dot"></div>
+      </div>
+
+      <div class="wa-input-bar" id="wa-input-row">
+        <span class="wa-icon-btn">😊</span>
+        <span class="wa-icon-btn">📎</span>
+        <input type="text" id="wa-input-text" placeholder="Type a message..." readonly />
+        <button class="wa-send-btn" id="wa-send-btn">➤</button>
+      </div>
+    </div>
+
+    <!-- Right: AI Slot Extraction & Guardrails -->
+    <div class="inspector-card" id="inspector-card">
+      <div class="panel-header">
+        <div class="panel-title">
+          <span>🧠 Extracted Trip State</span>
+        </div>
+        <span class="status-chip" id="trip-status-chip">SLOTS: 0/8 COMPLETE</span>
+      </div>
+
+      <div class="slots-grid">
+        <div class="slot-item" id="slot-name">
+          <div class="slot-head"><span class="slot-name">Guest Name</span><span class="slot-badge missing" id="badge-name">missing</span></div>
+          <div class="slot-val empty" id="val-name">—</div>
+        </div>
+        <div class="slot-item" id="slot-dates">
+          <div class="slot-head"><span class="slot-name">Dates & Nights</span><span class="slot-badge missing" id="badge-dates">missing</span></div>
+          <div class="slot-val empty" id="val-dates">—</div>
+        </div>
+        <div class="slot-item" id="slot-guests">
+          <div class="slot-head"><span class="slot-name">Staying Guests</span><span class="slot-badge missing" id="badge-guests">missing</span></div>
+          <div class="slot-val empty" id="val-guests">—</div>
+        </div>
+        <div class="slot-item" id="slot-rooms">
+          <div class="slot-head"><span class="slot-name">Rooms & Meals</span><span class="slot-badge missing" id="badge-rooms">missing</span></div>
+          <div class="slot-val empty" id="val-rooms">—</div>
+        </div>
+        <div class="slot-item" id="slot-diving">
+          <div class="slot-head"><span class="slot-name">Diving Schedule</span><span class="slot-badge missing" id="badge-diving">missing</span></div>
+          <div class="slot-val empty" id="val-diving">—</div>
+        </div>
+        <div class="slot-item" id="slot-divers">
+          <div class="slot-head"><span class="slot-name">Diver Headcount</span><span class="slot-badge missing" id="badge-divers">missing</span></div>
+          <div class="slot-val empty" id="val-divers">—</div>
+        </div>
+        <div class="slot-item" id="slot-transfer">
+          <div class="slot-head"><span class="slot-name">Airport Pickup</span><span class="slot-badge missing" id="badge-transfer">missing</span></div>
+          <div class="slot-val empty" id="val-transfer">—</div>
+        </div>
+        <div class="slot-item" id="slot-status">
+          <div class="slot-head"><span class="slot-name">Trip Completion</span><span class="slot-badge missing" id="badge-status">pending</span></div>
+          <div class="slot-val empty" id="val-status">Enquiry In Progress</div>
+        </div>
+      </div>
+
+      <div class="guardrails-box">
+        <div style="font-size:12px;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:2px;">Active Guardrails & Gates</div>
+        <div class="guardrail-item">
+          <span class="guardrail-icon">🛡️</span>
+          <div>
+            <div class="guardrail-title">NEVER RE-ASK Guardrail</div>
+            <div style="font-size:11.5px;color:#94a3b8;">Never re-prompts for dates, rooms, or headcounts once acknowledged</div>
+          </div>
+          <span class="guardrail-status active">LOCKED</span>
+        </div>
+        <div class="guardrail-item">
+          <span class="guardrail-icon">🧮</span>
+          <div>
+            <div class="guardrail-title">Symbolic Math Reconciler</div>
+            <div style="font-size:11.5px;color:#94a3b8;">Reconciles sleeping pax vs day visitors and splits dive groups cleanly</div>
+          </div>
+          <span class="guardrail-status active">ACTIVE</span>
+        </div>
+        <div class="guardrail-item">
+          <span class="guardrail-icon">🤝</span>
+          <div>
+            <div class="guardrail-title">Staff Handover Gate</div>
+            <div style="font-size:11.5px;color:#94a3b8;">Locks state upon 8/8 completion and forwards to Odoo ERP quotation queue</div>
+          </div>
+          <span class="guardrail-status active">READY</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Floating Subtitle Dock -->
+  <div id="video-subbar">
+    <div style="display:flex;align-items:center;gap:16px;width:100%;">
+      <span style="background:#25d366;color:#04211f;font-weight:900;font-size:12.5px;padding:4px 10px;border-radius:6px;letter-spacing:0.06em;flex-shrink:0;">CC · EN</span>
+      <div id="video-sub-text" style="flex:1;text-align:center;">Welcome to Casa Escondida WhatsApp Concierge...</div>
+    </div>
+  </div>
+
+<script>
+  window.__typeMessage = function(text) {
+    const inp = document.getElementById("wa-input-text");
+    if (inp) inp.value = text;
+  };
+
+  window.__clearInput = function() {
+    const inp = document.getElementById("wa-input-text");
+    if (inp) inp.value = "";
+  };
+
+  window.__addGuestMessage = function(text, time = "10:15 AM") {
+    const log = document.getElementById("wa-chat-log");
+    const row = document.createElement("div");
+    row.className = "wa-row guest";
+    row.innerHTML = `
+      <div class="wa-bubble">
+        <div>${text}</div>
+        <div class="meta"><span>${time}</span><span class="checkmarks">✓✓</span></div>
+      </div>
+    `;
+    log.appendChild(row);
+    log.scrollTop = log.scrollHeight;
+  };
+
+  window.__showTyping = function(show) {
+    const el = document.getElementById("wa-typing-indicator");
+    if (el) el.classList.toggle("active", !!show);
+    const log = document.getElementById("wa-chat-log");
+    log.scrollTop = log.scrollHeight;
+  };
+
+  window.__addBotMessage = function(text, time = "10:15 AM") {
+    const log = document.getElementById("wa-chat-log");
+    const row = document.createElement("div");
+    row.className = "wa-row bot";
+    row.innerHTML = `
+      <div class="wa-bubble">
+        <div>${text}</div>
+        <div class="meta"><span>${time}</span></div>
+      </div>
+    `;
+    log.appendChild(row);
+    log.scrollTop = log.scrollHeight;
+  };
+
+  window.__updateSlots = function(state) {
+    for (const [k, v] of Object.entries(state)) {
+      const valEl = document.getElementById("val-" + k);
+      const badgeEl = document.getElementById("badge-" + k);
+      const itemEl = document.getElementById("slot-" + k);
+      if (valEl && v) {
+        valEl.textContent = v.value;
+        valEl.classList.remove("empty");
+        if (badgeEl) {
+          badgeEl.textContent = v.state || "stated";
+          badgeEl.className = "slot-badge " + (v.state === "complete" ? "stated" : (v.state || "stated"));
+        }
+        if (itemEl) itemEl.classList.add("filled");
+      }
+    }
+    if (state.__complete) {
+      const chip = document.getElementById("trip-status-chip");
+      chip.textContent = "8/8 COMPLETE · LOCKED";
+      chip.classList.add("complete");
+    }
+  };
+
+  window.__showPointers = function(marks) {
+    window.__clearPointers();
+    for (const m of (marks || [])) {
+      const el = document.querySelector(m.sel);
+      if (!el) continue;
+      el.classList.add("pointer-glow-target");
+      const r = el.getBoundingClientRect();
+      const w = document.createElement("div");
+      let pos = m.pos || "above";
+      if (pos === "below" && r.bottom + 60 > window.innerHeight - 90) pos = "above";
+      else if (pos === "above" && r.top < 60) pos = "below";
+
+      w.className = "pointer-wrapper " + (pos === "below" ? "pos-below" : "pos-above");
+      const badge = m.n || "➔";
+      if (pos === "below") {
+        w.innerHTML =
+          '<div class="pointer-arrow-icon">▲</div>' +
+          '<div class="pointer-pill"><span class="pointer-badge">' + badge + '</span><span>' + m.label + '</span></div>';
+        const cx = Math.max(160, Math.min(window.innerWidth - 160, r.left + r.width / 2));
+        w.style.left = cx + "px";
+        w.style.transform = "translateX(-50%)";
+        w.style.top = (r.bottom + 8) + "px";
+      } else {
+        w.innerHTML =
+          '<div class="pointer-pill"><span class="pointer-badge">' + badge + '</span><span>' + m.label + '</span></div>' +
+          '<div class="pointer-arrow-icon">▼</div>';
+        const cx = Math.max(160, Math.min(window.innerWidth - 160, r.left + r.width / 2));
+        w.style.left = cx + "px";
+        w.style.transform = "translateX(-50%)";
+        w.style.top = Math.max(12, r.top - 52) + "px";
+      }
+      document.body.appendChild(w);
+    }
+  };
+
+  window.__clearPointers = function() {
+    document.querySelectorAll(".pointer-wrapper").forEach(e => e.remove());
+    document.querySelectorAll(".pointer-glow-target").forEach(e => e.classList.remove("pointer-glow-target"));
+  };
+
+  window.__setSubtitle = function(text) {
+    const el = document.getElementById("video-sub-text");
+    if (el) el.textContent = text;
+  };
+</script>
+</body>
+</html>
