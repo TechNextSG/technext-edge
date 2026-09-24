@@ -12,14 +12,19 @@ const OUT_SRT_PUBLIC = path.resolve("public/casa-web-single-message-demo.srt");
 
 fs.mkdirSync(TMP_DIR, { recursive: true });
 
-function synthesizeNeuralAudio(text, mp3Path, voice = "en-US-AndrewMultilingualNeural") {
-  console.log(`  [TTS] Synthesizing: "${text.slice(0, 60)}..."`);
+// Voice matched directly against docs/demo-video/voice-samples/2-new-script-female.mp3
+// (en-US-AvaMultilingualNeural at rate -8%, warm, human, natural tone picked by the team)
+const VOICE = "en-US-AvaMultilingualNeural";
+const VOICE_RATE = "-8%";
+
+function synthesizeNeuralAudio(text, mp3Path, voice = VOICE, rate = VOICE_RATE) {
+  console.log(`  [TTS] Synthesizing (${voice}, rate=${rate}): "${text.slice(0, 60)}..."`);
   execFileSync(
     "edge-tts",
     [
       "--voice",
       voice,
-      "--rate=+3%",
+      `--rate=${rate}`,
       "--text",
       text,
       "--write-media",
