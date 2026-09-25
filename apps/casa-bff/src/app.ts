@@ -20,6 +20,7 @@ import {
   maskForLogging,
   buildHonoQuotationDraft,
   recalculateQuotationTotals,
+  validateBffTripPrecheck,
   synthesizeConfirmedQuotationReply,
   type ConversationTurn,
   type ExtractProvider,
@@ -735,6 +736,24 @@ export function createApp(options: AppOptions = {}) {
       },
       odooSaleOrderRef: `SO-${draft.quoteId.replace(/^QT-/, "")}`,
       payload: odooPayload,
+      /**
+       * The validated BFF/Odoo `Trip` (`contracts/src/trip.zod.ts`), present whenever this
+       * quotation was built from an extraction `Trip`.
+       *
+       * This is the shape Odoo actually prices: `guests[]` carrying each guest's own `roomId`,
+       * `diver`, `meals` and dated `days`, plus `diveFrom`/`diveTo` and `guestType`. The keys
+       * above are the human-readable envelope the GAIS gateway signs, and they cannot express
+       * per-guest facts — so the group's real composition (who dives, on which days, in which
+       * room, and who is only snorkelling) had no way to reach Odoo at all. `buildBffTrip()`
+       * produces it and `validateBffTripPrecheck()` checks the 6 groups `fill.ts` 422s on; both
+       * were tested but nothing Odoo-bound carried the result until now.
+       *
+       * `bffValidationIssues` is included rather than thrown on: this envelope is also a
+       * preview that staff read before confirming, and a 422 that names the offending field is
+       * more useful to whoever is fixing it than a silent omission.
+       */
+      bffTrip: draft.bffTrip ?? null,
+      bffValidationIssues: draft.bffTrip ? validateBffTripPrecheck(draft.bffTrip) : [],
     };
   }
 

@@ -20,6 +20,10 @@ import {
   saveQuotationDraft,
 } from "../../../apps/casa-bff/src/quotationStore.js";
 import { buildHonoQuotationDraft } from "../../../packages/extractor/src/quotationTool.js";
+import {
+  validateBffTripPrecheck,
+  buildBffTrip,
+} from "../../../packages/extractor/src/odooHandoff.js";
 import type { Trip } from "../../../packages/extractor/src/schema.js";
 
 const STAFF_TOKEN = "test-staff-token";
@@ -35,8 +39,12 @@ afterAll(() => {
   else process.env.WHATSAPP_VERIFY_TOKEN = savedToken;
 });
 
-function makeTrip(): Trip {
-  const f = (value: unknown, state = "stated") => ({ value, state, evidence: null });
+/**
+ * `overrides` are whole `{value, state, evidence}` fields, not bare values — `divers: 2` would
+ * silently produce `{value: undefined}` and the builder would then assume every guest dives.
+ */
+function makeTrip(overrides: Partial<Trip> = {}): Trip {
+  const f = <T,>(value: T | null, state = "stated") => ({ value, state, evidence: null });
   return {
     language: f("en", "default"),
     contactName: f("Sky"),
@@ -47,14 +55,20 @@ function makeTrip(): Trip {
     rooms: f(2),
     meals: f("full_board"),
     transport: f(false),
-    guestType: f("regular", "default"),
+    guestType: f("retail", "default"),
     transportType: f("none", "default"),
     diver: f(true),
     divers: f(null, "missing"),
     diveNotes: f(null, "missing"),
     specialRequests: f(null, "missing"),
     guestNames: f([]),
-  };
+    ...overrides,
+  } as Trip;
+}
+
+/** A Trip whose dive head count is stated, so only some guests carry dive days. */
+function tripWithStatedDivers(count: number): Trip {
+  return makeTrip({ divers: { value: count, state: "stated", evidence: `${count} divers` } });
 }
 
 describe("guest quotation slug is a credential", () => {
@@ -180,8 +194,7 @@ describe("staff quotation routes require the staff token", () => {
   });
 });
 
-describe("/v1/quotes/compute stays usable by the AI and reads nothing stored", () => {
-  it("prices a trip with no credential — the product depends on this", async () => {
+describe("/v1/quotes/compute stays usable by the AI and reads nothing stored", () => {  it("prices a trip with no credential — the product depends on this", async () => {
     const app = createApp();
     const res = await app.request("/v1/quotes/compute", {
       method: "POST",
@@ -249,5 +262,125 @@ describe("/v1/quotes/compute stays usable by the AI and reads nothing stored", (
       body: JSON.stringify({ trip: makeTrip() }),
     });
     expect(await res.text()).not.toContain("84359386414");
+  });
+});
+
+/**
+ * `buildBffTrip()` and `validateBffTripPrecheck()` were correct and tested, but nothing
+ * Odoo-bound carried their result: `buildOdooGaisEnvelope` is called from handlers that only
+ * hold a `HonoQuotationDraft`, and that draft has no column for `guestType`, `transportType`,
+ * `diveFrom`/`diveTo` or per-guest `days`. So the whole BFF contract was validated on paper
+ * and absent from every request that reached Odoo.
+ *
+ * These tests pin the wiring, not the builder — the builder has its own suite.
+ */
+describe("the validated BFF Trip reaches the Odoo-bound envelope", () => {
+  it("builds it where the full extraction Trip is still available", () => {
+    const draft = buildHonoQuotationDraft(makeTrip());
+    // The draft is lossy on purpose; `bffTrip` is what carries what the draft drops.
+    expect(draft.bffTrip, "buildHonoQuotationDraft() dropped the BFF Trip").toBeDefined();
+    expect(draft.bffTrip!.guestType).toBe("retail");
+    expect(draft.bffTrip!.checkIn).toBe("2026-10-10");
+    expect(draft.bffTrip!.checkOut).toBe("2026-10-12");
+  });
+
+  it("narrows an out-of-contract guestType to the contract's default", () => {
+    // "regular" is not one of the three values the contract accepts, and the AI tool
+    // description used to offer it by name. The zod gate rejects it before it reaches here,
+    // but `buildBffTrip` is exported and any caller can hand it a Trip-shaped object — and an
+    // unrecognised guestType reaches Odoo as neither a partner rate nor its own default.
+    const trip = makeTrip();
+    const odd = { ...trip, guestType: { value: "regular", state: "stated" as const, evidence: null } };
+    expect(buildBffTrip(odd as Trip).guestType).toBe("retail");
+    // A real partner rate still comes through untouched: the agency discount depends on it.
+    const agent = { ...trip, guestType: { value: "agent", state: "stated" as const, evidence: null } };
+    expect(buildBffTrip(agent as Trip).guestType).toBe("agent");
+  });
+
+  it("carries per-guest facts the flattened draft cannot express", () => {
+    // `divers: 2` because that is what makes one guest a diver and three not; with no stated
+    // head count the builder assumes everyone dives, which is the conservative reading.
+    const bff = buildHonoQuotationDraft(tripWithStatedDivers(2)).bffTrip!;
+
+    // The reason the BFF shape exists at all:
+    // `HonoQuotationDraft` exposes only `stayingGuests` and `divers`.
+    expect(bff.guests).toHaveLength(4);
+    const roomIds = new Set(bff.rooms.map((r) => r.id));
+    for (const g of bff.guests) {
+      expect(typeof g.diver).toBe("boolean");
+      expect(roomIds.has(g.roomId!)).toBe(true);
+      if (g.diver) expect(Object.keys(g.days).length).toBeGreaterThan(0);
+    }
+    expect(bff.guests.filter((g) => g.diver)).toHaveLength(2);
+    expect(bff.guests.filter((g) => !g.diver)).toHaveLength(2);
+  });
+
+  it("passes its own pre-flight, so Odoo would not 422 it", () => {
+    const bff = buildHonoQuotationDraft(makeTrip()).bffTrip!;
+    expect(validateBffTripPrecheck(bff)).toEqual([]);
+  });
+
+  it("rides along on the envelope the sync endpoint returns", async () => {
+    const app = createApp();
+    // Sync a quotation that came from an extraction Trip, which is the only way to have a
+    // `bffTrip` at all. The hand-written seed record is not one: it was typed into
+    // quotationStore.ts rather than built from a Trip, so it correctly has none — see the
+    // next test, which pins that it reports null instead of inventing one.
+    const built = buildHonoQuotationDraft(tripWithStatedDivers(2));
+    saveQuotationDraft(built);
+
+    const res = await app.request(`/v1/quotes/${built.quoteId}/sync-odoo`, {
+      method: "POST",
+      headers: { "x-verify-token": STAFF_TOKEN },
+    });
+
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as {
+      gaisContract: {
+        bffTrip: { guests: unknown[]; checkIn: string; guestType: string } | null;
+        bffValidationIssues: unknown[];
+        payload: { model: string };
+      };
+    };
+    // The envelope still carries the signed human-readable payload…
+    expect(body.gaisContract.payload.model).toBe("sale.order");
+    // …and now the contract shape Odoo prices from, with no validation errors.
+    expect(body.gaisContract.bffTrip).not.toBeNull();
+    expect(body.gaisContract.bffTrip!.guests.length).toBeGreaterThan(0);
+    expect(body.gaisContract.bffValidationIssues).toEqual([]);
+  });
+
+  it("reports `bffTrip: null` rather than inventing one for a draft that never had a Trip", async () => {
+    const app = createApp();
+    const seeded = listQuotations().find((q) => q.quoteId === "QT-1010-SKY")!;
+    const res = await app.request(`/v1/quotes/${seeded.quoteId}/sync-odoo`, {
+      method: "POST",
+      headers: { "x-verify-token": STAFF_TOKEN },
+    });
+
+    const body = (await res.json()) as {
+      gaisContract: { bffTrip: unknown; bffValidationIssues: unknown[] };
+    };
+    // Honest null: this record was hand-written, so there are no extraction facts to carry,
+    // and synthesising a guess is exactly the failure mode the contract exists to prevent.
+    expect(body.gaisContract.bffTrip).toBeNull();
+    expect(body.gaisContract.bffValidationIssues).toEqual([]);
+  });
+
+  it("says `bffTrip: null` rather than inventing one for a line-items-only draft", () => {
+    // A draft priced from raw lineItems was never an extraction result, so it has no
+    // guest-level facts. Reporting null is honest; synthesising a guess is not.
+    const { bffTrip: _omitted, ...withoutTrip } = buildHonoQuotationDraft(makeTrip());
+    const app = createApp();
+    return app
+      .request("/v1/quotes/compute", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ draft: { lineItems: withoutTrip.lineItems } }),
+      })
+      .then(async (r) => {
+        const body = (await r.json()) as { computed: { bffTrip?: unknown } };
+        expect(body.computed.bffTrip).toBeUndefined();
+      });
   });
 });

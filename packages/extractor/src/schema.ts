@@ -99,16 +99,25 @@ export const BffRoom = z.object({
 });
 export type BffRoom = z.infer<typeof BffRoom>;
 
+const str120 = z.string().max(120);
+
+const vanRef = z
+  .preprocess(
+    (value) => (typeof value === "number" ? String(value) : value),
+    str120.nullable()
+  )
+  .default(null);
+
 export const BffGuest = z.object({
-  id: z.string().max(120).nullable().default(null),
-  name: z.string().max(120).default("Guest"),
+  id: str120.nullable().default(null),
+  name: str120.default("Guest"),
   /** Crucial: Odoo defaults missing `diver` to true! Non-divers MUST explicitly pass `false`. */
   diver: z.boolean(),
   meals: z.boolean().default(true),
   transport: z.boolean().default(true),
   foc: z.boolean().default(false),
   /** ★ Mandatory: must reference an existing `rooms[].id`. */
-  roomId: z.string().max(120).nullable(),
+  roomId: str120.nullable(),
   courses: z.array(BffCourseCode).max(5).default([]),
   /** ★ Mandatory when `diver === true` (>=1 date key within [diveFrom, diveTo]); `{}` when `diver === false`. */
   days: z.record(z.string(), BffDayPlanEntry).default({}),
@@ -116,31 +125,31 @@ export const BffGuest = z.object({
   // key and an explicit null are the same value there. Keeping them optional here would
   // let a payload reach the BFF with the key absent, which is a shape difference the
   // vendored parity test deliberately rejects.
-  arrive: z.string().max(120).nullable().default(null),
-  depart: z.string().max(120).nullable().default(null),
+  arrive: str120.nullable().default(null),
+  depart: str120.nullable().default(null),
   comment: z.string().max(500).nullable().default(null),
-  vanA: z.string().max(120).nullable().default(null),
-  vanD: z.string().max(120).nullable().default(null),
+  vanA: vanRef,
+  vanD: vanRef,
 });
 export type BffGuest = z.infer<typeof BffGuest>;
 
 export const BffCustomItem = z.object({
-  id: z.string().max(120),
-  name: z.string().max(120),
-  price: z.number().nonnegative(),
-  qty: z.number().min(1),
-  mode: z.string(),
-  date: z.string().nullable(),
-  dateTo: z.string().nullable(),
-  gids: z.array(z.string()),
+  id: str120.nullable().default(null),
+  name: str120.nullable().default(null),
+  price: z.number().min(0).default(0),
+  qty: z.number().min(1).default(1),
+  mode: str120.nullable().default(null),
+  date: str120.nullable().default(null),
+  dateTo: str120.nullable().default(null),
+  gids: z.array(z.string()).default([]),
 });
 export type BffCustomItem = z.infer<typeof BffCustomItem>;
 
 export const BffVanMetaEntry = z.object({
-  date: z.string(),
-  time: z.string(),
-  price: z.number(),
-  foc: z.boolean(),
+  date: str120.nullable().default(null),
+  time: str120.nullable().default(null),
+  price: z.number().nullable().default(null),
+  foc: z.boolean().default(false),
 });
 
 /**

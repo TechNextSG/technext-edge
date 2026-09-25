@@ -1,7 +1,8 @@
 import { randomUUID } from "node:crypto";
-import type { Trip } from "./schema.js";
+import type { Trip, BffTrip } from "./schema.js";
 import type { ExtractProvider } from "./provider.js";
 import { getStaffAlerts } from "./questions.js";
+import { buildBffTrip } from "./odooHandoff.js";
 
 export interface QuotationLineItem {
   id: string;
@@ -49,6 +50,14 @@ export interface HonoQuotationDraft {
   staffNotes: string;
   staffAlerts: string[];
   aiConfirmedReply?: string;
+  /**
+   * The validated Odoo/BFF `Trip` this quotation was priced from, when it was built from an
+   * extraction `Trip` at all. Carried through so the Odoo-bound envelope contains the contract
+   * shape (`guests[]` with `roomId`/`days`, `diveFrom`/`diveTo`, `guestType`) rather than only
+   * this draft's flattened columns. Absent for a draft computed from raw `lineItems`, which was
+   * never an extraction result and so has no guest-level facts to send.
+   */
+  bffTrip?: BffTrip;
 }
 
 export interface HonoToolCallTrace {
@@ -96,11 +105,15 @@ export const SUBMIT_QUOTATION_TO_HONO_DECLARATION = {
       stayingGuests: { type: "INTEGER", description: "Number of guests staying overnight at the resort" },
       totalGroupSize: { type: "INTEGER", description: "Total people in the group including day-trippers/divers" },
       rooms: { type: "INTEGER", description: "Number of resort rooms required" },
-      mealPlan: { type: "STRING", description: "full_board, breakfast_only, or no_meals" },
+      mealPlan: { type: "STRING", description: "full_board, half_board, room_only, or none" },
       diver: { type: "BOOLEAN", description: "Whether the group is diving" },
       divers: { type: "INTEGER", description: "Number of divers if uniform across all days" },
       diveNotes: { type: "STRING", description: "Split-day or custom diving schedule notes" },
-      guestType: { type: "STRING", description: "agent, instructor, or regular" },
+      // The three values the contract actually accepts. This said "agent, instructor, or
+      // regular" — "regular" appears nowhere in the Trip schema, so a model filling the slot
+      // from the description could only produce a value Odoo has no branch for. The contract's
+      // word for a direct guest is "retail".
+      guestType: { type: "STRING", description: "retail, agent, or instructor" },
     },
     required: ["checkIn", "nights", "stayingGuests"],
   },
@@ -300,6 +313,14 @@ export function buildHonoQuotationDraft(
       ? `Custom split-day dive arrangement noted: "${diveNotes}". Verify boat manifest before confirming.`
       : "Standard resort quotation draft ready for Hono confirmation.",
     staffAlerts: getStaffAlerts(trip, "en"),
+    // The Odoo/BFF `Trip`, built here and nowhere else, because this is the last point where
+    // the full extraction `Trip` still exists. `HonoQuotationDraft` is a lossy view of it —
+    // guestType, transportType, diveFrom/diveTo and guestNames have no column here — so a
+    // `BffTrip` cannot be reconstructed later from the draft alone, and `buildBffTrip()` is
+    // what enforces the 6 mandatory groups `bff/src/trip/fill.ts` rejects with 422. Without
+    // this, that validation existed and was tested but no Odoo-bound request ever carried its
+    // result, so the contract was correct on paper and absent in production.
+    bffTrip: buildBffTrip(trip),
   };
 
   return recalculateQuotationTotals(draft);

@@ -111,7 +111,15 @@ function detectCourseCodes(notes: string | null): BffCourseCode[] {
  */
 export function buildBffTrip(trip: Trip): BffTrip {
   const contactName = trip.contactName?.value ?? "Guest";
-  const guestType = trip.guestType?.value ?? "retail";
+  // Normalized at the boundary that feeds Odoo, not trusted from the caller. The extraction
+  // schema constrains this to the same three values, so today this only ever passes through —
+  // but `buildBffTrip` is exported and takes any object shaped like a Trip, and an
+  // out-of-enum `guestType` sent to Odoo lands on no branch at all (its own default is
+  // "retail", so an unrecognised string is worse than the default it replaced). Cheaper to
+  // narrow here than to depend on every future caller having gone through zod first.
+  const rawGuestType = trip.guestType?.value;
+  const guestType =
+    rawGuestType === "agent" || rawGuestType === "instructor" ? rawGuestType : "retail";
   const transportRequested = Boolean(trip.transport?.value);
   const transportType =
     trip.transportType?.value && trip.transportType.value !== "none"
