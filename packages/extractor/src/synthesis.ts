@@ -96,6 +96,21 @@ export function verifySynthesizedReply(text: string, trip: Trip): FactGateResult
 }
 
 /**
+ * The suffix that marks a fact as the resort's own assumption rather than the guest's choice.
+ *
+ * The prompt used to print `Rooms: 1`, `Meals: full board` and `Airport transfer: no` as bare
+ * facts even when those were house norms nobody had chosen. The deterministic summary marks them
+ * `(assumed)`; the model was never told, so it read them back as the guest's own answers. Measured
+ * on a real WhatsApp enquiry — "Hi, 4 of us next Saturday for 3 nights, my name is Ana" — all three
+ * come back `state: "default"`, and the guest was told "Airport transfer: Not needed" when they had
+ * never mentioned a transfer. A guest who does want the van gets no cue to say so, and the transfer
+ * is a priced line.
+ */
+function markAssumed(field: { state?: string } | undefined): string {
+  return field?.state === "default" ? " (HOUSE ASSUMPTION — the guest has not chosen this)" : "";
+}
+
+/**
  * Synthesizes a natural, warm hospitality message grounded on the verified
  * extracted Trip facts, acknowledging nuanced arrangements while respecting
  * all business boundaries and zero-hallucination guardrails.
@@ -132,21 +147,22 @@ export async function synthesizeHospitalityReply(
       "5. If the situation is 'questions', warmly acknowledge what was noted and ask the remaining questions provided below.\n" +
       "6. CRITICAL EMPATHY & NUANCE: If the guest mentioned specific nuanced arrangements (such as day visitors vs staying guests, or who dives on which days), explicitly acknowledge that arrangement with understanding so the guest knows they were heard.\n" +
       `7. Reply in ${langName}.\n` +
-      "8. WhatsApp style: Friendly, concise, hospitable (5-star dive resort concierge). Include the clean bulleted summary lines so the guest can easily check their details.";
+      "8. WhatsApp style: Friendly, concise, hospitable (5-star dive resort concierge). Include the clean bulleted summary lines so the guest can easily check their details.\n" +
+      "9. HOUSE ASSUMPTIONS: a fact marked '(HOUSE ASSUMPTION — the guest has not chosen this)' is the resort's default, NOT something the guest said. Never present it as their choice or as already settled. Mention it as what we will assume unless they say otherwise — e.g. 'we'll plan on full board unless you'd prefer otherwise'. If the guest has not mentioned it at all, it is usually better to leave it out of a short reply than to assert it.";
 
     const userPrompt =
       `Conversation History:\n${input.turns.map((t) => `${t.role === "guest" ? "Guest" : "Concierge"}: ${t.text}`).join("\n")}\n\n` +
       `Verified Facts:\n` +
       `- Stay: ${input.trip.checkIn?.value ?? "not specified"} to ${input.trip.checkOut?.value ?? "not specified"} (${input.trip.nights?.value ?? "not specified"} nights)\n` +
       `- Guests staying overnight: ${input.trip.guests?.value ?? "not specified"}\n` +
-      `- Rooms: ${input.trip.rooms?.value ?? "1"}\n` +
-      `- Meals: ${input.trip.meals?.value ?? "full board"}\n` +
+      `- Rooms: ${String(input.trip.rooms?.value ?? "1")}${markAssumed(input.trip.rooms)}\n` +
+      `- Meals: ${String(input.trip.meals?.value ?? "full board")}${markAssumed(input.trip.meals)}\n` +
       `- Diving: ${divingLine(input)}\n` +
       (typeof input.trip.divers?.value === "number" ? `- Divers in the party: ${input.trip.divers.value}\n` : "") +
       (input.trip.diveNotes?.value ? `- Diving breakdown: ${input.trip.diveNotes.value}\n` : "") +
       (input.trip.specialRequests?.value ? `- Special notes: ${input.trip.specialRequests.value}\n` : "") +
       (input.trip.guestNames?.value && input.trip.guestNames.value.length > 0 ? `- Guest names in party: ${input.trip.guestNames.value.join(", ")}\n` : "") +
-      `- Airport transfer: ${input.trip.transport?.value ? `yes (${input.trip.transportType?.value ?? "roundtrip"})` : input.trip.transport?.value === false ? "no" : "unconfirmed"}\n` +
+      `- Airport transfer: ${input.trip.transport?.value ? `yes (${input.trip.transportType?.value ?? "roundtrip"})` : input.trip.transport?.value === false ? "no" : "unconfirmed"}${markAssumed(input.trip.transport)}\n` +
       `- Contact name: ${input.trip.contactName?.value ?? "Guest"}\n\n` +
       `Situation: ${input.replyKind}\n` +
       (input.questions.length > 0 ? `Remaining questions to ask:\n${input.questions.map((q, i) => `${i + 1}. ${q.question}`).join("\n")}\n\n` : "") +

@@ -885,6 +885,66 @@ describe("a dive window the guest never gave", () => {
     const userPrompt = generateText.mock.calls[0]![1] as string;
     expect(userPrompt).toContain("Diving: yes (2026-11-26 to 2026-11-28)");
   });
+
+  /**
+   * The deterministic summary marks house norms `(assumed)`; the model was never told, so it read
+   * them back as the guest's own answers. Found in a real WhatsApp screenshot: the guest wrote
+   * "Hi, 4 of us next Saturday for 3 nights, my name is Ana" and was told "Airport transfer: Not
+   * needed" — a house norm they had never mentioned, and a priced line.
+   */
+  describe("house assumptions are marked for the synthesis model", () => {
+    function promptLines(trip: Trip) {
+      const generateText = vi.fn().mockResolvedValue("ok");
+      const provider = { id: "mock", call: vi.fn(), generateText } as unknown as ExtractProvider;
+      return synthesizeHospitalityReply(
+        { turns: [{ role: "guest", text: "hi" }], trip, questions: [], replyKind: "summary", fallbackText: "x" },
+        provider,
+      ).then(() => generateText.mock.calls[0]![1] as string);
+    }
+
+    it("marks a defaulted rooms / meals / transport as the resort's assumption", async () => {
+      const trip = tripWithDiveWindow({ value: "2026-11-26", state: "stated" }, { value: "2026-11-28", state: "stated" });
+      trip.rooms = { value: 1, state: "default", evidence: null } as never;
+      trip.meals = { value: "full_board", state: "default", evidence: null } as never;
+      trip.transport = { value: false, state: "default", evidence: null } as never;
+
+      const userPrompt = await promptLines(trip);
+
+      expect(userPrompt).toContain("Rooms: 1 (HOUSE ASSUMPTION");
+      expect(userPrompt).toContain("Meals: full_board (HOUSE ASSUMPTION");
+      expect(userPrompt).toContain("Airport transfer: no (HOUSE ASSUMPTION");
+    });
+
+    it("does NOT mark a value the guest actually gave", async () => {
+      const trip = tripWithDiveWindow({ value: "2026-11-26", state: "stated" }, { value: "2026-11-28", state: "stated" });
+      trip.rooms = { value: 2, state: "stated", evidence: "2 rooms" } as never;
+      trip.meals = { value: "half_board", state: "stated", evidence: "half board" } as never;
+      trip.transport = { value: true, state: "stated", evidence: "airport pickup" } as never;
+      trip.transportType = { value: "roundtrip", state: "stated", evidence: "return transfer" } as never;
+
+      const userPrompt = await promptLines(trip);
+
+      expect(userPrompt).toContain("Rooms: 2\n");
+      expect(userPrompt).toContain("Meals: half_board\n");
+      expect(userPrompt).toContain("Airport transfer: yes (roundtrip)");
+      expect(userPrompt).not.toContain("HOUSE ASSUMPTION");
+    });
+
+    it("instructs the model to offer an assumption, not assert it", async () => {
+      const trip = tripWithDiveWindow({ value: "2026-11-26", state: "stated" }, { value: "2026-11-28", state: "stated" });
+      const generateText = vi.fn().mockResolvedValue("ok");
+      const provider = { id: "mock", call: vi.fn(), generateText } as unknown as ExtractProvider;
+
+      await synthesizeHospitalityReply(
+        { turns: [{ role: "guest", text: "hi" }], trip, questions: [], replyKind: "summary", fallbackText: "x" },
+        provider,
+      );
+
+      const systemPrompt = generateText.mock.calls[0]![0] as string;
+      expect(systemPrompt).toContain("HOUSE ASSUMPTIONS");
+      expect(systemPrompt).toMatch(/NOT something the guest said/);
+    });
+  });
 });
 
 // ---- The handoff contract ----------------------------------------------------
