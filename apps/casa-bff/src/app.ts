@@ -750,6 +750,46 @@ export function createApp(options: AppOptions = {}) {
     return c.json({ quotations: listQuotations() });
   });
 
+  /**
+   * Whether the estimator BFF is reachable at all, and in which mode.
+   *
+   * Exists so staff see the answer BEFORE clicking "Price with the Estimator BFF": without a
+   * configured URL that button returns 503, and finding that out by clicking is the kind of
+   * silent failure this repo keeps having to dig out of logs. Read-only and staff-only, like
+   * every other quotation route.
+   *
+   * REGISTERED BEFORE `GET /v1/quotes/:id`, and it has to stay there. Hono matches the first
+   * route that fits, so `:id` swallows this literal path and answers 404 — which is what happened
+   * the first time it was written, and what the route test now pins.
+   */
+  app.get("/v1/quotes/estimator-status", async (c) => {
+    if (!staffAuthorizedWithQuery(c.req.header("x-verify-token"), c.req.query("token"))) {
+      return c.json({ error: "unauthorized" }, 401);
+    }
+    const baseUrl = estimator.baseUrl ?? null;
+    if (!baseUrl) {
+      return c.json({
+        configured: false,
+        baseUrl: null,
+        reachable: null,
+        mode: null,
+        detail: "ESTIMATOR_BASE_URL is not set, so quotations cannot be priced",
+      });
+    }
+    const health = await estimator.checkHealth();
+    return c.json({
+      configured: true,
+      baseUrl,
+      reachable: health.reachable,
+      mode: health.mode,
+      detail: health.reachable
+        ? health.mode === "fixture"
+          ? "connected in FIXTURE mode: prices are captured samples, not real quotes"
+          : "connected"
+        : `no answer from ${baseUrl}/api/health`,
+    });
+  });
+
   // Hop 1A: Deterministic Pricing Compute Endpoint (AI -> Hono Compute)
   //
   // Stateless, and it has to stay that way. `docs/ai-hono-odoo-architecture-spec.md` has the
@@ -965,8 +1005,13 @@ export function createApp(options: AppOptions = {}) {
       /** Their pricing sanity warnings, if any. Names a category, not a field. */
       issues: result.issues,
       computedAt: result.computedAt,
-      /** True when their BFF answered from captured data instead of Odoo. */
+      /**
+       * True when this price came from captured data rather than Odoo — their own flag if they
+       * sent it, otherwise our probe of their `/api/health`. Their fixture does not currently
+       * set the flag their docs promise, so without the probe a captured price would look real.
+       */
       sample: result.sample,
+      mode: result.mode,
       model: result.model,
       estimatePreview: buildEstimatePreview(existing),
     });

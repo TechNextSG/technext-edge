@@ -160,6 +160,7 @@ describe("staff quotation routes require the staff token", () => {
   const staffOnly: Array<[string, string]> = [
     ["GET", "/v1/quotes"],
     ["GET", "/quotes"],
+    ["GET", "/v1/quotes/estimator-status"],
     ["GET", `/quotes/${listQuotations()[0]!.quoteId}`],
     ["GET", `/v1/quotes/${listQuotations()[0]!.quoteId}`],
     ["PUT", `/v1/quotes/${listQuotations()[0]!.quoteId}`],
@@ -185,6 +186,59 @@ describe("staff quotation routes require the staff token", () => {
     const app = createApp();
     const res = await app.request("/v1/quotes", { headers: { "x-verify-token": "not-it" } });
     expect(res.status).toBe(401);
+  });
+
+  // The pre-flight the studio reads when it opens, so staff learn the state before clicking a
+  // button that would otherwise answer 503 and leave them guessing.
+  describe("GET /v1/quotes/estimator-status", () => {
+    it("says not-configured when ESTIMATOR_BASE_URL is unset, without probing anything", async () => {
+      const saved = process.env.ESTIMATOR_BASE_URL;
+      delete process.env.ESTIMATOR_BASE_URL;
+      const fetchImpl = vi.fn();
+      try {
+        const app = createApp({ estimator: createEstimatorClient({ fetchImpl: fetchImpl as never }) });
+        const res = await app.request(`/v1/quotes/estimator-status?token=${STAFF_TOKEN}`);
+
+        expect(res.status).toBe(200);
+        const body = (await res.json()) as Record<string, unknown>;
+        expect(body.configured).toBe(false);
+        expect(body.baseUrl).toBeNull();
+        expect(String(body.detail)).toMatch(/ESTIMATOR_BASE_URL is not set/);
+        expect(fetchImpl).not.toHaveBeenCalled();
+      } finally {
+        if (saved !== undefined) process.env.ESTIMATOR_BASE_URL = saved;
+      }
+    });
+
+    it("reports fixture mode, so staff are warned the prices are captured", async () => {
+      const fetchImpl = vi.fn(async () => new Response(JSON.stringify({ ok: true, mode: "fixture" }), { status: 200 }));
+      const app = createApp({
+        estimator: createEstimatorClient({ baseUrl: "http://bff.test", fetchImpl: fetchImpl as never }),
+      });
+
+      const res = await app.request(`/v1/quotes/estimator-status?token=${STAFF_TOKEN}`);
+      const body = (await res.json()) as Record<string, unknown>;
+
+      expect(body.configured).toBe(true);
+      expect(body.reachable).toBe(true);
+      expect(body.mode).toBe("fixture");
+      expect(String(body.detail)).toMatch(/FIXTURE/);
+    });
+
+    it("reports unreachable rather than failing when nothing answers", async () => {
+      const fetchImpl = vi.fn(async () => {
+        throw new TypeError("fetch failed");
+      });
+      const app = createApp({
+        estimator: createEstimatorClient({ baseUrl: "http://bff.test", fetchImpl: fetchImpl as never }),
+      });
+
+      const res = await app.request(`/v1/quotes/estimator-status?token=${STAFF_TOKEN}`);
+      expect(res.status).toBe(200);
+      const body = (await res.json()) as Record<string, unknown>;
+      expect(body.configured).toBe(true);
+      expect(body.reachable).toBe(false);
+    });
   });
 
   // The studio is a PAGE whose own fetch calls run from a browser that has no reason to hold a

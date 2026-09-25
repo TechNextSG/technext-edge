@@ -757,8 +757,11 @@ export function renderHonoQuotationEditorHtml(draft: HonoQuotationDraft, allQuot
         <div style="margin-top:14px;padding-top:14px;border-top:1px dashed var(--line);">
           <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
             <button class="btn btn-outline" onclick="syncEstimate()" id="btn-sync-estimate">💱 <span>Price with the Estimator BFF</span></button>
-            <span style="font-size:12px;color:var(--muted);">The only path to Odoo. Prices there, stores nothing — staff review the result here.</span>
+            <span id="estimator-status-badge" style="font-size:12px;color:var(--muted);">⏳ checking estimator connection…</span>
           </div>
+          <p style="margin:8px 0 0;font-size:12px;color:var(--muted);">
+            The only path to Odoo. It prices and stores nothing — staff review the result here. This service holds no Odoo key.
+          </p>
           <pre id="sync-estimate-out" style="margin-top:10px;white-space:pre-wrap;font-size:12.5px;color:var(--muted);"></pre>
         </div>
       </div>
@@ -988,6 +991,37 @@ export function renderHonoQuotationEditorHtml(draft: HonoQuotationDraft, allQuot
      * NOTE for editors of this file: this comment lives INSIDE a template literal, so it must
      * not contain a backtick — one closes the HTML string and breaks the build.
      */
+    /**
+     * Pre-flight: is the estimator BFF configured and answering, and in which mode?
+     *
+     * Shown next to the button so staff learn the state before clicking. Without this, a missing
+     * ESTIMATOR_BASE_URL is discovered as a 503 after a click, and fixture mode is invisible —
+     * both are the kind of thing that otherwise only surfaces in logs.
+     */
+    async function checkEstimatorStatus() {
+      const badge = document.getElementById('estimator-status-badge');
+      try {
+        const res = await fetch('/v1/quotes/estimator-status?token=' + encodeURIComponent(staffToken()));
+        const data = await res.json();
+        if (!data.configured) {
+          badge.textContent = '⚪ not configured — prices unavailable';
+          badge.style.color = 'var(--muted)';
+        } else if (!data.reachable) {
+          badge.textContent = '🔴 BFF not answering';
+          badge.style.color = 'var(--accent)';
+        } else if (data.mode === 'fixture') {
+          badge.textContent = '🟡 FIXTURE — prices are captured samples';
+          badge.style.color = 'var(--accent)';
+        } else {
+          badge.textContent = '🟢 connected';
+          badge.style.color = 'var(--muted)';
+        }
+      } catch (err) {
+        badge.textContent = '⚪ status unknown';
+        badge.style.color = 'var(--muted)';
+      }
+    }
+
     async function syncEstimate() {
       const btn = document.getElementById('btn-sync-estimate');
       const out = document.getElementById('sync-estimate-out');
@@ -1002,8 +1036,8 @@ export function renderHonoQuotationEditorHtml(draft: HonoQuotationDraft, allQuot
         if (data.ok) {
           const issues = Array.isArray(data.issues) ? data.issues : [];
           out.textContent =
-            '✅ Priced by the estimator BFF (role=' + (data.role || '?') + ')' +
-            (data.sample ? ' ⚠️ SAMPLE DATA — not a real price' : '') +
+            '✅ Priced by the estimator BFF (role=' + (data.role || '?') + ', mode=' + (data.mode || 'unknown') + ')' +
+            (data.sample ? '\n⚠️ SAMPLE DATA — these are captured prices, NOT a real quote. Do not send to a guest.' : '') +
             (issues.length ? '\n⚠️ ' + issues.length + ' pricing warning(s): ' + issues.map(function (i) { return i.code || i; }).join(', ') : '');
         } else {
           out.textContent =
@@ -1014,8 +1048,11 @@ export function renderHonoQuotationEditorHtml(draft: HonoQuotationDraft, allQuot
         out.textContent = '⚠️ ' + (err && err.message ? err.message : String(err));
       } finally {
         btn.disabled = false;
+        checkEstimatorStatus();
       }
     }
+
+    checkEstimatorStatus();
 
     async function triggerNewToolCall() {
       const btn = document.getElementById('btn-trigger-tool');

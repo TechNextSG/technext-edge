@@ -832,6 +832,32 @@ node packages/extractor/eval/runner.mjs --provider deepseek-flash
   ~2.1–2.5s across twelve turns. **Conversation length is not what costs you the turn budget** —
   retries are, and 0/70 turns came near either the 8s p95 target or Meta's 20s deadline.
 
+- **The estimator connection has a pre-flight, because "click and read a 503" is not a status
+  report.** `GET /v1/quotes/estimator-status` (staff-only) answers whether `ESTIMATOR_BASE_URL` is
+  set, whether their BFF is answering, and in which mode; the studio reads it on load and shows a
+  badge next to the price button. Two things to know before touching it:
+
+  1. **It must stay registered before `GET /v1/quotes/:id`.** Hono matches the first route that
+     fits, so the parameterised route swallows the literal path and answers 404. That is how it
+     was written the first time, and the route test now pins it — if you reorder these routes, the
+     test fails rather than the button going quiet.
+  2. **`sample` has two sources on purpose.** Their `/api/health` reports the mode, but
+     `POST /api/estimates` does not carry a `sample` flag even though their own `AppDeps.mode`
+     comment says the flag exists so sample data is never mistaken for a real price. So our client
+     flags a price as sample when *either* their response says so *or* our own cached probe of
+     `/api/health` says `mode: 'fixture'`. The probe is a safety label, not a gate: if it cannot
+     answer, pricing still succeeds and simply carries no label. A one-line patch asking them to
+     put `sample` on the estimate response is in `docs/upstream-patch-fixture-sample.md`.
+
+- **A tested capability that no route can reach is a trap, not an asset.** `createShareLink` (their
+  commit/share sequence, minting the real `/quote/<token>` guest link) was written and covered by
+  tests here while being reachable from no route — and the endpoints it calls, `/api/estimates/:id/commit`
+  and `/share`, are **not on their `main`** (commit `4c48918`); they live on the unmerged
+  `feat/p2-booking`. Wiring it would have produced 404s against the only BFF we can actually run.
+  It was removed, and the reason is recorded at the bottom of `estimatorClient.ts` along with the
+  commit to restore it from. **Until `feat/p2-booking` merges, the guest link is our own
+  `/q/:slug`** and the client's job is to price, not to publish.
+
 - **The production store fallback is silent, so it now says so.** With no
   `KV_REST_API_URL`/`KV_REST_API_TOKEN` (or the `UPSTASH_*` names), production falls back
   to an in-memory store: threads vanish on cold start and the phone lock cannot hold

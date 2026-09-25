@@ -23,7 +23,9 @@
  *
  * It does **not** commit, share or submit. Those are separate BFF endpoints that belong to a
  * signed-in staff member clicking a button (spec §13: `submit` is "Không bao giờ … Từ AI"), and
- * this service has no session to click with.
+ * this service has no session to click with. The commit/share sequence that mints their real
+ * `/quote/<token>` link is noted at the bottom of this file; it is deliberately not implemented
+ * because those endpoints are not on their `main`.
  */
 import type { BffTrip } from "../../../packages/extractor/src/schema.js";
 
@@ -51,10 +53,16 @@ export type EstimateSendResult =
       computedAt: string | null;
       /** Their computed model. Shape is theirs; we pass it through untouched. */
       model: unknown;
-      /** True when their BFF answered from captured data rather than Odoo. */
+      /**
+       * True when the price came from captured data rather than Odoo.
+       *
+       * Two sources, because their fixture does not currently set the flag their own docs
+       * promise: their response body when it says so, or our probe of `GET /api/health`
+       * reporting `mode: 'fixture'` (see `fixtureMode`). Either one is enough.
+       */
       sample: boolean;
-      /** Set-Cookie ubg_sid value when returned by POST /api/estimates. */
-      cookie?: string | null;
+      /** Their reported mode, when we could establish it. `null` means we could not. */
+      mode: "fixture" | "odoo" | null;
     }
   | {
       ok: false;
@@ -64,38 +72,6 @@ export type EstimateSendResult =
       detail: string;
       /** Field names their `fillTrip` named as missing or invalid, when it named any. */
       fields: string[];
-    };
-
-export type ShareLinkResult =
-  | {
-      ok: true;
-      id: string;
-      revision: number | null;
-      quoteUrl: string;
-      fullQuoteUrl: string;
-      expiresAt: string | null;
-      model: unknown;
-      issues: unknown[];
-      sample: boolean;
-      computedAt: string | null;
-    }
-  | {
-      ok: false;
-      reason:
-        | "not_configured"
-        | "no_validated_trip"
-        | "unreachable"
-        | "timeout"
-        | "rejected"
-        | "sanity_gate_blocked"
-        | "missing_session_cookie"
-        | "commit_failed"
-        | "share_failed"
-        | "unexpected";
-      status: number | null;
-      detail: string;
-      fields: string[];
-      issues?: unknown[];
     };
 
 export interface EstimatorClientOptions {
@@ -122,15 +98,43 @@ export function buildEstimateRequest(trip: BffTrip): { body: string } {
   return { body: JSON.stringify({ trip }) };
 }
 
-function extractUbgSidCookie(res: Response): string | null {
-  const setCookie = res.headers.get("set-cookie") ?? "";
-  const match = /ubg_sid=([^;]+)/.exec(setCookie);
-  return match?.[1] ? `ubg_sid=${match[1]}` : null;
-}
+/**
+ * What mode is their BFF in — fixture (captured data) or odoo (real pricing)?
+ *
+ * Exists because their fixture does not set the `sample` flag their own `schema.md` §7 says it
+ * should: on their `main`, the string `sample` appears nowhere in `bff/src`, so a captured price
+ * comes back looking exactly like a real one. Verified against their BFF at `4c48918`: a
+ * fixture-mode response carried `sample: false` because nothing sets it.
+ *
+ * Their health endpoint does report the mode, so this asks it once and remembers the answer
+ * briefly. It is deliberately best-effort: an unreachable `/api/health` returns null and never
+ * fails a pricing call — this is a safety label, not a gate.
+ */
+const HEALTH_PATH = "/api/health";
+const MODE_CACHE_MS = 60_000;
 
 export function createEstimatorClient(options: EstimatorClientOptions = {}) {
   const doFetch = options.fetchImpl ?? fetch;
   const timeoutMs = options.timeoutMs ?? DEFAULT_TIMEOUT_MS;
+
+  let cachedMode: { mode: "fixture" | "odoo"; at: number } | null = null;
+
+  async function probeMode(baseUrl: string): Promise<"fixture" | "odoo" | null> {
+    if (cachedMode && Date.now() - cachedMode.at < MODE_CACHE_MS) return cachedMode.mode;
+    try {
+      const res = await doFetch(`${baseUrl}${HEALTH_PATH}`, {
+        signal: AbortSignal.timeout(Math.min(timeoutMs, 5_000)),
+      });
+      if (!res.ok) return null;
+      const body = (await res.json().catch(() => ({}))) as { mode?: unknown };
+      const mode = body.mode === "fixture" ? "fixture" : body.mode === "odoo" ? "odoo" : null;
+      if (mode) cachedMode = { mode, at: Date.now() };
+      return mode;
+    } catch {
+      // A health probe must never break pricing. Nothing to label, so nothing is claimed.
+      return null;
+    }
+  }
 
   async function sendEstimate(trip: BffTrip | null | undefined): Promise<EstimateSendResult> {
     if (!trip) {
@@ -186,6 +190,9 @@ export function createEstimatorClient(options: EstimatorClientOptions = {}) {
     }
 
     if (res.status === 200 || res.status === 201) {
+      // Their flag if they sent one, otherwise our own probe. `sample: true` from either source
+      // is enough: the point is that a captured price is never presented as a real one.
+      const mode = (parsed.mode === "fixture" || parsed.mode === "odoo" ? parsed.mode : null) ?? (await probeMode(baseUrl));
       return {
         ok: true,
         status: res.status,
@@ -194,8 +201,8 @@ export function createEstimatorClient(options: EstimatorClientOptions = {}) {
         issues: Array.isArray(parsed.issues) ? parsed.issues : [],
         computedAt: typeof parsed.computedAt === "string" ? parsed.computedAt : null,
         model: parsed.model,
-        sample: parsed.sample === true,
-        cookie: extractUbgSidCookie(res),
+        sample: parsed.sample === true || mode === "fixture",
+        mode,
       };
     }
 
@@ -213,85 +220,41 @@ export function createEstimatorClient(options: EstimatorClientOptions = {}) {
   }
 
   /**
-   * Executes the full P5 Direction A sequence (`schema.md` §4 & §5):
-   *   1. `POST /api/estimates { trip }` (receives `201 { id, model, issues }` + `Set-Cookie: ubg_sid=...`)
-   *   2. Enforces the Post-Compute Sanity Gate (`issues.length === 0`)
-   *   3. `POST /api/estimates/:id/commit` (freezes revision)
-   *   4. `POST /api/estimates/:id/share` (mints `/quote/<token>`)
+   * Is their BFF answering, and in which mode? Used by the studio's pre-flight badge so staff do
+   * not discover a missing/incorrect `ESTIMATOR_BASE_URL` by clicking a button and reading a 503.
+   *
+   * Never throws: an unreachable BFF is an answer (`reachable: false`), not an error.
    */
-  async function createShareLink(trip: BffTrip | null | undefined): Promise<ShareLinkResult> {
+  async function checkHealth(): Promise<{ reachable: boolean; mode: "fixture" | "odoo" | null }> {
     const baseUrl = options.baseUrl?.replace(/\/+$/, "") ?? estimatorBaseUrl();
-    const est = await sendEstimate(trip);
-    if (!est.ok) return est;
-
-    if (est.issues.length > 0) {
-      return {
-        ok: false,
-        reason: "sanity_gate_blocked",
-        status: est.status,
-        detail: "Post-compute sanity check reported issues; refusing to issue guest share link",
-        fields: [],
-        issues: est.issues,
-      };
+    if (!baseUrl) return { reachable: false, mode: null };
+    const mode = await probeMode(baseUrl);
+    // probeMode returns null for both "answered, mode unstated" and "did not answer". Distinguish
+    // them here, because the badge should say which — one is a config problem, the other is not.
+    if (mode) return { reachable: true, mode };
+    try {
+      const res = await doFetch(`${baseUrl}${HEALTH_PATH}`, {
+        signal: AbortSignal.timeout(Math.min(timeoutMs, 5_000)),
+      });
+      return { reachable: res.ok, mode: null };
+    } catch {
+      return { reachable: false, mode: null };
     }
-
-    if (!est.id || !est.cookie || !baseUrl) {
-      return {
-        ok: false,
-        reason: "missing_session_cookie",
-        status: est.status,
-        detail: "Estimate response did not include scenario id or ubg_sid session cookie",
-        fields: [],
-      };
-    }
-
-    const commitRes = await doFetch(`${baseUrl}/api/estimates/${est.id}/commit`, {
-      method: "POST",
-      headers: { cookie: est.cookie },
-      signal: AbortSignal.timeout(timeoutMs),
-    });
-    if (commitRes.status !== 200 && commitRes.status !== 201) {
-      return {
-        ok: false,
-        reason: "commit_failed",
-        status: commitRes.status,
-        detail: `POST /api/estimates/${est.id}/commit returned HTTP ${commitRes.status}`,
-        fields: [],
-      };
-    }
-    const commitBody = (await commitRes.json().catch(() => ({}))) as Record<string, unknown>;
-    const revision = typeof commitBody.revision === "number" ? commitBody.revision : null;
-
-    const shareRes = await doFetch(`${baseUrl}/api/estimates/${est.id}/share`, {
-      method: "POST",
-      headers: { cookie: est.cookie },
-      signal: AbortSignal.timeout(timeoutMs),
-    });
-    if (shareRes.status !== 200 && shareRes.status !== 201) {
-      return {
-        ok: false,
-        reason: "share_failed",
-        status: shareRes.status,
-        detail: `POST /api/estimates/${est.id}/share returned HTTP ${shareRes.status}`,
-        fields: [],
-      };
-    }
-    const shareBody = (await shareRes.json().catch(() => ({}))) as Record<string, unknown>;
-    const quoteUrl = typeof shareBody.url === "string" ? shareBody.url : "";
-
-    return {
-      ok: true,
-      id: est.id,
-      revision,
-      quoteUrl,
-      fullQuoteUrl: `${baseUrl}${quoteUrl}`,
-      expiresAt: typeof shareBody.expiresAt === "string" ? shareBody.expiresAt : null,
-      model: est.model,
-      issues: est.issues,
-      sample: est.sample,
-      computedAt: est.computedAt,
-    };
   }
 
-  return { sendEstimate, createShareLink, baseUrl: options.baseUrl ?? estimatorBaseUrl() };
+  // The next step in this integration is their commit/share sequence, which mints the real
+  // `/quote/<token>` guest link:
+  //
+  //   POST /api/estimates            -> { id, model, issues } + Set-Cookie: ubg_sid=...
+  //   POST /api/estimates/:id/commit -> freezes a revision
+  //   POST /api/estimates/:id/share  -> { url: '/quote/<token>', expiresAt }
+  //
+  // It is NOT implemented here, on purpose. Those two endpoints do not exist on their `main`
+  // (commit `4c48918`, which is the branch their docs describe as current) — they live on the
+  // unmerged `feat/p2-booking`. A working client for them was written and tested here and then
+  // removed: it was reachable from no route, and wiring it would have produced 404s against the
+  // only BFF we can actually run. Re-add it from git history (commit `c00db6b`) when
+  // `feat/p2-booking` merges. Until then the guest-facing link is our own `/q/:slug`, and this
+  // client's job is to price — not to publish.
+  return { sendEstimate, checkHealth, baseUrl: options.baseUrl ?? estimatorBaseUrl() };
 }
