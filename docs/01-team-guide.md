@@ -753,6 +753,42 @@ node packages/extractor/eval/runner.mjs --provider deepseek-flash
   flag** — production carries no switch that exists only for a measurement; the script wraps the
   provider instead.
 
+- **There is exactly one path to Odoo now, and it is `POST {ESTIMATOR_BASE_URL}/api/estimates`.**
+  The edge spec §1 is explicit: *"Mọi lời gọi đi qua BFF `/api/*`. Không gọi `/v1/*` của Odoo
+  trực tiếp, không cầm `api-key` nào."* What this repo had instead was a hand-rolled "GAIS"
+  envelope that signed an HMAC-SHA256 and pointed at
+  `https://erp.casaescondida.ph/api/v1/casa/quotations` — a **direct call to Odoo, with a
+  fallback HMAC secret defaulting to `WHATSAPP_APP_SECRET` and a placeholder bearer token
+  hardcoded in `app.ts`**. It was built to a shape nobody had agreed to, was never reachable in
+  any environment we can deploy, and its only consumers read the `bffTrip` field out of it. It
+  is deleted, not parked: two parallel paths to Odoo is how the two drift, and a route called
+  `/sync-odoo` that never synced anything to Odoo is a name that lies. The route is
+  `/sync-estimate` and it really does send. **If you find yourself adding a second way to reach
+  Odoo, that is the bug.**
+
+- **A 422 from their BFF is a bug in what THIS service produces, not an infrastructure error.**
+  `apps/casa-bff/src/estimatorClient.ts` maps their 422 to our 422 and carries their `fields`
+  array through, because their `fillTrip` is the authority on the contract and our
+  `validateBffTripPrecheck()` is only a mirror of it — and a mirror is the thing that disagrees
+  silently. Everything else (unreachable, timeout, non-JSON gateway error) is 502. Verified end
+  to end on 2026-09-25: a live extraction → draft → our route → real HTTP → their BFF returned
+  `200 {role, issues, computedAt}` with their own computed lines. That is the check that no
+  amount of internal testing replaces.
+
+- **Their fixture mode does not label itself.** `bff/src/odoo/fixture.ts` returns **captured**
+  Odoo responses (dated 2026-09-17, so the numbers do not match the trip you send) and its own
+  header comment says the UI must show a "Sample data" label when
+  `/api/health.mode === 'fixture'`. On `main` at `4c48918` the word `sample` appears **nowhere in
+  `bff/src`** — so `POST /api/estimates` answers in fixture mode with no machine-readable flag,
+  and a captured price is indistinguishable from a real one. Two consequences: never trust a
+  number from that mode, and never treat "the request succeeded" as "the price is right". Our
+  client reports `sample: true` only when their BFF actually says so, which fails safe.
+  Expected symptoms of the capture, from their docs and reproduced here:
+  `dive-dates-outside-window` (their dates are October, yours are not) and
+  `transport-revenue-zero` (the captured response has `vanRuns: []`, so any trip with a transfer
+  trips it — we verified our side does emit the `transfer` line, so this one is the capture, not
+  us).
+
 - **The production store fallback is silent, so it now says so.** With no
   `KV_REST_API_URL`/`KV_REST_API_TOKEN` (or the `UPSTASH_*` names), production falls back
   to an in-memory store: threads vanish on cold start and the phone lock cannot hold

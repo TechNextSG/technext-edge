@@ -1,4 +1,4 @@
-import { createHmac, randomUUID } from "node:crypto";
+import { randomUUID } from "node:crypto";
 import { Hono } from "hono";
 import { z } from "zod";
 // Relative import, not the "@technext-edge/extractor" package name: Vercel's
@@ -54,6 +54,12 @@ import {
   renderHonoQuotationEditorHtml,
   renderCustomerQuotationViewHtml,
 } from "./quotationStore.js";
+import {
+  buildEstimateRequest,
+  createEstimatorClient,
+  DEFAULT_ESTIMATOR_BASE_URL,
+  ESTIMATE_PATH,
+} from "./estimatorClient.js";
 import { createConversationStoreFromEnv, type ConversationStore } from "./conversationStore.js";
 import {
   checkSenderCredentials,
@@ -185,6 +191,12 @@ export interface AppOptions {
   provider?: ExtractProvider;
   store?: ConversationStore;
   sendWhatsApp?: WhatsAppSendText;
+  /**
+   * The estimator BFF client. Injectable so a test can drive the sync route without a server,
+   * and so the base URL can be pointed at a local fixture-mode BFF (`ESTIMATOR_BASE_URL`)
+   * rather than being baked in.
+   */
+  estimator?: ReturnType<typeof createEstimatorClient>;
 }
 
 export function createApp(options: AppOptions = {}) {
@@ -192,6 +204,7 @@ export function createApp(options: AppOptions = {}) {
   // Per-app, so a warm serverless instance keeps the thread; see the caveat in
   // conversationStore.ts on why this is a POC store and not the real one.
   const store = options.store ?? createConversationStoreFromEnv();
+  const estimator = options.estimator ?? createEstimatorClient();
 
   app.post("/v1/extract", async (c) => {
     const body = await c.req.json().catch(() => null);
@@ -676,84 +689,36 @@ export function createApp(options: AppOptions = {}) {
     return c.html(renderCustomerQuotationViewHtml(found));
   });
 
-  // Helper: Build signed GAIS (Gateway Auth & Idempotent Sync) envelope for Odoo ERP (`sale.order`)
-  function buildOdooGaisEnvelope(draft: HonoQuotationDraft) {
-    const gaisSecret = process.env.GAIS_HMAC_SECRET || process.env.WHATSAPP_APP_SECRET || "casa-gais-dev-hmac-secret";
-    const gaisApiKey = process.env.GAIS_API_KEY ? "Bearer ***" + process.env.GAIS_API_KEY.slice(-4) : "Bearer gais_live_casa_escondida_***9f2a";
-    const timestamp = new Date().toISOString();
-    const idempotencyKey = `${draft.quoteId}-${draft.confirmedAt ? "confirmed" : "draft"}`;
-    const diversCount = draft.divers ?? (draft.diver ? draft.stayingGuests : 0);
-    const odooPayload = {
-      model: "sale.order",
-      action: "upsert_quotation",
-      external_ref: draft.quoteId,
-      quotation_url: draft.quotationUrl,
-      partner: {
-        name: draft.guestName,
-        phone: draft.phone || undefined,
-        category_tag: draft.discountPercent > 0 ? "Resort Partner / B2B" : "Direct Guest",
-      },
-      stay_window: {
-        x_casa_checkin: draft.checkIn,
-        x_casa_checkout: draft.checkOut,
-        x_casa_nights: draft.nights,
-        x_casa_guests_total: draft.totalGroupSize,
-        x_casa_divers: diversCount,
-        x_casa_non_divers: Math.max(0, draft.totalGroupSize - diversCount),
-      },
-      x_casa_split_dive_manifest: draft.diveNotes || null,
-      x_casa_special_requests: draft.staffNotes || null,
-      pricelist_currency: draft.currency,
-      discount_percent: draft.discountPercent,
-      amounts: {
-        subtotal: draft.subtotalAmount,
-        discount_amount: draft.discountAmount,
-        amount_total: draft.totalAmount,
-      },
-      order_line: draft.lineItems.map((item, idx) => ({
-        sequence: (idx + 1) * 10,
-        product_category: item.category,
-        name: item.description,
-        product_uom_qty: item.quantity * item.multiplier,
-        x_casa_qty: item.quantity,
-        x_casa_unit: item.unitLabel,
-        x_casa_multiplier: item.multiplier,
-        price_unit: item.unitPrice,
-        discount: draft.discountPercent,
-        price_subtotal: item.subtotal,
-      })),
-    };
-    const rawBody = JSON.stringify(odooPayload);
-    const signature = "sha256=" + createHmac("sha256", gaisSecret).update(`${timestamp}.${idempotencyKey}.${rawBody}`).digest("hex");
+  /**
+   * What this service would send to the estimator BFF for a given quotation.
+   *
+   * Replaces a signed "GAIS" envelope that pointed straight at Odoo. Reading it is safe and
+   * costs a round trip nothing: it is the same body `estimator.sendEstimate()` posts, built by
+   * the same function, so the preview cannot drift from the send.
+   *
+   * `validationIssues` is our own mirror (`validateBffTripPrecheck`) and is labelled as such.
+   * Their `fillTrip` is the authority; the mirror exists only so staff can see a problem in the
+   * editor before spending a round trip on it.
+   */
+  function buildEstimatePreview(draft: HonoQuotationDraft) {
+    const trip = draft.bffTrip ?? null;
     return {
-      targetEndpoint: process.env.ODOO_GAIS_URL || "https://erp.casaescondida.ph/api/v1/casa/quotations",
-      headers: {
-        "Authorization": gaisApiKey,
-        "X-GAIS-Timestamp": timestamp,
-        "X-GAIS-Signature": signature,
-        "Idempotency-Key": idempotencyKey,
-        "Content-Type": "application/json",
-      },
-      odooSaleOrderRef: `SO-${draft.quoteId.replace(/^QT-/, "")}`,
-      payload: odooPayload,
+      endpoint: `${estimator.baseUrl ?? DEFAULT_ESTIMATOR_BASE_URL}${ESTIMATE_PATH}`,
+      body: trip ? buildEstimateRequest(trip).body : null,
+      bffTrip: trip,
+      validationIssues: trip ? validateBffTripPrecheck(trip) : [],
       /**
-       * The validated BFF/Odoo `Trip` (`contracts/src/trip.zod.ts`), present whenever this
-       * quotation was built from an extraction `Trip`.
-       *
-       * This is the shape Odoo actually prices: `guests[]` carrying each guest's own `roomId`,
-       * `diver`, `meals` and dated `days`, plus `diveFrom`/`diveTo` and `guestType`. The keys
-       * above are the human-readable envelope the GAIS gateway signs, and they cannot express
-       * per-guest facts — so the group's real composition (who dives, on which days, in which
-       * room, and who is only snorkelling) had no way to reach Odoo at all. `buildBffTrip()`
-       * produces it and `validateBffTripPrecheck()` checks the 6 groups `fill.ts` 422s on; both
-       * were tested but nothing Odoo-bound carried the result until now.
-       *
-       * `bffValidationIssues` is included rather than thrown on: this envelope is also a
-       * preview that staff read before confirming, and a 422 that names the offending field is
-       * more useful to whoever is fixing it than a silent omission.
+       * Not sent, and deliberately not part of `body`. Amounts are Odoo's to compute — sending
+       * our own subtotal/discount/total invites a second source of pricing truth, and the edge
+       * spec puts pricing behind the BFF for exactly that reason. Kept local so the studio can
+       * show staff what the enquiry comes to while they are looking at it.
        */
-      bffTrip: draft.bffTrip ?? null,
-      bffValidationIssues: draft.bffTrip ? validateBffTripPrecheck(draft.bffTrip) : [],
+      localTotals: {
+        currency: draft.currency,
+        subtotal: draft.subtotalAmount,
+        discount: draft.discountAmount,
+        total: draft.totalAmount,
+      },
     };
   }
 
@@ -790,7 +755,7 @@ export function createApp(options: AppOptions = {}) {
       return c.json({
         ok: true,
         computed: finalComputed,
-        gaisContract: buildOdooGaisEnvelope(finalComputed),
+        estimatePreview: buildEstimatePreview(finalComputed),
       });
     }
 
@@ -846,7 +811,7 @@ export function createApp(options: AppOptions = {}) {
     return c.json({
       ok: true,
       computed: recomputed,
-      gaisContract: buildOdooGaisEnvelope(recomputed),
+      estimatePreview: buildEstimatePreview(recomputed),
     });
   });
 
@@ -868,7 +833,7 @@ export function createApp(options: AppOptions = {}) {
     return c.json({
       ok: true,
       quotation: saved,
-      gaisContract: buildOdooGaisEnvelope(saved),
+      estimatePreview: buildEstimatePreview(saved),
     });
   });
 
@@ -879,7 +844,7 @@ export function createApp(options: AppOptions = {}) {
     }
     const found = getQuotationByIdOrSlug(c.req.param("id"));
     if (!found) return c.json({ error: "not_found" }, 404);
-    return c.json({ quotation: found, gaisContract: buildOdooGaisEnvelope(found) });
+    return c.json({ quotation: found, estimatePreview: buildEstimatePreview(found) });
   });
 
   app.put("/v1/quotes/:id", async (c) => {
@@ -899,7 +864,7 @@ export function createApp(options: AppOptions = {}) {
       quotationUrl: body.quotationUrl || existing.quotationUrl,
     };
     const saved = saveQuotationDraft(merged);
-    return c.json({ ok: true, quotation: saved, gaisContract: buildOdooGaisEnvelope(saved) });
+    return c.json({ ok: true, quotation: saved, estimatePreview: buildEstimatePreview(saved) });
   });
 
   app.post("/v1/quotes/:id/confirm", async (c) => {
@@ -929,21 +894,61 @@ export function createApp(options: AppOptions = {}) {
     const aiReply = await synthesizeConfirmedQuotationReply(saved, provider);
     saved.aiConfirmedReply = aiReply;
     saveQuotationDraft(saved);
-    const gaisContract = buildOdooGaisEnvelope(saved);
-    return c.json({ ok: true, quotation: saved, aiReply, gaisContract });
+    return c.json({ ok: true, quotation: saved, aiReply, estimatePreview: buildEstimatePreview(saved) });
   });
 
-  // Hop 3: Explicit Hono -> Odoo ERP Sync via GAIS Gateway
-  app.post("/v1/quotes/:id/sync-odoo", async (c) => {
+  /**
+   * Send this quotation's validated `Trip` to the estimator BFF for pricing.
+   *
+   * This is the only outbound path to Odoo, and it goes through the BFF as the edge spec
+   * requires. It used to return a signed "GAIS" envelope and never send it — a preview of a
+   * direct-to-Odoo request with a hardcoded fallback HMAC secret and bearer token. Nothing
+   * consumed it but its own callers, so it was removed rather than kept beside this.
+   *
+   * Renamed from `/sync-odoo`: this does not sync to Odoo, it asks the BFF to price. The old
+   * name described a path that no longer exists, and a route name is the cheapest place to
+   * tell the truth.
+   *
+   * A 422 from their `fillTrip` means WE sent something wrong, so it is surfaced as a failure
+   * and not smoothed over — that is the whole reason for wiring this up.
+   */
+  app.post("/v1/quotes/:id/sync-estimate", async (c) => {
+    if (!staffAuthorized(c.req.header("x-verify-token"))) {
+      return c.json({ error: "unauthorized" }, 401);
+    }
     const id = c.req.param("id");
     const existing = getQuotationByIdOrSlug(id);
     if (!existing) return c.json({ error: "not_found" }, 404);
-    const gaisContract = buildOdooGaisEnvelope(existing);
+
+    const result = await estimator.sendEstimate(existing.bffTrip);
+    if (!result.ok) {
+      // 422 maps to 422: the estimator rejected our payload, which is a defect here and not a
+      // bad gateway. Everything else is infrastructure and is reported as 502.
+      const status = result.reason === "rejected" ? 422 : result.reason === "not_configured" ? 503 : 502;
+      return c.json(
+        {
+          ok: false,
+          reason: result.reason,
+          detail: result.detail,
+          fields: result.fields,
+          estimatePreview: buildEstimatePreview(existing),
+        },
+        status,
+      );
+    }
+
     return c.json({
       ok: true,
       syncedAt: new Date().toISOString(),
-      odooSaleOrderRef: gaisContract.odooSaleOrderRef,
-      gaisContract,
+      endpoint: `${estimator.baseUrl ?? DEFAULT_ESTIMATOR_BASE_URL}${ESTIMATE_PATH}`,
+      role: result.role,
+      /** Their pricing sanity warnings, if any. Names a category, not a field. */
+      issues: result.issues,
+      computedAt: result.computedAt,
+      /** True when their BFF answered from captured data instead of Odoo. */
+      sample: result.sample,
+      model: result.model,
+      estimatePreview: buildEstimatePreview(existing),
     });
   });
 

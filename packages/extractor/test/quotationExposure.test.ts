@@ -12,9 +12,10 @@
 // Two root causes, both asserted below: `getQuotationByIdOrSlug` fell back to the newest
 // quotation for anything unknown (and cloned the seeded record for any `/^QT-/` id), and the
 // staff routes had no guard at all.
-import { describe, it, expect, beforeAll, afterAll } from "vitest";
+import { describe, it, expect, beforeAll, afterAll, vi } from "vitest";
 import { randomUUID } from "node:crypto";
 import { createApp } from "../../../apps/casa-bff/src/app.js";
+import { createEstimatorClient } from "../../../apps/casa-bff/src/estimatorClient.js";
 import {
   listQuotations,
   getQuotationByIdOrSlug,
@@ -322,8 +323,14 @@ describe("the validated BFF Trip reaches the Odoo-bound envelope", () => {
     expect(validateBffTripPrecheck(bff)).toEqual([]);
   });
 
-  it("rides along on the envelope the sync endpoint returns", async () => {
-    const app = createApp();
+  it("rides along on the response the sync endpoint returns", async () => {
+    // Inject the client so this test does not depend on a BFF being up: the point here is the
+    // ROUTE (staff guard, draft lookup, status mapping, preview), not the HTTP client, which has
+    // its own suite.
+    const fetchImpl = vi.fn(async () => {
+      throw new TypeError("fetch failed");
+    });
+    const app = createApp({ estimator: createEstimatorClient({ baseUrl: "http://bff.test", fetchImpl: fetchImpl as never }) });
     // Sync a quotation that came from an extraction Trip, which is the only way to have a
     // `bffTrip` at all. The hand-written seed record is not one: it was typed into
     // quotationStore.ts rather than built from a Trip, so it correctly has none — see the
@@ -331,25 +338,62 @@ describe("the validated BFF Trip reaches the Odoo-bound envelope", () => {
     const built = buildHonoQuotationDraft(tripWithStatedDivers(2));
     saveQuotationDraft(built);
 
-    const res = await app.request(`/v1/quotes/${built.quoteId}/sync-odoo`, {
+    const res = await app.request(`/v1/quotes/${built.quoteId}/sync-estimate`, {
       method: "POST",
       headers: { "x-verify-token": STAFF_TOKEN },
     });
 
-    expect(res.status).toBe(200);
+    // The client was reached and tried to send; the network refused. Infrastructure, so 502.
+    expect(res.status).toBe(502);
     const body = (await res.json()) as {
-      gaisContract: {
+      ok: boolean;
+      reason?: string;
+      estimatePreview: {
+        endpoint: string;
+        body: string | null;
         bffTrip: { guests: unknown[]; checkIn: string; guestType: string } | null;
-        bffValidationIssues: unknown[];
-        payload: { model: string };
+        validationIssues: unknown[];
+        localTotals: { total: number };
       };
     };
-    // The envelope still carries the signed human-readable payload…
-    expect(body.gaisContract.payload.model).toBe("sale.order");
-    // …and now the contract shape Odoo prices from, with no validation errors.
-    expect(body.gaisContract.bffTrip).not.toBeNull();
-    expect(body.gaisContract.bffTrip!.guests.length).toBeGreaterThan(0);
-    expect(body.gaisContract.bffValidationIssues).toEqual([]);
+    expect(body.ok).toBe(false);
+    expect(body.reason).toBe("unreachable");
+    expect(fetchImpl).toHaveBeenCalledTimes(1);
+    // The body that would be POSTed is the `{trip}` envelope, and it is our validated Trip.
+    expect(body.estimatePreview.bffTrip).not.toBeNull();
+    expect(body.estimatePreview.bffTrip!.guests.length).toBeGreaterThan(0);
+    expect(body.estimatePreview.validationIssues).toEqual([]);
+    const sent = JSON.parse(body.estimatePreview.body!) as { trip: { checkIn: string } };
+    expect(sent.trip.checkIn).toBe("2026-10-10");
+    // Amounts stay local: they are Odoo's to compute, not ours to assert.
+    expect(body.estimatePreview.endpoint).toContain("/api/estimates");
+    expect(body.estimatePreview.localTotals.total).toBeGreaterThan(0);
+    expect(body.estimatePreview.body).not.toContain("subtotal");
+  });
+
+  it("maps a rejection from their validator to 422 and names the fields", async () => {
+    // The outcome this whole integration exists to surface: their `fillTrip` is the authority,
+    // and a rejection means WE sent something wrong.
+    const fetchImpl = vi.fn(
+      async () =>
+        new Response(JSON.stringify({ error: "missing mandatory", fields: ["transportType"] }), {
+          status: 422,
+          headers: { "content-type": "application/json" },
+        }),
+    );
+    const app = createApp({ estimator: createEstimatorClient({ baseUrl: "http://bff.test", fetchImpl: fetchImpl as never }) });
+    const built = buildHonoQuotationDraft(tripWithStatedDivers(2));
+    saveQuotationDraft(built);
+
+    const res = await app.request(`/v1/quotes/${built.quoteId}/sync-estimate`, {
+      method: "POST",
+      headers: { "x-verify-token": STAFF_TOKEN },
+    });
+
+    expect(res.status).toBe(422);
+    const body = (await res.json()) as { reason: string; fields: string[] };
+    expect(body.reason).toBe("rejected");
+    expect(body.fields).toEqual(["transportType"]);
   });
 
   it("reports `bffTrip: null` rather than inventing one for a draft that never had a Trip", async () => {
@@ -367,18 +411,23 @@ describe("the validated BFF Trip reaches the Odoo-bound envelope", () => {
     });
     expect(handwritten.bffTrip).toBeUndefined();
 
-    const res = await app.request(`/v1/quotes/${handwritten.quoteId}/sync-odoo`, {
+    const res = await app.request(`/v1/quotes/${handwritten.quoteId}/sync-estimate`, {
       method: "POST",
       headers: { "x-verify-token": STAFF_TOKEN },
     });
 
     const body = (await res.json()) as {
-      gaisContract: { bffTrip: unknown; bffValidationIssues: unknown[] };
+      ok: boolean;
+      reason: string;
+      estimatePreview: { bffTrip: unknown; body: string | null; validationIssues: unknown[] };
     };
-    // Honest null: this record has no extraction facts to carry, and synthesising a guess is
-    // exactly the failure mode the contract exists to prevent.
-    expect(body.gaisContract.bffTrip).toBeNull();
-    expect(body.gaisContract.bffValidationIssues).toEqual([]);
+    // Refused before the network: there is nothing to send, and inventing a payload to satisfy
+    // the contract is exactly the failure mode the contract exists to prevent.
+    expect(body.ok).toBe(false);
+    expect(body.reason).toBe("no_validated_trip");
+    expect(body.estimatePreview.bffTrip).toBeNull();
+    expect(body.estimatePreview.body).toBeNull();
+    expect(body.estimatePreview.validationIssues).toEqual([]);
   });
 
   it("says `bffTrip: null` rather than inventing one for a line-items-only draft", () => {
