@@ -218,4 +218,78 @@ describe("sendEstimate", () => {
     expect(res.status).toBe(502);
     expect(res.detail).toContain("gateway exploded");
   });
+
+  it("accepts HTTP 201 Created from POST /api/estimates and executes createShareLink (estimates -> commit -> share)", async () => {
+    const fetchImpl = vi.fn(async (url: string) => {
+      if (url.endsWith("/api/estimates")) {
+        return new Response(
+          JSON.stringify({
+            id: "scen-123",
+            role: "guest",
+            issues: [],
+            sample: true,
+            model: { kpis: { revenue: 31200 } },
+            computedAt: "2026-09-25T10:00:00Z",
+          }),
+          {
+            status: 201,
+            headers: {
+              "content-type": "application/json",
+              "set-cookie": "ubg_sid=sid123.hmac456; Path=/; HttpOnly",
+            },
+          },
+        );
+      }
+      if (url.endsWith("/api/estimates/scen-123/commit")) {
+        return jsonResponse(200, { revision: 1 });
+      }
+      if (url.endsWith("/api/estimates/scen-123/share")) {
+        return jsonResponse(200, {
+          url: "/quote/abc123token456",
+          expiresAt: "2026-10-25T10:00:00Z",
+        });
+      }
+      return jsonResponse(404, { error: "not found" });
+    });
+
+    const client = createEstimatorClient({ baseUrl: "http://bff.test", fetchImpl: fetchImpl as never });
+    const res = await client.createShareLink(sampleTrip());
+
+    expect(res.ok).toBe(true);
+    if (!res.ok) throw new Error("expected ok");
+    expect(res.id).toBe("scen-123");
+    expect(res.revision).toBe(1);
+    expect(res.quoteUrl).toBe("/quote/abc123token456");
+    expect(res.fullQuoteUrl).toBe("http://bff.test/quote/abc123token456");
+    expect(fetchImpl).toHaveBeenCalledTimes(3);
+  });
+
+  it("blocks createShareLink when post-compute sanity issues are non-empty", async () => {
+    const fetchImpl = vi.fn(async () =>
+      new Response(
+        JSON.stringify({
+          id: "scen-999",
+          role: "guest",
+          issues: [{ code: "dive-revenue-zero", text: "0 dive revenue" }],
+          sample: false,
+          model: { kpis: { revenue: 15200 } },
+        }),
+        {
+          status: 201,
+          headers: {
+            "content-type": "application/json",
+            "set-cookie": "ubg_sid=sid999.hmac; Path=/",
+          },
+        },
+      ),
+    );
+
+    const client = createEstimatorClient({ baseUrl: "http://bff.test", fetchImpl: fetchImpl as never });
+    const res = await client.createShareLink(sampleTrip());
+
+    expect(res.ok).toBe(false);
+    if (res.ok) throw new Error("unreachable");
+    expect(res.reason).toBe("sanity_gate_blocked");
+    expect(fetchImpl).toHaveBeenCalledTimes(1);
+  });
 });

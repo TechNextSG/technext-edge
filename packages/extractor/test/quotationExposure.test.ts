@@ -7,7 +7,7 @@
 //
 //   GET /q/made-up-slug-xyz  -> 200, an entire real quotation ("QT-1010-SKY", "Prepared for
 //                               Sky", 10-12 Oct, 6 pax / 2 rooms, PHP 73,800)
-//   GET /v1/quotes           -> 200, JSON including phone "84359386414" and guestName "Sky"
+//   GET /v1/quotes           -> 200, JSON including the guest's phone number and name
 //
 // Two root causes, both asserted below: `getQuotationByIdOrSlug` fell back to the newest
 // quotation for anything unknown (and cloned the seeded record for any `/^QT-/` id), and the
@@ -31,6 +31,18 @@ import type { HonoQuotationDraft } from "../../../packages/extractor/src/quotati
 
 const STAFF_TOKEN = "test-staff-token";
 const savedToken = process.env.WHATSAPP_VERIFY_TOKEN;
+
+/**
+ * The seeded record's guest name and phone number, as `quotationStore.ts` writes them.
+ *
+ * These used to be a real guest's name and number, copied out of a live enquiry. They are
+ * synthetic now, and these tests still assert the values do not appear in the unauthenticated
+ * responses — the leak fix has to keep working whatever the seed contains, which is why the
+ * assertions read from here rather than hardcoding a string.
+ */
+const SEED_PHONE = "639000000000";
+const SEED_GUEST = "Sample Group";
+const SEED_PII = [SEED_GUEST, SEED_PHONE, "Sample", "73,800", "73800", "QT-1010"];
 
 beforeAll(() => {
   // The staff guard reuses the WhatsApp handoff secret, so configuring it here is what makes
@@ -76,7 +88,7 @@ function tripWithStatedDivers(count: number): Trip {
 
 describe("guest quotation slug is a credential", () => {
   it("is not derived from the guest's own name or dates", () => {
-    const draft = buildHonoQuotationDraft(makeTrip(), undefined, undefined, "84359386414");
+    const draft = buildHonoQuotationDraft(makeTrip(), undefined, undefined, "639171234567");
 
     // The old slug was `quoteId.toLowerCase()`, i.e. "qt-1010-sky-<2 chars>": guessable by
     // anyone who knows the guest's name, and only ~1,300 possibilities on the random part.
@@ -116,7 +128,7 @@ describe("an unknown quotation is a miss, not somebody's booking", () => {
     // This exact request returned 200 and a full quotation on production.
     expect(res.status).toBe(404);
     const body = await res.text();
-    for (const leak of ["Sky", "84359386414", "73,800", "73800", "QT-"]) {
+    for (const leak of SEED_PII) {
       expect(body, `an unknown slug leaked ${leak}`).not.toContain(leak);
     }
   });
@@ -127,7 +139,7 @@ describe("an unknown quotation is a miss, not somebody's booking", () => {
     // was enough. 404 is the only acceptable answer here.
     const res = await app.request("/q/QT-1010-ANYONE-ABC");
     expect(res.status).toBe(404);
-    expect(await res.text()).not.toContain("Sky");
+    expect(await res.text()).not.toContain(SEED_GUEST);
   });
 
   it("returns undefined from the lookup rather than falling back", () => {
@@ -164,7 +176,7 @@ describe("staff quotation routes require the staff token", () => {
     const app = createApp();
     const res = await app.request("/v1/quotes");
     const body = await res.text();
-    for (const leak of ["Sky", "84359386414", "guestName"]) {
+    for (const leak of [...SEED_PII, "guestName"]) {
       expect(body).not.toContain(leak);
     }
   });
@@ -221,7 +233,7 @@ describe("/v1/quotes/compute stays usable by the AI and reads nothing stored", (
     });
 
     expect(res.status).toBe(400);
-    expect(await res.text()).not.toContain("84359386414");
+    expect(await res.text()).not.toContain(SEED_PHONE);
   });
 
   it("prices caller-supplied line items without consulting the store", async () => {
@@ -264,7 +276,7 @@ describe("/v1/quotes/compute stays usable by the AI and reads nothing stored", (
       headers: { "content-type": "application/json" },
       body: JSON.stringify({ trip: makeTrip() }),
     });
-    expect(await res.text()).not.toContain("84359386414");
+    expect(await res.text()).not.toContain(SEED_PHONE);
   });
 });
 

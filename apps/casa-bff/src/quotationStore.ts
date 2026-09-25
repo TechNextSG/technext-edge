@@ -31,14 +31,18 @@ function randomSlug(): string {
   return randomUUID();
 }
 
-// Pre-seed Sir Sky's signature split-day group scenario so /quotes and /quotes/QT-1010-SKY
-// always have an immediate interactive quotation ready even on a fresh serverless cold start.
+// A synthetic split-day group scenario, pre-seeded so /quotes always has an immediately
+// editable quotation to look at, even on a fresh serverless cold start.
 //
-// The guest-facing slug is randomised rather than "sky-oct10-group": this record is served
-// by `/q/:slug` with no credential, so a slug built from the guest's own name let anyone who
-// could guess "sky-oct10-group" read a real quotation — and the old fallback made every URL
-// resolve to this record regardless. The quote id stays readable because it is only reachable
-// behind the staff token.
+// It is a FIXTURE, and it now says so in its own data. It used to carry a real guest's name and
+// a real phone number copied out of a live enquiry, which meant PII was sitting in source
+// control and rendering on a staff page — and when the old code fell back to this record for any
+// unknown slug, that PII was reachable at a public URL. The name and number below are obviously
+// not anyone's, so nobody can mistake this for a real booking or leak a real one by extending it.
+//
+// The guest-facing slug is randomised rather than derived from the name: this record is served by
+// `/q/:slug` with no credential, so a guessable slug is a guessable quotation. The quote id stays
+// readable because it is only reachable behind the staff token.
 function ensureSeeded() {
   if (quotesById.has("QT-1010-SKY")) return;
   const now = new Date().toISOString();
@@ -50,8 +54,8 @@ function ensureSeeded() {
     status: "pending_hono_review",
     createdAt: now,
     updatedAt: now,
-    phone: "84359386414",
-    guestName: "Sky",
+    phone: "639000000000",
+    guestName: "Sample Group",
     checkIn: "2026-10-10",
     checkOut: "2026-10-12",
     nights: 2,
@@ -745,7 +749,7 @@ export function renderHonoQuotationEditorHtml(draft: HonoQuotationDraft, allQuot
             : "⏳ Waiting for Hono confirmation... Click [✅ Hono Confirm & Send Back to AI] above after editing any row, price, discount, or link!"
         }</div>
         <div style="margin-top:12px;display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
-          <input type="text" id="whatsapp-phone-input" class="cell-input" style="width:210px;" placeholder="WhatsApp phone (e.g. 84359386414)" value="${draft.phone ?? "84359386414"}" />
+          <input type="text" id="whatsapp-phone-input" class="cell-input" style="width:210px;" placeholder="WhatsApp phone (e.g. 639171234567)" value="${draft.phone ?? ""}" />
           <button class="btn btn-primary" onclick="pushConfirmedQuoteToWhatsApp()" id="btn-push-wa">📲 <span>Send Confirmed AI Reply to WhatsApp</span></button>
           <span id="wa-toast" style="font-size:12.5px;color:var(--accent);"></span>
         </div>
