@@ -771,10 +771,31 @@ node packages/extractor/eval/runner.mjs --provider deepseek-flash
   `apps/casa-bff/src/estimatorClient.ts` maps their 422 to our 422 and carries their `fields`
   array through, because their `fillTrip` is the authority on the contract and our
   `validateBffTripPrecheck()` is only a mirror of it — and a mirror is the thing that disagrees
-  silently. Everything else (unreachable, timeout, non-JSON gateway error) is 502. Verified end
-  to end on 2026-09-25: a live extraction → draft → our route → real HTTP → their BFF returned
-  `200 {role, issues, computedAt}` with their own computed lines. That is the check that no
-  amount of internal testing replaces.
+  silently. Everything else (unreachable, timeout, non-JSON gateway error) is 502.
+
+  **Measured 2026-09-25, and the number to remember is `30/30`.** The whole 30-case corpus was
+  run through the live extraction pipeline and then at their real BFF (commit `4c48918`, fixture
+  mode, local): every completed enquiry was accepted, **0 rejected**. So the six mandatory groups
+  and the `diver`/`roomId` semantics this repo produces are right in practice, not just against
+  our own mirror.
+
+  Getting to that number took three attempts, and the failures were instructive in a way worth
+  recording. The first run reported four 422s; the second reported three; the third reported
+  none — and **every one of those 422s was a defect in the measurement script, not the service**:
+
+  - The corpus is single-turn, so most messages are incomplete by design and the pipeline
+    correctly refuses to hand them off. Sending them anyway is a 422 by construction. Fixed by
+    answering the open questions deterministically and checking `isReadyForHandoff()` first.
+  - Filling in `nights` without also deriving `checkOut` leaves a trip production can never
+    produce (postProcess computes it on the same pass) — that produced three 422s naming
+    `checkOut` alone.
+  - Answering `diver: true` re-opens `divers`/`diveFrom`/`diveTo`, which produced nineteen
+    "not ready" gaps. Answering `diver: false` closes all three, because a required field whose
+    rule does not apply is skipped — the applicability rule in `isReadyForHandoff` doing exactly
+    its job.
+
+  A measurement that invents states the system cannot produce measures itself. If a wiring test
+  ever reports a 422, check the harness before believing it about the service.
 
 - **Their fixture mode does not label itself.** `bff/src/odoo/fixture.ts` returns **captured**
   Odoo responses (dated 2026-09-17, so the numbers do not match the trip you send) and its own
