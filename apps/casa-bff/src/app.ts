@@ -1,4 +1,4 @@
-import { createHmac } from "node:crypto";
+import { createHmac, randomUUID } from "node:crypto";
 import { Hono } from "hono";
 import { z } from "zod";
 // Relative import, not the "@technext-edge/extractor" package name: Vercel's
@@ -627,23 +627,51 @@ export function createApp(options: AppOptions = {}) {
   app.get("/demo", (c) => c.html(getDemoTheatreHtml()));
 
   // ---- Hono Tool-Calling Quotation Studio & Editable Quotation Links -------
+  //
+  // Two different audiences, two different rules, and conflating them is what put a real
+  // guest's name, phone number and total on a public URL.
+  //
+  //   /q/:slug        the GUEST's link. No credential by design — staff paste it into
+  //                   WhatsApp and the guest has no account. The slug is therefore the
+  //                   credential (a CSPRNG token, see quotationStore.ts), and an unknown
+  //                   slug is a 404. It used to fall back to the most recent quotation, so
+  //                   every URL returned somebody's booking.
+  //   everything else STAFF only. `/quotes` and `/v1/quotes` list every quotation with
+  //                   guestName and phone; `/v1/quotes/:id` also carries the Odoo/GAIS
+  //                   envelope. These were open too.
+  //
+  // The token is the same shared secret the WhatsApp handoff routes already use, so there
+  // is no new env var to forget. It fails closed: with no token configured, staff routes
+  // are unreachable rather than open.
+  function staffAuthorized(header: string | undefined): boolean {
+    return sameSecret(header, whatsAppConfig().verifyToken);
+  }
+
   app.get("/quotes", (c) => {
+    if (!staffAuthorized(c.req.header("x-verify-token"))) {
+      return c.json({ error: "unauthorized" }, 401);
+    }
     const all = listQuotations();
     const latest = all[0]!;
     return c.html(renderHonoQuotationEditorHtml(latest, all));
   });
 
   app.get("/quotes/:id", (c) => {
+    if (!staffAuthorized(c.req.header("x-verify-token"))) {
+      return c.json({ error: "unauthorized" }, 401);
+    }
     const id = c.req.param("id");
-    const all = listQuotations();
-    const found = getQuotationByIdOrSlug(id) ?? all[0]!;
-    return c.html(renderHonoQuotationEditorHtml(found, all));
+    const found = getQuotationByIdOrSlug(id);
+    if (!found) return c.json({ error: "not_found" }, 404);
+    return c.html(renderHonoQuotationEditorHtml(found, listQuotations()));
   });
 
   app.get("/q/:slug", (c) => {
     const slug = c.req.param("slug");
-    const all = listQuotations();
-    const found = getQuotationByIdOrSlug(slug) ?? all[0]!;
+    const found = getQuotationByIdOrSlug(slug);
+    // A miss is a miss. This route is unauthenticated, so anything else would be serving
+    // one guest's booking to whoever asked.
+    if (!found) return c.json({ error: "not_found" }, 404);
     return c.html(renderCustomerQuotationViewHtml(found));
   });
 
@@ -711,10 +739,21 @@ export function createApp(options: AppOptions = {}) {
   }
 
   app.get("/v1/quotes", (c) => {
+    // Every quotation, each with the guest's name and phone number. Staff only.
+    if (!staffAuthorized(c.req.header("x-verify-token"))) {
+      return c.json({ error: "unauthorized" }, 401);
+    }
     return c.json({ quotations: listQuotations() });
   });
 
   // Hop 1A: Deterministic Pricing Compute Endpoint (AI -> Hono Compute)
+  //
+  // Stateless, and it has to stay that way. `docs/ai-hono-odoo-architecture-spec.md` has the
+  // AI tool calling this in production while `GET`/`PUT`/`confirm` are staff-only, so this is
+  // the one quotation route that cannot simply take a credential. It used to accept a
+  // `draft.quoteId`, look that quotation up in the store and return it — which made the
+  // unauthenticated route a way to read any quotation, guest phone number included. It now
+  // computes only from what the caller sent: a `trip`, or `lineItems` to price.
   app.post("/v1/quotes/compute", async (c) => {
     const body = (await c.req.json().catch(() => ({}))) as {
       trip?: Trip;
@@ -722,6 +761,7 @@ export function createApp(options: AppOptions = {}) {
       discountPercent?: number;
       draft?: Partial<HonoQuotationDraft>;
     };
+
     if (body.trip) {
       const computed = buildHonoQuotationDraft(body.trip, undefined, body.phone);
       if (typeof body.discountPercent === "number") {
@@ -734,12 +774,56 @@ export function createApp(options: AppOptions = {}) {
         gaisContract: buildOdooGaisEnvelope(finalComputed),
       });
     }
-    const existing = getQuotationByIdOrSlug(body.draft?.quoteId || "QT-1010-SKY") ?? listQuotations()[0]!;
+
+    // No trip and no line items is a caller error, not a reason to reach for stored data.
+    if (!Array.isArray(body.draft?.lineItems)) {
+      return c.json(
+        {
+          error: "bad_request",
+          message:
+            "Provide `trip` to price an enquiry, or `draft.lineItems` to price an edited quotation. " +
+            "This endpoint is stateless and never reads stored quotations.",
+        },
+        400,
+      );
+    }
+
+    // Price exactly what was sent. Defaults here fill only fields `recalculateQuotationTotals`
+    // does not use, so nothing stored or invented can reach the totals or the GAIS preview.
+    const now = new Date().toISOString();
+    const quoteId = body.draft.quoteId ?? `QT-${randomUUID().slice(0, 8).toUpperCase()}`;
+    const baseUrl = "https://technext-edge-casa-bff.vercel.app";
     const recomputed = recalculateQuotationTotals({
-      ...existing,
+      quoteId,
+      slug: body.draft.slug ?? randomUUID(),
+      status: "pending_hono_review",
+      createdAt: now,
+      updatedAt: now,
+      phone: body.phone,
+      guestName: "Priced draft",
+      checkIn: "",
+      checkOut: "",
+      nights: 0,
+      stayingGuests: 0,
+      totalGroupSize: 0,
+      rooms: 0,
+      mealPlan: "full_board",
+      diver: false,
+      divers: null,
+      diveNotes: null,
+      guestType: null,
+      currency: "PHP",
+      discountPercent: body.discountPercent ?? body.draft.discountPercent ?? 0,
+      subtotalAmount: 0,
+      discountAmount: 0,
+      totalAmount: 0,
+      quotationUrl: `${baseUrl}/q/${body.draft.slug ?? quoteId.toLowerCase()}`,
+      honoEditorUrl: `${baseUrl}/quotes/${quoteId}`,
+      staffNotes: "",
+      staffAlerts: [],
       ...body.draft,
-      lineItems: Array.isArray(body.draft?.lineItems) ? body.draft!.lineItems! : existing.lineItems,
-    });
+      lineItems: body.draft.lineItems,
+    } as HonoQuotationDraft);
     return c.json({
       ok: true,
       computed: recomputed,
@@ -770,12 +854,20 @@ export function createApp(options: AppOptions = {}) {
   });
 
   app.get("/v1/quotes/:id", (c) => {
+    // Carries the guest's name and phone plus the Odoo/GAIS envelope, so staff only.
+    if (!staffAuthorized(c.req.header("x-verify-token"))) {
+      return c.json({ error: "unauthorized" }, 401);
+    }
     const found = getQuotationByIdOrSlug(c.req.param("id"));
     if (!found) return c.json({ error: "not_found" }, 404);
     return c.json({ quotation: found, gaisContract: buildOdooGaisEnvelope(found) });
   });
 
   app.put("/v1/quotes/:id", async (c) => {
+    // A write, and it edits what the guest will be shown. Staff only.
+    if (!staffAuthorized(c.req.header("x-verify-token"))) {
+      return c.json({ error: "unauthorized" }, 401);
+    }
     const id = c.req.param("id");
     const existing = getQuotationByIdOrSlug(id);
     if (!existing) return c.json({ error: "not_found" }, 404);
@@ -792,6 +884,10 @@ export function createApp(options: AppOptions = {}) {
   });
 
   app.post("/v1/quotes/:id/confirm", async (c) => {
+    // Confirming commits the price and can trigger an outbound AI reply, so staff only.
+    if (!staffAuthorized(c.req.header("x-verify-token"))) {
+      return c.json({ error: "unauthorized" }, 401);
+    }
     const id = c.req.param("id");
     const existing = getQuotationByIdOrSlug(id);
     if (!existing) return c.json({ error: "not_found" }, 404);

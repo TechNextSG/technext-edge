@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import type { Trip } from "./schema.js";
 import type { ExtractProvider } from "./provider.js";
 import { getStaffAlerts } from "./questions.js";
@@ -150,9 +151,14 @@ export function buildHonoQuotationDraft(
 
   const cleanName = guestName.replace(/[^a-zA-Z0-9]/g, "").toUpperCase().slice(0, 4) || "CASA";
   const dateCompact = checkIn.replace(/-/g, "").slice(4);
-  const randSuffix = Math.random().toString(36).slice(2, 5).toUpperCase();
-  const quoteId = existingQuoteId ?? `QT-${dateCompact}-${cleanName}-${randSuffix}`;
-  const slug = quoteId.toLowerCase();
+  // 2 random characters were not enough: the id itself is fine behind the staff token, but
+  // the guest slug below is served by `/q/:slug` with NO credential, so a slug derived from
+  // the id (date + guest's own name + 2 chars) let anyone who knows the guest's name walk to
+  // their quotation. The slug is now a credential — 122 bits from the platform CSPRNG, and
+  // never rebuilt from booking data.
+  const quoteId =
+    existingQuoteId ?? `QT-${dateCompact}-${cleanName}-${randomUUID().slice(0, 8).toUpperCase()}`;
+  const slug = randomUUID();
 
   const lineItems: QuotationLineItem[] = [];
 

@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import {
   recalculateQuotationTotals,
   SUBMIT_QUOTATION_TO_HONO_DECLARATION,
@@ -7,15 +8,45 @@ import {
 const quotesById = new Map<string, HonoQuotationDraft>();
 const quoteIdBySlug = new Map<string, string>();
 
+/**
+ * The unpredictable part of a guest-facing quotation link.
+ *
+ * `/q/:slug` is deliberately reachable without a credential — it is the link staff paste
+ * into WhatsApp, so the guest must be able to open it — which means the slug itself is the
+ * only thing standing between a URL and someone else's booking. A UUID is 122 bits of CSPRNG
+ * output.
+ *
+ * Lowercase, because this store indexes slugs case-insensitively (`quoteIdBySlug` keys are
+ * lowercased) while URL paths are case-sensitive. A mixed-case token — base64url, say — would
+ * be indexed under one spelling and looked up under another, so a legitimate link would 404.
+ * That mistake was made here and caught by the "still serves the real quotation" test; the
+ * two slug generators must use the same alphabet.
+ *
+ * The previous slugs were derived from the guest's own name and dates ("sky-oct10-group"),
+ * and are guessable by anyone who knows the guest's name. Treat this value as a credential:
+ * never rebuild it from booking data, never shorten it, and never log it next to the PII it
+ * protects.
+ */
+function randomSlug(): string {
+  return randomUUID();
+}
+
 // Pre-seed Sir Sky's signature split-day group scenario so /quotes and /quotes/QT-1010-SKY
 // always have an immediate interactive quotation ready even on a fresh serverless cold start.
+//
+// The guest-facing slug is randomised rather than "sky-oct10-group": this record is served
+// by `/q/:slug` with no credential, so a slug built from the guest's own name let anyone who
+// could guess "sky-oct10-group" read a real quotation — and the old fallback made every URL
+// resolve to this record regardless. The quote id stays readable because it is only reachable
+// behind the staff token.
 function ensureSeeded() {
   if (quotesById.has("QT-1010-SKY")) return;
   const now = new Date().toISOString();
   const baseUrl = "https://technext-edge-casa-bff.vercel.app";
+  const slug = randomSlug();
   const seeded: HonoQuotationDraft = recalculateQuotationTotals({
     quoteId: "QT-1010-SKY",
-    slug: "sky-oct10-group",
+    slug,
     status: "pending_hono_review",
     createdAt: now,
     updatedAt: now,
@@ -83,7 +114,7 @@ function ensureSeeded() {
     subtotalAmount: 73800,
     discountAmount: 0,
     totalAmount: 73800,
-    quotationUrl: `${baseUrl}/q/sky-oct10-group`,
+    quotationUrl: `${baseUrl}/q/${slug}`,
     honoEditorUrl: `${baseUrl}/quotes/QT-1010-SKY`,
     staffNotes:
       "Split-day diving arrangement: 6 people total (4 staying overnight in 2 rooms; 1 diver on Day 1 only, 5 divers on both days).",
@@ -103,6 +134,18 @@ export function saveQuotationDraft(draft: HonoQuotationDraft): HonoQuotationDraf
   return normalized;
 }
 
+/**
+ * Looks a quotation up by id or by guest-facing slug.
+ *
+ * Returns `undefined` for anything unknown, and that is the whole security property: the
+ * caller serves `/q/:slug` without a credential, so "not found" has to mean not found.
+ *
+ * What used to be here instead was a fallback that never let a link 404: any unknown slug
+ * returned the most recent quotation, and any id matching `/^QT-/` was cloned from the
+ * seeded record. The result was that
+ * `GET /q/<anything at all>` returned a real guest's name, dates, party size and total —
+ * verified against the live deployment, with no credential.
+ */
 export function getQuotationByIdOrSlug(idOrSlug: string): HonoQuotationDraft | undefined {
   ensureSeeded();
   const direct = quotesById.get(idOrSlug) ?? quotesById.get(idOrSlug.toUpperCase());
@@ -110,20 +153,6 @@ export function getQuotationByIdOrSlug(idOrSlug: string): HonoQuotationDraft | u
   const mappedId = quoteIdBySlug.get(idOrSlug.toLowerCase());
   if (mappedId && quotesById.has(mappedId)) {
     return quotesById.get(mappedId);
-  }
-  // If a cold-started serverless instance receives a QT-MMDD-NAME-XXX id, synthesize a fallback so links never 404
-  if (/^QT-/i.test(idOrSlug)) {
-    const seeded = quotesById.get("QT-1010-SKY")!;
-    const clone: HonoQuotationDraft = {
-      ...seeded,
-      quoteId: idOrSlug.toUpperCase(),
-      slug: idOrSlug.toLowerCase(),
-      quotationUrl: `https://technext-edge-casa-bff.vercel.app/q/${idOrSlug.toLowerCase()}`,
-      honoEditorUrl: `https://technext-edge-casa-bff.vercel.app/quotes/${idOrSlug.toUpperCase()}`,
-    };
-    quotesById.set(clone.quoteId, clone);
-    quoteIdBySlug.set(clone.slug, clone.quoteId);
-    return clone;
   }
   return undefined;
 }
