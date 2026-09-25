@@ -1,10 +1,59 @@
-// Playbook: "mask emails and phone numbers before logging" — note this masks
-// what gets written to logs, not what gets sent to the model provider. The
-// open question ("do we mask before sending too?") is still unresolved; see
-// docs/adr/ADR-005a-extractor-model.md.
+// Playbook: "mask emails and phone numbers before logging".
+//
+// This masks what gets written to logs, not what gets sent to the model provider. Whether it
+// should also mask what is sent is a separate question and is measured, not assumed — see
+// `extract.ts`'s ExtractOptions.maskBeforeSend and .scratch-measure/pii-mask.ts. The short
+// version of that measurement: masking changes nothing extraction reads on the corpus, but
+// this regex had to be fixed first, because as written it ate dates.
 const EMAIL_RE = /[\w.+-]+@[\w-]+\.[\w.-]+/g;
-const PHONE_RE = /(\+?\d[\d\s().-]{6,}\d)/g;
 
+/**
+ * A digit run that looks like a phone number, and specifically NOT like an ISO date.
+ *
+ * The previous pattern was `\+?\d[\d\s().-]{6,}\d`, which matched `2026-10-07` — nine digits
+ * with two dashes is exactly its shape — so every logged guest message had its dates replaced
+ * by `[phone]`. Measured: `"Our dates are 2026-10-07 to 2026-10-10"` logged as
+ * `"Our dates are [phone] to [phone]"`. That is the worst possible thing for this particular
+ * mask to hide: a stay's dates are the first thing anyone reading a log needs, they are what
+ * `checkIn`/`checkOut` are resolved from, and the whole reason a human opens these logs is to
+ * work out why a date came out wrong.
+ *
+ * The fix is the negative lookahead: a candidate may not start with the `YYYY-MM-DD` shape.
+ * A date still contains a digit run of phone-like length, so no amount of tuning the digit
+ * count separates the two — only the separators do.
+ *
+ * A two-digit-year pair like `07-10-2026` is deliberately left to match as a phone number.
+ * It is genuinely ambiguous, `dates.ts` treats a bare numeric pair the same way (it needs the
+ * guest's language to read one), and masking it is the safe direction for something whose only
+ * job is to keep numbers out of logs.
+ */
+const PHONE_RE = /(?<!\d)(?!\d{4}-\d{2}-\d{2})\+?\d[\d\s().-]{6,}\d(?!\d)/g;
+
+/**
+ * Keeps emails and phone numbers out of log lines. Dates are preserved on purpose — see
+ * PHONE_RE — and anything else the guest wrote is passed through untouched.
+ *
+ * ## The open question this file used to carry
+ *
+ * "Do we mask before *sending* to the provider too?" That is a separate decision from
+ * masking logs, and it was measured rather than argued (.scratch-measure/pii-mask.ts, run
+ * against the live API on 2026-09-25, 5 corpus cases × 3 runs × both settings). Masking at
+ * the provider seam changed **nothing** the extractor reads: same `guests`, `rooms`,
+ * `nights`, `contactName`, `meals`, `diver`, and zero broken evidence quotes, including on
+ * en-03 — the case built specifically to trap a phone number being read as a guest count.
+ * That trap survives masking because `counts.ts` reads the *evidence quote* against the
+ * guest's own words, and the model's quote for `guests` is "only 2 of us are joining", which
+ * masking never touches.
+ *
+ * It is still NOT switched on, and the reason is the sample rather than the result. Five
+ * cases cannot show the absence of an effect, `en-10` is visibly unstable in both modes
+ * (its check-in alternates between "this Friday" readings across runs, with and without
+ * masking), and there is one real failure mode nobody has hit yet: if the model ever quoted
+ * a masked placeholder back as evidence, `state: "stated"` would fail enforcement against the
+ * unmasked text and turn a fact the guest did give into a question. Before switching this on,
+ * run the full 30-case corpus twice and diff. See PHONE_RE for why the date bug had to be
+ * fixed first: a mask that eats dates would break the run rather than measure it.
+ */
 export function maskForLogging(text: string): string {
   return text.replace(EMAIL_RE, "[email]").replace(PHONE_RE, "[phone]");
 }

@@ -4,7 +4,7 @@ import { Trip, HOUSE_NORM_FIELDS, type Trip as TripType, type Field, type FieldS
 import { HOUSE_NORMS } from "./houseNorms.js";
 import { manilaToday, resolveRelativeDate, deriveCheckOut, deriveNightsFromRange, corroborateDatePhrase, isPlausibleStayDate } from "./dates.js";
 import { corroborateCount } from "./counts.js";
-import { normalize, detectLanguage, guestTextOf, maskForLogging } from "./normalize.js";
+import { normalize, detectLanguage, guestTextOf } from "./normalize.js";
 import { generateQuestions } from "./questions.js";
 import type { ExtractProvider } from "./provider.js";
 
@@ -53,9 +53,6 @@ function summarizeError(err: unknown): string {
 export async function extract(rawText: string, provider: ExtractProvider): Promise<ExtractionOutcome> {
   const text = normalize(rawText);
   const today = manilaToday();
-
-  // maskForLogging is for whatever calls this and logs `text` — not applied here.
-  void maskForLogging;
 
   // Isolated guests pass (2026-09-21, ADR-005a), started now so it runs in
   // parallel with the main call below rather than adding latency after it.

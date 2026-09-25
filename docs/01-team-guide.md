@@ -728,6 +728,31 @@ node packages/extractor/eval/runner.mjs --provider deepseek-flash
   `bffValidationIssues`. **If you add a field Odoo needs, check it survives this handoff** — the
   draft is a lossy view, and a field with no column there is a field Odoo never sees.
 
+- **A mask that hides the wrong thing is worse than no mask.** Answering the PII question left
+  open in `normalize.ts` ("do we mask before *sending* too?") required reading the mask
+  carefully, and it turned out `PHONE_RE` was `\+?\d[\d\s().-]{6,}\d` — which matches
+  `2026-10-07`, because nine digits with two dashes is exactly that shape. Every logged guest
+  message had its **dates** replaced by `[phone]`: `"Our dates are 2026-10-07 to 2026-10-10"`
+  logged as `"Our dates are [phone] to [phone]"`. Of everything this mask could hide, dates are
+  the worst — they are what `checkIn`/`checkOut` are resolved from, and the reason someone opens
+  these logs is usually to find out why a date came out wrong. Fixed with a negative lookahead
+  so a `YYYY-MM-DD` candidate is skipped while real numbers are still masked; pinned by two
+  tests that fail on the old pattern. **Note the shape of this bug:** the mask was correct for
+  the thing it was aimed at and wrong for the text around it, and nothing was checking the
+  text around it. When you add a pattern that redacts, test what it must *not* touch.
+
+- **The PII-before-sending question is measured, and the answer is "not yet, on a small
+  sample".** Masking email/phone at the provider seam changed nothing the extractor reads
+  (`.scratch-measure/pii-mask.ts`, live API, 5 cases × 3 runs × both settings: identical
+  `guests`/`rooms`/`nights`/`contactName`/`meals`/`diver`, zero broken evidence quotes — including
+  en-03, the case built to trap a phone number being read as a guest count). It is **not**
+  switched on, because five cases cannot show the absence of an effect, `en-10` is unstable in
+  both modes, and one failure mode is untested: a masked placeholder quoted back as evidence
+  would fail enforcement against the unmasked text and turn a stated fact into a question. Run
+  the full corpus twice and diff before enabling it. **`extract()` deliberately has no masking
+  flag** — production carries no switch that exists only for a measurement; the script wraps the
+  provider instead.
+
 - **The production store fallback is silent, so it now says so.** With no
   `KV_REST_API_URL`/`KV_REST_API_TOKEN` (or the `UPSTASH_*` names), production falls back
   to an in-memory store: threads vanish on cold start and the phone lock cannot hold

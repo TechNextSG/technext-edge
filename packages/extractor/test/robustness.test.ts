@@ -507,6 +507,47 @@ describe("input fuzz — the same messages, typed badly, in both languages", () 
       }
     }
   });
+
+  // Found while answering the open PII question in normalize.ts: the phone pattern was
+  // `\+?\d[\d\s().-]{6,}\d`, and `2026-10-07` is nine digits with two dashes — exactly that
+  // shape. Every logged message lost its dates to `[phone]`. Of everything this mask could
+  // hide, dates are the worst: they are what checkIn/checkOut are resolved from, and the
+  // reason a human opens these logs is usually to find out why a date came out wrong.
+  it("never masks a date, while still masking every phone number", () => {
+    const DATES = [
+      "booking 2026-10-07",
+      "Our dates are 2026-10-07 to 2026-10-10",
+      "check in 2026-12-31, out 2027-01-02", // across a year boundary
+      "staying 2026-11-20",
+      "from 15/10 for 4 nights", // a numeric pair with no year, which dates.ts reads by language
+    ];
+    for (const text of DATES) {
+      expect(maskForLogging(text), `a date was masked: "${text}"`).toBe(text);
+    }
+
+    const PHONES = [
+      ["my number is 09171234567", "09171234567"],
+      ["call +63 917 123 4567", "917 123 4567"],
+      ["phone 0917-123-4567", "0917-123-4567"],
+      ["+639171234567", "+639171234567"],
+      ["my number is 09171234567 and we are 2", "09171234567"],
+    ];
+    for (const [text, phone] of PHONES) {
+      const masked = maskForLogging(text!);
+      expect(masked, `a phone number survived: "${text}"`).not.toContain(phone!);
+      expect(masked).toContain("[phone]");
+    }
+  });
+
+  it("keeps the guest count that sits beside a phone number", () => {
+    // The one thing that must not be swallowed along with the number: en-03's shape is a
+    // phone number and a real count in the same sentence, and the count reader works off the
+    // guest's own words. Masking must not eat "2 of us".
+    const masked = maskForLogging("my number is 09171234567 and 2 of us are joining for 1 night");
+    expect(masked).toContain("2 of us");
+    expect(masked).toContain("1 night");
+    expect(masked).toContain("[phone]");
+  });
 });
 
 describe("adversarial text — what a guest can type that the pipeline must not believe", () => {
