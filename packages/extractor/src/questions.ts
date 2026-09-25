@@ -273,6 +273,47 @@ export function isReadyForHandoff(trip: Trip): boolean {
   return true;
 }
 
+/**
+ * True when this trip will be priced against a dive window the guest never gave.
+ *
+ * The gap this names is between two decisions that are each right on their own:
+ *
+ * 1. The NEVER-RE-ASK guardrail deliberately stops asking `diveFrom`/`diveTo` once `diveNotes`
+ *    records a nuanced arrangement, so `isReadyForHandoff` lets the trip through with the window
+ *    still `missing`.
+ * 2. `buildBffTrip()` then has to produce a payload their `fillTrip` will accept, and that
+ *    contract requires a dive window whenever a guest dives — so it invents one inside the stay.
+ *
+ * Together they mean a real enquiry can reach pricing asserting dive days from nobody's words,
+ * and the count changes with it: measured on one scenario ("my husband and I dive, the kids
+ * snorkel" — no dates given) across three runs, the payload carried 3, 4 and 3 dive days, and
+ * the run that said 4 had the model labelling the CHECK-IN date as `diveFrom`. Dive is charged
+ * per diver per day, so those are three different prices.
+ *
+ * `stated` is the only state that means the guest said it; `derived`, `default` and `inferred`
+ * are all the pipeline's own.
+ *
+ * ## What this does NOT catch
+ *
+ * The worse shape is the model labelling the STAY as the dive window with `state: "stated"`. In the
+ * same scenario, a later run produced `diveFrom: 2026-11-25` and `diveTo: 2026-11-29` — check-in and
+ * check-out — both quoting `"Nov 25 please, for 4 nights."` as evidence. That evidence is a verbatim
+ * substring of the guest's message, so it survives enforcement, but it is a sentence about the stay,
+ * and the resulting payload carried **5 dive days for a 4-night trip**. Both ends read as `stated`,
+ * so this predicate returns false and nothing is flagged.
+ *
+ * Catching that needs the equivalent of what `counts.ts` does for counts: an evidence quote has to
+ * be *about this field*, not merely present in the message. That is a real change to extraction
+ * semantics rather than an added flag — this repo's fixtures currently treat a bare date
+ * (`evidence: "Oct 11"`) as valid dive-window evidence — so it is left as a deliberate open item
+ * rather than folded in here. Until then, treat `diveWindowIsGuessed() === false` as "the guest's
+ * words support the window", not as "the window is right".
+ */
+export function diveWindowIsGuessed(trip: Trip): boolean {
+  if (trip.diver?.value !== true) return false;
+  return trip.diveFrom?.state !== "stated" || trip.diveTo?.state !== "stated";
+}
+
 // ---- Reply rendering --------------------------------------------------------
 // Deterministic text for the reply: no model call, and every value comes from the
 // trip the extractor already validated.
@@ -693,6 +734,24 @@ export function getStaffAlerts(trip: Trip, lang?: GuestLanguage): string[] {
     } else {
       alerts.push(
         `📋 Custom Dive Schedule: Split-day diving arrangement (${diveNotes}) routed to staff for manual per-day quote calculation.`,
+      );
+    }
+  }
+
+  // A dive window nobody stated is the one gap that reaches pricing silently: the guest said they
+  // dive, the never-re-ask rule stopped us asking which days, and the payload builder fills the
+  // gap. Naming it here is what stops a charged-per-day number appearing from nowhere. Phrased to
+  // be true for both audiences, because renderSummary appends these lines to the guest's own
+  // message — it states that the days are unconfirmed and that a person will confirm them, and it
+  // deliberately does NOT repeat the assumed dates as if the guest had given them.
+  if (diveWindowIsGuessed(trip)) {
+    if (l === "zh") {
+      alerts.push(
+        "📋 潜水日期待确认：您表示要潜水，但尚未提供具体潜水日期，因此报价前需由工作人员确认天数（潜水按每位潜水员／每天计费）。",
+      );
+    } else {
+      alerts.push(
+        "📋 Dive Days To Confirm: you'd like to dive, but no dive dates were given, so our team will confirm the days with you before quoting — diving is charged per diver, per day.",
       );
     }
   }

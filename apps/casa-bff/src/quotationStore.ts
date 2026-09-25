@@ -723,6 +723,17 @@ export function renderHonoQuotationEditorHtml(draft: HonoQuotationDraft, allQuot
           <input type="text" id="input-staff-notes" class="cell-input" value="${draft.staffNotes.replace(/"/g, "&quot;")}" />
         </div>
 
+        ${
+          Array.isArray(draft.staffAlerts) && draft.staffAlerts.length > 0
+            ? `<div style="margin-top:16px;padding:12px 14px;border-left:3px solid var(--accent);background:rgba(220,75,51,0.06);border-radius:4px;">
+          <div style="font-size:12px;font-weight:700;letter-spacing:.4px;color:var(--accent);margin-bottom:6px;">STAFF ALERTS — read before quoting</div>
+          <ul style="margin:0;padding-left:18px;font-size:13px;line-height:1.55;">
+            ${draft.staffAlerts.map((a) => `<li>${String(a).replace(/</g, "&lt;")}</li>`).join("")}
+          </ul>
+        </div>`
+            : ""
+        }
+
         <div style="margin-top:20px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;padding-top:16px;border-top:1px solid var(--border);">
           <div style="display:flex;align-items:center;gap:10px;">
             <button class="btn btn-outline" onclick="saveEditsOnly()" id="btn-save-draft">💾 <span>Save Edits on Hono</span></button>

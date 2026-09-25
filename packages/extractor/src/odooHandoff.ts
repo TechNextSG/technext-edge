@@ -7,7 +7,7 @@ import type {
   BffCourseCode,
   BffValidationIssue,
 } from "./schema.js";
-import { generateQuestions, getStaffAlerts } from "./questions.js";
+import { generateQuestions, getStaffAlerts, diveWindowIsGuessed } from "./questions.js";
 
 export type OdooHandoffMode =
   | "incomplete_enquiry"
@@ -357,6 +357,14 @@ export function buildOdooHandoffPayload(trip: Trip): OdooHandoffEnvelope {
   const diveNotes = trip.diveNotes?.value ?? null;
   if (diveNotes && trip.divers?.state === "missing") {
     manualReviewReasons.push("custom_split_day_dive_schedule");
+  }
+
+  // The payload this envelope describes WILL carry a dive window, because `buildBffTrip()` fills
+  // one to satisfy the contract. When the guest never gave those dates, that window — and the
+  // per-diver-per-day dive charge computed from it — is the pipeline's guess, not an answer. This
+  // is the reason that says so out loud instead of letting it read as `auto_estimate_ready`.
+  if (diveWindowIsGuessed(trip)) {
+    manualReviewReasons.push("dive_window_not_stated");
   }
 
   if (trip.specialRequests?.value) {

@@ -31,6 +31,7 @@ export {
   getStaffAlerts,
   ASK_LIMIT,
   isReadyForHandoff,
+  diveWindowIsGuessed,
   HANDOFF_REQUIRED_FIELDS,
   NEVER_ASKED_FIELDS,
 } from "./questions.js";

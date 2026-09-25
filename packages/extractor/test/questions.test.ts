@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { converse } from "../src/converse.js";
 import {
   fallbackReply,
+  diveWindowIsGuessed,
   generateQuestions,
   getStaffAlerts,
   isReadyForHandoff,
@@ -713,6 +714,104 @@ describe("Phase 1 Hybrid AI Guardrails: NEVER RE-ASK, Fact Gate & Staff Alerts",
     expect(manualHandoff.readyForAutoQuote).toBe(false);
     expect(manualHandoff.manualReviewReasons).toContain("partner_rate_confirmation_required:agent");
     expect(manualHandoff.manualReviewReasons).toContain("custom_split_day_dive_schedule");
+  });
+});
+
+/**
+ * The gap between two decisions that are each right on their own.
+ *
+ * The never-re-ask guardrail stops asking `diveFrom`/`diveTo` once `diveNotes` exists, so
+ * `isReadyForHandoff` lets the trip through with the window missing; `buildBffTrip` then has to
+ * fill one because their `fillTrip` requires it whenever a guest dives. Measured on a real
+ * scenario ("my husband and I dive, the kids just snorkel" — no dates given) across three runs,
+ * the payload carried 3, 4 and 3 dive days, and the 4 came from the model labelling the
+ * CHECK-IN date as `diveFrom`. Dive is charged per diver per day, so those are three prices.
+ */
+describe("a dive window the guest never gave", () => {
+  function tripWithDiveWindow(from: { value: unknown; state: string }, to: { value: unknown; state: string }): Trip {
+    return {
+      ...(BLANK_RAW as unknown as Trip),
+      language: { value: "en", state: "inferred", evidence: null },
+      guestType: { value: "retail", state: "default", evidence: null },
+      checkIn: { value: "2026-11-25", state: "stated", evidence: "Nov 25" },
+      checkOut: { value: "2026-11-29", state: "derived", evidence: null },
+      nights: { value: 4, state: "stated", evidence: "4 nights" },
+      guests: { value: 4, state: "stated", evidence: "family of 4" },
+      rooms: { value: 2, state: "stated", evidence: "2 rooms" },
+      meals: { value: "full_board", state: "default", evidence: null },
+      transport: { value: false, state: "stated", evidence: "we'll drive ourselves" },
+      transportType: { value: "none", state: "derived", evidence: null },
+      diver: { value: true, state: "stated", evidence: "My husband and I dive" },
+      divers: { value: 2, state: "stated", evidence: "My husband and I dive" },
+      diveNotes: { value: "Adults dive, kids snorkel only", state: "stated", evidence: "the kids will just snorkel" },
+      contactName: { value: "Maria Santos", state: "stated", evidence: "Maria Santos" },
+      diveFrom: from as never,
+      diveTo: to as never,
+    };
+  }
+
+  it("is guessed when the window is missing — the exact shape the guardrail lets through", () => {
+    const trip = tripWithDiveWindow({ value: null, state: "missing" }, { value: null, state: "missing" });
+    expect(isReadyForHandoff(trip), "the trip is allowed to hand off with no dive window").toBe(true);
+    expect(diveWindowIsGuessed(trip)).toBe(true);
+  });
+
+  it("is guessed when only one end was stated, because the other is filled in", () => {
+    expect(diveWindowIsGuessed(tripWithDiveWindow({ value: "2026-11-25", state: "stated" }, { value: null, state: "missing" }))).toBe(true);
+  });
+
+  it("is guessed when the pipeline derived the dates rather than the guest stating them", () => {
+    expect(diveWindowIsGuessed(tripWithDiveWindow({ value: "2026-11-26", state: "derived" }, { value: "2026-11-28", state: "derived" }))).toBe(true);
+  });
+
+  it("is NOT guessed when both ends came from the guest", () => {
+    expect(diveWindowIsGuessed(tripWithDiveWindow({ value: "2026-11-26", state: "stated" }, { value: "2026-11-28", state: "stated" }))).toBe(false);
+  });
+
+  it("does not apply when nobody is diving", () => {
+    // A non-diving trip has no window to get wrong, and `buildBffTrip` sends null for both ends.
+    const noDive: Trip = { ...tripWithDiveWindow({ value: null, state: "missing" }, { value: null, state: "missing" }), diver: { value: false, state: "stated", evidence: "no diving" } };
+    expect(diveWindowIsGuessed(noDive)).toBe(false);
+  });
+
+  it("raises a staff alert, phrased so the guest can read it too", () => {
+    // renderSummary appends these lines to the guest's own message, so the wording has to be true
+    // for both audiences — and must not repeat the assumed dates as if the guest had given them.
+    const alerts = getStaffAlerts(tripWithDiveWindow({ value: null, state: "missing" }, { value: null, state: "missing" }), "en");
+    const line = alerts.find((a) => a.includes("Dive Days To Confirm"));
+    expect(line, "no dive-window alert").toBeDefined();
+    expect(line).toMatch(/charged per diver, per day/);
+    expect(line, "the alert must not assert the assumed window").not.toMatch(/2026-11/);
+  });
+
+  it("says it in Chinese too", () => {
+    const alerts = getStaffAlerts(tripWithDiveWindow({ value: null, state: "missing" }, { value: null, state: "missing" }), "zh");
+    expect(alerts.some((a) => a.includes("潜水日期待确认"))).toBe(true);
+  });
+
+  it("raises no alert when the guest gave the dive dates", () => {
+    const alerts = getStaffAlerts(tripWithDiveWindow({ value: "2026-11-26", state: "stated" }, { value: "2026-11-28", state: "stated" }), "en");
+    expect(alerts.some((a) => a.includes("Dive Days To Confirm"))).toBe(false);
+  });
+
+  it("is not auto-priced: the handoff envelope routes it to manual review", () => {
+    const guessed = buildOdooHandoffPayload(tripWithDiveWindow({ value: null, state: "missing" }, { value: null, state: "missing" }));
+    expect(guessed.mode).toBe("manual_staff_review");
+    expect(guessed.readyForAutoQuote).toBe(false);
+    expect(guessed.manualReviewReasons).toContain("dive_window_not_stated");
+  });
+
+  it("leaves a guest-stated window on the auto path", () => {
+    const stated = buildOdooHandoffPayload(tripWithDiveWindow({ value: "2026-11-26", state: "stated" }, { value: "2026-11-28", state: "stated" }));
+    expect(stated.manualReviewReasons).not.toContain("dive_window_not_stated");
+  });
+
+  it("reaches the guest summary as a confirmation, not as a stated fact", () => {
+    const trip = tripWithDiveWindow({ value: null, state: "missing" }, { value: null, state: "missing" });
+    const { kind, text } = renderReply(trip, []);
+    expect(kind).toBe("summary");
+    expect(text).toContain("Dive Days To Confirm");
+    expect(text, "the summary must not print a dive window nobody gave").not.toMatch(/Diving:.*2026-11/);
   });
 });
 
