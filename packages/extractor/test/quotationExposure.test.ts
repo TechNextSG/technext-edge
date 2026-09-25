@@ -13,18 +13,20 @@
 // quotation for anything unknown (and cloned the seeded record for any `/^QT-/` id), and the
 // staff routes had no guard at all.
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
+import { randomUUID } from "node:crypto";
 import { createApp } from "../../../apps/casa-bff/src/app.js";
 import {
   listQuotations,
   getQuotationByIdOrSlug,
   saveQuotationDraft,
 } from "../../../apps/casa-bff/src/quotationStore.js";
-import { buildHonoQuotationDraft } from "../../../packages/extractor/src/quotationTool.js";
+import { buildHonoQuotationDraft, recalculateQuotationTotals } from "../../../packages/extractor/src/quotationTool.js";
 import {
   validateBffTripPrecheck,
   buildBffTrip,
 } from "../../../packages/extractor/src/odooHandoff.js";
 import type { Trip } from "../../../packages/extractor/src/schema.js";
+import type { HonoQuotationDraft } from "../../../packages/extractor/src/quotationTool.js";
 
 const STAFF_TOKEN = "test-staff-token";
 const savedToken = process.env.WHATSAPP_VERIFY_TOKEN;
@@ -352,8 +354,20 @@ describe("the validated BFF Trip reaches the Odoo-bound envelope", () => {
 
   it("reports `bffTrip: null` rather than inventing one for a draft that never had a Trip", async () => {
     const app = createApp();
-    const seeded = listQuotations().find((q) => q.quoteId === "QT-1010-SKY")!;
-    const res = await app.request(`/v1/quotes/${seeded.quoteId}/sync-odoo`, {
+    // Each test saves its own record rather than leaning on the shared seed: the suite runs
+    // against one module-level store, so an earlier test's draft would otherwise decide what
+    // this one sees.
+    const built = buildHonoQuotationDraft(tripWithStatedDivers(2));
+    // A hand-written / line-items-only record: no `bffTrip`, exactly like the seed.
+    const { bffTrip: _dropped, ...withoutTrip } = built;
+    const handwritten = saveQuotationDraft({
+      ...recalculateQuotationTotals(withoutTrip as HonoQuotationDraft),
+      quoteId: "QT-0000-NOTRIP-AAA",
+      slug: randomUUID(),
+    });
+    expect(handwritten.bffTrip).toBeUndefined();
+
+    const res = await app.request(`/v1/quotes/${handwritten.quoteId}/sync-odoo`, {
       method: "POST",
       headers: { "x-verify-token": STAFF_TOKEN },
     });
@@ -361,8 +375,8 @@ describe("the validated BFF Trip reaches the Odoo-bound envelope", () => {
     const body = (await res.json()) as {
       gaisContract: { bffTrip: unknown; bffValidationIssues: unknown[] };
     };
-    // Honest null: this record was hand-written, so there are no extraction facts to carry,
-    // and synthesising a guess is exactly the failure mode the contract exists to prevent.
+    // Honest null: this record has no extraction facts to carry, and synthesising a guess is
+    // exactly the failure mode the contract exists to prevent.
     expect(body.gaisContract.bffTrip).toBeNull();
     expect(body.gaisContract.bffValidationIssues).toEqual([]);
   });

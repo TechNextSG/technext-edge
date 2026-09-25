@@ -690,6 +690,44 @@ node packages/extractor/eval/runner.mjs --provider deepseek-flash
   and the guest's text lost in silence. When you add anything that assumes "only one of
   these runs at a time", check which promise you are actually relying on.
 
+- **A public link's URL parameter is a credential, and a "never 404" fallback turns a guessable
+  slug into a data breach.** Measured on the live deployment 2026-09-25, with no credential of
+  any kind: `GET /q/made-up-slug-xyz` returned **200** and an entire real quotation —
+  `QT-1010-SKY`, "Prepared for Sky", 10–12 Oct, 6 pax / 2 rooms, ₱73,800 — while
+  `GET /v1/quotes` returned JSON containing `phone: "84359386414"`. Two causes had to line up,
+  which is why neither looked dangerous alone:
+
+  1. `getQuotationByIdOrSlug()` deliberately never returned nothing: an unknown slug fell back
+     to the newest quotation, and any id matching `/^QT-/` was *cloned* from the seeded record.
+     That made every URL resolve to somebody's booking.
+  2. The slug was `quoteId.toLowerCase()` — `qt-1010-sky-<2 chars>` — derived from the guest's
+     name and check-in date, so it was guessable by anyone who knew the guest.
+
+  `/q/:slug` cannot take a credential: it is the link staff paste into WhatsApp and guests have
+  no account. So the slug **is** the credential and is now a UUID (122 bits); an unknown slug is
+  a 404. `GET /v1/quotes`, `GET /quotes`, `GET/PUT /v1/quotes/:id` and
+  `POST /v1/quotes/:id/confirm` require `x-verify-token` (the same `WHATSAPP_VERIFY_TOKEN` the
+  handoff routes use — no new env var), and they **fail closed**: with no token configured they
+  are unreachable, not open.
+
+  `POST /v1/quotes/compute` is the exception that cannot take a credential, because
+  `docs/ai-hono-odoo-architecture-spec.md` has the AI tool calling it in production. It used to
+  accept a `draft.quoteId`, look it up and return it, which made the unauthenticated route a way
+  to read any quotation. It is now stateless. **When you add a quotation route, decide which of
+  the two audiences it serves** — guest link or staff — and if it must stay open, keep it
+  stateless.
+
+- **The BFF contract was validated but never sent anywhere.** `buildBffTrip()` and
+  `validateBffTripPrecheck()` were correct and tested, yet every Odoo-bound request carried only
+  the flattened `HonoQuotationDraft`, which has no column for `guestType`, `transportType`,
+  `diveFrom`/`diveTo` or per-guest `days`/`roomId`. So a group's real composition — who dives, on
+  which days, in which room, who is only snorkelling — had **no path to Odoo at all**; only the
+  totals arrived. `buildHonoQuotationDraft()` now builds the `BffTrip` and stores it on the draft,
+  because that is the last point where the full extraction `Trip` still exists: the translation
+  cannot be reconstructed later from the draft. `buildOdooGaisEnvelope()` returns `bffTrip` plus
+  `bffValidationIssues`. **If you add a field Odoo needs, check it survives this handoff** — the
+  draft is a lossy view, and a field with no column there is a field Odoo never sees.
+
 - **The production store fallback is silent, so it now says so.** With no
   `KV_REST_API_URL`/`KV_REST_API_TOKEN` (or the `UPSTASH_*` names), production falls back
   to an in-memory store: threads vanish on cold start and the phone lock cannot hold

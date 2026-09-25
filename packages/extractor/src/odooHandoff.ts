@@ -138,7 +138,7 @@ export function buildBffTrip(trip: Trip): BffTrip {
 
   const hasDiving = Boolean(trip.diver?.value);
   const diverCount = hasDiving
-    ? Math.max(1, Math.min(guestCount, trip.divers?.value ?? guestCount))
+    ? Math.max(1, Math.min(guestCount, trip.divers?.value ?? 1))
     : 0;
 
   let diveFrom: string | null = null;
