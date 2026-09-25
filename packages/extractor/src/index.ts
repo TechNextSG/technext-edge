@@ -1,7 +1,19 @@
 export { extract, ExtractionValidationError } from "./extract.js";
 export type { ExtractionOutcome } from "./extract.js";
-export { Trip, FieldState, HOUSE_NORM_FIELDS } from "./schema.js";
-export type { Field } from "./schema.js";
+export {
+  Trip,
+  FieldState,
+  HOUSE_NORM_FIELDS,
+  BffTrip,
+  BffGuest,
+  BffRoom,
+  BffDayPlanEntry,
+  BffRoomType,
+  BffCourseCode,
+  BffValidationCode,
+  BffSaneIssueCode,
+} from "./schema.js";
+export type { Field, BffValidationIssue } from "./schema.js";
 export { createGeminiProvider } from "./providers/gemini.js";
 export { createDeepSeekProvider } from "./providers/deepseek.js";
 export { createProviderFromEnv, createProviderByName, KNOWN_PROVIDER_NAMES } from "./providerFromEnv.js";
@@ -27,7 +39,12 @@ export { verifySynthesizedReply, synthesizeHospitalityReply } from "./synthesis.
 export type { FactGateResult, SynthesisInput } from "./synthesis.js";
 export { scoreReplyNaturalness } from "./naturalness.js";
 export type { NaturalnessScoreBreakdown } from "./naturalness.js";
-export { buildOdooHandoffPayload } from "./odooHandoff.js";
+export {
+  buildOdooHandoffPayload,
+  buildBffTrip,
+  validateBffTripPrecheck,
+  datesBetweenInclusive,
+} from "./odooHandoff.js";
 export type { OdooHandoffMode, OdooEstimateDraft, OdooHandoffEnvelope } from "./odooHandoff.js";
 export { converse } from "./converse.js";
 export type { ConversationChannel, ConversationInput, ConversationTurn, ConverseOutcome } from "./converse.js";
