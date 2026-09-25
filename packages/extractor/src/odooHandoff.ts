@@ -193,6 +193,14 @@ export function buildBffTrip(trip: Trip): BffTrip {
       roomId: assignedRoom.id,
       courses: isDiver ? courses : [],
       days,
+      // Emitted as explicit nulls because the BFF contract fills these with null: a key
+      // that is absent and a key that is null are the same value on the other side, and
+      // sending the key keeps the payload self-describing in logs.
+      arrive: null,
+      depart: null,
+      comment: null,
+      vanA: null,
+      vanD: null,
     };
   });
 

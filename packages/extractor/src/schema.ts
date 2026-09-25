@@ -93,14 +93,14 @@ export const BffDayPlanEntry = z.object({
 export type BffDayPlanEntry = z.infer<typeof BffDayPlanEntry>;
 
 export const BffRoom = z.object({
-  id: z.string().max(120).nullable(),
+  id: z.string().max(120).nullable().default(null),
   type: BffRoomType.default("standard"),
   name: z.string().max(120).nullable().default(null),
 });
 export type BffRoom = z.infer<typeof BffRoom>;
 
 export const BffGuest = z.object({
-  id: z.string().max(120).nullable(),
+  id: z.string().max(120).nullable().default(null),
   name: z.string().max(120).default("Guest"),
   /** Crucial: Odoo defaults missing `diver` to true! Non-divers MUST explicitly pass `false`. */
   diver: z.boolean(),
@@ -112,11 +112,15 @@ export const BffGuest = z.object({
   courses: z.array(BffCourseCode).max(5).default([]),
   /** ★ Mandatory when `diver === true` (>=1 date key within [diveFrom, diveTo]); `{}` when `diver === false`. */
   days: z.record(z.string(), BffDayPlanEntry).default({}),
-  arrive: z.string().max(120).nullable().optional(),
-  depart: z.string().max(120).nullable().optional(),
-  comment: z.string().max(500).nullable().optional(),
-  vanA: z.string().max(120).nullable().optional(),
-  vanD: z.string().max(120).nullable().optional(),
+  // `.default(null)`, not `.optional()`: upstream fills these with null, so an omitted
+  // key and an explicit null are the same value there. Keeping them optional here would
+  // let a payload reach the BFF with the key absent, which is a shape difference the
+  // vendored parity test deliberately rejects.
+  arrive: z.string().max(120).nullable().default(null),
+  depart: z.string().max(120).nullable().default(null),
+  comment: z.string().max(500).nullable().default(null),
+  vanA: z.string().max(120).nullable().default(null),
+  vanD: z.string().max(120).nullable().default(null),
 });
 export type BffGuest = z.infer<typeof BffGuest>;
 
