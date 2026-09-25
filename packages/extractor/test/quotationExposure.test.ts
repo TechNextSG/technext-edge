@@ -187,6 +187,55 @@ describe("staff quotation routes require the staff token", () => {
     expect(res.status).toBe(401);
   });
 
+  // The studio is a PAGE whose own fetch calls run from a browser that has no reason to hold a
+  // shared secret. Guarding these routes with a header alone 401'd the studio's own buttons —
+  // the leak fix broke the tool it was protecting. The token therefore also travels in the query,
+  // which is how a staff link already arrives.
+  describe("the studio page can still reach its own guarded routes", () => {
+    it("accepts the token in the query string", async () => {
+      const app = createApp();
+      for (const path of ["/v1/quotes", "/quotes"]) {
+        const res = await app.request(`${path}?token=${STAFF_TOKEN}`);
+        expect(res.status, `${path} rejected a query token`).toBe(200);
+      }
+    });
+
+    it("still rejects a wrong query token", async () => {
+      const app = createApp();
+      expect((await app.request("/v1/quotes?token=wrong")).status).toBe(401);
+      expect((await app.request("/v1/quotes?token=")).status).toBe(401);
+    });
+
+    it("serves the studio page, which carries the token on every call it makes", async () => {
+      const app = createApp();
+      const res = await app.request(`/quotes?token=${STAFF_TOKEN}`);
+      expect(res.status).toBe(200);
+      const html = await res.text();
+
+      // Every guarded call the page makes has to carry the token, or that button 401s for staff.
+      // The URL is built by concatenation, so capture up to the comma that ends the argument.
+      const calls = html.match(/fetch\('\/v1\/quotes\/[^,]*/g) ?? [];
+      expect(calls.length).toBeGreaterThanOrEqual(4); // save, confirm, send-whatsapp, sync-estimate
+      for (const call of calls) {
+        expect(call, `${call} does not carry the staff token`).toContain("token=");
+      }
+      // …and the page must be able to find it.
+      expect(html).toContain("staffToken()");
+      expect(html).toContain("/sync-estimate?token=");
+    });
+
+    it("never puts the staff token on the guest page", async () => {
+      const app = createApp();
+      const quotation = listQuotations()[0]!;
+      const res = await app.request(`/q/${quotation.slug}`);
+      expect(res.status).toBe(200);
+      const html = await res.text();
+      expect(html).not.toContain("token=");
+      expect(html).not.toContain(STAFF_TOKEN);
+      expect(html).not.toContain("staffToken");
+    });
+  });
+
   it("fails closed when no token is configured, rather than opening the routes", async () => {
     const configured = process.env.WHATSAPP_VERIFY_TOKEN;
     delete process.env.WHATSAPP_VERIFY_TOKEN;

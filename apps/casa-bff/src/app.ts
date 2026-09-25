@@ -661,8 +661,28 @@ export function createApp(options: AppOptions = {}) {
     return sameSecret(header, whatsAppConfig().verifyToken);
   }
 
+  /**
+   * Staff auth that a browser link can carry.
+   *
+   * The header is the right place for anything scripted, and `staffAuthorized` stays the rule for
+   * that. But the quotation studio is a PAGE, and its own `fetch` calls to
+   * `/v1/quotes/:id` (save, confirm, send) run from a browser that has no reason to hold a
+   * shared secret — so guarding those routes with a header alone 401s the studio's own buttons.
+   * That was a real regression: the leak fix added the guard and broke the tool it was protecting.
+   *
+   * Accepting the token in the query string fixes it the way this app already works: a staff link
+   * arrives by being pasted into a browser (the WhatsApp handoff view is guarded the same way),
+   * and the page reads its own URL to put the token on every call it makes. A query token is
+   * weaker than a header — it lands in browser history and in any referrer — so it is scoped to
+   * the studio page and its JSON API, never to the guest-facing `/q/:slug`.
+   */
+  function staffAuthorizedWithQuery(header: string | undefined, token: string | undefined): boolean {
+    if (staffAuthorized(header)) return true;
+    return sameSecret(token, whatsAppConfig().verifyToken);
+  }
+
   app.get("/quotes", (c) => {
-    if (!staffAuthorized(c.req.header("x-verify-token"))) {
+    if (!staffAuthorizedWithQuery(c.req.header("x-verify-token"), c.req.query("token"))) {
       return c.json({ error: "unauthorized" }, 401);
     }
     const all = listQuotations();
@@ -671,7 +691,7 @@ export function createApp(options: AppOptions = {}) {
   });
 
   app.get("/quotes/:id", (c) => {
-    if (!staffAuthorized(c.req.header("x-verify-token"))) {
+    if (!staffAuthorizedWithQuery(c.req.header("x-verify-token"), c.req.query("token"))) {
       return c.json({ error: "unauthorized" }, 401);
     }
     const id = c.req.param("id");
@@ -724,7 +744,7 @@ export function createApp(options: AppOptions = {}) {
 
   app.get("/v1/quotes", (c) => {
     // Every quotation, each with the guest's name and phone number. Staff only.
-    if (!staffAuthorized(c.req.header("x-verify-token"))) {
+    if (!staffAuthorizedWithQuery(c.req.header("x-verify-token"), c.req.query("token"))) {
       return c.json({ error: "unauthorized" }, 401);
     }
     return c.json({ quotations: listQuotations() });
@@ -839,7 +859,7 @@ export function createApp(options: AppOptions = {}) {
 
   app.get("/v1/quotes/:id", (c) => {
     // Carries the guest's name and phone plus the Odoo/GAIS envelope, so staff only.
-    if (!staffAuthorized(c.req.header("x-verify-token"))) {
+    if (!staffAuthorizedWithQuery(c.req.header("x-verify-token"), c.req.query("token"))) {
       return c.json({ error: "unauthorized" }, 401);
     }
     const found = getQuotationByIdOrSlug(c.req.param("id"));
@@ -849,7 +869,7 @@ export function createApp(options: AppOptions = {}) {
 
   app.put("/v1/quotes/:id", async (c) => {
     // A write, and it edits what the guest will be shown. Staff only.
-    if (!staffAuthorized(c.req.header("x-verify-token"))) {
+    if (!staffAuthorizedWithQuery(c.req.header("x-verify-token"), c.req.query("token"))) {
       return c.json({ error: "unauthorized" }, 401);
     }
     const id = c.req.param("id");
@@ -869,7 +889,7 @@ export function createApp(options: AppOptions = {}) {
 
   app.post("/v1/quotes/:id/confirm", async (c) => {
     // Confirming commits the price and can trigger an outbound AI reply, so staff only.
-    if (!staffAuthorized(c.req.header("x-verify-token"))) {
+    if (!staffAuthorizedWithQuery(c.req.header("x-verify-token"), c.req.query("token"))) {
       return c.json({ error: "unauthorized" }, 401);
     }
     const id = c.req.param("id");
@@ -913,7 +933,7 @@ export function createApp(options: AppOptions = {}) {
    * and not smoothed over — that is the whole reason for wiring this up.
    */
   app.post("/v1/quotes/:id/sync-estimate", async (c) => {
-    if (!staffAuthorized(c.req.header("x-verify-token"))) {
+    if (!staffAuthorizedWithQuery(c.req.header("x-verify-token"), c.req.query("token"))) {
       return c.json({ error: "unauthorized" }, 401);
     }
     const id = c.req.param("id");
@@ -953,6 +973,9 @@ export function createApp(options: AppOptions = {}) {
   });
 
   app.post("/v1/quotes/:id/send-whatsapp", async (c) => {
+    if (!staffAuthorizedWithQuery(c.req.header("x-verify-token"), c.req.query("token"))) {
+      return c.json({ error: "unauthorized" }, 401);
+    }
     const id = c.req.param("id");
     const existing = getQuotationByIdOrSlug(id);
     if (!existing) return c.json({ error: "not_found" }, 404);

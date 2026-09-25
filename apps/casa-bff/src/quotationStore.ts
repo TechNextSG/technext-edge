@@ -753,6 +753,14 @@ export function renderHonoQuotationEditorHtml(draft: HonoQuotationDraft, allQuot
           <button class="btn btn-primary" onclick="pushConfirmedQuoteToWhatsApp()" id="btn-push-wa">📲 <span>Send Confirmed AI Reply to WhatsApp</span></button>
           <span id="wa-toast" style="font-size:12.5px;color:var(--accent);"></span>
         </div>
+
+        <div style="margin-top:14px;padding-top:14px;border-top:1px dashed var(--line);">
+          <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
+            <button class="btn btn-outline" onclick="syncEstimate()" id="btn-sync-estimate">💱 <span>Price with the Estimator BFF</span></button>
+            <span style="font-size:12px;color:var(--muted);">The only path to Odoo. Prices there, stores nothing — staff review the result here.</span>
+          </div>
+          <pre id="sync-estimate-out" style="margin-top:10px;white-space:pre-wrap;font-size:12.5px;color:var(--muted);"></pre>
+        </div>
       </div>
     </main>
   </div>
@@ -895,7 +903,7 @@ export function renderHonoQuotationEditorHtml(draft: HonoQuotationDraft, allQuot
       const toast = document.getElementById('save-toast');
       toast.textContent = 'Saving to Hono...';
       const payload = gatherPayload();
-      const res = await fetch('/v1/quotes/' + encodeURIComponent(state.quoteId), {
+      const res = await fetch('/v1/quotes/' + encodeURIComponent(state.quoteId) + '?token=' + encodeURIComponent(staffToken()), {
         method: 'PUT',
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify(payload)
@@ -916,7 +924,7 @@ export function renderHonoQuotationEditorHtml(draft: HonoQuotationDraft, allQuot
       replyBox.textContent = '🔄 Hono is confirming the edited table & link and sending the Tool Result back to Gemini 3.1 Flash-Lite...';
       const payload = gatherPayload();
       try {
-        const res = await fetch('/v1/quotes/' + encodeURIComponent(state.quoteId) + '/confirm', {
+        const res = await fetch('/v1/quotes/' + encodeURIComponent(state.quoteId) + '/confirm?token=' + encodeURIComponent(staffToken()), {
           method: 'POST',
           headers: { 'content-type': 'application/json' },
           body: JSON.stringify(payload)
@@ -934,17 +942,79 @@ export function renderHonoQuotationEditorHtml(draft: HonoQuotationDraft, allQuot
       }
     }
 
+    /**
+     * The staff token, taken from this page's own URL.
+     *
+     * The studio's routes are guarded (each one lists every quotation with the guest's name and
+     * phone number), and staff reach this page by having a link pasted to them — so the token
+     * arrives in the query string and every call the page makes carries it on. Without this the
+     * guards added on 2026-09-25 turned the studio's own Save/Confirm/Send buttons into 401s:
+     * the leak fix broke the tool it was protecting.
+     *
+     * It is read from the URL on each call rather than cached, so following a fresh link is enough
+     * to pick up a rotated token.
+     */
+    function staffToken() {
+      return new URLSearchParams(window.location.search).get('token') || '';
+    }
+
     async function pushConfirmedQuoteToWhatsApp() {
       const phone = document.getElementById('whatsapp-phone-input').value.trim();
       const toast = document.getElementById('wa-toast');
       toast.textContent = 'Sending to WhatsApp ' + phone + '...';
-      const res = await fetch('/v1/quotes/' + encodeURIComponent(state.quoteId) + '/send-whatsapp', {
+      const res = await fetch('/v1/quotes/' + encodeURIComponent(state.quoteId) + '/send-whatsapp?token=' + encodeURIComponent(staffToken()), {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify({ phone })
       });
       const data = await res.json();
       toast.textContent = data.ok ? '✅ Sent confirmed quote + link to WhatsApp (' + phone + ')!' : ('⚠️ ' + (data.error || 'Could not send'));
+    }
+
+    /**
+     * Asks the estimator BFF to price this quotation.
+     *
+     * This is the only path from here to Odoo, and it goes through the BFF — see
+     * estimatorClient.ts. The result is staff-facing feedback, not something the guest is told:
+     * a rejection names the field that is wrong with OUR payload, and the sample flag says the
+     * number came from a captured response rather than Odoo — which the fixture-mode BFF does
+     * not currently set, so if it ever reads true, believe it.
+     *
+     * Kept on the staff path on purpose. It is stateless: it prices and returns, and stores
+     * nothing. Calling it automatically on every guest turn would spend an Odoo compute and
+     * leave nothing behind, while pushing the turn's p95 (measured 3.8s) toward Meta's 20s
+     * deadline.
+     *
+     * NOTE for editors of this file: this comment lives INSIDE a template literal, so it must
+     * not contain a backtick — one closes the HTML string and breaks the build.
+     */
+    async function syncEstimate() {
+      const btn = document.getElementById('btn-sync-estimate');
+      const out = document.getElementById('sync-estimate-out');
+      btn.disabled = true;
+      out.textContent = '⏳ Asking the estimator BFF to price this trip...';
+      try {
+        const res = await fetch('/v1/quotes/' + encodeURIComponent(state.quoteId) + '/sync-estimate?token=' + encodeURIComponent(staffToken()), {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' }
+        });
+        const data = await res.json();
+        if (data.ok) {
+          const issues = Array.isArray(data.issues) ? data.issues : [];
+          out.textContent =
+            '✅ Priced by the estimator BFF (role=' + (data.role || '?') + ')' +
+            (data.sample ? ' ⚠️ SAMPLE DATA — not a real price' : '') +
+            (issues.length ? '\n⚠️ ' + issues.length + ' pricing warning(s): ' + issues.map(function (i) { return i.code || i; }).join(', ') : '');
+        } else {
+          out.textContent =
+            '⚠️ ' + (data.reason || 'failed') + ': ' + (data.detail || '') +
+            (Array.isArray(data.fields) && data.fields.length ? '\nfields: ' + data.fields.join(', ') : '');
+        }
+      } catch (err) {
+        out.textContent = '⚠️ ' + (err && err.message ? err.message : String(err));
+      } finally {
+        btn.disabled = false;
+      }
     }
 
     async function triggerNewToolCall() {
