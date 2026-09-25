@@ -23,8 +23,6 @@ export interface WhatsAppConfig {
   timeoutMs: number;
   /** One whole inbound turn — and therefore how long Meta waits for our 200. */
   turnTimeoutMs: number;
-  /** Coalescing window in ms for rapid consecutive messages from the same phone (default 100ms). */
-  debounceMs: number;
 }
 
 /**
@@ -46,7 +44,6 @@ export function whatsAppConfig(env: NodeJS.ProcessEnv = process.env): WhatsAppCo
     // redelivers the same message — measured at +23s on 2026-09-18. That band is
     // what the deadline in app.ts is racing.
     turnTimeoutMs: Number(env.WHATSAPP_TURN_TIMEOUT_MS ?? 20_000),
-    debounceMs: Number(env.WHATSAPP_DEBOUNCE_MS ?? (env.NODE_ENV === "test" ? 0 : 100)),
   };
 }
 

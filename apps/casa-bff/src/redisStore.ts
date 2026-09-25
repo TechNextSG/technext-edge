@@ -23,10 +23,56 @@ interface StoredClaim {
   fenceToken: string;
 }
 
-export function createRedisConversationStore(config: RedisConfig, ttlMs = THREAD_TTL_MS): ConversationStore {
-  const ttlSeconds = Math.ceil(ttlMs / 1000);
+/**
+ * How long a phone lock lives in Redis before it is considered abandoned.
+ *
+ * Must exceed a whole inbound turn (one provider call plus one send, bounded by
+ * `WHATSAPP_TURN_TIMEOUT_MS`, 20s by default) or a slow turn's lock would expire while it
+ * was still running and let a second container in. The lock is released in a `finally`, so
+ * this TTL only matters when a container is killed mid-turn — which on serverless is
+ * routine, not exceptional.
+ */
+const PHONE_LOCK_TTL_MS = 30_000;
 
-  // In-process phone mutex so overlapping requests within the same container execute sequentially
+/**
+ * How long a second container waits for the holder to finish before giving up and taking
+ * its turn anyway.
+ *
+ * Giving up and proceeding is deliberate, and it is the least-bad option available:
+ *
+ * - Throwing would ask Meta to redeliver, but this message has already been claimed and
+ *   `markDone` is written by the holder, so the redelivery is dropped as a duplicate and
+ *   the guest's message is lost silently. That is strictly worse than a small race.
+ * - The lock exists to stop two containers reading the same history and sending two
+ *   replies. If the lock service is unhealthy, one reply that might be worded against a
+ *   one-message-stale history is still far better than no reply at all.
+ */
+const PHONE_LOCK_WAIT_MS = 15_000;
+const PHONE_LOCK_POLL_MS = 60;
+
+export interface RedisStoreOptions {
+  /**
+   * How long to wait between attempts at the phone lock. Exists so a test can watch two
+   * store instances contend without the suite taking fifteen seconds.
+   */
+  lockWaitMs?: number;
+  lockPollMs?: number;
+}
+
+export function createRedisConversationStore(
+  config: RedisConfig,
+  ttlMs = THREAD_TTL_MS,
+  options: RedisStoreOptions = {},
+): ConversationStore {
+  const ttlSeconds = Math.ceil(ttlMs / 1000);
+  const lockWaitMs = options.lockWaitMs ?? PHONE_LOCK_WAIT_MS;
+  const lockPollMs = options.lockPollMs ?? PHONE_LOCK_POLL_MS;
+
+  // In-process phone mutex so overlapping requests within the same container execute
+  // sequentially, plus a Redis lock inside it for the case this exists to fix: two
+  // requests for one sender landing in DIFFERENT containers, where a promise chain in one
+  // process cannot see the other at all. Vercel runs concurrent requests in separate
+  // instances, so that is the normal path, not an edge case.
   const phoneLocks = new Map<string, Promise<void>>();
 
   async function command<T = unknown>(args: (string | number)[]): Promise<T> {
@@ -49,6 +95,59 @@ export function createRedisConversationStore(config: RedisConfig, ttlMs = THREAD
       throw new Error(`Redis command error [${args[0]}]: ${json.error}`);
     }
     return json.result;
+  }
+
+  function sleep(ms: number): Promise<void> {
+    return new Promise((resolve) => setTimeout(resolve, ms));
+  }
+
+  /**
+   * Takes a short-lived Redis lock keyed by sender phone, runs `op`, and releases it.
+   *
+   * The release is compare-and-delete with the holder's own token, because a lock whose TTL
+   * expired mid-turn must not be released by its original owner — a plain `DEL` there would
+   * delete the *next* holder's lock and let a third container in. The two commands cannot be
+   * atomic without Lua, which this HTTP interface does not offer; the TTL is sized so that a
+   * turn overrunning 30s is already killed by the turn deadline first.
+   *
+   * Never throws. A Redis that cannot answer, or a holder that never lets go, ends in `op`
+   * running unlocked rather than in the guest getting nothing — see PHONE_LOCK_WAIT_MS.
+   */
+  async function withDistributedPhoneLock<T>(phone: string, op: () => Promise<T>): Promise<T> {
+    const key = `phonelock:${phone}`;
+    const token = randomUUID();
+    const deadline = Date.now() + lockWaitMs;
+    let held = false;
+
+    while (Date.now() < deadline) {
+      let acquired: string | null;
+      try {
+        acquired = await command<string | null>(["SET", key, token, "NX", "PX", PHONE_LOCK_TTL_MS]);
+      } catch {
+        // Redis is not answering, and waiting cannot help — the wait itself is Redis round
+        // trips. Take the turn unlocked rather than fail the guest.
+        return await op();
+      }
+      if (acquired === "OK") {
+        held = true;
+        break;
+      }
+      await sleep(lockPollMs);
+    }
+
+    try {
+      return await op();
+    } finally {
+      if (held) {
+        try {
+          const current = await command<string | null>(["GET", key]);
+          if (current === token) await command(["DEL", key]);
+        } catch {
+          // Nothing useful to do: the TTL will clear it. Swallowing matters, because
+          // throwing from a `finally` would replace the turn's real result or error.
+        }
+      }
+    }
   }
 
   return {
@@ -127,6 +226,9 @@ export function createRedisConversationStore(config: RedisConfig, ttlMs = THREAD
     },
 
     async withPhoneLock<T>(phone: string, op: () => Promise<T>): Promise<T> {
+      // Two locks, because they stop two different things and neither is sufficient:
+      // this promise chain serialises turns that share one container (cheap, no round
+      // trip), and the Redis key below serialises containers against each other.
       const current = phoneLocks.get(phone) ?? Promise.resolve();
       let release!: () => void;
       const next = new Promise<void>((resolve) => {
@@ -136,7 +238,7 @@ export function createRedisConversationStore(config: RedisConfig, ttlMs = THREAD
 
       try {
         await current;
-        return await op();
+        return await withDistributedPhoneLock(phone, op);
       } finally {
         release();
         if (phoneLocks.get(phone) === next) {

@@ -318,3 +318,130 @@ for (const adapter of ADAPTERS) {
     });
   });
 }
+
+/**
+ * The phone lock has to hold across containers, and only the Redis adapter can be tested for
+ * that: two stores built on the SAME fake KV stand in for two Vercel instances sharing one
+ * KV, which is the deployment the promise-chain-only lock silently failed in. Two requests
+ * for one sender really do land in different containers there, so a per-process mutex cannot
+ * see the other turn at all.
+ *
+ * Kept separate from the shared contract above because the in-memory adapter has no second
+ * instance to contend with — it is one process by definition, and its promise chain is the
+ * whole guarantee it can offer.
+ */
+describe("ConversationStore phone lock across containers (redis-rest)", () => {
+  function twoStoresOverOneKv() {
+    const kv = makeFakeKv();
+    vi.stubGlobal("fetch", kv.fetchMock);
+    // Short waits so contention is observable without the suite paying 15s for it.
+    const config = { url: "https://fake.upstash.io", token: "t" };
+    return {
+      kv,
+      a: createRedisConversationStore(config, undefined, { lockWaitMs: 3_000, lockPollMs: 10 }),
+      b: createRedisConversationStore(config, undefined, { lockWaitMs: 3_000, lockPollMs: 10 }),
+    };
+  }
+
+  it("does not let two containers run one sender's turn at the same time", async () => {
+    const { a, b } = twoStoresOverOneKv();
+    const log: string[] = [];
+
+    const turnA = a.withPhoneLock("639171234567", async () => {
+      log.push("A-start");
+      await new Promise((r) => setTimeout(r, 60));
+      log.push("A-end");
+    });
+    // Let A take the lock first, so this is contention rather than a coin flip.
+    await new Promise((r) => setTimeout(r, 15));
+    const turnB = b.withPhoneLock("639171234567", async () => {
+      log.push("B-start");
+      log.push("B-end");
+    });
+
+    await Promise.all([turnA, turnB]);
+
+    // The whole point: B's turn does not begin until A's has finished, so neither of them
+    // can read a history the other is midway through writing.
+    expect(log).toEqual(["A-start", "A-end", "B-start", "B-end"]);
+  });
+
+  it("serialises even when both containers start in the same tick", async () => {
+    const { a, b } = twoStoresOverOneKv();
+    let inside = 0;
+    let maxInside = 0;
+
+    const turn = (store: ConversationStore) =>
+      store.withPhoneLock("111", async () => {
+        inside++;
+        maxInside = Math.max(maxInside, inside);
+        await new Promise((r) => setTimeout(r, 30));
+        inside--;
+      });
+
+    await Promise.all([turn(a), turn(b)]);
+
+    // `inside` is only ever 1: the NX claim, not luck of scheduling, is what keeps them apart.
+    expect(maxInside).toBe(1);
+  });
+
+  it("does not hold one sender's lock against a different sender", async () => {
+    const { a, b } = twoStoresOverOneKv();
+    const log: string[] = [];
+
+    const held = a.withPhoneLock("111", async () => {
+      await new Promise((r) => setTimeout(r, 60));
+      log.push("111-done");
+    });
+    await new Promise((r) => setTimeout(r, 15));
+    const other = b.withPhoneLock("222", async () => {
+      log.push("222-done");
+    });
+
+    await Promise.all([held, other]);
+
+    // 222 must not queue behind 111 — the key is the phone number, not a global lock.
+    expect(log[0]).toBe("222-done");
+  });
+
+  it("clears its own lock so the next turn is not blocked by a stale key", async () => {
+    const { a, b, kv } = twoStoresOverOneKv();
+
+    await a.withPhoneLock("111", async () => "first");
+    expect(kv.strings.has("phonelock:111")).toBe(false);
+
+    // A second container takes it immediately rather than waiting for the 30s TTL.
+    await expect(b.withPhoneLock("111", async () => "second")).resolves.toBe("second");
+  });
+
+  it("runs the turn unlocked rather than failing it when Redis is unreachable", async () => {
+    const { a } = twoStoresOverOneKv();
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => {
+        throw new Error("upstash is down");
+      }),
+    );
+
+    // The guest still gets an answer: a lock that cannot be taken is not a reason to drop
+    // a message, and throwing here would ask Meta to redeliver a message already claimed.
+    await expect(a.withPhoneLock("111", async () => "ran anyway")).resolves.toBe("ran anyway");
+  });
+
+  it("takes its turn once the wait runs out, instead of stalling until the deadline", async () => {
+    const kv = makeFakeKv();
+    vi.stubGlobal("fetch", kv.fetchMock);
+    const config = { url: "https://fake.upstash.io", token: "t" };
+    // A holder that never releases, as a killed container leaves behind.
+    kv.strings.set("phonelock:111", { value: "someone-else", expireAt: Date.now() + 60_000 });
+
+    const store = createRedisConversationStore(config, undefined, { lockWaitMs: 120, lockPollMs: 20 });
+    const started = Date.now();
+    const result = await store.withPhoneLock("111", async () => "took my turn");
+
+    expect(result).toBe("took my turn");
+    expect(Date.now() - started).toBeGreaterThanOrEqual(100);
+    // And it must not steal the foreign lock on the way out.
+    expect(kv.strings.get("phonelock:111")?.value).toBe("someone-else");
+  });
+});

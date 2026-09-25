@@ -339,6 +339,19 @@ export function createApp(options: AppOptions = {}) {
 
     // Group inbound messages by sender phone so multiple rapid messages in the same
     // webhook delivery coalesce into a single turn and a single model call.
+    //
+    // This is the only coalescing that happens, and the boundary is deliberate: messages
+    // arriving in SEPARATE deliveries each get their own turn, so a guest who sends two
+    // quick texts may receive two replies. `withPhoneLock` below still makes that safe —
+    // the second turn runs after the first has finished writing, so it reads a complete
+    // history and never re-asks what the first one answered — but it does not merge them.
+    //
+    // Merging across deliveries would mean holding the webhook open, and Meta's redelivery
+    // deadline (measured at +23s on 2026-09-18) is shared with the turn itself. A window
+    // short enough to be worth having (1-2s) is charged to every guest on every message,
+    // including the overwhelming majority who send one and wait. The verbosity it prevents
+    // is cosmetic; the latency it would add is not, so it is not implemented. A
+    // WHATSAPP_DEBOUNCE_MS env var used to be read here and applied to nothing.
     const byPhone = new Map<string, Array<{ message: InboundTextMessage; fenceToken: string }>>();
     for (const item of claimedInbound) {
       const list = byPhone.get(item.message.from) ?? [];
