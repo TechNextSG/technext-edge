@@ -483,6 +483,77 @@ describe("extract", () => {
     expect(outcome.trip.divers).toEqual({ value: null, state: "missing", evidence: null });
     expect(outcome.questions.map((q) => q.field)).not.toContain("divers");
   });
+
+  // A guest who writes the stay as a date range has already done this arithmetic. Measured
+  // against the real DeepSeek API before the fix: all 9 runs asked "how many nights?"
+  // immediately after the guest wrote "Oct 17 to Oct 20" — asking someone to repeat a sum
+  // they just gave you. The count is now read off the range instead.
+  describe("a stay given as a date range is not asked back as a night count", () => {
+    const RANGE_MESSAGE = "Hi, we're Ana and Ben, 2 of us. We'd like to stay Oct 17 to Oct 20, full board please.";
+    const RANGE_RAW = {
+      ...HAPPY_RAW,
+      checkIn: { value: null, state: "stated", evidence: "Oct 17" },
+      // The model reads the range as both dates and leaves nights missing, because the
+      // guest never wrote a night count. That is exactly the state this fixes. Note the
+      // model supplies a resolved ISO value for the check-out too: a `stated` field with a
+      // null value fails evidence enforcement before the derivation below ever runs.
+      nights: { value: null, state: "missing", evidence: null },
+      checkOut: { value: "2026-10-20", state: "stated", evidence: "Oct 20" },
+      guests: { value: 2, state: "stated", evidence: "2 of us" },
+      meals: { value: "full_board", state: "stated", evidence: "full board" },
+      contactName: { value: null, state: "missing", evidence: null },
+    };
+
+    it("reads nights off the range and never asks for it", async () => {
+      const outcome = await extract(RANGE_MESSAGE, fakeProvider(RANGE_RAW));
+
+      expect(outcome.trip.checkIn.value).toBe("2026-10-17");
+      expect(outcome.trip.checkOut.value).toBe("2026-10-20");
+      expect(outcome.trip.nights).toEqual({ value: 3, state: "derived", evidence: null });
+      expect(outcome.questions.map((q) => q.field)).not.toContain("nights");
+    });
+
+    it("keeps the guest's stated check-out, which is the date they actually named", async () => {
+      const outcome = await extract(RANGE_MESSAGE, fakeProvider(RANGE_RAW));
+
+      // Only true because nights was derived. The bug this guards: deriving checkOut from
+      // checkIn + nights and thereby overwriting the check-out the guest wrote with a date
+      // computed from a number they never gave.
+      expect(outcome.trip.checkOut).toEqual({
+        value: "2026-10-20",
+        state: "stated",
+        evidence: "Oct 20",
+      });
+    });
+
+    it("a night count the guest did state always wins over the range's arithmetic", async () => {
+      // A range that disagrees with a stated count is a real contradiction, and the stated
+      // number is the one the guest chose to say. Preferring the arithmetic here would hide
+      // the disagreement from the fact gate and from staff instead of surfacing it.
+      const raw = {
+        ...RANGE_RAW,
+        nights: { value: 4, state: "stated", evidence: "4 nights" },
+      };
+      const outcome = await extract(`${RANGE_MESSAGE} Actually 4 nights.`, fakeProvider(raw));
+
+      expect(outcome.trip.nights).toEqual({ value: 4, state: "stated", evidence: "4 nights" });
+    });
+
+    it("still asks for nights when the guest gave a check-in but no range and no count", async () => {
+      // The guard is "the stay is already a closed range", not "nights is inconvenient".
+      // A check-in on its own leaves the question exactly where it was.
+      const raw = {
+        ...HAPPY_RAW,
+        checkIn: { value: null, state: "stated", evidence: "next Saturday" },
+        nights: { value: null, state: "missing", evidence: null },
+        checkOut: { value: null, state: "missing", evidence: null },
+      };
+      const outcome = await extract("Hi, 2 of us next Saturday please.", fakeProvider(raw));
+
+      expect(outcome.trip.nights.state).toBe("missing");
+      expect(outcome.questions.map((q) => q.field)).toContain("nights");
+    });
+  });
 });
 
 

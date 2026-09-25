@@ -229,6 +229,22 @@ export function deriveCheckOut(checkInIso: string, nights: number): string {
 }
 
 /**
+ * The inverse of deriveCheckOut: how many nights sit between a check-in and a check-out.
+ *
+ * This is the same arithmetic the guest has already done for us when they write a stay as
+ * a date range ("Oct 17 to Oct 20") instead of a night count. Returns null when either
+ * date is unreadable or the range is not a forward one, so a caller never has to tell
+ * "zero nights" apart from "could not read it".
+ */
+export function deriveNightsFromRange(checkInIso: string, checkOutIso: string): number | null {
+  const from = Date.parse(`${checkInIso}T00:00:00Z`);
+  const to = Date.parse(`${checkOutIso}T00:00:00Z`);
+  if (Number.isNaN(from) || Number.isNaN(to)) return null;
+  const nights = Math.round((to - from) / 86_400_000);
+  return nights > 0 ? nights : null;
+}
+
+/**
  * The readings a yearless numeric pair has, in the order the guest's own convention puts
  * them. upcomingIso() takes (day, month), so the day-first reading is the pair as written
  * ("05/12" → 5 December) and the month-first one is the pair swapped ("05/12" → 12 May).

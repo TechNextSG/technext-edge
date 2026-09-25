@@ -757,10 +757,34 @@ function missingField(trip: Trip, field: keyof Trip): Trip {
 }
 
 /**
- * Required fields no question asks about because code always fills them in first. The test
- * below proves each one through the pipeline rather than trusting the name on this list.
+ * The same, plus every field code derives FROM it.
+ *
+ * Clearing one field in isolation can leave the trip in a state no real guest can produce:
+ * `nights` missing while `checkOut` is still a `derived` value is literally check-in plus
+ * nights, so it cannot be a value some other answer produced. `isReadyForHandoff` only
+ * excuses a required field whose rule does not apply, and that exemption is exactly right
+ * for a stated date range — which is why this sweep has to knock out the dependent value
+ * too. Doing it here keeps every case in the sweep physically reachable, so a genuine
+ * gap cannot hide behind a fabricated state.
+ *
+ * `guests`/`rooms`/`divers` are deliberately NOT closures for each other: those are
+ * independent facts the guest states separately, and clearing one really does leave a trip
+ * a guest could have described.
  */
-const CODE_FILLED_FIELDS: ReadonlyArray<keyof Trip> = ["checkOut"];
+function missingFieldAndDependents(trip: Trip, field: keyof Trip): Trip {
+  const cleared = missingField(trip, field);
+  if (field === "nights" || field === "checkIn") return missingField(cleared, "checkOut");
+  return cleared;
+}
+
+/**
+ * Required fields no question asks about because code always fills them in first — either
+ * by arithmetic on the guest's own answers (`checkOut` = check-in + nights) or by reading
+ * the answer off a stated date range (`nights` = check-out − check-in, which is the same
+ * sum the guest already did). The test below proves each one through the pipeline rather
+ * than trusting the name on this list.
+ */
+const CODE_FILLED_FIELDS: ReadonlyArray<keyof Trip> = ["checkOut", "nights"];
 
 describe("the handoff contract", () => {
   it("is ready only when every required field is answered — a default counts, missing never does", () => {
@@ -777,7 +801,10 @@ describe("the handoff contract", () => {
     expect(trip.checkOut.state).toBe("derived");
 
     for (const field of HANDOFF_REQUIRED_FIELDS) {
-      expect(isReadyForHandoff(missingField(trip, field)), `${field} is required before handoff`).toBe(false);
+      expect(
+        isReadyForHandoff(missingFieldAndDependents(trip, field)),
+        `${field} is required before handoff`,
+      ).toBe(false);
     }
   });
 
@@ -811,7 +838,7 @@ describe("the handoff contract", () => {
     // to catch — handoff refused for a reason no reply ever raises, which the guest cannot fix.
     const uncovered: string[] = [];
     for (const field of HANDOFF_REQUIRED_FIELDS) {
-      const trip = missingField(settledTrip(), field);
+      const trip = missingFieldAndDependents(settledTrip(), field);
       if (generateQuestions(trip).some((q) => q.field === field)) continue; // asked of the guest
       if (CODE_FILLED_FIELDS.includes(field)) continue; // code fills it before it can be missing
       if (NEVER_ASKED_FIELDS.some((entry) => entry.field === field)) continue; // never asked, on purpose

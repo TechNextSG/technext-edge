@@ -2,7 +2,7 @@ import { zodToJsonSchema } from "zod-to-json-schema";
 import { ZodError } from "zod";
 import { Trip, HOUSE_NORM_FIELDS, type Trip as TripType, type Field, type FieldState } from "./schema.js";
 import { HOUSE_NORMS } from "./houseNorms.js";
-import { manilaToday, resolveRelativeDate, deriveCheckOut, corroborateDatePhrase, isPlausibleStayDate } from "./dates.js";
+import { manilaToday, resolveRelativeDate, deriveCheckOut, deriveNightsFromRange, corroborateDatePhrase, isPlausibleStayDate } from "./dates.js";
 import { corroborateCount } from "./counts.js";
 import { normalize, detectLanguage, guestTextOf, maskForLogging } from "./normalize.js";
 import { generateQuestions } from "./questions.js";
@@ -453,6 +453,20 @@ function postProcess(raw: unknown, today: string, sourceText: string): unknown {
       state: "derived",
       evidence: null,
     };
+  } else if (nights?.state === "missing" && trip.checkIn?.value && trip.checkOut?.value) {
+    // The other direction, for a guest who wrote the stay as a date range ("Oct 17 to
+    // Oct 20") rather than a night count. Nothing is asked about `nights` in that case
+    // (see questions.ts), so without this the count would stay `missing` for the whole
+    // conversation and be sent to Odoo as a defaulted 1 night — the same underprice this
+    // derivation exists to prevent, arriving from the other side.
+    //
+    // Guarded on `missing` so a night count the guest actually stated always wins; a range
+    // that disagrees with it is a real contradiction, and silently preferring the
+    // arithmetic would hide it rather than let the fact gate and staff see it.
+    const derived = deriveNightsFromRange(trip.checkIn.value as string, trip.checkOut.value as string);
+    if (derived !== null) {
+      trip.nights = { value: derived, state: "derived", evidence: null };
+    }
   }
 
   // 5. the dive window (diveFrom / diveTo) — two dates on a field dive revenue is priced

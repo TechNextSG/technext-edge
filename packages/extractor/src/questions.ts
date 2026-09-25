@@ -56,7 +56,17 @@ const BASELINE: ReadonlyArray<FieldState> = ["missing"];
 
 const RULES: QuestionRule[] = [
   { key: "checkIn", question: { en: "What date would you like to check in?", zh: "您想在哪天入住？" } },
-  { key: "nights", question: { en: "How many nights will you be staying?", zh: "您计划入住几个晚上？" } },
+  // Never asked when the stay is already a date range. "Oct 17 to Oct 20" states both
+  // nights and check-out, and extract.ts derives `nights` from that range — so the
+  // question would be asking the guest to repeat arithmetic they already did, which is
+  // the single worst thing this pipeline can say. Guests who gave a check-in only, or a
+  // check-in and a night count, are unaffected, and a night count they DID state always
+  // wins over the derived one.
+  {
+    key: "nights",
+    question: { en: "How many nights will you be staying?", zh: "您计划入住几个晚上？" },
+    when: (trip) => !(trip.checkOut?.state && trip.checkOut.state !== "missing"),
+  },
   { key: "guests", question: { en: "How many guests in total?", zh: "一共有几位客人？" } },
   { key: "rooms", question: { en: "How many rooms do you need?", zh: "您需要几间房？" } },
   { key: "meals", question: { en: "Would you like full board, half board, or room only?", zh: "您需要全餐、半餐，还是只要住宿？" } },
@@ -188,6 +198,9 @@ export function generateQuestions(trip: Trip): GuestQuestion[] {
 export const HANDOFF_REQUIRED_FIELDS: ReadonlyArray<keyof Trip> = [
   "checkIn",
   "checkOut",
+  // Required, but satisfied either way round: stated by the guest, derived by code from
+  // checkIn + nights, or derived from a stated date range (extract.ts). The rule that
+  // owns it is gated so a guest who gave a range is never asked for the count.
   "nights",
   "guests",
   "rooms",

@@ -2,6 +2,7 @@ import { describe, it, expect } from "vitest";
 import {
   resolveRelativeDate,
   deriveCheckOut,
+  deriveNightsFromRange,
   isPlausibleStayDate,
   corroborateDatePhrase,
 } from "../src/dates.js";
@@ -110,6 +111,41 @@ describe("resolveRelativeDate — a week qualifier said on that same weekday", (
 describe("deriveCheckOut", () => {
   it("adds nights to check-in, never asks the model", () => {
     expect(deriveCheckOut("2026-09-19", 3)).toBe("2026-09-22");
+  });
+});
+
+describe("deriveNightsFromRange", () => {
+  it("is the inverse of deriveCheckOut, so the two cannot disagree", () => {
+    for (const [checkIn, nights] of [
+      ["2026-09-19", 3],
+      ["2026-10-17", 3],
+      ["2026-12-30", 2],
+      ["2026-02-27", 1],
+    ] as const) {
+      expect(deriveNightsFromRange(checkIn, deriveCheckOut(checkIn, nights))).toBe(nights);
+    }
+  });
+
+  it("counts nights, not days — a same-day range is not a one-night stay", () => {
+    expect(deriveNightsFromRange("2026-10-17", "2026-10-18")).toBe(1);
+    expect(deriveNightsFromRange("2026-10-17", "2026-10-17")).toBeNull();
+  });
+
+  it("crosses a month and a year boundary", () => {
+    expect(deriveNightsFromRange("2026-10-30", "2026-11-02")).toBe(3);
+    expect(deriveNightsFromRange("2026-12-30", "2027-01-02")).toBe(3);
+  });
+
+  it("returns null rather than 0 or a negative for a range that is not forward", () => {
+    // A caller must never have to tell "zero nights" apart from "could not read it": a
+    // backwards range is a bad read, and 0 is not a stay.
+    expect(deriveNightsFromRange("2026-10-20", "2026-10-17")).toBeNull();
+    expect(deriveNightsFromRange("2026-10-17", "2026-10-17")).toBeNull();
+  });
+
+  it("returns null for a date it cannot read, instead of NaN", () => {
+    expect(deriveNightsFromRange("not a date", "2026-10-20")).toBeNull();
+    expect(deriveNightsFromRange("2026-10-17", "")).toBeNull();
   });
 });
 
