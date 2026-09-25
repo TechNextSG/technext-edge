@@ -724,8 +724,9 @@ node packages/extractor/eval/runner.mjs --provider deepseek-flash
   which days, in which room, who is only snorkelling — had **no path to Odoo at all**; only the
   totals arrived. `buildHonoQuotationDraft()` now builds the `BffTrip` and stores it on the draft,
   because that is the last point where the full extraction `Trip` still exists: the translation
-  cannot be reconstructed later from the draft. `buildOdooGaisEnvelope()` returns `bffTrip` plus
-  `bffValidationIssues`. **If you add a field Odoo needs, check it survives this handoff** — the
+  cannot be reconstructed later from the draft. The estimate preview (`buildEstimatePreview()`)
+  carries `bffTrip` plus our own `validationIssues` mirror, and the route returns exactly what
+  their BFF answered. **If you add a field Odoo needs, check it survives this handoff** — the
   draft is a lossy view, and a field with no column there is a field Odoo never sees.
 
 - **A mask that hides the wrong thing is worse than no mask.** Answering the PII question left

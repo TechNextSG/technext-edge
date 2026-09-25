@@ -270,12 +270,13 @@ describe("/v1/quotes/compute stays usable by the AI and reads nothing stored", (
 
 /**
  * `buildBffTrip()` and `validateBffTripPrecheck()` were correct and tested, but nothing
- * Odoo-bound carried their result: `buildOdooGaisEnvelope` is called from handlers that only
- * hold a `HonoQuotationDraft`, and that draft has no column for `guestType`, `transportType`,
- * `diveFrom`/`diveTo` or per-guest `days`. So the whole BFF contract was validated on paper
- * and absent from every request that reached Odoo.
+ * Odoo-bound carried their result: the send path is driven from a `HonoQuotationDraft`, and
+ * that draft had no column for `guestType`, `transportType`, `diveFrom`/`diveTo` or per-guest
+ * `days`. So the whole BFF contract was validated on paper and absent from every request that
+ * reached Odoo.
  *
- * These tests pin the wiring, not the builder — the builder has its own suite.
+ * These tests pin the wiring, not the builder — the builder has its own suite, and the client
+ * has `estimatorClient.test.ts`.
  */
 describe("the validated BFF Trip reaches the Odoo-bound envelope", () => {
   it("builds it where the full extraction Trip is still available", () => {

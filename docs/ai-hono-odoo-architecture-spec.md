@@ -23,11 +23,21 @@
        │  • Staff / Hono clicks "✅ Hono Confirm & Send Back to AI" (`POST /v1/quotes/:id/confirm`)
        │
        ├──► (3A) Hop 2: Hono -> AI / WhatsApp (`POST /v1/quotes/:id/send-whatsapp`)
-       │         Sends verified Grand Total + Shareable Quotation Link (`/q/sky-oct10-group`) to guest
+       │         Sends verified Grand Total + Shareable Quotation Link (`/q/<slug>`) to guest
        │
-       └──► (3B) Hop 3: Hono -> Odoo ERP via GAIS (`POST /v1/quotes/:id/sync-odoo` -> Odoo `/api/v1/casa/quotations`)
-                 Upserts `sale.order` + `sale.order.line` with HMAC-SHA256 (`X-GAIS-Signature`) & `Idempotency-Key`
+       └──► (3B) Hop 3: Hono -> Estimator BFF (`POST /v1/quotes/:id/sync-estimate`)
+                 `POST {ESTIMATOR_BASE_URL}/api/estimates` with `{trip}`, per the edge spec §1
+                 ("Mọi lời gọi đi qua BFF `/api/*`"). The BFF is what talks to Odoo, and the Odoo
+                 key lives only there — this service holds no `api-key` at all.
 ```
+
+> **Changed 2026-09-25.** Hop 3 used to be a signed "GAIS" envelope posted straight at
+> `https://erp.casaescondida.ph/api/v1/casa/quotations` — a direct Odoo call, with an HMAC
+> fallback secret defaulting to `WHATSAPP_APP_SECRET` and a placeholder bearer token hardcoded
+> in `app.ts`. It contradicted spec §1 and was never reachable in any environment we can deploy,
+> so it was deleted rather than kept alongside the BFF client. The sections below that describe
+> the GAIS envelope and its `sale.order` payload are kept only as a record of what was built;
+> they are **not** the current contract. Current contract: `apps/casa-bff/src/estimatorClient.ts`.
 
 ---
 
