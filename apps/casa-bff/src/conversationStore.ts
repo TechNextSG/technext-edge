@@ -284,6 +284,16 @@ export function createInMemoryConversationStore(ttlMs = THREAD_TTL_MS): Conversa
  * Creates conversation store based on environment configuration:
  * Uses Redis REST store if KV_REST_API_URL / UPSTASH_REDIS_REST_URL is configured,
  * otherwise falls back to the in-memory store.
+ *
+ * The fallback is correct locally and wrong in production, and it is silent either way:
+ * an in-memory store on serverless loses every thread on a cold start and cannot hold the
+ * phone lock across containers (see redisStore.ts). A deployment that is missing its KV
+ * credentials therefore looks like it works — right up until a guest's second message
+ * arrives at a different instance and the bot has no idea who they are.
+ *
+ * So production says so, loudly and once per process. It deliberately does not throw: a
+ * quoting tool that still answers, with degraded memory, beats a tool that answers nothing
+ * because an env var is missing, and the operator can see the warning in the function logs.
  */
 export function createConversationStoreFromEnv(): ConversationStore {
   const kvUrl = process.env.KV_REST_API_URL || process.env.UPSTASH_REDIS_REST_URL;
@@ -291,6 +301,17 @@ export function createConversationStoreFromEnv(): ConversationStore {
 
   if (kvUrl && kvToken) {
     return createRedisConversationStore({ url: kvUrl, token: kvToken });
+  }
+
+  const isProduction =
+    process.env.VERCEL_ENV === "production" || process.env.NODE_ENV === "production";
+  if (isProduction) {
+    console.error(
+      "[casa-bff] NO KV CONFIGURED IN PRODUCTION: falling back to the in-memory conversation " +
+        "store. Threads will be lost on every cold start and the phone lock will not hold " +
+        "across instances, so a guest's follow-up message can be answered with no memory of " +
+        "the first. Set KV_REST_API_URL + KV_REST_API_TOKEN (or the UPSTASH_* equivalents).",
+    );
   }
 
   return createInMemoryConversationStore();

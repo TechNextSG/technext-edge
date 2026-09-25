@@ -1,6 +1,7 @@
-import { describe, it, expect, vi, afterEach } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import {
   createInMemoryConversationStore,
+  createConversationStoreFromEnv,
   MAX_TURNS,
   THREAD_TTL_MS,
   IN_FLIGHT_CLAIM_TTL_MS,
@@ -8,6 +9,7 @@ import {
 
 afterEach(() => {
   vi.useRealTimers();
+  vi.restoreAllMocks();
 });
 
 describe("createInMemoryConversationStore", () => {
@@ -175,5 +177,95 @@ describe("createInMemoryConversationStore", () => {
 
     vi.setSystemTime(new Date(Date.now() + THREAD_TTL_MS + 1));
     expect(await store.history("111")).toEqual([]);
+  });
+});
+
+// The production fallback is the failure mode with no visible symptom: nothing errors, the
+// webhook answers, and the only clue is a guest being asked something they already told us.
+describe("createConversationStoreFromEnv", () => {
+  const KV_VARS = [
+    "KV_REST_API_URL",
+    "KV_REST_API_TOKEN",
+    "UPSTASH_REDIS_REST_URL",
+    "UPSTASH_REDIS_REST_TOKEN",
+  ] as const;
+  const saved = new Map<string, string | undefined>();
+
+  beforeEach(() => {
+    for (const name of [...KV_VARS, "VERCEL_ENV", "NODE_ENV"]) {
+      saved.set(name, process.env[name]);
+      delete process.env[name];
+    }
+  });
+  afterEach(() => {
+    for (const [name, value] of saved) {
+      if (value === undefined) delete process.env[name];
+      else process.env[name] = value;
+    }
+  });
+
+  it("uses the Redis store when KV credentials are present", () => {
+    process.env.KV_REST_API_URL = "https://fake.upstash.io";
+    process.env.KV_REST_API_TOKEN = "t";
+    // Touching history proves it is talking to the KV rather than an in-memory Map: a
+    // request goes out, and the stub answers nothing useful.
+    const spy = vi.spyOn(globalThis, "fetch").mockResolvedValue({
+      ok: true,
+      json: async () => ({ result: null }),
+    } as never);
+
+    const store = createConversationStoreFromEnv();
+    void store;
+    return store.history("111").then(() => {
+      expect(spy).toHaveBeenCalled();
+    });
+  });
+
+  it("accepts the UPSTASH_* names as well as the KV_* ones", async () => {
+    process.env.UPSTASH_REDIS_REST_URL = "https://fake.upstash.io";
+    process.env.UPSTASH_REDIS_REST_TOKEN = "t";
+    const spy = vi.spyOn(globalThis, "fetch").mockResolvedValue({
+      ok: true,
+      json: async () => ({ result: null }),
+    } as never);
+
+    await createConversationStoreFromEnv().history("111");
+
+    expect(spy).toHaveBeenCalled();
+  });
+
+  it("returns the in-memory store without credentials, and stays quiet outside production", () => {
+    const spy = vi.spyOn(console, "error").mockImplementation(() => {});
+    process.env.NODE_ENV = "test";
+
+    const store = createConversationStoreFromEnv();
+
+    // Quiet locally: this is the expected path in dev and in the suite.
+    expect(spy).not.toHaveBeenCalled();
+    expect(store).toBeDefined();
+  });
+
+  it("shouts in production when it falls back, because the failure is otherwise invisible", () => {
+    const spy = vi.spyOn(console, "error").mockImplementation(() => {});
+    process.env.VERCEL_ENV = "production";
+
+    createConversationStoreFromEnv();
+
+    expect(spy).toHaveBeenCalledTimes(1);
+    const message = String(spy.mock.calls[0]?.[0] ?? "");
+    // It has to name the consequence and the fix, not just the condition.
+    expect(message).toContain("NO KV CONFIGURED IN PRODUCTION");
+    expect(message).toContain("KV_REST_API_URL");
+    expect(message).toMatch(/phone lock/);
+  });
+
+  it("still builds a working store in production rather than refusing to start", async () => {
+    vi.spyOn(console, "error").mockImplementation(() => {});
+    process.env.VERCEL_ENV = "production";
+
+    // Degraded memory beats no service: a missing env var must not take the tool down.
+    const store = createConversationStoreFromEnv();
+    await store.append("111", { role: "guest", text: "hi" });
+    expect(await store.history("111")).toEqual([{ role: "guest", text: "hi" }]);
   });
 });
