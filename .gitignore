@@ -17,3 +17,7 @@ packages/extractor/eval/dataset.real.json
 .env*
 ~$*.xlsx
 tmp-*.log
+
+# One-off measurement scripts run by hand against a live provider key. Keeping them here
+# also keeps them out of the deployment bundle, because .vercelignore defaults to this file.
+.scratch-measure/
