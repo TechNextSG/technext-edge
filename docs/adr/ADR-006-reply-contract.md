@@ -33,6 +33,21 @@ the roadmap referenced "ADR-006" as though it existed.
 
 ## Decision
 
+> **Read this first — Decision 1 no longer describes the code.** [ADR-007](ADR-007-neuro-symbolic-synthesis.md)
+> extends this ADR and adds a neuro-symbolic layer: `converse()` now calls
+> `synthesizeHospitalityReply()`, so a model *does* write the guest-facing sentence, gated by a
+> deterministic post-generation fact gate (`verifySynthesizedReply`) that rolls straight back to
+> this ADR's `renderReply()` when the model quotes money, claims a confirmation, or contradicts a
+> verified count. Everything below is kept as the record of what was decided here, and Decisions
+> 2–3 (three reply kinds, `done` as the handoff contract) still hold as written. The parts that
+> do not: Decision 1's "a model … never writes a guest-facing sentence", and its reasoning that
+> determinism is what makes the eval and the tests possible — determinism now comes from the
+> fact gate and the fallback rather than from never calling a model. This note was added
+> 2026-09-25, after measuring turn latency and finding it took reading three files to work out
+> which of the two ADRs the running code follows. ([ADR-007's own status](ADR-007-neuro-symbolic-synthesis.md)
+> is `proposed` while its decisions are implemented; that is its inconsistency to resolve with
+> Anthony, not this file's.)
+
 **1. One reply per guest message, and code writes every word of it.** A model
 extracts facts; it never writes a guest-facing sentence. `questions.ts` owns the
 wording, in en/vi/zh. Reasons, in order of weight: a model sentence can promise a
