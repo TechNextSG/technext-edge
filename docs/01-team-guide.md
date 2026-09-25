@@ -664,11 +664,57 @@ node packages/extractor/eval/runner.mjs --provider deepseek-flash
   what its *absent* state does — silence is this pipeline's default failure mode, and it
   leaves no trace.
 
+- **A date range is an answer, and asking for the night count anyway reads as not
+  listening.** `nights` was a plain question with no gate, so a guest who wrote
+  "Oct 17 to Oct 20" was asked "How many nights will you be staying?" on the very next
+  turn — measured 9/9 against the live DeepSeek API, because the model correctly reports
+  `checkOut: stated` and `nights: missing` (the guest never wrote a number). A range
+  states both ends, so `deriveNightsFromRange()` now reads the count off it, and the
+  `nights` rule is gated on the stay not already being a closed range. The count is
+  derived only when it is `missing`: a night count the guest *did* state always wins,
+  because a range that disagrees with it is a real contradiction and the arithmetic must
+  not hide it from the fact gate. **If you add a field the guest can imply by writing a
+  range, give it a `when` gate rather than a default** — and note the direction matters:
+  deriving in the other direction (`checkOut` from `checkIn + nights`) will overwrite a
+  check-out the guest actually wrote whenever both are present.
+
+- **Two containers is the normal case, so an in-process lock protects nothing.** On
+  Vercel each concurrent request can land in a different instance, and `withPhoneLock` in
+  `redisStore.ts` was a promise chain — one process's chain cannot see another process at
+  all, so the lock that exists to stop two containers reading the same thread and both
+  replying did nothing on the deployment it was written for. It now also takes a Redis
+  key (`SET phonelock:<phone> <token> NX PX 30000`, released by compare-and-delete on the
+  token). It never throws: if Redis cannot answer, or a holder never lets go, the turn
+  runs *unlocked* rather than failing, because the message has already been claimed and
+  the holder writes `markDone` — asking Meta to redeliver would be dropped as a duplicate
+  and the guest's text lost in silence. When you add anything that assumes "only one of
+  these runs at a time", check which promise you are actually relying on.
+
+- **The production store fallback is silent, so it now says so.** With no
+  `KV_REST_API_URL`/`KV_REST_API_TOKEN` (or the `UPSTASH_*` names), production falls back
+  to an in-memory store: threads vanish on cold start and the phone lock cannot hold
+  across instances. That is a deployment-configuration failure with no symptom — nothing
+  errors, the webhook answers, and the only clue is a guest being asked something they
+  already told you. `createConversationStoreFromEnv()` logs a `console.error` naming the
+  consequence and the fix when it falls back under `VERCEL_ENV=production`. It does not
+  throw, deliberately: degraded memory beats no service. **Check the function logs for
+  `NO KV CONFIGURED IN PRODUCTION` after any deploy.**
+
 ## 9. Before this becomes the real Extractor pod deliverable
 
-1. Swap `packages/extractor/src/schema.ts` for the type generated from
-   Phillip's frozen `contracts/casa/estimate-api.v1.yaml` — it's a
-   placeholder guess right now, flagged inline in the file.
+1. `packages/extractor/src/schema.ts` is no longer a guess about the *shape* of the Odoo
+   payload — the BFF contract is vendored in `packages/extractor/bff-contract/` at commit
+   `4c48918` and `test/bffContractParity.test.ts` fails if the two copies drift. What is
+   still missing is the same thing this item was always about: nobody has confirmed the
+   values that go *into* it. Two placeholder flags remain in the file —
+   `HOUSE_NORM_FIELDS` (see item 2) and the comment at the top, which is now about which
+   `estimate-api` version the vendored copy corresponds to rather than about the shape.
+   The extraction shape (`Trip` with `{value, state, evidence}`) is deliberately NOT that
+   contract and should not be replaced by it: the BFF's schema assigns a `.default()` to
+   every field, so it cannot represent "the guest has not answered", which is the entire
+   reason this pipeline exists. `buildBffTrip()` is the translation, and the
+   `STRICTNESS_GAPS` table in `bff-contract/contract-spec.mjs` records every place this
+   repo is deliberately stricter than the contract.
 2. Confirm the real 4 house-norm fields and their default values with
    Jett/Eloa — `houseNorms.ts` is guessed.
 3. Get billing enabled on the Gemini API key (see §2, ADR-005a) — the free
@@ -676,3 +722,8 @@ node packages/extractor/eval/runner.mjs --provider deepseek-flash
 4. Once Eloa's 30 real messages exist, drop them into
    `packages/extractor/eval/dataset.real.json` and run the same harness —
    the result becomes ADR-005b.
+5. Set `KV_REST_API_URL` + `KV_REST_API_TOKEN` (or the `UPSTASH_*` names) in the Vercel
+   project. Without them production runs the in-memory store, which loses threads on cold
+   start and cannot hold the phone lock across instances — see the §8 note and grep the
+   function logs for `NO KV CONFIGURED IN PRODUCTION`.
+
