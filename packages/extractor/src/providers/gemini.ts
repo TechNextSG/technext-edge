@@ -8,6 +8,7 @@
 // before a real deploy — model names in this family change often and the
 // value below is a placeholder, not a confirmed-current id.
 import type { ExtractCall, ExtractProvider, ExtractResult, GuestsReadResult, CheckInReadResult, DiveWindowReadResult } from "../provider.js";
+import { MalformedArgumentsError } from "../provider.js";
 
 const API_BASE = "https://generativelanguage.googleapis.com/v1beta/models";
 
@@ -367,7 +368,7 @@ export function createGeminiProvider(apiKey: string, model = process.env.GEMINI_
       const textOut = body.candidates?.[0]?.content?.parts?.[0]?.text ?? "{}";
 
       return {
-        raw: JSON.parse(textOut),
+        raw: parseModelJson(textOut),
         tokensIn: usage.promptTokenCount ?? 0,
         tokensOut: usage.candidatesTokenCount ?? 0,
         cacheReadTokens: usage.cachedContentTokenCount ?? 0,
@@ -375,4 +376,21 @@ export function createGeminiProvider(apiKey: string, model = process.env.GEMINI_
       };
     },
   };
+}
+
+/**
+ * Parses the model's JSON, or reports it as the model's own fixable mistake.
+ *
+ * Same reasoning as the DeepSeek side's `parseToolArguments`: a bare `JSON.parse` throws a
+ * `SyntaxError`, which `extract.ts` reads as a transport failure, so the retry carries no error
+ * context and the model repeats itself. Gemini is asked for a response schema rather than a tool
+ * call, but it can still return malformed JSON, and the retry prompt is the same either way.
+ */
+function parseModelJson(text: string): unknown {
+  try {
+    return JSON.parse(text);
+  } catch (err) {
+    const detail = err instanceof Error ? err.message : String(err);
+    throw new MalformedArgumentsError(`not valid JSON: ${detail}`, text.slice(0, 2000), err);
+  }
 }

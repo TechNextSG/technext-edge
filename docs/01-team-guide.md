@@ -811,6 +811,27 @@ node packages/extractor/eval/runner.mjs --provider deepseek-flash
   trips it — we verified our side does emit the `transfer` line, so this one is the capture, not
   us).
 
+- **A retry costs a whole turn, so it is worth knowing what triggers one — and it was not what
+  the code assumed.** Measured over 70 turns (14-turn conversation × 5 repeats, live DeepSeek
+  through `converse()`): median turn 3.3s, p95 3.8s, and a turn that retried took ~6.3s — roughly
+  double. The retries were **not** schema rejections: the model returned JSON that did not parse
+  (`Expected ':' after property name in JSON at position 11`). Because `JSON.parse` throws a
+  `SyntaxError` and not a `ZodError`, `extract.ts` classified it as a *transport* failure, so the
+  retry carried no `retry` context — the second call was an identical prompt repeating itself, and
+  it only landed by luck.
+
+  Both providers now throw `MalformedArgumentsError` (carrying the malformed text, bounded to
+  2,000 chars) and `extract.ts` treats it like a schema rejection: the model gets its own bad
+  output and the parse error back. The distinction is still kept — a 5xx or a timeout has nothing
+  to hand back, so that retry stays a plain repeat. **If you add a provider, throw
+  `MalformedArgumentsError` on a parse failure**; a bare `JSON.parse` silently downgrades a
+  fixable model mistake into a blind retry.
+
+  The same measurement answers the ADR-006 question it was asked for: transcript grew from 46 to
+  6,400 characters (+139×) and median latency moved 3.1s → 3.4s, with the model's own time flat at
+  ~2.1–2.5s across twelve turns. **Conversation length is not what costs you the turn budget** —
+  retries are, and 0/70 turns came near either the 8s p95 target or Meta's 20s deadline.
+
 - **The production store fallback is silent, so it now says so.** With no
   `KV_REST_API_URL`/`KV_REST_API_TOKEN` (or the `UPSTASH_*` names), production falls back
   to an in-memory store: threads vanish on cold start and the phone lock cannot hold

@@ -6,6 +6,7 @@
 // disqualified DeepSeek at Gate A), and the gateway itself logs every prompt
 // and response to the team's spend dashboard.
 import type { ExtractCall, ExtractProvider, ExtractResult, GuestsReadResult, CheckInReadResult, DiveWindowReadResult } from "../provider.js";
+import { MalformedArgumentsError } from "../provider.js";
 
 const GATEWAY_BASE_URL = (process.env.DEEPSEEK_BASE_URL || process.env.DEEPSEEK_GATEWAY_URL || "https://litellm-production-7402.up.railway.app/v1").replace(/\/+$/, "");
 const TOOL_NAME = "extract_trip";
@@ -385,7 +386,7 @@ export function createDeepSeekProvider(
       const args = toolCall?.function?.arguments ?? "{}";
 
       return {
-        raw: JSON.parse(args),
+        raw: parseToolArguments(args),
         tokensIn: usage.prompt_tokens ?? 0,
         tokensOut: usage.completion_tokens ?? 0,
         cacheReadTokens: usage.prompt_cache_hit_tokens ?? 0,
@@ -393,4 +394,26 @@ export function createDeepSeekProvider(
       };
     },
   };
+}
+
+/**
+ * Parses the tool call's arguments, or reports them as the model's fixable mistake.
+ *
+ * A bare `JSON.parse` here throws a `SyntaxError`, which `extract.ts` reads as a transport
+ * failure — so the retry it triggers carries no error context and the model gets an identical
+ * prompt to fail again with. Wrapping it keeps the malformed text so the retry can say what was
+ * wrong with it. The text is bounded: it goes back into a prompt, and an unbounded echo of a
+ * confused model would itself blow the context.
+ */
+function parseToolArguments(args: string): unknown {
+  try {
+    return JSON.parse(args);
+  } catch (err) {
+    const detail = err instanceof Error ? err.message : String(err);
+    throw new MalformedArgumentsError(
+      `not valid JSON: ${detail}`,
+      args.slice(0, 2000),
+      err,
+    );
+  }
 }

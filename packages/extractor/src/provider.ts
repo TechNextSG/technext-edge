@@ -22,6 +22,34 @@ export interface ExtractResult {
   ms: number;
 }
 
+/**
+ * The provider answered, but what it sent was not parseable JSON.
+ *
+ * This exists because `JSON.parse` throws a `SyntaxError`, and `extract.ts` classifies anything
+ * that is not a `ZodError` as a transport failure — which is right for a 5xx or a timeout, and
+ * wrong here. Malformed JSON is the model's own output, and the model is the one thing that can
+ * fix it, so it belongs in the same family as a schema rejection: the first attempt is re-sent
+ * WITH the error attached.
+ *
+ * Measured before this existed (DeepSeek, 14 turns x 5 repeats): a retry nearly doubles a turn's
+ * wall time — 3.1s median to 6.3s — and a malformed-JSON retry carried no `retry` context at all,
+ * so the second call was an identical blind repeat that only sometimes landed. The observed
+ * failure was `Expected ':' after property name in JSON at position 11`.
+ *
+ * `rawText` is bounded before it reaches here by the caller; it is model output the model needs
+ * to see again, so it is not masked. Anything logged alongside it should be.
+ */
+export class MalformedArgumentsError extends Error {
+  constructor(
+    message: string,
+    public readonly rawText: string,
+    public readonly cause?: unknown,
+  ) {
+    super(message);
+    this.name = "MalformedArgumentsError";
+  }
+}
+
 export interface GuestsReadResult {
   value: number | null;
   state: "stated" | "inferred" | "missing";

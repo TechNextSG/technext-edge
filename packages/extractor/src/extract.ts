@@ -7,6 +7,7 @@ import { corroborateCount } from "./counts.js";
 import { normalize, detectLanguage, guestTextOf } from "./normalize.js";
 import { generateQuestions } from "./questions.js";
 import type { ExtractProvider } from "./provider.js";
+import { MalformedArgumentsError } from "./provider.js";
 
 const TRIP_JSON_SCHEMA = zodToJsonSchema(Trip, { $refStrategy: "none", target: "openApi3" });
 
@@ -90,6 +91,9 @@ export async function extract(rawText: string, provider: ExtractProvider): Promi
       // Carries the model's own raw output forward — a network/schema-level
       // failure from provider.call() itself skips this catch entirely and
       // surfaces with no `raw`, since there's nothing the model can fix there.
+      // Malformed JSON is the exception: it comes back as a
+      // `MalformedArgumentsError` from the provider and is handled one level up
+      // as the model's own fixable mistake, not as a transport failure.
       throw new AttemptFailure(validationErr, result.raw);
     }
   };
@@ -100,12 +104,18 @@ export async function extract(rawText: string, provider: ExtractProvider): Promi
     outcome = await attempt();
   } catch (firstErr) {
     retried = true;
-    const retryContext =
+    // Two failures are the model's to fix and get the error attached: a payload that parsed but
+    // failed the schema (`AttemptFailure`), and a payload that was not valid JSON at all
+    // (`MalformedArgumentsError`). Both are model OUTPUT; a 5xx, a timeout or a network error is
+    // not, and there is nothing to hand back for one of those, so the retry is a plain repeat.
+    const correctable: { previousRaw: unknown; error: string } | undefined =
       firstErr instanceof AttemptFailure
         ? { previousRaw: firstErr.raw, error: summarizeError(firstErr.cause) }
-        : undefined; // a transport-level failure — nothing to hand back to the model
+        : firstErr instanceof MalformedArgumentsError
+          ? { previousRaw: firstErr.rawText, error: firstErr.message }
+          : undefined;
     try {
-      outcome = await attempt(retryContext); // Playbook: "call again once ... if the second attempt still fails, return 422"
+      outcome = await attempt(correctable); // Playbook: "call again once ... if the second attempt still fails, return 422"
     } catch (secondErr) {
       if (secondErr instanceof AttemptFailure) {
         throw new ExtractionValidationError(secondErr.cause, text);

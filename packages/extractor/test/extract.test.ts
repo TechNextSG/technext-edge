@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { extract, ExtractionValidationError } from "../src/extract.js";
 import type { ExtractProvider } from "../src/provider.js";
+import { MalformedArgumentsError } from "../src/provider.js";
 
 // Pins "today" to 2026-09-15 Manila time, matching dates.test.ts's anchor, so
 // the resolved check-in date below is predictable.
@@ -101,8 +102,50 @@ describe("extract", () => {
     expect(secondCallArg.retry.error).toMatch(/nights/); // the real zod issue, not a generic message
   });
 
-  it("surfaces a transport-level failure (e.g. rate limit) as-is, not wrapped as a validation error", async () => {
-    // Found via the eval harness: a Gemini 429 on both attempts was being
+  it("hands malformed JSON back to the model on retry, instead of repeating the call blindly", async () => {
+    // Found by measuring turn latency: the retries that blew turns from 3.1s to 6.3s were NOT
+    // schema rejections. The model had returned JSON that did not parse ("Expected ':' after
+    // property name in JSON at position 11"), and because `JSON.parse` throws a SyntaxError —
+    // not a ZodError — the retry carried no `retry` context at all. The second call was an
+    // identical prompt that only sometimes landed, so the retry cost was usually wasted.
+    const malformed = new MalformedArgumentsError(
+      "not valid JSON: Expected ':' after property name in JSON at position 11",
+      '{"nights": }',
+    );
+    const call = vi
+      .fn()
+      .mockRejectedValueOnce(malformed)
+      .mockResolvedValueOnce({ raw: HAPPY_RAW, tokensIn: 500, tokensOut: 150, cacheReadTokens: 0, ms: 40 });
+    const provider: ExtractProvider = { id: "fake:v1", call };
+
+    const outcome = await extract(MESSAGE, provider);
+
+    expect(outcome.meta.retried).toBe(true);
+    expect(call).toHaveBeenCalledTimes(2);
+
+    // The whole point: the second call knows what was wrong, so the model can fix it.
+    const retry = call.mock.calls[1][0].retry;
+    expect(retry).toBeDefined();
+    expect(retry.error).toMatch(/not valid JSON/);
+    expect(retry.previousRaw).toBe('{"nights": }');
+  });
+
+  it("does not attach a retry context to a genuine transport failure", async () => {
+    // The distinction that matters: a 5xx or a timeout is not the model's fault and there is
+    // nothing to hand back, so the retry is a plain repeat rather than a correction.
+    const call = vi
+      .fn()
+      .mockRejectedValueOnce(new Error("DeepSeek gateway extract failed: 503 upstream busy"))
+      .mockResolvedValueOnce({ raw: HAPPY_RAW, tokensIn: 500, tokensOut: 150, cacheReadTokens: 0, ms: 40 });
+    const provider: ExtractProvider = { id: "fake:v1", call };
+
+    await extract(MESSAGE, provider);
+
+    expect(call).toHaveBeenCalledTimes(2);
+    expect(call.mock.calls[1][0].retry).toBeUndefined();
+  });
+
+  it("surfaces a transport-level failure (e.g. rate limit) as-is, not wrapped as a validation error", async () => {    // Found via the eval harness: a Gemini 429 on both attempts was being
     // reported as "model output did not match the Trip schema" — misleading,
     // since the model was never actually asked to produce anything wrong.
     const rateLimitErr = new Error("Gemini extract failed: 429 RESOURCE_EXHAUSTED");
