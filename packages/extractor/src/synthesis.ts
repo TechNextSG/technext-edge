@@ -1,5 +1,6 @@
 import type { Trip } from "./schema.js";
 import type { GuestQuestion, ReplyKind } from "./questions.js";
+import { diveWindowIsGuessed } from "./questions.js";
 import type { ExtractProvider } from "./provider.js";
 import type { ConversationTurn } from "./converse.js";
 
@@ -9,6 +10,24 @@ export interface SynthesisInput {
   questions: GuestQuestion[];
   replyKind: ReplyKind;
   fallbackText: string;
+}
+
+/**
+ * The single "Diving:" line in the verified-facts prompt.
+ *
+ * A guessed dive window is NOT handed to the model as a range: the model's whole job here is to
+ * read these facts back, so giving it an invented window is how a guessed date ends up in the
+ * guest's message as if they had said it. The prompt says "dates to be confirmed" instead, which
+ * is the same honest phrasing the deterministic summary uses.
+ */
+function divingLine(input: SynthesisInput): string {
+  if (input.trip.diver?.value !== true) {
+    return input.trip.diver?.value === false ? "no" : "unconfirmed";
+  }
+  if (diveWindowIsGuessed(input.trip)) {
+    return "yes (dive dates to be confirmed)";
+  }
+  return `yes (${input.trip.diveFrom?.value ?? ""} to ${input.trip.diveTo?.value ?? ""})`;
 }
 
 export interface FactGateResult {
@@ -122,7 +141,7 @@ export async function synthesizeHospitalityReply(
       `- Guests staying overnight: ${input.trip.guests?.value ?? "not specified"}\n` +
       `- Rooms: ${input.trip.rooms?.value ?? "1"}\n` +
       `- Meals: ${input.trip.meals?.value ?? "full board"}\n` +
-      `- Diving: ${input.trip.diver?.value ? `yes (${input.trip.diveFrom?.value ?? ""} to ${input.trip.diveTo?.value ?? ""})` : input.trip.diver?.value === false ? "no" : "unconfirmed"}\n` +
+      `- Diving: ${divingLine(input)}\n` +
       (typeof input.trip.divers?.value === "number" ? `- Divers in the party: ${input.trip.divers.value}\n` : "") +
       (input.trip.diveNotes?.value ? `- Diving breakdown: ${input.trip.diveNotes.value}\n` : "") +
       (input.trip.specialRequests?.value ? `- Special notes: ${input.trip.specialRequests.value}\n` : "") +

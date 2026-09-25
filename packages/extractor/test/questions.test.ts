@@ -768,6 +768,21 @@ describe("a dive window the guest never gave", () => {
     expect(diveWindowIsGuessed(tripWithDiveWindow({ value: "2026-11-26", state: "stated" }, { value: "2026-11-28", state: "stated" }))).toBe(false);
   });
 
+  it("is guessed when a stated window is exactly the whole stay — the echo shape", () => {
+    // The shape that slipped past every guard before this: both ends read `stated`, but they equal
+    // check-in/check-out because the model echoed the stay sentence rather than reading a dive
+    // date. Measured on the real scenario: 5 dive days for a 4-night trip.
+    const echoed = tripWithDiveWindow({ value: "2026-11-25", state: "stated" }, { value: "2026-11-29", state: "stated" });
+    expect(diveWindowIsGuessed(echoed)).toBe(true);
+  });
+
+  it("is NOT guessed when a stated window sits strictly inside the stay", () => {
+    // A window the guest actually gave (e.g. "diving Nov 26 to 28" within a Nov 25-29 stay) is not
+    // the echo, and must keep pricing normally.
+    const real = tripWithDiveWindow({ value: "2026-11-26", state: "stated" }, { value: "2026-11-28", state: "stated" });
+    expect(diveWindowIsGuessed(real)).toBe(false);
+  });
+
   it("does not apply when nobody is diving", () => {
     // A non-diving trip has no window to get wrong, and `buildBffTrip` sends null for both ends.
     const noDive: Trip = { ...tripWithDiveWindow({ value: null, state: "missing" }, { value: null, state: "missing" }), diver: { value: false, state: "stated", evidence: "no diving" } };
@@ -811,7 +826,64 @@ describe("a dive window the guest never gave", () => {
     const { kind, text } = renderReply(trip, []);
     expect(kind).toBe("summary");
     expect(text).toContain("Dive Days To Confirm");
+    expect(text).toContain("dive dates to confirm");
     expect(text, "the summary must not print a dive window nobody gave").not.toMatch(/Diving:.*2026-11/);
+  });
+
+  it("does not print the echoed stay as a dive window in the summary", () => {
+    // The echo shape: both ends `stated` but equal the whole stay. Before this, the guest was
+    // told "Diving: Yes · 2 divers · Nov 25 – Nov 29" when they never named a dive date.
+    const echoed = tripWithDiveWindow({ value: "2026-11-25", state: "stated" }, { value: "2026-11-29", state: "stated" });
+    const { text } = renderReply(echoed, []);
+    expect(text).toContain("dive dates to confirm");
+    expect(text).not.toMatch(/Diving:.*Nov 25 – Nov 29/);
+  });
+
+  it("does not fire the no-fly advisory for a dive window nobody stated", () => {
+    // The advisory says "you dived on the day you leave" — a claim about a dive day that was never
+    // given. It must not appear just because the invented window happened to touch check-out.
+    const echoed = tripWithDiveWindow({ value: "2026-11-25", state: "stated" }, { value: "2026-11-29", state: "stated" });
+    const { text } = renderReply(echoed, []);
+    expect(text).not.toContain("surface interval");
+  });
+
+  it("still fires the no-fly advisory when the guest really dives through departure day", () => {
+    // A guest who actually says they dive through check-out, inside a stay, keeps the safety note.
+    const real = tripWithDiveWindow({ value: "2026-11-26", state: "stated" }, { value: "2026-11-29", state: "stated" });
+    const { text } = renderReply(real, []);
+    expect(text).toContain("surface interval");
+  });
+
+  it("does not hand a guessed window to the synthesis model", async () => {
+    // The model's job is to read the verified facts back, so giving it an invented range is how a
+    // guessed date reaches the guest's message as if they had said it. The prompt must say
+    // "dates to be confirmed" instead.
+    const echoed = tripWithDiveWindow({ value: "2026-11-25", state: "stated" }, { value: "2026-11-29", state: "stated" });
+    const generateText = vi.fn().mockResolvedValue("Thanks Maria! Our team will confirm your dive days before quoting.");
+    const provider = { id: "mock", call: vi.fn(), generateText } as unknown as ExtractProvider;
+
+    await synthesizeHospitalityReply(
+      { turns: [{ role: "guest", text: "we dive" }], trip: echoed, questions: [], replyKind: "summary", fallbackText: "x" },
+      provider,
+    );
+
+    const userPrompt = generateText.mock.calls[0]![1] as string;
+    expect(userPrompt).toContain("Diving: yes (dive dates to be confirmed)");
+    expect(userPrompt).not.toContain("Diving: yes (2026-11-25 to 2026-11-29)");
+  });
+
+  it("hands a real dive window to the synthesis model", async () => {
+    const real = tripWithDiveWindow({ value: "2026-11-26", state: "stated" }, { value: "2026-11-28", state: "stated" });
+    const generateText = vi.fn().mockResolvedValue("Thanks Maria! Diving Nov 26 to Nov 28.");
+    const provider = { id: "mock", call: vi.fn(), generateText } as unknown as ExtractProvider;
+
+    await synthesizeHospitalityReply(
+      { turns: [{ role: "guest", text: "diving Nov 26 to 28" }], trip: real, questions: [], replyKind: "summary", fallbackText: "x" },
+      provider,
+    );
+
+    const userPrompt = generateText.mock.calls[0]![1] as string;
+    expect(userPrompt).toContain("Diving: yes (2026-11-26 to 2026-11-28)");
   });
 });
 

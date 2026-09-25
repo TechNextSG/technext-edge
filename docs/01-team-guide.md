@@ -639,6 +639,22 @@ node packages/extractor/eval/runner.mjs --provider deepseek-flash
   which needs no question); a wanted transfer with no stated type stays `missing`, so the
   guest's own answer is what gets priced. **If you add a field that money depends on, code
   must not fill it in** — leave it `missing` and add a question rule.
+
+- **A guessed dive window is three leaks, not one, and the third was the worst.** When the guest
+  says "we dive" with no dates, the never-re-ask guardrail skips the window questions and
+  `buildBffTrip` fills one so the BFF contract parses — so Odoo prices dive days nobody named.
+  Measured on one scenario across five runs, the payload carried 3, 3, 4, 3 and 5 dive days (five
+  prices). Two extra surfaces made it worse: the guest summary printed the range as if stated, and
+  the synthesis prompt handed the range to the model to read back. The worst shape had the model
+  label the whole STAY as the dive window with `state: "stated"` — `diveFrom`/`diveTo` equal to
+  check-in/check-out, quoting the stay sentence — which passed evidence enforcement because it is
+  a verbatim substring, and produced 5 dive days for a 4-night trip. `diveWindowIsGuessed(trip)`
+  now catches both shapes (an end that is not `stated`, and a stated window that equals the whole
+  stay), and drives all three fixes: the handoff is `manual_staff_review`, the studio shows the
+  alert (staffAlerts finally renders there), and the guest-facing summary and the synthesis prompt
+  say "dive dates to confirm" instead of repeating the range. **If you add a window-shaped field,
+  check its three exits: the pricing payload, the guest's summary, and whatever the model is told.**
+
 - **"Ready to hand off" and "nothing left to ask" used to be the same expression**, so a
   field that stopped being asked silently stopped being required. `done` is now
   `isReadyForHandoff(trip)`, backed by `HANDOFF_REQUIRED_FIELDS` and `NEVER_ASKED_FIELDS` in

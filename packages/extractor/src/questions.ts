@@ -286,32 +286,38 @@ export function isReadyForHandoff(trip: Trip): boolean {
  *
  * Together they mean a real enquiry can reach pricing asserting dive days from nobody's words,
  * and the count changes with it: measured on one scenario ("my husband and I dive, the kids
- * snorkel" — no dates given) across three runs, the payload carried 3, 4 and 3 dive days, and
- * the run that said 4 had the model labelling the CHECK-IN date as `diveFrom`. Dive is charged
- * per diver per day, so those are three different prices.
+ * snorkel" — no dates given) across five runs, the payload carried 3, 3, 4, 3 and 5 dive days.
+ * Dive is charged per diver per day, so those are five different prices.
  *
- * `stated` is the only state that means the guest said it; `derived`, `default` and `inferred`
- * are all the pipeline's own.
+ * Two shapes count as guessed:
  *
- * ## What this does NOT catch
+ * - **Not the guest's words.** Either end is not `stated`; `derived`, `default` and `inferred` are
+ *   all the pipeline's own, and `buildBffTrip` fills whatever is missing.
+ * - **The model echoed the stay.** Both ends read `stated` but equal the whole stay
+ *   (`diveFrom === checkIn` and `diveTo === checkOut`). Measured: `diveFrom: 2026-11-25`,
+ *   `diveTo: 2026-11-29` quoting `"Nov 25 please, for 4 nights."` — a sentence about the STAY,
+ *   not about diving — which survives evidence enforcement because it is a verbatim substring, and
+ *   produced **5 dive days for a 4-night trip**. A window that covers arrival AND departure days is
+ *   not a normal reading; `buildBffTrip`'s own default deliberately excludes both, so equality with
+ *   the stay is the fingerprint of the echo.
  *
- * The worse shape is the model labelling the STAY as the dive window with `state: "stated"`. In the
- * same scenario, a later run produced `diveFrom: 2026-11-25` and `diveTo: 2026-11-29` — check-in and
- * check-out — both quoting `"Nov 25 please, for 4 nights."` as evidence. That evidence is a verbatim
- * substring of the guest's message, so it survives enforcement, but it is a sentence about the stay,
- * and the resulting payload carried **5 dive days for a 4-night trip**. Both ends read as `stated`,
- * so this predicate returns false and nothing is flagged.
- *
- * Catching that needs the equivalent of what `counts.ts` does for counts: an evidence quote has to
- * be *about this field*, not merely present in the message. That is a real change to extraction
- * semantics rather than an added flag — this repo's fixtures currently treat a bare date
- * (`evidence: "Oct 11"`) as valid dive-window evidence — so it is left as a deliberate open item
- * rather than folded in here. Until then, treat `diveWindowIsGuessed() === false` as "the guest's
- * words support the window", not as "the window is right".
+ * `diveWindowIsGuessed() === false` means "the guest's own words support the window", not "the
+ * window is right" — but it is the best this pipeline can establish without a dive-evidence
+ * classifier, which would change extraction semantics and re-open the question of what counts as a
+ * dive cue (this repo's fixtures treat a bare date like `"Oct 11"` as valid window evidence).
  */
 export function diveWindowIsGuessed(trip: Trip): boolean {
   if (trip.diver?.value !== true) return false;
-  return trip.diveFrom?.state !== "stated" || trip.diveTo?.state !== "stated";
+  if (trip.diveFrom?.state !== "stated" || trip.diveTo?.state !== "stated") return true;
+
+  // The echo shape: a stated window that is exactly the stay. Values are read, not states, because
+  // the whole point is that the states are lying — both read "stated" while the words are the
+  // check-in/check-out sentence.
+  const from = typeof trip.diveFrom.value === "string" ? trip.diveFrom.value : null;
+  const to = typeof trip.diveTo.value === "string" ? trip.diveTo.value : null;
+  const checkIn = typeof trip.checkIn?.value === "string" ? trip.checkIn.value : null;
+  const checkOut = typeof trip.checkOut?.value === "string" ? trip.checkOut.value : null;
+  return from !== null && to !== null && from === checkIn && to === checkOut;
 }
 
 // ---- Reply rendering --------------------------------------------------------
@@ -667,11 +673,15 @@ function summaryLines(trip: Trip, lang: Lang): string[] {
   if (diver && diver.state !== "missing" && typeof diver.value === "boolean") {
     const diveFrom = (trip.diveFrom?.value as string | null) ?? null;
     const diveTo = (trip.diveTo?.value as string | null) ?? null;
-    const window = diveFrom && diveTo ? ` · ${formatRange(diveFrom, diveTo, lang)}` : "";
     const notes = trip.diveNotes?.value ? ` (${trip.diveNotes.value})` : "";
-    // The head count sits on the same line as the window: a guest reads one dive line, and
-    // the number only means anything once diving is happening at all.
     const divers = typeof trip.divers?.value === "number" ? ` · ${diversText(trip.divers.value, lang)}` : "";
+    // A guessed window is never repeated back as the guest's own dates — that would be asserting
+    // a number the guest never gave, to their face. Instead it reads "dive dates to confirm".
+    const window = diveWindowIsGuessed(trip)
+      ? (lang === "zh" ? " · 潜水日期待确认" : " · dive dates to confirm")
+      : diveFrom && diveTo
+        ? ` · ${formatRange(diveFrom, diveTo, lang)}`
+        : "";
     lines.push(`• ${LABELS.diver[lang]}: ${YES_NO[lang][diver.value ? 0 : 1]}${divers}${window}${notes}`);
   }
 
@@ -689,6 +699,10 @@ function summaryLines(trip: Trip, lang: Lang): string[] {
 }
 
 function getNoFlyAdvisory(trip: Trip, lang: Lang): string | null {
+  // Only meaningful when the guest actually said they dive through the departure day. A guessed
+  // window that happens to equal the stay would otherwise fire this warning about a dive day
+  // nobody described.
+  if (diveWindowIsGuessed(trip)) return null;
   if (trip.diver?.value === true && trip.diveTo?.value && trip.checkOut?.value) {
     if (trip.diveTo.value === trip.checkOut.value) {
       if (lang === "zh") {
