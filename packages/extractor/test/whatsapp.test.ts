@@ -677,8 +677,57 @@ describe("WhatsApp webhook (Meta Cloud API)", () => {
   });
 });
 
-describe("handoff view", () => {
-  it("refuses to list or resume threads without the verify token", async () => {
+/**
+ * The links on a guest's reply, tested through the webhook because that is the layer that got this
+ * wrong. A real production reply carried the staff studio URL next to the customer one — a link
+ * addressed to staff, pasted into the guest's chat, and answering 401 as written (verified against
+ * production). Nothing asserted the reply's links, so nothing noticed.
+ */
+describe("the links on a guest's reply once a quotation exists", () => {
+  // Every handoff-required field answered or house-normed, so the turn ends in a summary and
+  // builds a draft. `rooms`/`meals`/`transport` are left `missing` on purpose: postProcess fills
+  // them with the house norms, which is the same path a real unmentioned field takes. `diver:
+  // false` keeps the dive window inapplicable — its rule is gated on diving.
+  const COMPLETE_RAW = {
+    ...PARTIAL_RAW,
+    guests: { value: 4, state: "stated", evidence: "4 of us" },
+    contactName: { value: "Ana", state: "stated", evidence: "Ana" },
+    diver: { value: false, state: "stated", evidence: "no diving" },
+  };
+  const TEXT = "4 of us next Saturday for 3 nights, no diving, my name is Ana";
+
+  async function replyForCompletedTurn() {
+    vi.stubEnv("ENABLE_HONO_QUOTATION_TOOL", "true");
+    const { app, sent } = harness(providerReturning(COMPLETE_RAW));
+    await post(app, textEvent("wamid.quote", TEXT));
+    await flush();
+    return sent;
+  }
+
+  it("sends the guest a customer link", async () => {
+    const sent = await replyForCompletedTurn();
+    expect(sent).toHaveLength(1);
+    expect(sent[0]!.body).toContain("🔗 *Interactive Quotation Link:*");
+    expect(sent[0]!.body).toMatch(/\/q\/[0-9a-f-]{16,}/);
+    expect(sent[0]!.body).toContain("nothing is booked yet");
+  });
+
+  it("does NOT send the guest the staff studio link", async () => {
+    const sent = await replyForCompletedTurn();
+    // `/quotes/:id` is guarded, so this URL answers 401 for anyone who clicks it — and it is
+    // internal tooling that has no business in a guest's chat.
+    expect(sent[0]!.body).not.toContain("/quotes/");
+    expect(sent[0]!.body).not.toContain("Edit Table & Confirm");
+  });
+
+  it("uses WhatsApp's bold syntax, not Markdown's", async () => {
+    const sent = await replyForCompletedTurn();
+    // WhatsApp renders *single asterisks*; `**` shows up as literal asterisks in the guest's chat.
+    expect(sent[0]!.body).not.toContain("**");
+  });
+});
+
+describe("handoff view", () => {  it("refuses to list or resume threads without the verify token", async () => {
     const { app } = harness(providerReturning(PARTIAL_RAW));
 
     const list = await app.request("/v1/channels/whatsapp/threads");

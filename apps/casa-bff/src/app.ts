@@ -199,6 +199,29 @@ export interface AppOptions {
   estimator?: ReturnType<typeof createEstimatorClient>;
 }
 
+/**
+ * The links appended to a GUEST's reply once a quotation exists.
+ *
+ * The customer link only. This used to also append `honoEditorUrl` — the staff studio page — which
+ * was wrong twice over:
+ *
+ * - **Wrong audience.** It is internal tooling addressed to whoever is working the quote, and it
+ *   was being pasted into the guest's own chat along with the quote id.
+ * - **Broken as sent.** `/quotes/:id` is guarded (`x-verify-token`, or `?token=` for a pasted
+ *   link), so the URL as written answers 401. Verified against production: the exact link from a
+ *   real reply returned 401. Making it work would mean putting the staff secret in a guest's
+ *   message, which is worse than a dead link.
+ *
+ * Staff reach the studio the way they already do — `/quotes?token=<WHATSAPP_VERIFY_TOKEN>`, or
+ * from the WhatsApp threads view.
+ *
+ * Bold is `*single asterisks*`: WhatsApp does not render `**`, so the double form showed up in the
+ * guest's chat as literal asterisks.
+ */
+export function guestQuotationLinks(draft: { quotationUrl: string }): string {
+  return `\n\n🔗 *Interactive Quotation Link:*\n${draft.quotationUrl}`;
+}
+
 export function createApp(options: AppOptions = {}) {
   const app = new Hono();
   // Per-app, so a warm serverless instance keeps the thread; see the caveat in
@@ -471,7 +494,7 @@ export function createApp(options: AppOptions = {}) {
             if (outcome.quotationDraft) {
               outcome.quotationDraft.phone = phone;
               saveQuotationDraft(outcome.quotationDraft);
-              finalReplyText = `${outcome.reply}\n\n🔗 **Interactive Quotation Link:**\n${outcome.quotationDraft.quotationUrl}\n✏️ **Edit Table & Confirm on Hono:**\n${outcome.quotationDraft.honoEditorUrl}`;
+              finalReplyText = `${outcome.reply}${guestQuotationLinks(outcome.quotationDraft)}`;
             }
 
             await store.append(phone, { role: "assistant", text: finalReplyText });
