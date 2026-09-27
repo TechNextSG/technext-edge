@@ -19,6 +19,13 @@
  * Usage (KV credentials in the environment; on Vercel: `vercel env pull` first):
  *   node scripts/cleanup-quotations.mjs              # list what would go
  *   node scripts/cleanup-quotations.mjs --delete     # do it
+ *
+ * **It usually cannot run from a laptop**, and that is not a defect: the KV vars are Vercel
+ * *Secrets*, and `vercel env pull` writes `[SENSITIVE]` for those by design. The supported path is
+ * the same rule served from inside the deployment —
+ * `POST /v1/quotes/cleanup-duplicates` (staff-only, dry unless `{confirm:true}`), which is what
+ * actually cleared the backlog on 2026-09-27. This file stays for a deployment that does hold the
+ * credentials in its own env, and as the readable statement of what the route deletes.
  */
 const kvUrl = process.env.KV_REST_API_URL || process.env.UPSTASH_REDIS_REST_URL;
 const kvToken = process.env.KV_REST_API_TOKEN || process.env.UPSTASH_REDIS_REST_TOKEN;
