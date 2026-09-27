@@ -25,6 +25,31 @@ export interface SynthesisInput {
 const DEFAULT_SYNTHESIS_BUDGET_MS = 4_000;
 
 /**
+ * Resolve with `promise`, or reject once `ms` elapses — whichever happens first.
+ *
+ * Written as a helper rather than an inline `Promise.race([...])` because the deployment build
+ * (which typechecks through a different config than the workspace `tsc`) reported the race's array
+ * literal as "possibly undefined" on `Promise` itself on every deploy. The behaviour is identical
+ * and the construct is one the build is happy with; the emitted JavaScript was correct either way,
+ * but a build that prints errors on every deploy is a build nobody reads.
+ */
+function withBudget<T>(promise: Promise<T>, ms: number): Promise<T> {
+  return new Promise<T>((resolve, reject) => {
+    const timer = setTimeout(() => reject(new Error(`synthesis budget of ${ms}ms elapsed`)), ms);
+    promise.then(
+      (value) => {
+        clearTimeout(timer);
+        resolve(value);
+      },
+      (err) => {
+        clearTimeout(timer);
+        reject(err);
+      },
+    );
+  });
+}
+
+/**
  * The single "Diving:" line in the verified-facts prompt.
  *
  * A guessed dive window is NOT handed to the model as a range: the model's whole job here is to
@@ -215,7 +240,11 @@ export async function synthesizeHospitalityReply(
   input: SynthesisInput,
   provider?: ExtractProvider,
 ): Promise<string> {
-  if (!provider?.generateText) {
+  // Captured into a `const` at the top, not called as `provider.generateText` further down.
+  // TypeScript drops the narrowing on a parameter once a closure exists in the same function, which
+  // the deployment build caught even though an incremental local typecheck had not: `const` keeps it.
+  const generate = provider?.generateText?.bind(provider);
+  if (!generate) {
     return input.fallbackText;
   }
 
@@ -264,13 +293,7 @@ export async function synthesizeHospitalityReply(
     // turn, so a provider that hangs would take the whole turn past Meta's deadline and the guest
     // would get nothing at all. Losing the polish and keeping the reply is the right trade.
     const budgetMs = input.budgetMs && input.budgetMs > 0 ? input.budgetMs : DEFAULT_SYNTHESIS_BUDGET_MS;
-    let timer: ReturnType<typeof setTimeout> | undefined;
-    const text = await Promise.race([
-      provider.generateText(systemPrompt, userPrompt),
-      new Promise<never>((_, reject) => {
-        timer = setTimeout(() => reject(new Error(`synthesis budget of ${budgetMs}ms elapsed`)), budgetMs);
-      }),
-    ]).finally(() => clearTimeout(timer));
+    const text = await withBudget(generate(systemPrompt, userPrompt), budgetMs);
 
     // Post-Generation Symbolic Fact Gate: verify no hallucinated prices, confirmations, or mismatched counts
     const check = verifySynthesizedReply(text, input.trip);

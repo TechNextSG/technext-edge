@@ -1,7 +1,6 @@
 import { randomUUID } from "node:crypto";
 import {
   recalculateQuotationTotals,
-  guestSafeStaffNotes,
   type HonoQuotationDraft,
 } from "../../../packages/extractor/src/index.js";
 import { createQuotationStoreFromEnv, type QuotationStore } from "./quotationStoreClient.js";
