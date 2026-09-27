@@ -122,19 +122,26 @@ Bot phải nói "nothing is booked yet" và "someone from our team will follow u
 
 ---
 
-## Sau khi chat: Publish trong studio (phần mới của Đợt 1)
+## Sau khi chat: Publish trong studio — ⛔ chưa test được, xem lý do dưới
+
+> **Trạng thái 27/09:** phần này sẽ trả **409 `not_priced`** ở bước 4 cho tới khi BFF của khách được
+> deploy lại. Không phải lỗi phía mình — bản deploy hiện tại của họ là build cũ (`4c48918`) và
+> `POST /api/estimates` **không trả `id`** cũng **không set cookie `ubg_sid`**, nên không có scenario
+> nào để commit/share. Đã kiểm chứng bằng E2E cục bộ với code Stage1 của họ: chuỗi chạy hết và ra
+> link mở được. Các bước 1–2 (định giá) thì **chạy được ngay**.
 
 1. `/login` (staff key) → `/quotes` → mở quotation.
 2. Bấm **Price with the Estimator BFF** → thẻ **Per guest**, nhãn `SAMPLE DATA`, khối *From the booking engine*.
-   - Nếu badge ghi **"SIMULATED — sample prices"**: đang chạy bộ giả lập trong tiến trình. Publish vẫn chạy nhưng **không có host để ghép link** → `guestUrl` sẽ là `null`.
-   - Nếu badge ghi **"FIXTURE — prices are captured samples"**: đang gọi BFF của khách → link publish được.
+   - Badge **"FIXTURE — prices are captured samples"** = đang gọi BFF của khách (đúng cấu hình hiện tại).
+   - Badge **"SIMULATED"** = đang chạy bộ giả lập trong tiến trình.
 3. Bấm **Approve Quotation & Prepare Guest Message** (bắt buộc — publish từ chối báo giá chưa duyệt).
-4. Ở khung **Publish guest link**: tick **"I have checked this SAMPLE price"** rồi bấm **Publish guest link**.
-   - Chưa tick → **409 `sample_not_acknowledged`** (đúng thiết kế: giá sample không được tới khách mà không có người xác nhận).
-   - Thành công → hiện `✅ Published as version 1` + link.
-5. **Mở link đó** → phải mở được app báo giá của khách, số tiền **trùng** số trong studio, có nhãn sample.
+4. Khung **Publish guest link**: tick **"I have checked this SAMPLE price"** rồi bấm **Publish guest link**.
+   - Chưa tick → **409 `sample_not_acknowledged`** (đúng thiết kế).
+   - **Hiện tại → 409 `not_priced`** (BFF cũ của khách, xem khung trên).
+   - Khi có BFF mới → `✅ Published as version 1` + link.
+5. Mở link đó → phải mở được app báo giá của khách, số tiền **trùng** số trong studio, có nhãn sample.
 6. Bấm **Publish** lần hai → **409 `already_shared`** (một link cho mỗi báo giá; Q-005).
-7. `/q/<slug>` (đường cũ của mình) → **410**, không còn phục vụ báo giá.
+7. `/q/<slug>` (đường cũ của mình) → **410**, không còn phục vụ báo giá. ← **kiểm được ngay**
 
 ## Nếu có gì sai, gửi mình
 - Nguyên văn tin bạn gửi và **nguyên văn tin bot trả**.
@@ -143,16 +150,22 @@ Bot phải nói "nothing is booked yet" và "someone from our team will follow u
 
 ---
 
-## ⚠️ Production hiện đang chạy build CŨ
+## Trạng thái production (27/09) — đọc trước khi test
 
-Ba đợt vừa rồi **chưa được deploy**. Alias `technext-edge-casa-bff.vercel.app` vẫn là bản trước
-Đợt 1, nên nếu bạn test ngay bây giờ bạn sẽ thấy hành vi cũ (bot gửi `/q/...`, trang khách còn sống).
+Đã deploy build mới và đặt `ESTIMATOR_MODE=remote`. Kiểm live:
 
-Để test đúng hành vi mới cần **2 việc**, và cả hai cần bạn đồng ý vì chúng đổi production:
+| Kiểm | Kết quả |
+|---|---|
+| `/healthz` | 200 |
+| `estimator-status` | `kind:"remote"`, `reachable:true`, `mode:"fixture"` — gọi BFF của khách |
+| `/q/<slug>` | **410** (trang khách cũ đã bỏ) |
+| `/v1/converse` đủ thông tin | `done=true`, reply **không có** `/q/` lẫn `/quote/` |
 
-1. **Deploy** build hiện tại.
-2. **Đặt `ESTIMATOR_MODE=remote`** trên Vercel (Production). Không đặt thì mặc định là `simulated`
-   — bot vẫn không gửi link (đúng), nhưng studio **không publish được link nào** vì engine giả lập
-   không có host. `ESTIMATOR_BASE_URL` đã trỏ vào bản deploy code của khách
-   (`tn-casa-estimator-fixture.vercel.app`), nên chỉ cần thêm biến `ESTIMATOR_MODE=remote` là chạy
-   được hết luồng — giá vẫn là **sample** và sẽ bắt tick xác nhận khi publish.
+**Test được ngay:** mọi thứ thuộc về bot — KB1 (không có link trong tin), KB2–KB10.
+
+**Chưa test được:** mục Publish → link khách, vì bản deploy BFF của khách là build cũ
+(`POST /api/estimates` không trả `id`, không set `ubg_sid`). Cần deploy lại BFF của họ từ nhánh
+Stage1 — xem `docs/upstream-note-bff-vercel-deploy.md` cho cách bundle đã dùng lần trước.
+
+**Giá vẫn là sample** ở cả hai đường: bản deploy của khách chạy `FIXTURE_MODE=1`.
+
