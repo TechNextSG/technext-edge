@@ -5,6 +5,7 @@ import { createWhatsAppSender, parseInboundTexts, verifySignature } from "../../
 import { createInMemoryConversationStore, type ConversationStore } from "../../../apps/casa-bff/src/conversationStore.js";
 import { ASK_LIMIT, STALL_LIMIT } from "../src/questions.js";
 import type { ExtractProvider } from "../src/provider.js";
+import { listQuotations } from "../../../apps/casa-bff/src/quotationStore.js";
 
 const VERIFY_TOKEN = "casa-verify-token";
 const APP_SECRET = "casa-app-secret";
@@ -1000,6 +1001,55 @@ describe("a count the guest changed their mind about", () => {
     await post(app, textEvent("wamid.2", "still thinking"));
 
     expect(sent[1]!.body).not.toContain("Just to check");
+  });
+});
+
+describe("one quotation per enquiry, and a stopping point once it is complete", () => {
+  // The same completing enquiry the reply tests use; declared here because those fixtures are
+  // scoped to their own describe.
+  const COMPLETE_RAW = {
+    ...PARTIAL_RAW,
+    guests: { value: 4, state: "stated", evidence: "4 of us" },
+    contactName: { value: "Ana", state: "stated", evidence: "Ana" },
+    diver: { value: false, state: "stated", evidence: "no diving" },
+  };
+  const TEXT = "4 of us next Saturday for 3 nights, no diving, my name is Ana";
+
+  it("reuses the thread's quotation instead of minting one per message", async () => {
+    vi.stubEnv("ENABLE_HONO_QUOTATION_TOOL", "true");
+    const { app } = harness(providerReturning(COMPLETE_RAW));
+
+    await post(app, textEvent("wamid.q1", TEXT));
+    const first = (await listQuotations()).filter((q) => q.phone === GUEST);
+    expect(first).toHaveLength(1);
+
+    // Measured on production before this: thirteen quotations for one guest, one per message.
+    await post(app, textEvent("wamid.q2", "hmm"));
+    await post(app, textEvent("wamid.q3", "thanks"));
+
+    const after = (await listQuotations()).filter((q) => q.phone === GUEST);
+    expect(after).toHaveLength(1);
+    expect(after[0]!.quoteId).toBe(first[0]!.quoteId);
+  });
+
+  it("stops repeating the summary once a finished thread stops making progress", async () => {
+    vi.stubEnv("ENABLE_HONO_QUOTATION_TOOL", "true");
+    const { app, sent, store } = harness(providerReturning(COMPLETE_RAW));
+
+    await post(app, textEvent("wamid.s1", TEXT));
+    // The turn that completes the enquiry is progress, so it cannot count toward a stall.
+    expect(await store.paused(GUEST)).toBeUndefined();
+
+    await post(app, textEvent("wamid.s2", "hmm"));
+    await post(app, textEvent("wamid.s3", "not sure yet"));
+    expect(await store.paused(GUEST)).toBeUndefined();
+
+    // The third message in a row that changes nothing hands over. Before this guard existed the
+    // bot answered four of them with the same seven-line summary and never stopped.
+    await post(app, textEvent("wamid.s4", "still thinking"));
+    expect(await store.paused(GUEST)).toMatchObject({ reason: "stalled" });
+    // The enquiry was already complete, so there is no gap to name and the plain handoff is used.
+    expect(sent[sent.length - 1]!.body).toContain("A member of the Casa team is handling your enquiry");
   });
 });
 

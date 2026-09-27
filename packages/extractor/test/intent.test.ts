@@ -90,9 +90,13 @@ describe("stalledHandoffReply", () => {
     expect(text).toContain("客人人数");
   });
 
-  it("still reads as a handoff when there is no field list to name", () => {
+  it("falls back to the plain handoff when there is no gap to name", () => {
+    // The empty case is a COMPLETE enquiry whose guest kept chatting: the bot was summarising, not
+    // asking, so "rather than ask you the same things again" would describe something that never
+    // happened.
     const text = stalledHandoffReply([], "en");
-    expect(text).toContain("passed your enquiry");
+    expect(text).toContain("A member of the Casa team is handling your enquiry");
+    expect(text).not.toContain("Rather than ask");
     expect(text).not.toContain("still needed");
   });
 

@@ -989,8 +989,11 @@ export function stalledHandoffReply(
     const list = phrases.length > 0 ? `（还差：${phrases.join("、")}）` : "";
     return `为了避免重复询问，我已将您的咨询转给 Casa 团队成员，他们会在这里继续与您确认${list}。感谢您的耐心等待。`;
   }
-  const list = phrases.length > 0 ? ` (still needed: ${joinList(phrases, lang)})` : "";
-  return `Rather than ask you the same things again, I've passed your enquiry to a member of the Casa team, who will pick it up with you here${list}. Thank you for your patience.`;
+  // Nothing to name means the enquiry was already complete and the guest was only chatting — so
+  // "rather than ask you the same things again" would be describing something that never happened.
+  // The plain handoff sentence is the honest one for that case.
+  if (phrases.length === 0) return fallbackReply("handoff", lang);
+  return `Rather than ask you the same things again, I've passed your enquiry to a member of the Casa team, who will pick it up with you here (still needed: ${joinList(phrases, lang)}). Thank you for your patience.`;
 }
 
 // ---- A money field the guest changed their mind about -----------------------

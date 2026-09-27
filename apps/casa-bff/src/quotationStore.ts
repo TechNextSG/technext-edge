@@ -165,6 +165,24 @@ export async function listQuotations(): Promise<HonoQuotationDraft[]> {
   return store.list();
 }
 
+/**
+ * The unpublised quotation this phone's enquiry already has, if it has one.
+ *
+ * Exists because the quotation tool mints a fresh id and slug on every call: a WhatsApp thread that
+ * kept talking after its enquiry was complete left a NEW draft in the studio for every turn.
+ * Measured on production from one manual test — thirteen quotations for one guest, at one per
+ * message. Staff cannot work a queue like that, and every one of them looked current.
+ *
+ * A quotation that has been published is deliberately NOT reused: their link resolves to the newest
+ * saved revision, so editing a published quote would silently change what a guest already holds
+ * (their Q-005). That case has to become a new quotation and a new link.
+ */
+export async function findOpenQuotationForPhone(phone: string): Promise<HonoQuotationDraft | undefined> {
+  if (!phone) return undefined;
+  const all = await listQuotations();
+  return all.find((q) => q.phone === phone && !q.estimator?.sharedAt);
+}
+
 export function renderHonoQuotationEditorHtml(
   draft: HonoQuotationDraft,
   allQuotes: HonoQuotationDraft[],

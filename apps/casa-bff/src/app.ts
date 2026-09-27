@@ -58,6 +58,7 @@ import {
   saveQuotationDraft,
   getQuotationByIdOrSlug,
   listQuotations,
+  findOpenQuotationForPhone,
   renderHonoQuotationEditorHtml,
 } from "./quotationStore.js";
 import {
@@ -564,22 +565,23 @@ export function createApp(options: AppOptions = {}) {
             // at most one reply" true even when the deadline fires mid-turn.
             if (expired) return;
 
-            // Asking has stopped being progress: the guest is stuck, or the
-            // extractor is, and one more round of the same questions is where an
-            // enquiry dies. A person now is worth more than a ninth question.
+            // Asking has stopped being progress: the guest is stuck, or the extractor is, and one
+            // more round is where an enquiry dies. A person now is worth more than another repeat.
             //
-            // Two signals, and the earlier one wins. `stalled` counts consecutive turns that
-            // failed to close a single question — the shape of a conversation going nowhere, and
-            // it fires around turn three. `ASK_LIMIT` counts turns outright, and stays as the hard
-            // ceiling for a thread that keeps inching forward. Note this runs on every turn,
-            // including a finished one: an empty open set resets the counter, so a guest who
-            // settles the enquiry and then asks something new is not carrying a stall with them.
+            // The fingerprint is "everything the pipeline currently knows about this enquiry" — the
+            // open questions PLUS every money value the guest has stated. A turn that changes none
+            // of it accomplished nothing, whether the enquiry is unfinished (the guest is stuck) or
+            // already complete (the guest is only chatting). The second case is what a manual test
+            // found: a finished enquiry answered "hmm", "not sure yet", "still thinking" and "maybe
+            // later" with the same seven-line summary four times, because the old guard skipped
+            // complete threads entirely. `ASK_LIMIT` stays as the hard ceiling.
+            const stated = statedMoneyValues(outcome.trip);
             const stall = await store.noteOpenFields(
               phone,
-              outcome.questions.map((q) => String(q.field)),
+              [...outcome.questions.map((q) => String(q.field)), ...Object.keys(stated).map((k) => `stated:${k}`)],
               STALL_LIMIT,
             );
-            if (!outcome.done && (stall.stalled || assistantTurns(history) >= ASK_LIMIT)) {
+            if (stall.stalled || assistantTurns(history) >= ASK_LIMIT) {
               const missing = outcome.questions.map((q) => q.field);
               // A stalled guest never asked for a person and nothing failed, so they are owed the
               // reason: the same list of open questions the human is about to be handed.
@@ -609,8 +611,31 @@ export function createApp(options: AppOptions = {}) {
 
             let finalReplyText = outcome.reply;
             if (outcome.quotationDraft) {
-              outcome.quotationDraft.phone = phone;
-              await saveQuotationDraft(outcome.quotationDraft);
+              // ONE quotation per enquiry. The tool mints a fresh id and slug on every call, so a
+              // thread that kept talking after its enquiry was complete left a new draft in the
+              // studio for every turn — measured on production from a single manual test: thirteen
+              // quotations for one guest. So the thread's own open quotation is reused, and the
+              // state that belongs to it (its price, its customer-app session, its approval, its
+              // notes) is carried over rather than reset.
+              const carried = await findOpenQuotationForPhone(phone);
+              const draft: HonoQuotationDraft = carried
+                ? {
+                    ...outcome.quotationDraft,
+                    quoteId: carried.quoteId,
+                    slug: carried.slug,
+                    quotationUrl: carried.quotationUrl,
+                    honoEditorUrl: carried.honoEditorUrl,
+                    createdAt: carried.createdAt,
+                    status: carried.status,
+                    staffNotes: carried.staffNotes,
+                    aiConfirmedReply: carried.aiConfirmedReply,
+                    pricing: carried.pricing ?? null,
+                    estimator: carried.estimator ?? null,
+                    submission: carried.submission ?? null,
+                  }
+                : outcome.quotationDraft;
+              draft.phone = phone;
+              await saveQuotationDraft(draft);
               // The enquiry is complete, so it becomes a quotation for staff to review — and the
               // guest is told that, not sent a price. See guestPendingQuotationNote.
               finalReplyText = `${outcome.reply}${changeNotice ? `\n\n${changeNotice}` : ""}${guestPendingQuotationNote()}`;
