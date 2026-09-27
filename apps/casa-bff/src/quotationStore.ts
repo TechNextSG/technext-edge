@@ -1,8 +1,12 @@
 import { randomUUID } from "node:crypto";
 import {
+  buildBffTrip,
+  normalizePricing,
   recalculateQuotationTotals,
   type HonoQuotationDraft,
+  type Trip,
 } from "../../../packages/extractor/src/index.js";
+import { buildSimulatedModel } from "./simulatedEstimator.js";
 import { createQuotationStoreFromEnv, type QuotationStore } from "./quotationStoreClient.js";
 import { DEMO_GAIS_BANNER, DEMO_ROLES, type DemoRole } from "./demoAuth.js";
 import { escapeHtml } from "./html.js";
@@ -58,7 +62,38 @@ function randomSlug(): string {
 // Bump this whenever the seeded fixture's shape or pricing changes. `ensureSeeded()` compares it
 // to the stored record and re-seeds when they differ, so a deploy that changes the fixture (e.g.
 // the 2026-09-25 real-rate-card migration) does not leave the previous copy stuck in KV forever.
-const SEED_VERSION = 1;
+//
+// v2: the studio prices from the engine and nothing else, so the fixture carries a real `bffTrip`
+// and the engine's own answer for it. Before this it carried a hand-typed line-item table that the
+// page no longer renders — a cold-start studio showed "not priced yet" and no trip to review.
+const SEED_VERSION = 2;
+
+/**
+ * The fixture's trip, as the extractor would have produced it: a split-day diving group, which is
+ * the case the guardrail deliberately routes to staff rather than auto-pricing.
+ */
+function seededTrip(): Trip {
+  const f = <T,>(value: T | null, state = "stated") => ({ value, state, evidence: null });
+  return {
+    language: f("en", "default"),
+    contactName: f("Sample Group"),
+    checkIn: f("2026-10-10"),
+    checkOut: f("2026-10-12"),
+    nights: f(2),
+    guests: f(4),
+    rooms: f(2),
+    roomType: f("standard"),
+    meals: f("full_board"),
+    transport: f(false),
+    guestType: f("retail", "default"),
+    transportType: f("none", "derived"),
+    diver: f(true),
+    divers: f(null, "missing"),
+    diveNotes: f("1 person dives day 1; 5 people dive both days"),
+    specialRequests: f(null, "missing"),
+    guestNames: f([]),
+  } as Trip;
+}
 
 let seedPromise: Promise<void> | undefined;
 function ensureSeeded(): Promise<void> {
@@ -69,6 +104,7 @@ function ensureSeeded(): Promise<void> {
     const now = new Date().toISOString();
     const baseUrl = "https://technext-edge-casa-bff.vercel.app";
     const slug = randomSlug();
+    const trip = buildBffTrip(seededTrip());
     const seeded: HonoQuotationDraft = recalculateQuotationTotals({
     quoteId: "QT-1010-SKY",
     slug,
@@ -91,36 +127,23 @@ function ensureSeeded(): Promise<void> {
     guestType: "regular",
     currency: "PHP",
     discountPercent: 0,
-    lineItems: [
-      {
-        id: "item-rooms",
-        category: "room",
-        description: "Standard Room (Twin / Double Occupancy)",
-        quantity: 2,
-        unitLabel: "rooms",
-        multiplier: 2,
-        multiplierLabel: "nights",
-        unitPrice: 7600,
-        subtotal: 30400,
-      },
-      {
-        id: "item-meals",
-        category: "meals",
-        description: "Full-Board Dining Package (Breakfast, Lunch & Dinner)",
-        quantity: 4,
-        unitLabel: "staying guests",
-        multiplier: 2,
-        multiplierLabel: "days",
-        unitPrice: 1500,
-        subtotal: 12000,
-      },
-      // No dive line: this fixture is a split-day arrangement, which the pricing model does not
-      // guess — it is routed to staff (see the Custom Dive Schedule alert below), same as a live
-      // enquiry whose `divers` slot is missing while `diveNotes` carries the breakdown.
-    ],
-    subtotalAmount: 42400,
+    // No hand-typed lines: the studio draws the price from the engine now, and a seeded fixture
+    // that carried its own arithmetic is exactly the second source of truth that was removed.
+    // `totalAmount` below is the engine's own revenue, so the sidebar and the cards agree.
+    lineItems: [],
+    subtotalAmount: 0,
     discountAmount: 0,
-    totalAmount: 42400,
+    totalAmount: buildSimulatedModel(trip).kpis.revenue ?? 0,
+    bffTrip: trip,
+    pricing: normalizePricing({
+      model: buildSimulatedModel(trip),
+      source: "simulated",
+      sample: true,
+      mode: "fixture",
+      role: "guest",
+      computedAt: now,
+    }),
+    estimator: null,
     quotationUrl: `${baseUrl}/q/${slug}`,
     honoEditorUrl: `${baseUrl}/quotes/QT-1010-SKY`,
     staffNotes:
@@ -194,7 +217,10 @@ export function renderHonoQuotationEditorHtml(
       guestName: q.guestName,
       checkIn: q.checkIn,
       nights: q.nights,
-      totalAmount: q.totalAmount,
+      // The engine's figure when the quotation has been priced, because it is the only number that
+      // will appear on a guest's link. `totalAmount` is the old hand-typed table's sum, and it is
+      // only still here for quotations priced before this page stopped doing its own arithmetic.
+      totalAmount: (q.pricing?.kpis.revenue ?? null) ?? q.totalAmount,
       currency: q.currency,
       status: q.status,
     }))
@@ -739,17 +765,11 @@ export function renderHonoQuotationEditorHtml(
         </div>
       </div>
 
-      <!-- STEP 2: Quotation Price Table & Official Estimator -->
+      <!-- STEP 2: the trip the engine prices, and the trip staff can correct -->
       <div class="card">
         <div class="card-title">
-          <span>📊 STEP 2: Quotation Price Table (Review &amp; Edit Items)</span>
-          <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
-            <select id="select-currency" class="cell-input" style="width:110px;padding:8px 10px;" onchange="recalcUI()">
-              <option value="PHP" ${draft.currency === "PHP" ? "selected" : ""}>₱ PHP</option>
-              <option value="USD" ${draft.currency === "USD" ? "selected" : ""}>$ USD</option>
-            </select>
-            <button class="btn btn-outline" onclick="addLineItem()">➕ <span>Add New Item Row</span></button>
-          </div>
+          <span>📊 STEP 2: The Trip the Engine Prices</span>
+          <span style="font-size:13.5px;font-weight:700;color:var(--muted);">Priced by the resort's engine — never by hand</span>
         </div>
 
         <!-- Official Estimator BFF Bar moved to TOP of price table so staff price BEFORE editing -->
@@ -803,41 +823,39 @@ export function renderHonoQuotationEditorHtml(
           <pre id="publish-out" style="width:100%;margin-top:4px;white-space:pre-wrap;font-size:13.5px;color:var(--muted);display:none;"></pre>
         </div>
 
-        <div style="overflow-x:auto;">
-          <table class="quote-table">
-            <thead>
-              <tr>
-                <th style="width:130px;">Category</th>
-                <th>Service / Package Description</th>
-                <th style="width:105px;text-align:right;">Qty (Pax/Rm)</th>
-                <th style="width:100px;">Unit</th>
-                <th style="width:105px;text-align:right;">Nights/Days</th>
-                <th style="width:140px;text-align:right;">Unit Price</th>
-                <th style="width:145px;text-align:right;">Row Subtotal</th>
-                <th style="width:56px;"></th>
-              </tr>
-            </thead>
-            <tbody id="line-items-tbody"></tbody>
-          </table>
+        <!-- The trip itself, which is what the engine is asked to price. Editable, because a
+             WhatsApp conversation cannot place every fact a quotation depends on — which room a
+             guest is in, what type it is, who dives which day, who still needs a course. The
+             correction goes back to the ENGINE rather than into a hand-typed price, so the number
+             on the guest's link keeps exactly one source. -->
+        <div class="staff-only" style="margin-bottom:18px;">
+          <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;margin-bottom:10px;">
+            <div>
+              <div style="font-size:15px;font-weight:800;color:var(--text);">🧭 Trip review — correct the facts, then re-price</div>
+              <div style="font-size:13.5px;color:var(--muted);">Rooms, room type, who is in which room, who dives which day, and who needs a course. Saving sends the corrected trip back to the engine and drops the approval, because the approval was for the old trip.</div>
+            </div>
+            <button class="btn btn-primary" onclick="saveTripAndReprice()" id="btn-save-trip">💾 <span>Save trip &amp; re-price</span></button>
+          </div>
+          <pre id="trip-edit-out" style="width:100%;margin:0 0 12px;white-space:pre-wrap;font-size:13.5px;color:var(--muted);display:none;"></pre>
+          <div id="trip-review"></div>
         </div>
 
         <div class="totals-grid">
           <div class="totals-box">
             <div class="totals-row">
-              <span>Subtotal:</span>
-              <strong id="ui-subtotal">₱0</strong>
+              <span>Engine total${pricing?.sample ? " (SAMPLE)" : ""}:</span>
+              <strong>${pricing ? money(pricing.kpis.revenue ?? 0) : "not priced yet"}</strong>
             </div>
             <div class="totals-row">
-              <span>Discount % (e.g. 30% Agency):</span>
-              <input type="number" min="0" max="100" id="input-discount" class="cell-input cell-num" style="width:84px;padding:6px 10px;" value="${draft.discountPercent}" oninput="recalcUI()" />
+              <span>Guests / nights / rooms:</span>
+              <span>${pricing?.kpis.guests ?? "—"} · ${pricing?.kpis.nights ?? "—"} · ${draft.rooms}</span>
             </div>
-            <div class="totals-row" style="color:var(--amber);">
-              <span>Discount Savings:</span>
-              <span id="ui-discount-amount">-₱0</span>
+            <div class="totals-row">
+              <span>Revenue per guest-night:</span>
+              <span>${pricing?.kpis.rpgn != null ? money(pricing.kpis.rpgn) : "—"}</span>
             </div>
-            <div class="totals-row grand">
-              <span>GRAND TOTAL:</span>
-              <span id="ui-total">₱0</span>
+            <div class="totals-row" style="color:var(--muted);font-size:13.5px;font-weight:600;">
+              <span>The guest's link shows the engine's figure. There is no discount field here on purpose: the only discount in the resort's model is the partner rate, which the engine applies to rooms by itself.</span>
             </div>
           </div>
         </div>
@@ -947,66 +965,168 @@ export function renderHonoQuotationEditorHtml(
       \`).join('');
     }
 
-    function renderTable() {
-      const tbody = document.getElementById('line-items-tbody');
-      tbody.innerHTML = state.lineItems.map((item, idx) => \`
+    /**
+     * The trip review panel: the BffTrip the engine is asked to price, as editable controls.
+     *
+     * Everything here edits state.bffTrip and nothing prints a price — the number comes from the
+     * engine, and a page that also did its own arithmetic would be the second source of truth this
+     * whole screen exists to avoid. The room type, the room each guest sleeps in, the per-day dive
+     * grid and the courses are the four facts a WhatsApp conversation cannot place reliably, and
+     * they are exactly the ones the estimator prices: a deluxe room is ₱11,200 a night against
+     * ₱7,600, a third dive and a night dive are their own lines, and a course is ₱5,500 upwards.
+     *
+     * NOTE for whoever edits this next: every backtick and every dollar-brace below is escaped,
+     * because this whole block is itself inside a TypeScript template literal. An unescaped
+     * backtick anywhere here — including inside a comment like this one — closes the page's own
+     * script tag and breaks the studio silently.
+     */
+    function renderTripReview() {
+      const el = document.getElementById('trip-review');
+      if (!el) return; // a guest session has no review panel
+      const trip = state.bffTrip;
+      if (!trip) {
+        el.innerHTML = '<p style="font-size:14px;color:var(--muted);font-weight:600;">This quotation was not built from a validated trip, so there is nothing to review. Price it with the engine first.</p>';
+        return;
+      }
+
+      const ROOM_TYPES = ['standard', 'deluxe', 'suite'];
+      const COURSES = ['', 'dsd', 'ow', 'aow'];
+      const COURSE_LABELS = { '': '— none —', dsd: 'DSD (Discover Scuba)', ow: 'Open Water', aow: 'Advanced Open Water' };
+      const stayDates = datesInStay(trip.checkIn, trip.checkOut);
+
+      const roomRows = trip.rooms.map((room, i) => \`
         <tr>
+          <td><strong>\${escHtml(room.id || '—')}</strong></td>
           <td>
-            <select class="cell-input" onchange="updateItem(\${idx}, 'category', this.value)">
-              <option value="room" \${item.category==='room'?'selected':''}>🏨 Room</option>
-              <option value="meals" \${item.category==='meals'?'selected':''}>🍽️ Meals</option>
-              <option value="diving" \${item.category==='diving'?'selected':''}>🤿 Diving</option>
-              <option value="transfer" \${item.category==='transfer'?'selected':''}>🚐 Transfer</option>
-              <option value="custom" \${item.category==='custom'?'selected':''}>✨ Custom</option>
+            <select class="cell-input" onchange="setRoomType(\${i}, this.value)">
+              \${ROOM_TYPES.map(t => \`<option value="\${t}" \${room.type === t ? 'selected' : ''}>\${t}</option>\`).join('')}
+            </select>
+          </td>
+          <td>\${escHtml(trip.guests.filter(g => g.roomId === room.id).map(g => g.name).join(', ') || '— nobody —')}</td>
+        </tr>\`).join('');
+
+      const guestRows = trip.guests.map((guest) => \`
+        <tr>
+          <td><strong>\${escHtml(guest.name)}</strong></td>
+          <td>
+            <select class="cell-input" onchange="setGuestRoom('\${escHtml(guest.id)}', this.value)">
+              <option value="" \${guest.roomId ? '' : 'selected'}>— unassigned —</option>
+              \${trip.rooms.map(r => \`<option value="\${escHtml(r.id)}" \${guest.roomId === r.id ? 'selected' : ''}>\${escHtml(r.id)} (\${escHtml(r.type)})\</option>\`).join('')}
             </select>
           </td>
           <td>
-            <input type="text" class="cell-input" value="\${escHtml(item.description)}" oninput="updateItem(\${idx}, 'description', this.value)" />
+            <select class="cell-input" onchange="setGuestCourse('\${escHtml(guest.id)}', this.value)">
+              \${COURSES.map(c => \`<option value="\${c}" \${((guest.courses && guest.courses[0]) || '') === c ? 'selected' : ''}>\${COURSE_LABELS[c]}</option>\`).join('')}
+            </select>
           </td>
-          <td>
-            <input type="number" min="0" step="1" class="cell-input cell-num" value="\${item.quantity}" oninput="updateItem(\${idx}, 'quantity', Number(this.value))" />
-          </td>
-          <td>
-            <input type="text" class="cell-input" value="\${escHtml(item.unitLabel)}" oninput="updateItem(\${idx}, 'unitLabel', this.value)" />
-          </td>
-          <td>
-            <input type="number" min="1" step="1" class="cell-input cell-num" value="\${item.multiplier}" oninput="updateItem(\${idx}, 'multiplier', Number(this.value))" />
-          </td>
-          <td>
-            <input type="number" min="0" step="50" class="cell-input cell-price" value="\${item.unitPrice}" oninput="updateItem(\${idx}, 'unitPrice', Number(this.value))" />
-          </td>
-          <td class="subtotal-cell" id="row-sub-\${idx}">\${fmtMoney(item.subtotal)}</td>
-          <td style="text-align:center;">
-            <button class="btn btn-danger" onclick="removeLineItem(\${idx})" title="Remove row">×</button>
-          </td>
-        </tr>
-      \`).join('');
-      recalcUI();
+          \${stayDates.map(d => {
+            const day = (guest.days && guest.days[d]) || {};
+            return \`<td style="white-space:nowrap;">
+              <label title="Boat dives"><input type="checkbox" \${day.dive ? 'checked' : ''} onchange="setGuestDay('\${escHtml(guest.id)}', '\${d}', 'dive', this.checked)" /> D</label>
+              <label title="Third dive"><input type="checkbox" \${day.third ? 'checked' : ''} onchange="setGuestDay('\${escHtml(guest.id)}', '\${d}', 'third', this.checked)" /> 3</label>
+              <label title="Night dive"><input type="checkbox" \${day.night ? 'checked' : ''} onchange="setGuestDay('\${escHtml(guest.id)}', '\${d}', 'night', this.checked)" /> N</label>
+            </td>\`;
+          }).join('')}
+        </tr>\`).join('');
+
+      el.innerHTML = \`
+        <div style="overflow-x:auto;margin-bottom:16px;">
+          <table class="quote-table">
+            <thead><tr><th style="width:90px;">Room</th><th style="width:150px;">Type</th><th>Guests in this room</th></tr></thead>
+            <tbody>\${roomRows}</tbody>
+          </table>
+        </div>
+        <div style="overflow-x:auto;">
+          <table class="quote-table">
+            <thead><tr>
+              <th style="width:150px;">Guest</th>
+              <th style="width:170px;">Room</th>
+              <th style="width:190px;">Course</th>
+              \${stayDates.map(d => \`<th style="text-align:center;">\${escHtml(dayLabel(d))}<br><span style="font-weight:600;color:var(--muted);">D · 3rd · Night</span></th>\`).join('')}
+            </tr></thead>
+            <tbody>\${guestRows}</tbody>
+          </table>
+        </div>
+        <p style="font-size:13px;color:var(--muted);font-weight:600;margin-top:10px;">
+          D = boat dive, 3 = third dive, N = night dive. Anything changed here reaches the engine only after <strong>Save trip &amp; re-price</strong>.
+        </p>\`;
     }
 
-    function updateItem(idx, field, val) {
-      state.lineItems[idx][field] = val;
-      recalcUI();
+    /** The stay's nights, as the engine's own day keys: check-in day through the night before check-out. */
+    function datesInStay(checkIn, checkOut) {
+      if (!checkIn || !checkOut) return [];
+      const out = [];
+      const start = new Date(checkIn + 'T00:00:00Z');
+      const end = new Date(checkOut + 'T00:00:00Z');
+      for (let d = new Date(start); d < end; d.setUTCDate(d.getUTCDate() + 1)) {
+        out.push(d.toISOString().slice(0, 10));
+      }
+      return out;
     }
 
-    function addLineItem() {
-      state.lineItems.push({
-        id: 'item-' + Date.now(),
-        category: 'custom',
-        description: 'Nitrox Enriched Air Tank Upgrade / Equipment Rental',
-        quantity: 2,
-        unitLabel: 'divers',
-        multiplier: 2,
-        multiplierLabel: 'days',
-        unitPrice: 900,
-        subtotal: 3600
-      });
-      renderTable();
+    function dayLabel(iso) {
+      const d = new Date(iso + 'T00:00:00Z');
+      if (isNaN(d.getTime())) return iso;
+      return d.toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short', timeZone: 'UTC' });
     }
 
-    function removeLineItem(idx) {
-      state.lineItems.splice(idx, 1);
-      renderTable();
+    function setRoomType(index, type) {
+      state.bffTrip.rooms[index].type = type;
+      renderTripReview();
+    }
+
+    function setGuestRoom(guestId, roomId) {
+      const guest = state.bffTrip.guests.find((g) => g.id === guestId);
+      if (guest) guest.roomId = roomId || null;
+      renderTripReview();
+    }
+
+    function setGuestCourse(guestId, course) {
+      const guest = state.bffTrip.guests.find((g) => g.id === guestId);
+      if (guest) guest.courses = course ? [course] : [];
+      renderTripReview();
+    }
+
+    function setGuestDay(guestId, date, kind, on) {
+      const guest = state.bffTrip.guests.find((g) => g.id === guestId);
+      if (!guest) return;
+      guest.days = guest.days || {};
+      const day = Object.assign({ dive: false, third: false, night: false, boatId: null }, guest.days[date] || {});
+      day[kind] = Boolean(on);
+      guest.days[date] = day;
+    }
+
+    async function saveTripAndReprice() {
+      const btn = document.getElementById('btn-save-trip');
+      const out = document.getElementById('trip-edit-out');
+      if (!btn || !out) return;
+      btn.disabled = true;
+      out.style.display = 'block';
+      out.textContent = '⏳ Sending the corrected trip to the pricing engine…';
+      try {
+        const res = await fetch('/v1/quotes/' + encodeURIComponent(state.quoteId) + '/trip?token=' + encodeURIComponent(staffToken()), {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({ trip: state.bffTrip })
+        });
+        const data = await res.json();
+        if (data.ok) {
+          const issues = Array.isArray(data.issues) ? data.issues : [];
+          out.textContent = '✅ Re-priced'
+            + (data.sample ? ' — SAMPLE DATA, not a real quote.' : '.')
+            + (issues.length ? '\\n⚠️ ' + issues.length + ' note(s): ' + issues.map(function (i) { return i.code || i.detail || i; }).join(', ') : '')
+            + '\\nThe approval was dropped with the old trip, so approve again before publishing. Reloading…';
+          window.location.reload();
+          return;
+        }
+        out.textContent = '⚠️ ' + (data.reason || 'failed') + ': ' + (data.detail || data.error || '')
+          + (Array.isArray(data.fields) && data.fields.length ? '\\nfields: ' + data.fields.join(', ') : '')
+          + (Array.isArray(data.issues) ? '\\n' + data.issues.map(function (i) { return (i.code || '') + ' ' + (i.fields || []).join(', '); }).join('\\n') : '');
+      } catch (err) {
+        out.textContent = '⚠️ ' + (err && err.message ? err.message : String(err));
+      } finally {
+        btn.disabled = false;
+      }
     }
 
     function onUrlEdited() {
@@ -1015,25 +1135,10 @@ export function renderHonoQuotationEditorHtml(
       document.getElementById('btn-open-public-quote').href = val;
     }
 
-    function recalcUI() {
-      state.currency = document.getElementById('select-currency').value;
-      state.discountPercent = Math.max(0, Math.min(100, Number(document.getElementById('input-discount').value) || 0));
-      let sub = 0;
-      state.lineItems.forEach((item, idx) => {
-        item.subtotal = Math.round((Number(item.quantity) || 0) * (Number(item.multiplier) || 0) * (Number(item.unitPrice) || 0));
-        sub += item.subtotal;
-        const cell = document.getElementById('row-sub-' + idx);
-        if (cell) cell.textContent = fmtMoney(item.subtotal);
-      });
-      state.subtotalAmount = sub;
-      state.discountAmount = Math.round(sub * (state.discountPercent / 100));
-      state.totalAmount = Math.max(0, sub - state.discountAmount);
-
-      document.getElementById('ui-subtotal').textContent = fmtMoney(state.subtotalAmount);
-      document.getElementById('ui-discount-amount').textContent = '-' + fmtMoney(state.discountAmount);
-      document.getElementById('ui-total').textContent = fmtMoney(state.totalAmount) + ' ' + state.currency;
-
+    /** The status pill. The price itself is the engine's and is drawn server-side, not here. */
+    function renderStatusBadge() {
       const badge = document.getElementById('quote-status-badge');
+      if (!badge) return;
       if (state.status === 'confirmed_by_hono') {
         badge.className = 'status-pill status-confirmed';
         badge.textContent = '✅ Confirmed by Hono & Sent to AI';
@@ -1050,7 +1155,6 @@ export function renderHonoQuotationEditorHtml(
       state.quotationUrl = document.getElementById('input-quotation-url').value.trim() || state.quotationUrl;
       state.staffNotes = document.getElementById('input-staff-notes').value.trim();
       state.phone = document.getElementById('whatsapp-phone-input').value.trim();
-      recalcUI();
       return state;
     }
 
@@ -1066,8 +1170,7 @@ export function renderHonoQuotationEditorHtml(
       const data = await res.json();
       if (data.quotation) {
         state = data.quotation;
-        renderTable();
-        toast.textContent = '✓ Saved on Hono! Customer link & table updated.';
+        toast.textContent = '✓ Saved on Hono!';
         setTimeout(() => { toast.textContent = ''; }, 3500);
       }
     }
@@ -1076,7 +1179,7 @@ export function renderHonoQuotationEditorHtml(
       const btn = document.getElementById('btn-confirm-hono');
       const replyBox = document.getElementById('ai-confirmed-reply-box');
       btn.disabled = true;
-      replyBox.textContent = '🔄 Hono is confirming the edited table & link and sending the Tool Result back to Gemini 3.1 Flash-Lite...';
+      replyBox.textContent = '🔄 Hono is confirming the trip & link and sending the Tool Result back to the model...';
       const payload = gatherPayload();
       try {
         const res = await fetch('/v1/quotes/' + encodeURIComponent(state.quoteId) + '/confirm?token=' + encodeURIComponent(staffToken()), {
@@ -1087,7 +1190,7 @@ export function renderHonoQuotationEditorHtml(
         const data = await res.json();
         if (data.quotation) {
           state = data.quotation;
-          recalcUI();
+          renderStatusBadge();
           replyBox.textContent = data.aiReply || state.aiConfirmedReply;
         }
       } catch (err) {
@@ -1339,7 +1442,8 @@ export function renderHonoQuotationEditorHtml(
     }
 
     renderSidebar();
-    renderTable();
+    renderTripReview();
+    renderStatusBadge();
   </script>
 </body>
 </html>`;

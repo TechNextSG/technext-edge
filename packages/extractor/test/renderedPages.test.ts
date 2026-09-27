@@ -94,3 +94,43 @@ describe("the JavaScript on every rendered page parses", () => {
     expect(html).not.toContain("'\n⚠️ SAMPLE DATA");
   });
 });
+
+/**
+ * The studio prices from the engine and nothing else.
+ *
+ * It used to carry a hand-editable line-item table with its own subtotal/discount arithmetic, which
+ * is a second price for the same trip: staff could type 42,400 into the table while the engine's
+ * answer, the per-guest cards and the guest's link all said something else. The trip review panel
+ * replaced it — corrections go back to the engine as a corrected TRIP.
+ *
+ * This is a guard against the table growing back, because it is the kind of thing that looks
+ * convenient in a demo and is exactly what the customer's own flow exists to stop.
+ */
+describe("the studio has one price, and it is the engine's", () => {
+  it("offers the trip review panel, and no hand-typed price table", async () => {
+    const app = createApp();
+    const quotations = await listQuotations();
+    const html = await (await app.request(`/quotes/${quotations[0]!.quoteId}?token=${STAFF_TOKEN}`)).text();
+
+    // The panel, its save action, and the per-day dive grid's own legend.
+    expect(html).toContain('id="trip-review"');
+    expect(html).toContain("saveTripAndReprice()");
+    expect(html).toContain("D = boat dive, 3 = third dive, N = night dive");
+
+    // The manual table and its arithmetic are gone, elements and handlers alike.
+    expect(html).not.toContain("line-items-tbody");
+    expect(html).not.toContain("input-discount");
+    expect(html).not.toContain("select-currency");
+    expect(html).not.toContain("addLineItem");
+    expect(html).not.toContain("GRAND TOTAL");
+  });
+
+  it("shows the engine's total and says so, sample label included", async () => {
+    const app = createApp();
+    const quotations = await listQuotations();
+    const html = await (await app.request(`/quotes/${quotations[0]!.quoteId}?token=${STAFF_TOKEN}`)).text();
+
+    expect(html).toContain("Engine total");
+    expect(html).toContain("There is no discount field here on purpose");
+  });
+});
