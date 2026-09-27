@@ -1,5 +1,6 @@
 import { randomUUID } from "node:crypto";
 import type { Trip, BffTrip } from "./schema.js";
+import type { StaffTripEdit } from "./tripDiff.js";
 import type { ExtractProvider } from "./provider.js";
 import { getStaffAlerts, diveWindowIsGuessed } from "./questions.js";
 import { buildBffTrip, datesBetweenInclusive } from "./odooHandoff.js";
@@ -106,6 +107,16 @@ export interface HonoQuotationDraft {  quoteId: string;
    * never an extraction result and so has no guest-level facts to send.
    */
   bffTrip?: BffTrip;
+  /**
+   * Every trip correction staff have made to this quotation, oldest first.
+   *
+   * This is the only honest measure of how well the WhatsApp extractor did. A count of "staff
+   * changed nothing" is the number that says the bot's payload was already right; without it, the
+   * only evidence about extraction quality was whoever remembered which quotations they had fixed.
+   * The field NAMES are kept (never values) because that is what turns a percentage into a to-do
+   * list: "roomType corrected in 6 of 10 cases" is actionable, "30% of quotations were edited" is not.
+   */
+  staffEdits?: StaffTripEdit[];
   /**
    * What the pricing engine said, in a shape a page can draw: per-guest cards, the category split,
    * the warnings, and the operational half the Ops Sheet needs.

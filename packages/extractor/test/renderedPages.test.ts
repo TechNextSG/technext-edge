@@ -133,4 +133,16 @@ describe("the studio has one price, and it is the engine's", () => {
     expect(html).toContain("Engine total");
     expect(html).toContain("There is no discount field here on purpose");
   });
+
+  it("counts how often staff had to correct the bot, without naming a guest", async () => {
+    const app = createApp();
+    const quotations = await listQuotations();
+    const html = await (await app.request(`/quotes/${quotations[0]!.quoteId}?token=${STAFF_TOKEN}`)).text();
+
+    // The scorecard is the extractor's only real measure: a quotation that flowed end to end says
+    // the flow worked, not that the bot's payload was already right.
+    expect(html).toContain("Extractor scorecard");
+    expect(html).toContain("unchanged");
+    expect(html).toContain("Field names only");
+  });
 });

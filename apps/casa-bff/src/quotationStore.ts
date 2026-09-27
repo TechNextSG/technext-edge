@@ -225,6 +225,24 @@ export function renderHonoQuotationEditorHtml(
       status: q.status,
     }))
   ).replace(/</g, "\\u003c");
+  // The extractor's scorecard, computed from the records. "Unchanged" means the quotation was
+  // priced from a trip staff never corrected — every other quotation either needed a fix or was
+  // never reviewed, and the two are different things, so an edited one is counted as edited even
+  // if the edit was later reverted (the diff is recorded per save).
+  const reviewedQuotes = allQuotes.filter((q) => q.bffTrip);
+  const fieldCounts = new Map<string, number>();
+  for (const q of reviewedQuotes) {
+    for (const edit of q.staffEdits ?? []) {
+      for (const field of edit.fields) fieldCounts.set(field, (fieldCounts.get(field) ?? 0) + 1);
+    }
+  }
+  const quotationsNeedingNoEdit = {
+    all: reviewedQuotes.length,
+    unchanged: reviewedQuotes.filter((q) => (q.staffEdits ?? []).length === 0).length,
+    // Most-corrected first, then alphabetically, so equal counts cannot reorder between renders.
+    fieldCounts: [...fieldCounts.entries()].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0])),
+  };
+
   // What each demo role is allowed to see, per the field guide's "vai người gọi" table. Only
   // `guest` is real today (Odoo decides the role from the API key); the other two describe what
   // the view becomes once those keys exist. Nothing here fakes cost or profit data.
@@ -701,6 +719,33 @@ export function renderHonoQuotationEditorHtml(
   <div class="container">
     <!-- Sidebar: the quotations a staff member is reviewing -->
     <aside>
+      ${
+        // The only real measure of the extractor, and the reason the trip review records a diff.
+        // Read from the records rather than counted in a page: a reload, or a different staff
+        // member's browser, must show the same numbers.
+        quotationsNeedingNoEdit.all > 0
+          ? `<div class="card">
+        <div class="card-title"><span>🎯 Extractor scorecard</span></div>
+        <p style="font-size:14px;color:var(--muted);margin-bottom:10px;">Of the quotations the WhatsApp bot prepared, how many did staff price without correcting the trip?</p>
+        <div style="display:flex;align-items:baseline;gap:10px;">
+          <strong style="font-size:28px;color:var(--accent);">${quotationsNeedingNoEdit.unchanged}/${quotationsNeedingNoEdit.all}</strong>
+          <span style="font-size:14px;font-weight:700;color:var(--muted);">unchanged</span>
+        </div>
+        ${
+          quotationsNeedingNoEdit.fieldCounts.length > 0
+            ? `<div style="margin-top:10px;font-size:13px;color:var(--muted);line-height:1.6;">
+                 <strong style="color:var(--text);">Most-corrected fields:</strong><br>
+                 ${quotationsNeedingNoEdit.fieldCounts
+                   .slice(0, 5)
+                   .map(([field, n]) => `${esc(field)} × ${n}`)
+                   .join("<br>")}
+               </div>`
+            : ""
+        }
+        <p style="font-size:12.5px;color:var(--muted);margin-top:10px;">Field names only — no guest data. A correction here means the bot's payload was not already right.</p>
+      </div>`
+          : ""
+      }
       <div class="card">
         <div class="card-title">
           <span>📥 All Quotations</span>

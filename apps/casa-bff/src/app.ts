@@ -28,6 +28,7 @@ import {
   recalculateQuotationTotals,
   validateBffTripPrecheck,
   normalizePricing,
+  diffBffTrip,
   synthesizeConfirmedQuotationReply,
   type ConversationTurn,
   type ExtractProvider,
@@ -1527,6 +1528,15 @@ export function createApp(options: AppOptions = {}) {
     }
 
     const recorded = estimateToRecord(existing, result);
+    // What staff actually changed, as field paths. This is the measurement of the extractor the
+    // pipeline never had: a quotation that was priced and published says the FLOW worked, not that
+    // the bot's payload was right. Recorded here rather than in the studio page so a correction is
+    // counted even if the tab is closed before anything renders.
+    const changedFields = diffBffTrip(existing.bffTrip, parsed.data);
+    const staffEdits = [...(existing.staffEdits ?? [])];
+    if (changedFields.length > 0) {
+      staffEdits.push({ at: new Date().toISOString(), fields: changedFields });
+    }
     // One save, and it is the edited trip that goes in: the price, the scenario id the engine just
     // answered with, and the corrected trip all have to move together, or the quotation ends up
     // holding one scenario's price beside another scenario's id.
@@ -1538,6 +1548,7 @@ export function createApp(options: AppOptions = {}) {
       ...existing,
       ...recorded,
       bffTrip: parsed.data,
+      staffEdits,
       status: "pending_hono_review",
       confirmedAt: undefined,
       confirmedBy: undefined,
@@ -1547,6 +1558,8 @@ export function createApp(options: AppOptions = {}) {
     return c.json({
       ok: true,
       editedAt: new Date().toISOString(),
+      /** The field paths this edit changed, so the page can say what it did rather than "done". */
+      changedFields,
       issues: [...precheck, ...result.issues.map((i) => ({ level: "warn", source: "estimator", detail: i }))],
       computedAt: result.computedAt,
       sample: result.sample,

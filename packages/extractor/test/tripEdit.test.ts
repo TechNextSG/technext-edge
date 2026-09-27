@@ -248,6 +248,60 @@ describe("editing the trip behind a quotation", () => {
     expect(body.pricing.kpis.revenue).toBe(38400);
   });
 
+  it("records what staff changed, as field paths — the only measure of the extractor", async () => {
+    const draft = await pricedQuote("QT-EDIT-8");
+    const app = createApp();
+
+    // A correction across the things the review panel can touch: the room type, a guest moved into
+    // a second room (which has to be created first — the precheck refuses a guest pointing at a room
+    // that does not exist, which is the guard working), a course, and two extra dives.
+    // Deep-cloned first, because the studio sends its copy over the wire: mutating the stored
+    // object in place would make the route compare a trip against itself and report no change.
+    const edited = structuredClone(withRoomType(draft.bffTrip!, "deluxe"));
+    edited.rooms.push({ id: "r2", type: "deluxe", name: null });
+    edited.guests[1]!.roomId = "r2";
+    edited.guests[0]!.courses = ["dsd"];
+    edited.guests[0]!.days["2026-11-21"] = { dive: true, third: true, night: true, boatId: null };
+
+    const res = await editTrip(app, draft.quoteId, edited);
+    expect(res.status).toBe(200);
+    const body = await res.json();
+
+    // Field PATHS, not values: the point is which facts the bot got wrong, and a metric that named
+    // guests would be a metric full of guest names.
+    expect(body.changedFields).toEqual([
+      // An empty courses list becoming one course is both a length change and a first element; the
+      // pair is what tells "staff added a course" apart from "staff swapped a course".
+      "guests[0].courses.length",
+      "guests[0].courses[0]",
+      "guests[0].days.2026-11-21.night",
+      "guests[0].days.2026-11-21.third",
+      "guests[1].roomId",
+      "rooms.length",
+      "rooms[0].type",
+      // A room that was not there before reads as the room, not as each of its fields.
+      "rooms[1]",
+    ]);
+
+    const stored = await (await app.request(`/v1/quotes/${draft.quoteId}?token=${VERIFY_TOKEN}`)).json();
+    expect(stored.quotation.staffEdits).toHaveLength(1);
+    expect(stored.quotation.staffEdits[0].fields).toContain("rooms[0].type");
+    expect(stored.quotation.staffEdits[0].at).toEqual(expect.any(String));
+  });
+
+  it("records nothing when staff re-price a trip they did not change", async () => {
+    const draft = await pricedQuote("QT-EDIT-9");
+    const app = createApp();
+
+    // Same trip, saved again: not an edit, and counting it as one would make the scorecard lie.
+    const res = await editTrip(app, draft.quoteId, draft.bffTrip!);
+    expect(res.status).toBe(200);
+    expect((await res.json()).changedFields).toEqual([]);
+
+    const stored = await (await app.request(`/v1/quotes/${draft.quoteId}?token=${VERIFY_TOKEN}`)).json();
+    expect(stored.quotation.staffEdits).toEqual([]);
+  });
+
   it("keeps the scenario id and cookie an edit answered with, so publish still addresses it", async () => {
     const draft = await pricedQuote("QT-EDIT-7");
     const fetchImpl = vi.fn(async (url: string, init: RequestInit) => {
