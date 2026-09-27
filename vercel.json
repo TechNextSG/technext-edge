@@ -34,6 +34,7 @@
     { "source": "/quotes", "destination": "/api" },
     { "source": "/quotes/:id", "destination": "/api" },
     { "source": "/quotes/:id/ops", "destination": "/api" },
+    { "source": "/logout", "destination": "/api" },
     { "source": "/login", "destination": "/api" },
     { "source": "/login/:path*", "destination": "/api" },
     { "source": "/handoff", "destination": "/api" },
