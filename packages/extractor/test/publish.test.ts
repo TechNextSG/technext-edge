@@ -1,0 +1,290 @@
+// Publishing is the moment a price becomes a guest's. It is the replacement for the bot appending
+// its own link, so these tests are about what it refuses at least as much as what it does.
+//
+// Their API is also session-scoped — `POST /api/estimates` sets `ubg_sid` and the later calls only
+// answer for the session that owns the scenario — so the cookie's capture and replay are pinned
+// here too. Getting that wrong is a 404 for a draft that exists, which is the failure the customer's
+// own `docs/integration/schema.md` §4 warns about.
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { createApp } from "../../../apps/casa-bff/src/app.js";
+import { createEstimatorClient } from "../../../apps/casa-bff/src/estimatorClient.js";
+import { createSimulatedEstimator } from "../../../apps/casa-bff/src/simulatedEstimator.js";
+import { buildHonoQuotationDraft } from "../../../packages/extractor/src/quotationTool.js";
+import { saveQuotationDraft } from "../../../apps/casa-bff/src/quotationStore.js";
+import { buildBffTrip } from "../../../packages/extractor/src/odooHandoff.js";
+import type { Trip } from "../../../packages/extractor/src/schema.js";
+
+const VERIFY_TOKEN = "publish-token";
+const STAFF = `?token=${VERIFY_TOKEN}`;
+
+function sampleTrip(): Trip {
+  const f = <T,>(value: T | null, state = "stated") => ({ value, state, evidence: null });
+  return {
+    language: f("en", "default"),
+    contactName: f("Ana"),
+    checkIn: f("2026-11-20"),
+    checkOut: f("2026-11-22"),
+    nights: f(2),
+    guests: f(2),
+    rooms: f(1),
+    meals: f("full_board"),
+    transport: f(false),
+    guestType: f("retail", "default"),
+    transportType: f("none"),
+    diver: f(false),
+    diveNotes: f(null, "missing"),
+    specialRequests: f(null, "missing"),
+    guestNames: f([]),
+  } as Trip;
+}
+
+/** A stored quotation with a trip and a recorded scenario, as `sync-estimate` would leave it. */
+async function pricedQuote(id: string, status: "pending_hono_review" | "confirmed_by_hono" = "confirmed_by_hono") {
+  const draft = buildHonoQuotationDraft(sampleTrip(), "https://example.test", id);
+  return saveQuotationDraft({
+    ...draft,
+    status,
+    bffTrip: buildBffTrip(sampleTrip()),
+    pricing: {
+      source: "simulated",
+      sample: true,
+      mode: "fixture",
+      role: "guest",
+      computedAt: new Date().toISOString(),
+      guests: [],
+      catRev: {},
+      kpis: { revenue: null, guests: null, nights: null, discounts: null, rpgn: null },
+      warnings: [],
+      retail: null,
+      ops: null,
+    },
+    estimator: { id: `sim-${id}`, cookie: `ubg_sid=sim-${id}`, seq: null, guestUrl: null, sharedAt: null },
+  });
+}
+
+function publish(app: ReturnType<typeof createApp>, id: string, body: unknown = {}, token = VERIFY_TOKEN) {
+  return app.request(`/v1/quotes/${id}/publish?token=${token}`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify(body),
+  });
+}
+
+beforeEach(() => {
+  vi.stubEnv("WHATSAPP_VERIFY_TOKEN", VERIFY_TOKEN);
+});
+
+afterEach(() => {
+  vi.unstubAllEnvs();
+  vi.restoreAllMocks();
+});
+
+describe("publishing a guest link", () => {
+  it("needs a session", async () => {
+    const draft = await pricedQuote("QT-PUB-1");
+    const app = createApp();
+    expect((await app.request(`/v1/quotes/${draft.quoteId}/publish`, { method: "POST" })).status).toBe(401);
+  });
+
+  it("refuses a quotation staff have not approved", async () => {
+    const draft = await pricedQuote("QT-PUB-2", "pending_hono_review");
+    const res = await publish(createApp(), draft.quoteId);
+
+    expect(res.status).toBe(409);
+    expect((await res.json()).reason).toBe("not_approved");
+  });
+
+  it("refuses to publish a sample price until a person says they checked it", async () => {
+    const draft = await pricedQuote("QT-PUB-3");
+    const app = createApp();
+
+    const refused = await publish(app, draft.quoteId);
+    expect(refused.status).toBe(409);
+    expect((await refused.json()).reason).toBe("sample_not_acknowledged");
+
+    // Acknowledged: a human has looked at a captured price and is publishing it deliberately.
+    const allowed = await publish(app, draft.quoteId, { acknowledgeSample: true });
+    expect(allowed.status).toBe(200);
+    const body = await allowed.json();
+    expect(body.ok).toBe(true);
+    expect(body.seq).toBe(1);
+    expect(body.sample).toBe(true);
+  });
+
+  it("refuses a quotation nobody has priced", async () => {
+    const draft = buildHonoQuotationDraft(sampleTrip(), "https://example.test", "QT-PUB-4");
+    const stored = await saveQuotationDraft({
+      ...draft,
+      status: "confirmed_by_hono",
+      bffTrip: buildBffTrip(sampleTrip()),
+      estimator: null,
+    });
+
+    const res = await publish(createApp(), stored.quoteId, { acknowledgeSample: true });
+    expect(res.status).toBe(409);
+    expect((await res.json()).reason).toBe("not_priced");
+  });
+
+  it("publishes once, and refuses the second attempt", async () => {
+    const draft = await pricedQuote("QT-PUB-5");
+    const app = createApp();
+
+    const first = await publish(app, draft.quoteId, { acknowledgeSample: true });
+    expect(first.status).toBe(200);
+
+    // Their link always resolves to the newest saved revision, so a second publish would silently
+    // change what a guest is already holding. Their Q-005.
+    const second = await publish(app, draft.quoteId, { acknowledgeSample: true });
+    expect(second.status).toBe(409);
+    expect((await second.json()).reason).toBe("already_shared");
+  });
+
+  it("records the frozen revision and the share time on the quotation", async () => {
+    const draft = await pricedQuote("QT-PUB-6");
+    const app = createApp();
+    await publish(app, draft.quoteId, { acknowledgeSample: true });
+
+    const stored = await (await app.request(`/v1/quotes/${draft.quoteId}${STAFF}`)).json();
+    expect(stored.quotation.estimator.seq).toBe(1);
+    expect(stored.quotation.estimator.sharedAt).toEqual(expect.any(String));
+    // Their cookie is recorded but must never reach a page.
+    expect(stored.quotation.estimator.cookie).toContain("ubg_sid=");
+  });
+
+  it("joins their relative link to the host we called, and does not invent one when there is none", async () => {
+    const draft = await pricedQuote("QT-PUB-7");
+    const fetchImpl = vi.fn(async (url: string) => {
+      if (String(url).endsWith("/commit")) {
+        return new Response(JSON.stringify({ seq: 3 }), { status: 200, headers: { "content-type": "application/json" } });
+      }
+      return new Response(JSON.stringify({ url: "/quote/tok-abc", expiresAt: null }), {
+        status: 200,
+        headers: { "content-type": "application/json" },
+      });
+    });
+    const app = createApp({
+      estimator: createEstimatorClient({ baseUrl: "https://quotes.customer.test", fetchImpl: fetchImpl as never }),
+    });
+
+    const res = await publish(app, draft.quoteId, { acknowledgeSample: true });
+    const body = await res.json();
+
+    expect(res.status).toBe(200);
+    expect(body.guestUrl).toBe("https://quotes.customer.test/quote/tok-abc");
+    expect(body.seq).toBe(3);
+  });
+});
+
+describe("the estimated session cookie", () => {
+  it("is captured from the response and replayed on every later call about that quotation", async () => {
+    const seen: Array<{ url: string; cookie: string | null }> = [];
+    const fetchImpl = vi.fn(async (url: string, init: RequestInit) => {
+      const headers = (init.headers ?? {}) as Record<string, string>;
+      seen.push({ url: String(url), cookie: headers.cookie ?? null });
+      if (String(url).endsWith("/commit")) {
+        return new Response(JSON.stringify({ seq: 1 }), { status: 200, headers: { "content-type": "application/json" } });
+      }
+      if (String(url).endsWith("/share")) {
+        return new Response(JSON.stringify({ url: "/quote/tok" }), { status: 200, headers: { "content-type": "application/json" } });
+      }
+      return new Response(JSON.stringify({ id: "sc-1", model: {}, issues: [] }), {
+        status: 201,
+        headers: { "content-type": "application/json", "set-cookie": "ubg_sid=sc-1; Path=/; HttpOnly" },
+      });
+    });
+
+    const client = createEstimatorClient({ baseUrl: "https://quotes.customer.test", fetchImpl: fetchImpl as never });
+    const trip = buildBffTrip(sampleTrip());
+
+    const first = await client.sendEstimate(trip);
+    expect(first.ok).toBe(true);
+    if (!first.ok) return;
+    // Attributes are stripped: replaying `Path=…; HttpOnly` would send them as part of the value.
+    expect(first.sessionCookie).toBe("ubg_sid=sc-1");
+
+    const session = { id: first.id ?? "sc-1", cookie: first.sessionCookie };
+    await client.commit(session, trip);
+    const shared = await client.share(session);
+
+    // Found by URL, not by position: `sendEstimate` also probes their `/api/health` for the sample
+    // label, so the calls are not one-per-line in the mock's log.
+    const estimateCall = seen.find((s) => s.url.endsWith("/api/estimates"));
+    const commitCall = seen.find((s) => s.url.endsWith("/commit"));
+    const shareCall = seen.find((s) => s.url.endsWith("/share"));
+
+    // The first call is a new session and must not carry a cookie; the next two must.
+    expect(estimateCall!.cookie).toBeNull();
+    expect(commitCall!.cookie).toBe("ubg_sid=sc-1");
+    expect(shareCall!.cookie).toBe("ubg_sid=sc-1");
+
+    expect(shared.ok).toBe(true);
+    if (!shared.ok) return;
+    // Their `url` is kept relative: only the caller knows which host the guest should be sent to.
+    expect(shared.url).toBe("/quote/tok");
+  });
+
+  it("maps their 409 on share to the refusal it is, rather than minting a link of our own", async () => {
+    const fetchImpl = vi.fn(
+      async () =>
+        new Response(JSON.stringify({ error: "save first", reason: "no-snapshot" }), {
+          status: 409,
+          headers: { "content-type": "application/json" },
+        }),
+    );
+    const client = createEstimatorClient({ baseUrl: "https://quotes.customer.test", fetchImpl: fetchImpl as never });
+
+    const res = await client.share({ id: "sc-1", cookie: "ubg_sid=sc-1" });
+    expect(res.ok).toBe(false);
+    if (res.ok) return;
+    expect(res.reason).toBe("no_snapshot");
+  });
+
+  it("will not call their commit or share without a scenario id", async () => {
+    const fetchImpl = vi.fn(async () => new Response("{}", { status: 200 }));
+    const client = createEstimatorClient({ baseUrl: "https://quotes.customer.test", fetchImpl: fetchImpl as never });
+
+    const commit = await client.commit({ id: null, cookie: null }, buildBffTrip(sampleTrip()));
+    expect(commit.ok).toBe(false);
+    const share = await client.share({ id: null, cookie: null });
+    expect(share.ok).toBe(false);
+    // Nothing left the process — there is no scenario to address.
+    expect(fetchImpl).not.toHaveBeenCalled();
+  });
+});
+
+describe("the simulated engine's publish sequence", () => {
+  it("refuses to share before anything is committed, the way their route does", async () => {
+    const port = createSimulatedEstimator();
+    const trip = buildBffTrip(sampleTrip());
+    const priced = await port.sendEstimate(trip);
+    expect(priced.ok).toBe(true);
+    if (!priced.ok) return;
+    const session = { id: priced.id, cookie: priced.sessionCookie };
+
+    const early = await port.share(session);
+    expect(early.ok).toBe(false);
+    if (early.ok) return;
+    expect(early.reason).toBe("no_snapshot");
+
+    const committed = await port.commit(session, trip);
+    expect(committed.ok).toBe(true);
+    const shared = await port.share(session);
+    expect(shared.ok).toBe(true);
+    if (!shared.ok) return;
+    expect(shared.url).toContain("/quote/sim-");
+  });
+
+  it("re-pricing keeps the scenario and the session, rather than starting a second one", async () => {
+    const port = createSimulatedEstimator();
+    const trip = buildBffTrip(sampleTrip());
+    const first = await port.sendEstimate(trip);
+    expect(first.ok).toBe(true);
+    if (!first.ok) return;
+
+    const second = await port.sendEstimate(trip, { id: first.id, cookie: first.sessionCookie });
+    expect(second.ok).toBe(true);
+    if (!second.ok) return;
+    expect(second.id).toBe(first.id);
+    expect(second.sessionCookie).toBe(first.sessionCookie);
+  });
+});

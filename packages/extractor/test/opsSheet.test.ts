@@ -140,19 +140,18 @@ describe("the studio draws the engine's answer", () => {
     expect(html).toContain(`/quotes/${draft.quoteId}/ops`);
   });
 
-  it("says which copy it is — live working copy here, latest version there — without claiming a frozen one", async () => {
-    // Our guest link reads the stored record, so it is NOT a snapshot: staff editing the quotation
-    // changes what an already-sent link shows. Saying "frozen" would be a promise the system does
-    // not keep, which is why the wording is asserted rather than left to whoever edits the page.
+  it("calls itself the live working copy, because there is no frozen one", async () => {
+    // Our stored record is not a snapshot, so staff editing a quotation changes what an already-sent
+    // link shows — and saying "frozen" would promise something the system does not do. The
+    // guest-facing half of that wording now lives in the customer's app; what this service still
+    // owns is the studio's own label, and the fact that it serves no guest page at all.
     const { app, draft } = await pricedQuote("QT-OPS-9");
 
     const studio = await (await app.request(`/quotes/${draft.quoteId}?token=${VERIFY_TOKEN}`)).text();
     expect(studio).toContain("live working copy");
     expect(studio).toContain("no frozen version yet");
 
-    const guest = await (await app.request(`/q/${draft.slug}`)).text();
-    expect(guest).toContain("latest version of your quotation");
-    expect(guest).not.toContain("frozen");
+    expect((await app.request(`/q/${draft.slug}`)).status).toBe(410);
   });
 
   it("marks the page with the role it was opened as, which is what gates the staff actions", async () => {    const draft = await storedQuote("QT-OPS-8");

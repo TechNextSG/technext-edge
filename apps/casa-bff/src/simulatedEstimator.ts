@@ -46,9 +46,12 @@ import {
   type RoomType,
 } from "../../../packages/extractor/src/rates.js";
 import type {
+  CommitResult,
   EstimateSendResult,
   EstimatorHealth,
   EstimatorPort,
+  EstimatorSession,
+  ShareResult,
   SubmitInput,
   SubmitResult,
 } from "./estimatorPort.js";
@@ -463,7 +466,13 @@ export function createSimulatedEstimator(options: SimulatedEstimatorOptions = {}
   const now = options.now ?? (() => new Date());
   const behaviour = options.submitBehaviour ?? "confirmed";
 
-  async function sendEstimate(trip: BffTrip | null | undefined): Promise<EstimateSendResult> {
+  // The one piece of state their fixture keeps in a database: how many times a scenario has been
+  // saved, and whether it has been committed at all. Held per port instance, which is the honest
+  // scope for a simulation — it exists so the commit → share *sequence* can be exercised, including
+  // the `no-snapshot` refusal a share gets for a quotation nobody has saved.
+  const committed = new Map<string, number>();
+
+  async function sendEstimate(trip: BffTrip | null | undefined, session?: EstimatorSession): Promise<EstimateSendResult> {
     if (!trip) {
       return {
         ok: false,
@@ -474,21 +483,47 @@ export function createSimulatedEstimator(options: SimulatedEstimatorOptions = {}
       };
     }
     const envelope = buildSimulatedEnvelope(trip);
+    // Re-pricing an existing scenario keeps its id and its session, which is what their BFF does:
+    // the draft is the session's, and a second compute is a PATCH of it, not a new enquiry.
+    const id = session?.id ?? `sim-${randomUUID()}`;
     return {
       ok: true,
       status: 201,
-      id: `sim-${randomUUID()}`,
+      id,
       role: envelope.role,
       issues: [],
       computedAt: now().toISOString(),
       model: envelope.model,
       // Present for a partner session, null for retail — the same rule their fixture follows.
       retailModel: envelope.retail_model,
+      // Their `ubg_sid`, in their format, so the caller records and replays a real-looking cookie.
+      sessionCookie: session?.cookie ?? `ubg_sid=${id}`,
       // Both labels, always. A simulated price presented as a live one is the one failure this
       // whole port exists to make impossible.
       sample: true,
       mode: "fixture",
     };
+  }
+
+  async function commit(session: EstimatorSession, _trip: BffTrip): Promise<CommitResult> {
+    if (!session.id) {
+      return { ok: false, reason: "rejected", detail: "no scenario id on this quotation to commit" };
+    }
+    const seq = (committed.get(session.id) ?? 0) + 1;
+    committed.set(session.id, seq);
+    return { ok: true, seq, computedAt: now().toISOString() };
+  }
+
+  async function share(session: EstimatorSession): Promise<ShareResult> {
+    if (!session.id) {
+      return { ok: false, reason: "rejected", detail: "no scenario id on this quotation to share" };
+    }
+    // Their rule, reproduced because it is the one that stops a link to nothing: a quotation with
+    // no saved revision has nothing to point at, and their route answers 409 `no-snapshot`.
+    if ((committed.get(session.id) ?? 0) === 0) {
+      return { ok: false, reason: "no_snapshot", detail: "save the quotation before sharing it" };
+    }
+    return { ok: true, url: `/quote/sim-${session.id}`, expiresAt: null };
   }
 
   async function submit(_input: SubmitInput): Promise<SubmitResult> {
@@ -510,5 +545,5 @@ export function createSimulatedEstimator(options: SimulatedEstimatorOptions = {}
     return { reachable: true, mode: "fixture" };
   }
 
-  return { kind: "simulated", sendEstimate, submit, checkHealth };
+  return { kind: "simulated", sendEstimate, commit, share, submit, checkHealth };
 }

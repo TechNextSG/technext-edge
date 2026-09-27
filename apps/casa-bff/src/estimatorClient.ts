@@ -29,8 +29,12 @@
  */
 import type { BffTrip } from "../../../packages/extractor/src/schema.js";
 import type {
+  CommitResult,
   EstimateSendResult,
+  EstimatorFailure,
   EstimatorHealth,
+  EstimatorSession,
+  ShareResult,
   SubmitInput,
   SubmitResult,
 } from "./estimatorPort.js";
@@ -52,6 +56,28 @@ export const DEFAULT_ESTIMATOR_BASE_URL = "http://127.0.0.1:8787";
 
 /** One compute is synchronous on their side; fixture mode answers in ~1ms, Odoo in ~8s. */
 const DEFAULT_TIMEOUT_MS = Number(process.env.ESTIMATOR_TIMEOUT_MS ?? 12_000);
+
+/** The headers for one call about one quotation: JSON, plus their session cookie when we hold one. */
+function sessionHeaders(session?: EstimatorSession | null): Record<string, string> {
+  const headers: Record<string, string> = { "content-type": "application/json" };
+  if (session?.cookie) headers.cookie = session.cookie;
+  return headers;
+}
+
+/**
+ * The `name=value` half of the first `Set-Cookie` on a response, or null.
+ *
+ * The attributes are stripped because we replay this with `fetch`, which runs no cookie jar:
+ * sending `Path`, `HttpOnly`, `Expires` or `SameSite` back would send them as part of the value.
+ * `getSetCookie()` is the multi-cookie accessor; `get("set-cookie")` is the fallback for a runtime
+ * that does not have it.
+ */
+function readSetCookie(res: Response): string | null {
+  const all = typeof res.headers.getSetCookie === "function" ? res.headers.getSetCookie() : [];
+  const raw = all[0] ?? res.headers.get("set-cookie") ?? "";
+  const pair = raw.split(";")[0]?.trim() ?? "";
+  return pair.includes("=") ? pair : null;
+}
 
 export interface EstimatorClientOptions {
   baseUrl?: string;
@@ -115,7 +141,10 @@ export function createEstimatorClient(options: EstimatorClientOptions = {}) {
     }
   }
 
-  async function sendEstimate(trip: BffTrip | null | undefined): Promise<EstimateSendResult> {
+  async function sendEstimate(
+    trip: BffTrip | null | undefined,
+    session?: EstimatorSession,
+  ): Promise<EstimateSendResult> {
     if (!trip) {
       return {
         ok: false,
@@ -141,7 +170,7 @@ export function createEstimatorClient(options: EstimatorClientOptions = {}) {
     try {
       res = await doFetch(`${baseUrl}${ESTIMATE_PATH}`, {
         method: "POST",
-        headers: { "content-type": "application/json" },
+        headers: sessionHeaders(session),
         body: buildEstimateRequest(trip).body,
         signal: AbortSignal.timeout(timeoutMs),
       });
@@ -182,6 +211,10 @@ export function createEstimatorClient(options: EstimatorClientOptions = {}) {
         model: parsed.model,
         // Their name for it. Null is a real answer — a retail session gets no comparison model.
         retailModel: parsed.retail_model,
+        // Captured on the way through, because it is the only moment their BFF hands it over. A
+        // call that carries an existing session gets it echoed back, so this is never null once a
+        // quotation has been priced at least once against a reachable BFF.
+        sessionCookie: readSetCookie(res) ?? session?.cookie ?? null,
         sample: parsed.sample === true || mode === "fixture",
         mode,
       };
@@ -198,6 +231,86 @@ export function createEstimatorClient(options: EstimatorClientOptions = {}) {
       detail,
       fields,
     };
+  }
+
+  /**
+   * One authenticated POST about an existing scenario, with the failure mapping shared by `commit`
+   * and `share`.
+   *
+   * Their two refusals mean different things and are kept apart: `409` is "there is nothing saved
+   * to point at yet" (a state the caller can fix by committing), while `422` means we sent
+   * something their `fillTrip` rejected, which is a defect on this side.
+   */
+  async function postToScenario(
+    session: EstimatorSession,
+    suffix: string,
+    body: string,
+  ): Promise<
+    | { ok: true; parsed: Record<string, unknown> }
+    | { ok: false; reason: EstimatorFailure; detail: string }
+  > {
+    const baseUrl = options.baseUrl?.replace(/\/+$/, "") ?? estimatorBaseUrl();
+    if (!baseUrl) return { ok: false, reason: "not_configured", detail: "ESTIMATOR_BASE_URL is not set" };
+    if (!session.id) {
+      return { ok: false, reason: "not_configured", detail: "this quotation has no scenario id yet — price it first" };
+    }
+
+    let res: Response;
+    try {
+      res = await doFetch(`${baseUrl}${ESTIMATE_PATH}/${encodeURIComponent(session.id)}${suffix}`, {
+        method: "POST",
+        headers: sessionHeaders(session),
+        body,
+        signal: AbortSignal.timeout(timeoutMs),
+      });
+    } catch (err) {
+      const aborted = err instanceof Error && (err.name === "TimeoutError" || err.name === "AbortError");
+      return {
+        ok: false,
+        reason: aborted ? "timeout" : "unreachable",
+        detail: aborted
+          ? `their BFF did not answer within ${timeoutMs}ms`
+          : err instanceof Error
+            ? err.message
+            : String(err),
+      };
+    }
+
+    const text = await res.text();
+    let parsed: Record<string, unknown> = {};
+    try {
+      parsed = JSON.parse(text) as Record<string, unknown>;
+    } catch {
+      // Leave `parsed` empty; the raw text becomes the detail below.
+    }
+    const detail = typeof parsed.error === "string" ? parsed.error : text.slice(0, 300) || `HTTP ${res.status}`;
+
+    if (res.status === 200 || res.status === 201) return { ok: true, parsed };
+    if (res.status === 409) return { ok: false, reason: "no_snapshot", detail };
+    if (res.status === 422) return { ok: false, reason: "rejected", detail };
+    return { ok: false, reason: "unexpected", detail };
+  }
+
+  /** Freeze this quotation as a revision. Their `POST /api/estimates/:id/commit`. */
+  async function commit(session: EstimatorSession, _trip: BffTrip): Promise<CommitResult> {
+    const out = await postToScenario(session, "/commit", "{}");
+    if (!out.ok) return out;
+    return {
+      ok: true,
+      seq: typeof out.parsed.seq === "number" ? out.parsed.seq : 0,
+      computedAt: typeof out.parsed.computedAt === "string" ? out.parsed.computedAt : null,
+    };
+  }
+
+  /** Mint the guest link for a committed revision. Their `POST /api/estimates/:id/share`. */
+  async function share(session: EstimatorSession): Promise<ShareResult> {
+    const out = await postToScenario(session, "/share", "{}");
+    if (!out.ok) return out;
+    const url = typeof out.parsed.url === "string" ? out.parsed.url : null;
+    // Their route answers `{url}` and nothing else useful; a 200 without one is a contract change,
+    // and guessing a link shape here would send a guest somewhere invented.
+    if (!url) return { ok: false, reason: "unexpected", detail: "their share answered without a url" };
+    return { ok: true, url, expiresAt: typeof out.parsed.expiresAt === "string" ? out.parsed.expiresAt : null };
   }
 
   /**
@@ -255,7 +368,7 @@ export function createEstimatorClient(options: EstimatorClientOptions = {}) {
     try {
       res = await doFetch(`${baseUrl}${ESTIMATE_PATH}/${encodeURIComponent(input.estimatorId)}/submit`, {
         method: "POST",
-        headers: { "content-type": "application/json" },
+        headers: sessionHeaders({ id: input.estimatorId, cookie: input.estimatorCookie ?? null }),
         body: JSON.stringify({ seq: input.estimatorSeq, contact: input.contact }),
         // Their own contract: 20s and no retries (spec §8). A retried booking is a second folio.
         signal: AbortSignal.timeout(Math.max(timeoutMs, 20_000)),
@@ -305,5 +418,13 @@ export function createEstimatorClient(options: EstimatorClientOptions = {}) {
   // guest link. Our guest link is `/q/:slug`, minted by our own draft store, so wiring theirs would
   // mean two guest links for one enquiry. `submit` above is the one part of that group the booking
   // flow genuinely needs; revisit commit/share only if the guest-facing link becomes theirs.
-  return { kind: "remote" as const, sendEstimate, submit, checkHealth, baseUrl: options.baseUrl ?? estimatorBaseUrl() };
+  return {
+    kind: "remote" as const,
+    sendEstimate,
+    commit,
+    share,
+    submit,
+    checkHealth,
+    baseUrl: options.baseUrl ?? estimatorBaseUrl(),
+  };
 }

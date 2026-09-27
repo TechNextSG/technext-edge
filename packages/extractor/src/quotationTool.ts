@@ -121,6 +121,32 @@ export interface HonoQuotationDraft {  quoteId: string;
    * able to tell those apart before offering the button again.
    */
   submission?: QuotationSubmission | null;
+  /**
+   * What we hold on the customer's own quotation app for THIS quotation.
+   *
+   * Their API is session-scoped: `POST /api/estimates` mints a scenario and sets an `ubg_sid`
+   * cookie, and `commit` / `share` / `submit` are only answered for the session that owns it. So
+   * the id and the cookie have to be kept together, next to the draft, or the second call about a
+   * quotation is a 404 for a draft that exists.
+   *
+   * `guestUrl` is the link the customer's app minted, and it is the ONLY link a guest is ever sent
+   * once the bot stops publishing its own — see `sharedAt`, which is also what locks the quotation
+   * against further edits (their link always resolves to the latest saved revision).
+   */
+  estimator?: QuotationEstimatorState | null;
+}
+
+export interface QuotationEstimatorState {
+  /** Their scenario id, from `POST /api/estimates`. */
+  id: string | null;
+  /** Their `ubg_sid` cookie, verbatim. Secret-like: never rendered on a page. */
+  cookie: string | null;
+  /** The frozen revision, once committed. */
+  seq: number | null;
+  /** The link their app minted, absolute. Null until `share` has answered. */
+  guestUrl: string | null;
+  /** When the link was minted. After this the quotation is read-only: see Q-005. */
+  sharedAt: string | null;
 }
 
 export interface HonoToolCallTrace {
@@ -433,6 +459,11 @@ export async function synthesizeConfirmedQuotationReply(
   const symbol = draft.currency === "USD" ? "$" : "₱";
   const fmt = (n: number) => `${symbol}${n.toLocaleString("en-US")}`;
 
+  // Which link a guest is given. The customer's app mints the real one, and it is the only link a
+  // guest is ever sent; `quotationUrl` is our own internal page, kept for the simulated engine
+  // where there is no customer app to point at.
+  const guestLink = draft.estimator?.guestUrl ?? draft.quotationUrl;
+
   // Bold is ONE asterisk. WhatsApp does not render `**`, so the double form used to arrive in the
   // guest's chat as literal asterisks around every line — the same mistake app.ts's
   // `guestQuotationLinks` had already been fixed for.
@@ -453,7 +484,7 @@ export async function synthesizeConfirmedQuotationReply(
     guestSafeStaffNotes(draft.staffNotes) ? `\n📝 *Resort Note:* ${guestSafeStaffNotes(draft.staffNotes)}` : ``,
     ``,
     `🔗 *View & Download Your Interactive Quotation:*`,
-    `${draft.quotationUrl}`,
+    `${guestLink}`,
   ]
     .filter(Boolean)
     .join("\n");
@@ -475,7 +506,7 @@ export async function synthesizeConfirmedQuotationReply(
       new Promise<string>((_, reject) => setTimeout(() => reject(new Error("timeout")), 3500)),
     ]);
 
-    if (llmReply && llmReply.includes(draft.quotationUrl)) {
+    if (llmReply && llmReply.includes(guestLink)) {
       return llmReply.trim();
     }
   } catch {

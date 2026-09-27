@@ -1,5 +1,13 @@
 // The customer's real rate card, captured 17/09/2026 from 14 live calls into Odoo staging.
 //
+// SCOPE, since 2026-09-26: this file feeds **only** `apps/casa-bff/src/simulatedEstimator.ts`, the
+// built-in stand-in used when `ESTIMATOR_MODE=simulated` (local dev, tests, and a demo with no BFF
+// to reach). It is not a pricing authority, and nothing a guest receives is computed from it: the
+// price a guest is sent is Odoo's, produced by the customer's own quotation app and published by a
+// staff member. Before that rule these numbers were rendered onto a public `/q/:slug` page as soon
+// as the bot had enough information — a price quoted to a customer before anyone at the resort had
+// seen it. That page is gone.
+//
 // Provenance (the three sources the lead pointed us at — do not invent numbers here):
 //   1. https://casa-escondida-estimator-tools.vercel.app/casa-api-guide  (field guide)
 //   2. contracts/odoo/examples/rates.json in the cloned tn-casa-quotation-estimator repo

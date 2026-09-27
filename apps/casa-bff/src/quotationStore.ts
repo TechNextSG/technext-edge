@@ -763,6 +763,28 @@ export function renderHonoQuotationEditorHtml(
           <pre id="reservation-out" style="width:100%;margin-top:4px;white-space:pre-wrap;font-size:13.5px;color:var(--muted);display:none;"></pre>
         </div>
 
+        <!-- Publish bar. The only place a guest link is created, and it is a human decision: the bot
+             never mints a link, because a price must not reach a customer before someone at the
+             resort has looked at it. -->
+        <div class="staff-only" style="margin-bottom:18px;padding:14px 16px;background:var(--surface-2);border:2px solid var(--border);border-radius:12px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;">
+          <div>
+            <div style="font-size:15px;font-weight:800;color:var(--text);">🔗 Publish guest link</div>
+            <div style="font-size:13.5px;color:var(--muted);">Freezes this quotation on the resort's quotation app and mints the link the guest is sent. One link per quotation — to change a price afterwards, publish a new quotation.</div>
+          </div>
+          <div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap;">
+            ${
+              pricing?.sample
+                ? `<label style="font-size:13.5px;font-weight:700;color:var(--accent);display:flex;align-items:center;gap:6px;">
+                     <input type="checkbox" id="ack-sample" /> I have checked this SAMPLE price
+                   </label>`
+                : ""
+            }
+            <button class="btn btn-outline" onclick="publishQuote()" id="btn-publish-quote">🔗 <span>Publish guest link</span></button>
+            <span id="publish-status-badge" style="font-size:14px;font-weight:700;color:var(--muted);"></span>
+          </div>
+          <pre id="publish-out" style="width:100%;margin-top:4px;white-space:pre-wrap;font-size:13.5px;color:var(--muted);display:none;"></pre>
+        </div>
+
         <div style="overflow-x:auto;">
           <table class="quote-table">
             <thead>
@@ -1172,6 +1194,7 @@ export function renderHonoQuotationEditorHtml(
 
     checkEstimatorStatus();
     renderReservationStatus();
+    renderPublishStatus();
 
     /**
      * What the quotation's own record says about its reservation — not what this page remembers.
@@ -1238,6 +1261,59 @@ export function renderHonoQuotationEditorHtml(
       }
     }
 
+    /**
+     * Whether this quotation already has a guest link. Read from the record, not from this page:
+     * publishing is one-way (their link always resolves to the newest saved revision), so a reload
+     * or a second tab has to agree that it is done.
+     */
+    function renderPublishStatus() {
+      const badge = document.getElementById('publish-status-badge');
+      const btn = document.getElementById('btn-publish-quote');
+      if (!badge || !btn) return;
+      if (state.estimator && state.estimator.guestUrl) {
+        badge.textContent = '✅ Published';
+        btn.disabled = true;
+      } else {
+        badge.textContent = '';
+        btn.disabled = false;
+      }
+    }
+
+    async function publishQuote() {
+      const btn = document.getElementById('btn-publish-quote');
+      const out = document.getElementById('publish-out');
+      if (!btn || !out) return;
+      const ack = document.getElementById('ack-sample');
+      out.style.display = 'block';
+      // The acknowledgement is a deliberate act, not a speed bump: these are captured prices, and a
+      // guest who receives one has been quoted a number nobody has agreed to.
+      if (ack && !ack.checked) {
+        out.textContent = '⚠️ Tick "I have checked this SAMPLE price" first — these are not real prices.';
+        return;
+      }
+      btn.disabled = true;
+      out.textContent = '⏳ Publishing…';
+      try {
+        const res = await fetch('/v1/quotes/' + encodeURIComponent(state.quoteId) + '/publish?token=' + encodeURIComponent(staffToken()), {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({ acknowledgeSample: !!(ack && ack.checked) })
+        });
+        const data = await res.json();
+        if (data.quotation) state = data.quotation;
+        if (data.ok) {
+          out.textContent = '✅ Published as version ' + data.seq + '\\n'
+            + (data.guestUrl || '(their app is not hosted anywhere we can link to — set ESTIMATOR_BASE_URL)');
+        } else {
+          out.textContent = '⚠️ ' + (data.reason || 'failed') + ': ' + (data.detail || data.error || '');
+        }
+      } catch (err) {
+        out.textContent = '⚠️ ' + (err && err.message ? err.message : String(err));
+      } finally {
+        renderPublishStatus();
+      }
+    }
+
     function copyQuoteLink() {
       const input = document.getElementById('input-quotation-url');
       navigator.clipboard.writeText(input.value);
@@ -1246,282 +1322,6 @@ export function renderHonoQuotationEditorHtml(
 
     renderSidebar();
     renderTable();
-  </script>
-</body>
-</html>`;
-}
-
-export function renderCustomerQuotationViewHtml(draft: HonoQuotationDraft): string {
-  const sym = draft.currency === "USD" ? "$" : "₱";
-  const fmt = (n: number) => `${sym}${Number(n || 0).toLocaleString("en-US")}`;
-  const guestNote = guestSafeStaffNotes(draft.staffNotes);
-
-  /**
-   * What the guest is told about their reservation — the one line on this page that is about
-   * whether something happened, rather than about how much it costs.
-   *
-   * It is driven by the recorded submission, never by a query string or a flag in the link: the
-   * same link has to say the same thing to everyone who opens it. And `unknown` gets its own
-   * wording, because telling a guest "we could not book it" when the engine may hold a folio is
-   * how they end up booking twice.
-   */
-  const submission = draft.submission ?? null;
-  const reservationBlock = !submission
-    ? ""
-    : (() => {
-        const tone =
-          submission.state === "confirmed"
-            ? { colour: "#10b981", title: "✅ Reservation sent" }
-            : submission.state === "failed"
-              ? { colour: "#f43f5e", title: "⚠️ We could not send your reservation" }
-              : submission.state === "unknown"
-                ? { colour: "#f59e0b", title: "⚠️ We could not confirm your reservation" }
-                : { colour: "#f59e0b", title: "⏳ Your reservation is being sent" };
-        const detail =
-          submission.state === "confirmed"
-            ? (submission.sample
-                ? "Folio number pending — this was booked against sample data, so no folio was created. The front desk will confirm availability and contact you."
-                : submission.folioId
-                  ? `Folio #${submission.folioId}. The front desk will confirm availability and contact you.`
-                  : "The front desk will confirm availability and contact you.")
-            : submission.state === "failed"
-              ? "Nothing was booked. Please ask the resort team to try again."
-              : submission.state === "unknown"
-                ? "Please do not send it again — the resort team will check whether it went through."
-                : "Please give it a moment before sending anything else.";
-        return `<div style="margin-top:24px;padding:18px;background:var(--surface-2);border-left:5px solid ${tone.colour};border-radius:10px;font-size:16px;color:var(--text);">
-              <strong>${tone.title}</strong>
-              <div style="margin-top:6px;color:var(--muted);font-size:15px;">${detail}</div>
-            </div>`;
-      })();
-
-  const rowsHtml = draft.lineItems
-    .map(
-      (item, i) => `
-      <tr>
-        <td style="padding:16px 12px;border-bottom:1px solid var(--border);color:var(--muted);font-weight:700;">0${i + 1}</td>
-        <td style="padding:16px 12px;border-bottom:1px solid var(--border);">
-          <div style="font-weight:800;color:var(--text);font-size:16px;">${escapeHtml(item.description)}</div>
-          <div style="font-size:13px;color:var(--muted);text-transform:uppercase;margin-top:3px;font-weight:700;">Category: ${item.category}</div>
-        </td>
-        <td style="padding:16px 12px;border-bottom:1px solid var(--border);text-align:center;font-weight:700;font-size:16px;">${item.quantity} ${item.unitLabel}</td>
-        <td style="padding:16px 12px;border-bottom:1px solid var(--border);text-align:center;font-weight:700;font-size:16px;">${item.multiplier} ${item.multiplierLabel}</td>
-        <td style="padding:16px 12px;border-bottom:1px solid var(--border);text-align:right;font-family:monospace;font-size:16px;font-weight:600;">${fmt(item.unitPrice)}</td>
-        <td style="padding:16px 12px;border-bottom:1px solid var(--border);text-align:right;font-family:monospace;font-weight:800;font-size:17px;color:var(--text);">${fmt(item.subtotal)}</td>
-      </tr>`
-    )
-    .join("");
-
-  return `<!DOCTYPE html>
-<html lang="en" data-theme="light">
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Official Quotation ${escapeHtml(draft.quoteId)} — Casa Escondida Anilao Resort &amp; Dive Center</title>
-  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-  <style>
-    :root, [data-theme="light"] {
-      --bg: #f8fafc;
-      --surface: #ffffff;
-      --surface-2: #f1f5f9;
-      --border: #cbd5e1;
-      --text: #0f172a;
-      --muted: #475569;
-      --accent: #0284c7;
-    }
-    [data-theme="dark"] {
-      --bg: #0b101b;
-      --surface: #131b2e;
-      --surface-2: #19233c;
-      --border: #2d3f63;
-      --text: #f8fafc;
-      --muted: #cbd5e1;
-      --accent: #38bdf8;
-    }
-    body {
-      font-family: 'Plus Jakarta Sans', sans-serif;
-      background: var(--bg);
-      color: var(--text);
-      font-size: 16px;
-      margin: 0;
-      padding: 32px 20px;
-      transition: background 0.2s, color 0.2s;
-    }
-    .top-bar {
-      max-width: 940px;
-      margin: 0 auto 16px;
-      display: flex;
-      justify-content: flex-end;
-      gap: 10px;
-    }
-    .theme-btn {
-      display: inline-flex;
-      align-items: center;
-      gap: 8px;
-      background: var(--surface);
-      border: 2px solid var(--border);
-      color: var(--text);
-      border-radius: 999px;
-      padding: 8px 16px;
-      font-size: 15px;
-      font-weight: 700;
-      cursor: pointer;
-    }
-    .sheet {
-      max-width: 940px;
-      margin: 0 auto;
-      background: var(--surface);
-      border: 2px solid var(--border);
-      border-radius: 20px;
-      box-shadow: 0 20px 50px rgba(15, 23, 42, 0.08);
-      overflow: hidden;
-    }
-    .banner {
-      background: linear-gradient(135deg, #0f172a, #1e293b);
-      color: #fff;
-      padding: 32px 36px;
-      display: flex;
-      justify-content: space-between;
-      align-items: flex-start;
-      flex-wrap: wrap;
-      gap: 20px;
-    }
-    .badge {
-      display: inline-block;
-      padding: 6px 14px;
-      border-radius: 999px;
-      font-size: 13px;
-      font-weight: 800;
-      background: ${draft.status === "confirmed_by_hono" ? "#10b981" : "#f59e0b"};
-      color: #fff;
-    }
-    .content { padding: 32px 36px; }
-    .summary-cards {
-      display: grid;
-      grid-template-columns: repeat(4, 1fr);
-      gap: 14px;
-      margin-bottom: 28px;
-    }
-    @media (max-width: 700px) { .summary-cards { grid-template-columns: 1fr 1fr; } }
-    .s-card {
-      background: var(--surface-2);
-      border: 2px solid var(--border);
-      border-radius: 12px;
-      padding: 16px;
-    }
-    .s-card small { color: var(--muted); font-size: 12px; text-transform: uppercase; font-weight: 800; }
-    .s-card strong { display: block; font-size: 16px; margin-top: 6px; color: var(--text); }
-    table { width: 100%; border-collapse: collapse; }
-    th {
-      background: var(--surface-2);
-      color: var(--muted);
-      font-size: 13px;
-      font-weight: 800;
-      text-transform: uppercase;
-      padding: 14px 12px;
-      text-align: left;
-      border-bottom: 2px solid var(--border);
-    }
-  </style>
-</head>
-<body>
-  <div class="top-bar">
-    <button type="button" class="theme-btn" id="theme-toggle-btn" onclick="toggleTheme()">
-      <span id="theme-icon">🌙</span>
-      <span id="theme-label">Dark Mode</span>
-    </button>
-    <button type="button" class="theme-btn" onclick="window.print()">🖨️ Print / Save PDF</button>
-  </div>
-  <div class="sheet">
-    <div class="banner">
-      <div>
-        <div style="font-size:13px;letter-spacing:0.1em;text-transform:uppercase;color:#38bdf8;font-weight:800;">CASA ESCONDIDA RESORT &amp; DIVE CENTER · ANILAO, BATANGAS</div>
-        <h1 style="margin:6px 0 4px;font-size:28px;">Quotation #${escapeHtml(draft.quoteId)}</h1>
-        <div style="color:#cbd5e1;font-size:16px;">Prepared for <strong>${escapeHtml(draft.guestName)}</strong> · Updated ${new Date(draft.updatedAt).toLocaleString("en-US")}</div>
-        <div style="color:#94a3b8;font-size:13px;margin-top:4px;">This is the latest version of your quotation. The resort team keeps it up to date here — ask them to re-send the link if anything changes.</div>
-      </div>
-      <div style="text-align:right;">
-        <span class="badge">${draft.status === "confirmed_by_hono" ? "✓ OFFICIAL CONFIRMED QUOTATION" : "⏳ DRAFT QUOTATION (UNDER REVIEW)"}</span>
-        <div style="margin-top:10px;font-size:28px;font-weight:800;color:#38bdf8;">${fmt(draft.totalAmount)} ${draft.currency}</div>
-      </div>
-    </div>
-    <div class="content">
-      <div class="summary-cards">
-        <div class="s-card"><small>Check-In / Out</small><strong>${escapeHtml(draft.checkIn)} → ${escapeHtml(draft.checkOut)}</strong></div>
-        <div class="s-card"><small>Duration &amp; Rooms</small><strong>${draft.nights} Nights · ${draft.rooms} Rooms</strong></div>
-        <div class="s-card"><small>Group Breakdown</small><strong>${draft.stayingGuests} Overnight / ${draft.totalGroupSize} Total Pax</strong></div>
-        <div class="s-card"><small>Diving Schedule</small><strong>${escapeHtml(draft.diveNotes ?? (draft.diver ? "Standard Dive Package" : "No Diving"))}</strong></div>
-      </div>
-
-      <table>
-        <thead>
-          <tr>
-            <th>#</th>
-            <th>Service / Package Description</th>
-            <th style="text-align:center;">Qty</th>
-            <th style="text-align:center;">Duration</th>
-            <th style="text-align:right;">Unit Rate</th>
-            <th style="text-align:right;">Subtotal</th>
-          </tr>
-        </thead>
-        <tbody>
-          ${rowsHtml}
-        </tbody>
-      </table>
-
-      <div style="display:flex;justify-content:flex-end;margin-top:24px;">
-        <div style="width:360px;background:var(--surface-2);border:2px solid var(--border);border-radius:14px;padding:20px;">
-          <div style="display:flex;justify-content:space-between;margin-bottom:10px;font-size:16px;">
-            <span>Subtotal:</span><strong>${fmt(draft.subtotalAmount)}</strong>
-          </div>
-          ${
-            draft.discountPercent > 0
-              ? `<div style="display:flex;justify-content:space-between;margin-bottom:10px;font-size:16px;color:#059669;font-weight:700;">
-                  <span>Discount (${draft.discountPercent}%):</span><strong>-${fmt(draft.discountAmount)}</strong>
-                </div>`
-              : ""
-          }
-          <div style="display:flex;justify-content:space-between;border-top:2px solid var(--border);padding-top:12px;font-size:21px;font-weight:800;color:var(--text);">
-            <span>Total Quote:</span><span>${fmt(draft.totalAmount)} ${draft.currency}</span>
-          </div>
-        </div>
-      </div>
-
-      ${reservationBlock}
-
-      ${
-        guestNote
-          ? `<div style="margin-top:24px;padding:18px;background:var(--surface-2);border-left:5px solid var(--accent);border-radius:10px;font-size:16px;color:var(--text);">
-              <strong>📝 Resort &amp; Dive Center Note:</strong> ${guestNote}
-            </div>`
-          : ""
-      }
-    </div>
-  </div>
-  <script>
-    function applyTheme(theme) {
-      document.documentElement.setAttribute('data-theme', theme);
-      localStorage.setItem('casa_theme', theme);
-      const icon = document.getElementById('theme-icon');
-      const label = document.getElementById('theme-label');
-      if (icon && label) {
-        if (theme === 'dark') {
-          icon.textContent = '☀️';
-          label.textContent = 'Light Mode';
-        } else {
-          icon.textContent = '🌙';
-          label.textContent = 'Dark Mode';
-        }
-      }
-    }
-    function toggleTheme() {
-      const current = document.documentElement.getAttribute('data-theme') || 'light';
-      applyTheme(current === 'dark' ? 'light' : 'dark');
-    }
-    (function initTheme() {
-      const saved = localStorage.getItem('casa_theme') || 'light';
-      applyTheme(saved);
-    })();
   </script>
 </body>
 </html>`;

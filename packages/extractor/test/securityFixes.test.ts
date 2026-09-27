@@ -77,17 +77,18 @@ describe("a guest's own words are never markup", () => {
     expect(html).toContain("&lt;script&gt;alert(");
   });
 
-  it("escapes the name and the dive notes on the public guest page", async () => {
+  it("keeps the guest page retired, so there is no public surface left to escape into", async () => {
+    // This assertion used to check that the name was escaped on the public quotation page. That
+    // page is gone (Đợt 1) — so the property is now the stronger one: our own route serves no
+    // quotation at all, escaped or otherwise.
     const draft = await storedNasty("QT-SEC-2");
     const app = createApp();
 
-    const html = await (await app.request(`/q/${draft.slug}`)).text();
-
-    // The guest page is the one served with no credential at all, so this is the worse of the two.
-    expect(html).not.toContain("<script>alert(");
-    expect(html).not.toContain("<img src=x onerror=");
-    expect(html).toContain("&lt;script&gt;alert(");
-    expect(html).toContain("&lt;img src=x onerror=");
+    const res = await app.request(`/q/${draft.slug}`);
+    expect(res.status).toBe(410);
+    const body = await res.text();
+    expect(body).not.toContain(NASTY_NAME);
+    expect(body).not.toContain("<script>");
   });
 
   it("escapes them on the ops sheet and in the handoff inbox too", async () => {

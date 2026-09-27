@@ -59,7 +59,6 @@ import {
   getQuotationByIdOrSlug,
   listQuotations,
   renderHonoQuotationEditorHtml,
-  renderCustomerQuotationViewHtml,
 } from "./quotationStore.js";
 import {
   buildEstimateRequest,
@@ -186,6 +185,23 @@ function guestLanguage(history: ConversationTurn[]): GuestLanguage {
 }
 
 /**
+ * An absolute guest link, from the relative path their API returns plus the host we called.
+ *
+ * A relative path with no host to resolve it against is not a link: returning the path would put
+ * `/quote/abc` in a guest's chat, which is not somewhere they can go. Null is the honest answer,
+ * and the studio shows the quotation as published-but-unlinked rather than printing a dead path.
+ */
+function absoluteUrl(url: string, baseUrl: string | undefined): string | null {
+  if (/^https?:\/\//i.test(url)) return url;
+  if (!baseUrl) return null;
+  try {
+    return new URL(url, baseUrl.endsWith("/") ? baseUrl : `${baseUrl}/`).toString();
+  } catch {
+    return null;
+  }
+}
+
+/**
  * The values a price is built from, as the guest themselves stated them.
  *
  * Only `stated`: a house-norm default and a code-derived value are not things the guest said, so
@@ -254,8 +270,21 @@ export interface AppOptions {
  * Bold is `*single asterisks*`: WhatsApp does not render `**`, so the double form showed up in the
  * guest's chat as literal asterisks.
  */
-export function guestQuotationLinks(draft: { quotationUrl: string }): string {
-  return `\n\n🔗 *Interactive Quotation Link:*\n${draft.quotationUrl}`;
+/**
+ * What the guest is told when their enquiry is complete but no price has been published yet.
+ *
+ * This replaced a function that appended OUR quotation link the moment the bot had enough
+ * information. That was wrong in the way that matters most: it quoted a price to a customer before
+ * anyone at the resort had looked at it, from a table copied by hand, and (in fixture mode) from
+ * sample data with no label. The link a guest is entitled to is the one the customer's own
+ * quotation app mints from an Odoo price, and it is minted when a member of staff publishes the
+ * quotation from the studio — see `POST /v1/quotes/:id/publish`.
+ *
+ * So the bot's last message is a promise the resort can keep, and nothing more. It names no figure
+ * and no link.
+ */
+export function guestPendingQuotationNote(): string {
+  return "\n\nOur reservations team is preparing your quotation now, and will send it to you here shortly.";
 }
 
 export function createApp(options: AppOptions = {}) {
@@ -572,7 +601,9 @@ export function createApp(options: AppOptions = {}) {
             if (outcome.quotationDraft) {
               outcome.quotationDraft.phone = phone;
               await saveQuotationDraft(outcome.quotationDraft);
-              finalReplyText = `${outcome.reply}${changeNotice ? `\n\n${changeNotice}` : ""}${guestQuotationLinks(outcome.quotationDraft)}`;
+              // The enquiry is complete, so it becomes a quotation for staff to review — and the
+              // guest is told that, not sent a price. See guestPendingQuotationNote.
+              finalReplyText = `${outcome.reply}${changeNotice ? `\n\n${changeNotice}` : ""}${guestPendingQuotationNote()}`;
             } else if (changeNotice) {
               finalReplyText = `${outcome.reply}\n\n${changeNotice}`;
             }
@@ -899,7 +930,24 @@ export function createApp(options: AppOptions = {}) {
     // A miss is a miss. This route is unauthenticated, so anything else would be serving
     // one guest's booking to whoever asked.
     if (!found) return c.json({ error: "not_found" }, 404);
-    return c.html(renderCustomerQuotationViewHtml(found));
+
+    // This route used to render OUR guest quotation page: a price computed from a table copied by
+    // hand, shown to anyone holding the slug, with no staff approval anywhere in the path. It is
+    // the thing the whole Đợt 1 change exists to retire. A published quotation now forwards to the
+    // link the customer's own app minted, so there is exactly one place a guest reads a price, and
+    // that price is Odoo's.
+    const guestUrl = found.estimator?.guestUrl;
+    if (guestUrl) return c.redirect(guestUrl);
+
+    // Not published yet. 410 rather than 404: the record is real, and "there is nothing to show
+    // here yet" is the truthful answer to someone who guessed or kept the link.
+    return c.json(
+      {
+        error: "not_published",
+        detail: "this quotation has no guest link yet — the resort team sends it after reviewing the price",
+      },
+      410,
+    );
   });
 
   /**
@@ -1196,7 +1244,11 @@ export function createApp(options: AppOptions = {}) {
     const existing = await getQuotationByIdOrSlug(id);
     if (!existing) return c.json({ error: "not_found" }, 404);
 
-    const result = await estimator.sendEstimate(existing.bffTrip);
+    // Their API is session-scoped, so a re-price has to arrive on the same session the scenario was
+    // created in — otherwise their BFF is looking at a different draft and the id it returns is a
+    // second one. The id and cookie are replayed from the quotation record.
+    const session = { id: existing.estimator?.id ?? null, cookie: existing.estimator?.cookie ?? null };
+    const result = await estimator.sendEstimate(existing.bffTrip, session);
     if (!result.ok) {
       // 422 maps to 422: the estimator rejected our payload, which is a defect here and not a
       // bad gateway. Everything else is infrastructure and is reported as 502.
@@ -1230,7 +1282,19 @@ export function createApp(options: AppOptions = {}) {
       role: result.role,
       computedAt: result.computedAt,
     });
-    await saveQuotationDraft({ ...existing, pricing });
+    await saveQuotationDraft({
+      ...existing,
+      pricing,
+      estimator: {
+        id: result.id ?? existing.estimator?.id ?? null,
+        cookie: result.sessionCookie ?? existing.estimator?.cookie ?? null,
+        // Never reset by a re-price: a committed seq is what their `submit` will be addressed to,
+        // and their link always resolves to the newest saved revision (Q-005).
+        seq: existing.estimator?.seq ?? null,
+        guestUrl: existing.estimator?.guestUrl ?? null,
+        sharedAt: existing.estimator?.sharedAt ?? null,
+      },
+    });
 
     return c.json({
       ok: true,
@@ -1254,6 +1318,103 @@ export function createApp(options: AppOptions = {}) {
       /** The same answer in the shape the studio and the Ops Sheet draw from. */
       pricing,
       estimatePreview: buildEstimatePreview(existing),
+    });
+  });
+
+  /**
+   * Publish the quotation: freeze it as a revision on the customer's app and mint the guest link.
+   *
+   * This is the only place a guest link is ever created, and it is a **human** action taken from
+   * the studio. The bot never calls it: a price reaches a guest because a person looked at it. That
+   * is the whole correction — the bot used to append its own link the moment it had enough
+   * information, which is a price quoted to a customer before anyone at the resort saw it.
+   *
+   * Three things it will not do:
+   *
+   *   * publish a quotation staff have not approved (`status`), because approval is the decision;
+   *   * publish a **sample** price silently. Fixture and simulated prices are captured numbers, and
+   *     sending one to a guest is the failure the whole `sample` label exists to prevent — so it
+   *     takes an explicit acknowledgement, recorded by the caller;
+   *   * publish twice. Their link always resolves to the newest saved revision, so a second publish
+   *     would silently change what a guest already holds (their Q-005: don't re-save a shared
+   *     quote). A re-price after sharing means a new quotation and a new link.
+   */
+  app.post("/v1/quotes/:id/publish", async (c) => {
+    if (!staffSession(c).ok) return c.json({ error: "unauthorized" }, 401);
+    const existing = await getQuotationByIdOrSlug(c.req.param("id"));
+    if (!existing) return c.json({ error: "not_found" }, 404);
+
+    if (!existing.bffTrip) {
+      return c.json({ ok: false, reason: "no_trip", detail: "this quotation has no trip to send" }, 409);
+    }
+    if (existing.status !== "confirmed_by_hono") {
+      return c.json({ ok: false, reason: "not_approved", detail: "approve the quotation before publishing it" }, 409);
+    }
+    // Guarded on `sharedAt`, not on the link: a publish that resolved no host (their app is not
+    // deployed anywhere we can point at) has still frozen a revision on their side, and a second
+    // publish would move what a guest is already holding. Their Q-005.
+    if (existing.estimator?.sharedAt) {
+      return c.json(
+        {
+          ok: false,
+          reason: "already_shared",
+          detail: "this quotation is already published; edit nothing and publish a new quotation instead",
+          guestUrl: existing.estimator.guestUrl,
+        },
+        409,
+      );
+    }
+
+    const body = (await c.req.json().catch(() => ({}))) as { acknowledgeSample?: boolean };
+    if (existing.pricing?.sample && body.acknowledgeSample !== true) {
+      return c.json(
+        {
+          ok: false,
+          reason: "sample_not_acknowledged",
+          detail: "this price came from sample data — acknowledge it before a guest can be sent the link",
+        },
+        409,
+      );
+    }
+
+    const session = { id: existing.estimator?.id ?? null, cookie: existing.estimator?.cookie ?? null };
+    if (!session.id) {
+      return c.json({ ok: false, reason: "not_priced", detail: "price the quotation before publishing it" }, 409);
+    }
+
+    const committed = await estimator.commit(session, existing.bffTrip);
+    if (!committed.ok) {
+      const status = committed.reason === "not_configured" ? 503 : 502;
+      return c.json({ ok: false, reason: committed.reason, detail: committed.detail }, status);
+    }
+
+    const shared = await estimator.share({ ...session, id: session.id });
+    if (!shared.ok) {
+      // `no_snapshot` here would mean their commit and their share disagree, which is their bug to
+      // hear about rather than something to paper over with a link of our own.
+      const status = shared.reason === "not_configured" ? 503 : shared.reason === "no_snapshot" ? 502 : 502;
+      return c.json({ ok: false, reason: shared.reason, detail: shared.detail }, status);
+    }
+
+    // Their `url` is relative; only we know which host the guest should be sent to.
+    const guestUrl = absoluteUrl(shared.url, estimator.baseUrl);
+    const saved = await saveQuotationDraft({
+      ...existing,
+      estimator: {
+        ...session,
+        seq: committed.seq,
+        guestUrl,
+        sharedAt: new Date().toISOString(),
+      },
+    });
+
+    return c.json({
+      ok: true,
+      guestUrl,
+      seq: committed.seq,
+      expiresAt: shared.expiresAt,
+      sample: Boolean(existing.pricing?.sample),
+      quotation: saved,
     });
   });
 
@@ -1306,6 +1467,21 @@ export function createApp(options: AppOptions = {}) {
     const existing = await getQuotationByIdOrSlug(id);
     if (!existing) return c.json({ error: "not_found" }, 404);
 
+    // Booking belongs to the owner of the quotation, on their app — their Q-004 says an anonymous
+    // guest cannot reserve, and Q-014 says the person a link was sent to cannot either. Once the
+    // price comes from their engine, the guest books through their link, so this route is for the
+    // simulated engine only (local dev and tests), where there is no guest app to book on.
+    if (estimator.kind === "remote") {
+      return c.json(
+        {
+          ok: false,
+          reason: "wrong_place",
+          detail: "reservations are taken on the quotation's own page — publish it and send the guest their link",
+        },
+        409,
+      );
+    }
+
     const parsed = ReservationContact.safeParse(await c.req.json().catch(() => ({})));
     // `fields` carries paths only, never values: a 422 body with the guest's email in it is a
     // guest's email in a log aggregator.
@@ -1343,7 +1519,15 @@ export function createApp(options: AppOptions = {}) {
     // Written first, on purpose — see the ordering note above.
     await saveQuotationDraft({ ...existing, submission: pending });
 
-    const result = await estimator.submit({ trip: existing.bffTrip, contact: pending.contact });
+    const result = await estimator.submit({
+      trip: existing.bffTrip,
+      contact: pending.contact,
+      // Addressed to the scenario they priced, on the session that owns it. Both are null for the
+      // simulated engine, which needs neither.
+      estimatorId: existing.estimator?.id ?? null,
+      estimatorCookie: existing.estimator?.cookie ?? null,
+      estimatorSeq: existing.estimator?.seq ?? null,
+    });
     const settled: QuotationSubmission = result.ok
       ? { ...pending, state: "confirmed", folioId: result.folioId, orderIds: result.orderIds, sample: result.sample, updatedAt: now() }
       : {

@@ -21,7 +21,7 @@ import {
   getQuotationByIdOrSlug,
   saveQuotationDraft,
 } from "../../../apps/casa-bff/src/quotationStore.js";
-import { buildHonoQuotationDraft, recalculateQuotationTotals } from "../../../packages/extractor/src/quotationTool.js";
+import { buildHonoQuotationDraft, recalculateQuotationTotals, synthesizeConfirmedQuotationReply } from "../../../packages/extractor/src/quotationTool.js";
 import {
   validateBffTripPrecheck,
   buildBffTrip,
@@ -148,12 +148,44 @@ describe("an unknown quotation is a miss, not somebody's booking", () => {
     expect(await getQuotationByIdOrSlug("QT-9999-NOBODY-XYZ")).toBeUndefined();
   });
 
-  it("still serves the real quotation to its own slug", async () => {
+  it("serves nothing at all from a slug — the guest page is retired", async () => {
+    // This route used to render our own quotation page: a hand-copied price, shown to whoever held
+    // the slug, with no staff approval anywhere. A published quotation forwards to the customer's
+    // app instead, and an unpublished one has nothing to show — 410, and never a figure.
     const app = createApp();
-    const real = (await listQuotations())[0]!;
-    const res = await app.request(`/q/${real.slug}`);
-    expect(res.status).toBe(200);
-    expect(await res.text()).toContain(real.quoteId);
+    const unpublished = await saveQuotationDraft({
+      ...buildHonoQuotationDraft(makeTrip()),
+      quoteId: "QT-0000-UNPUBLISHED-AAA",
+      slug: randomUUID(),
+    });
+    const res = await app.request(`/q/${unpublished.slug}`);
+
+    expect(res.status).toBe(410);
+    const body = await res.text();
+    expect(body).not.toContain(unpublished.quoteId);
+    expect(body).not.toContain("Total");
+  });
+
+  it("forwards a published quotation to the link the customer's app minted", async () => {
+    // Its own record, not the seed: publishing mutates the stored draft, and the seed is shared
+    // with every other test in this file.
+    const app = createApp();
+    const published = await saveQuotationDraft({
+      ...buildHonoQuotationDraft(makeTrip()),
+      quoteId: "QT-0000-PUBLISHED-AAA",
+      slug: randomUUID(),
+      estimator: {
+        id: "sim-1",
+        cookie: "ubg_sid=sim-1",
+        seq: 1,
+        guestUrl: "https://quotes.customer.test/quote/tok123",
+        sharedAt: new Date().toISOString(),
+      },
+    });
+
+    const res = await app.request(`/q/${published.slug}`);
+    expect(res.status).toBe(302);
+    expect(res.headers.get("location")).toBe("https://quotes.customer.test/quote/tok123");
   });
 });
 
@@ -292,48 +324,55 @@ describe("staff quotation routes require the staff token", () => {
       expect(html).toContain("/sync-estimate?token=");
     });
 
-    it("never puts the staff token on the guest page", async () => {
+    // The guest page is retired (Đợt 1): a quotation is only ever read on the customer's own app,
+    // behind the link their app minted. So what these now assert is the stronger property — nothing
+    // about a quotation is served from this service to an unauthenticated caller at all.
+    it("serves nothing about a quotation publicly, not even the staff token's absence", async () => {
       const app = createApp();
-      const quotation = (await listQuotations())[0]!;
+      const quotation = await saveQuotationDraft({
+        ...buildHonoQuotationDraft(makeTrip()),
+        quoteId: "QT-0000-QUIET-AAA",
+        slug: randomUUID(),
+      });
       const res = await app.request(`/q/${quotation.slug}`);
-      expect(res.status).toBe(200);
-      const html = await res.text();
-      expect(html).not.toContain("token=");
-      expect(html).not.toContain(STAFF_TOKEN);
-      expect(html).not.toContain("staffToken");
+
+      expect(res.status).toBe(410);
+      const body = await res.text();
+      expect(body).not.toContain("token=");
+      expect(body).not.toContain(STAFF_TOKEN);
+      expect(body).not.toContain("staffToken");
+      expect(body).not.toContain(quotation.quoteId);
+      expect(body).not.toContain(quotation.guestName);
     });
 
-    // The guest page used to carry a floating "✏️ Edit Table & Link on Hono Studio" button
-    // pointing at `/quotes/<quoteId>`. A guest has no business seeing a staff action, and the
-    // href handed them our internal quotation id. Found on a live link, 2026-09-25.
     it("offers the guest no route into the staff studio", async () => {
       const app = createApp();
       const built = await saveQuotationDraft(buildHonoQuotationDraft(makeTrip()));
-      const html = await (await app.request(`/q/${built.slug}`)).text();
+      const res = await app.request(`/q/${built.slug}`);
+      const body = await res.text();
 
-      expect(html).not.toContain("/quotes/");
-      expect(html).not.toContain("Edit Table");
+      expect(res.status).toBe(410);
+      expect(body).not.toContain("/quotes/");
+      expect(body).not.toContain("Edit Table");
     });
 
-    // `staffNotes` is printed on the guest's page (and in the confirmed WhatsApp reply), so a
-    // default that talks about our own workflow reaches the customer. Measured on the same link:
-    // the guest page read "📝 Resort & Dive Center Note: Standard resort quotation draft ready
-    // for Hono confirmation." Built from a Trip rather than the seed, because the seed's note is
-    // hand-written and would not exercise the default this test exists to pin.
-    it("ships no internal workflow wording to the guest by default", async () => {
-      const app = createApp();
+    // `staffNotes` reaches the customer twice: on their quotation page in the customer's app, and
+    // in the confirmed WhatsApp message this service sends. The message is the half we still own,
+    // so that is where the wording is pinned — the studio's own editable field is staff-facing and
+    // legitimately shows the raw value, so someone can fix it.
+    it("ships no internal workflow wording by default", async () => {
       const built = await saveQuotationDraft(buildHonoQuotationDraft(makeTrip()));
       expect(built.staffNotes).toBe("");
 
-      const html = await (await app.request(`/q/${built.slug}`)).text();
-      expect(html).not.toContain("ready for Hono confirmation");
-      expect(html).not.toContain("Verify boat manifest");
+      const message = await synthesizeConfirmedQuotationReply(built);
+      expect(message).not.toContain("ready for Hono confirmation");
+      expect(message).not.toContain("Verify boat manifest");
+      expect(message).toContain(built.quotationUrl);
     });
 
-    // Fixing the default is not enough on its own: a draft saved before the fix keeps whatever
-    // note it was saved with, and those records are still served by live links.
+    // Fixing the default is not enough on its own: a draft saved before the fix keeps whatever note
+    // it was saved with, and those records are still sent to customers.
     it("drops the legacy internal note already stored on an old draft", async () => {
-      const app = createApp();
       const built = await saveQuotationDraft({
         ...buildHonoQuotationDraft(makeTrip()),
         quoteId: "QT-0000-LEGACYNOTE-AAA",
@@ -341,13 +380,12 @@ describe("staff quotation routes require the staff token", () => {
         staffNotes: "Standard resort quotation draft ready for Hono confirmation.",
       });
 
-      const html = await (await app.request(`/q/${built.slug}`)).text();
-      expect(html).not.toContain("ready for Hono confirmation");
-      expect(html).not.toContain("Resort &amp; Dive Center Note");
+      const message = await synthesizeConfirmedQuotationReply(built);
+      expect(message).not.toContain("ready for Hono confirmation");
+      expect(message).not.toContain("Resort Note");
     });
 
     it("still prints a genuine resort note to the guest", async () => {
-      const app = createApp();
       const built = await saveQuotationDraft({
         ...buildHonoQuotationDraft(makeTrip()),
         quoteId: "QT-0000-REALNOTE-AAA",
@@ -355,8 +393,8 @@ describe("staff quotation routes require the staff token", () => {
         staffNotes: "Boat leaves at 7am; please be at the dive shop by 6:45.",
       });
 
-      const html = await (await app.request(`/q/${built.slug}`)).text();
-      expect(html).toContain("Boat leaves at 7am");
+      const message = await synthesizeConfirmedQuotationReply(built);
+      expect(message).toContain("Boat leaves at 7am");
     });
   });
 

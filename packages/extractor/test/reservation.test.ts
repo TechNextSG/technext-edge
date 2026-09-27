@@ -192,31 +192,29 @@ describe("sending a reservation", () => {
     expect((await app.request(`/v1/quotes/${draft.quoteId}/submission`)).status).toBe(401);
   });
 
-  it("tells the guest, on their own link, that the reservation was sent", async () => {
+  it("keeps the reservation off our own public route, which no longer serves a quotation at all", async () => {
+    // The reservation banner used to be rendered by our guest page. That page is retired, so what
+    // matters now is that OUR route reveals nothing about the booking either way: the state is the
+    // customer's app's to show, on the link it minted.
     const draft = await storedQuote("QT-RES-9");
     const app = appWith();
 
-    // Nothing booked yet: the page must not claim anything happened.
-    const before = await (await app.request(`/q/${draft.slug}`)).text();
-    expect(before).toContain(`Total Quote:`);
-    expect(before).not.toContain("Reservation sent");
+    expect((await app.request(`/q/${draft.slug}`)).status).toBe(410);
 
     await submit(app, draft.quoteId, CONTACT);
 
-    const after = await (await app.request(`/q/${draft.slug}`)).text();
-    expect(after).toContain("Reservation sent");
-    // Sample data, so it says folio pending rather than naming a folio that does not exist.
-    expect(after).toContain("Folio number pending");
-    expect(after).toContain("no folio was created");
+    const after = await app.request(`/q/${draft.slug}`);
+    expect(after.status).toBe(410);
+    expect(await after.text()).not.toContain("Reservation sent");
   });
 
-  it("tells the guest to wait rather than re-booking when the outcome is unknown", async () => {
+  it("records the unknown outcome rather than telling the guest anything from here", async () => {
     const draft = await storedQuote("QT-RES-10");
     const uncertain = appWith(createSimulatedEstimator({ submitBehaviour: "unknown" }));
-    await submit(uncertain, draft.quoteId, CONTACT);
+    const res = await submit(uncertain, draft.quoteId, CONTACT);
 
-    const html = await (await uncertain.request(`/q/${draft.slug}`)).text();
-    expect(html).toContain("could not confirm your reservation");
-    expect(html).toContain("do not send it again");
+    expect(res.status).toBe(502);
+    expect((await res.json()).submission.state).toBe("unknown");
+    expect((await uncertain.request(`/q/${draft.slug}`)).status).toBe(410);
   });
 });

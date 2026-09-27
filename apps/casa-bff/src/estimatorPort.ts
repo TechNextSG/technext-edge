@@ -52,6 +52,12 @@ export type EstimateSendResult =
        * the two side by side.
        */
       retailModel?: unknown;
+      /**
+       * The `ubg_sid` cookie their BFF set on this call, verbatim, or null when it set none.
+       * Recorded on the quotation so `commit`/`share`/`submit` can be addressed to the same
+       * session — see `EstimatorSession`.
+       */
+      sessionCookie: string | null;
       sample: boolean;
       mode: "fixture" | "odoo" | null;
     }
@@ -100,6 +106,50 @@ export interface EstimatorHealth {
 }
 
 /**
+ * One quotation's session with their BFF.
+ *
+ * Their flow keeps a guest draft behind an `ubg_sid` cookie: `POST /api/estimates` sets it, and
+ * `commit`, `share` and `submit` only work for the session that owns the scenario. So the cookie is
+ * not an optimisation — without it the second call about a quotation is a 404 for a draft that
+ * exists, which is the chapter `docs/integration/schema.md` §4 spells out as the intended way for a
+ * bot to use their API ("mỗi cuộc hội thoại giữ một cookie `ubg_sid` riêng").
+ *
+ * It lives on the quotation record, not in module state: a serverless instance is not a place to
+ * keep a cookie between two messages, and keeping it beside the draft is what stops one quotation's
+ * session from being replayed against another's.
+ */
+export interface EstimatorSession {
+  /** Their scenario id, from `POST /api/estimates`. */
+  id: string | null;
+  /** The cookie they set, verbatim (`name=value`), replayed on every later call. */
+  cookie: string | null;
+}
+
+/** Why a call to their BFF did not produce an answer. Mirrors `EstimateSendResult`'s failures. */
+export type EstimatorFailure =
+  | "not_configured"
+  | "unreachable"
+  | "timeout"
+  | "rejected"
+  | "no_snapshot"
+  | "unexpected";
+
+export type CommitResult =
+  | { ok: true; seq: number; computedAt: string | null }
+  | { ok: false; reason: EstimatorFailure; detail: string };
+
+/**
+ * `url` is RELATIVE (`/quote/<token>`), exactly as their API returns it.
+ *
+ * Joining it to a host is the caller's job, and that is deliberate: the same token is a working
+ * link against their deployed app and a dead one against a local fixture, so only the caller knows
+ * which host the guest should be sent to.
+ */
+export type ShareResult =
+  | { ok: true; url: string; expiresAt: string | null }
+  | { ok: false; reason: EstimatorFailure; detail: string };
+
+/**
  * What a submit needs.
  *
  * `estimatorId` is their own scenario id, handed back by `POST /api/estimates`. It is optional
@@ -112,6 +162,8 @@ export interface SubmitInput {
   trip: BffTrip;
   contact: BookingContact;
   estimatorId?: string | null;
+  /** The `ubg_sid` cookie for that scenario, when the caller has one. */
+  estimatorCookie?: string | null;
   /**
    * The frozen revision they are being asked to book (`POST /api/estimates/:id/submit` takes
    * `{seq, contact}`). Their route answers `409 stale` when it is not the latest, so sending the
@@ -126,7 +178,16 @@ export interface EstimatorPort {
   readonly kind: EstimatorMode;
   /** Their BFF's base URL, when there is one. `undefined` for the simulated port. */
   readonly baseUrl?: string;
-  sendEstimate(trip: BffTrip | null | undefined): Promise<EstimateSendResult>;
+  sendEstimate(trip: BffTrip | null | undefined, session?: EstimatorSession): Promise<EstimateSendResult>;
+  /**
+   * Freeze the current draft as a revision. Their `POST /api/estimates/:id/commit`.
+   *
+   * Required before a share: their `share` answers `409 no-snapshot` for a quotation nobody has
+   * saved, because a link to an unsaved draft is a link to nothing.
+   */
+  commit(session: EstimatorSession, trip: BffTrip): Promise<CommitResult>;
+  /** Mint the guest link for a committed revision. Their `POST /api/estimates/:id/share`. */
+  share(session: EstimatorSession): Promise<ShareResult>;
   submit(input: SubmitInput): Promise<SubmitResult>;
   checkHealth(): Promise<EstimatorHealth>;
 }

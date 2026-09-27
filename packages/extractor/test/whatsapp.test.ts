@@ -704,11 +704,16 @@ describe("the links on a guest's reply once a quotation exists", () => {
     return sent;
   }
 
-  it("sends the guest a customer link", async () => {
+  it("promises the quotation without quoting a price or a link", async () => {
     const sent = await replyForCompletedTurn();
     expect(sent).toHaveLength(1);
-    expect(sent[0]!.body).toContain("🔗 *Interactive Quotation Link:*");
-    expect(sent[0]!.body).toMatch(/\/q\/[0-9a-f-]{16,}/);
+    // The bot used to append its own `/q/<slug>` link the moment it had enough information. That
+    // quoted a price to a customer before anyone at the resort had seen it, from a hand-copied
+    // table. The link a guest gets is the one the customer's own app mints, after staff publish.
+    expect(sent[0]!.body).not.toContain("🔗");
+    expect(sent[0]!.body).not.toMatch(/\/q\//);
+    expect(sent[0]!.body).not.toMatch(/\/quote\//);
+    expect(sent[0]!.body).toContain("reservations team is preparing your quotation");
     expect(sent[0]!.body).toContain("nothing is booked yet");
   });
 
