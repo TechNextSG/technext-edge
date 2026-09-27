@@ -96,6 +96,65 @@ describe("the JavaScript on every rendered page parses", () => {
 });
 
 /**
+ * One palette across every page staff and guests walk through.
+ *
+ * Each page used to carry its own `:root` block with *nearly* the same colours, which is worse than
+ * two obviously different ones: the drift only shows when the pages are seen one after another, and
+ * a demo walks through three of them in a row. `apps/casa-bff/src/theme.ts` is the single source
+ * now, and this is what keeps it that way.
+ */
+describe("every page draws from one set of colour tokens", () => {
+  const LIGHT_BG = "--bg: #f8fafc;";
+  const LIGHT_ACCENT = "--accent: #0284c7;";
+  const DARK_ACCENT = "--accent: #38bdf8;";
+
+  it("carries the shared tokens on the studio, the 410 page, sign-in, handoff and ops", async () => {
+    const app = createApp();
+    const quotations = await listQuotations();
+    const id = quotations[0]!.quoteId;
+
+    const pages: Array<[string, string]> = [
+      ["studio", await (await app.request(`/quotes/${id}?token=${STAFF_TOKEN}`)).text()],
+      // `/q/:slug` answers JSON or HTML depending on `Accept`, and a guest arrives from a browser —
+      // so the page under test is the one a browser gets.
+      [
+        "410",
+        await (
+          await app.request(`/q/${quotations[0]!.slug}`, { headers: { accept: "text/html" } })
+        ).text(),
+      ],
+      ["sign-in", await (await app.request("/login")).text()],
+      ["handoff", await (await app.request(`/handoff?token=${STAFF_TOKEN}`)).text()],
+      ["ops", await (await app.request(`/quotes/${id}/ops?token=${STAFF_TOKEN}`)).text()],
+    ];
+
+    for (const [name, html] of pages) {
+      // The same three values on every page, in both themes: one background, one accent, and the
+      // dark counterpart — the three a viewer sees change when they click the theme toggle.
+      expect(html, `${name} is missing the shared light background`).toContain(LIGHT_BG);
+      expect(html, `${name} is missing the shared light accent`).toContain(LIGHT_ACCENT);
+      expect(html, `${name} is missing the shared dark accent`).toContain(DARK_ACCENT);
+    }
+  });
+
+  it("gives the retired /q page a way forward instead of a dead end", async () => {
+    const app = createApp();
+    const quotations = await listQuotations();
+    const html = await (
+      await app.request(`/q/${quotations[0]!.slug}`, { headers: { accept: "text/html" } })
+    ).text();
+
+    // A guest who followed an old link has a question this page cannot answer, and the honest
+    // action is the channel they already reached us on. Staff land here too, from a link pasted
+    // into a chat, and the studio is where the quotation actually is.
+    expect(html).toContain("Reply on WhatsApp instead of waiting");
+    expect(html).toContain("wa.me");
+    expect(html).toContain('href="/login"');
+    expect(html).toContain("What happens next?");
+  });
+});
+
+/**
  * The studio prices from the engine and nothing else.
  *
  * It used to carry a hand-editable line-item table with its own subtotal/discount arithmetic, which

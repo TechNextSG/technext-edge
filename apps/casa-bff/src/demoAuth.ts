@@ -20,6 +20,7 @@
  * grow it into one — when the real keys arrive, `verifySession` becomes a GAIS key check and
  * everything else stays.
  */
+import { themeCss } from "./theme.js";
 import { createHmac, timingSafeEqual } from "node:crypto";
 
 export type DemoRole = "guest" | "agent" | "staff";
@@ -174,32 +175,7 @@ export function renderLoginHtml(error = false, nextPath = "/quotes"): string {
   <title>Staff Sign-In — Casa Escondida Quotation Studio</title>
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@500;600;700;800&display=swap" rel="stylesheet">
   <style>
-    :root, [data-theme="light"] {
-      --bg: #f1f5f9;
-      --card: #ffffff;
-      --border: #cbd5e1;
-      --text: #0f172a;
-      --muted: #475569;
-      --input-bg: #f8fafc;
-      --primary: #0284c7;
-      --primary-text: #ffffff;
-      --banner-bg: #f0f9ff;
-      --banner-border: #bae6fd;
-      --banner-text: #0369a1;
-    }
-    [data-theme="dark"] {
-      --bg: #0b101b;
-      --card: #131b2e;
-      --border: #263554;
-      --text: #f1f5f9;
-      --muted: #94a3b8;
-      --input-bg: #0d1424;
-      --primary: #38bdf8;
-      --primary-text: #090d16;
-      --banner-bg: rgba(124,58,237,0.12);
-      --banner-border: rgba(124,58,237,0.35);
-      --banner-text: #c4b5fd;
-    }
+${themeCss()}
     body {
       font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
       background: var(--bg);

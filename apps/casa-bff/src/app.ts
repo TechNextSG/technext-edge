@@ -1,3 +1,4 @@
+import { themeCss } from "./theme.js";
 import { randomUUID } from "node:crypto";
 import { Hono, type Context } from "hono";
 import { deleteCookie, getCookie, setCookie } from "hono/cookie";
@@ -1027,17 +1028,18 @@ export function createApp(options: AppOptions = {}) {
     if (c.req.header("accept")?.includes("text/html")) {
       return c.html(
         `<!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-theme="light">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Quotation In Preparation — Casa Escondida Anilao</title>
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@500;600;700;800&display=swap" rel="stylesheet">
   <style>
+    ${themeCss()}
     body {
       font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
-      background: #f8fafc;
-      color: #0f172a;
+      background: var(--bg);
+      color: var(--text);
       margin: 0;
       min-height: 100vh;
       display: flex;
@@ -1046,13 +1048,13 @@ export function createApp(options: AppOptions = {}) {
       padding: 24px 20px;
     }
     .card {
-      background: #ffffff;
-      border: 2px solid #cbd5e1;
+      background: var(--card);
+      border: 2px solid var(--border);
       border-radius: 20px;
       padding: 44px 36px;
       max-width: 520px;
       width: 100%;
-      box-shadow: 0 16px 40px rgba(15, 23, 42, 0.06);
+      box-shadow: var(--shadow);
       text-align: center;
     }
     .kicker {
@@ -1060,34 +1062,59 @@ export function createApp(options: AppOptions = {}) {
       font-weight: 800;
       letter-spacing: 0.1em;
       text-transform: uppercase;
-      color: #0284c7;
+      color: var(--accent);
       margin-bottom: 12px;
     }
     h1 {
       font-size: 24px;
       font-weight: 800;
       margin: 0 0 14px;
-      color: #0f172a;
+      color: var(--text);
     }
     p {
       font-size: 15.5px;
       line-height: 1.65;
-      color: #475569;
+      color: var(--muted);
       margin: 0 0 20px;
     }
     .box {
-      background: #f1f5f9;
-      border: 1px solid #cbd5e1;
+      background: var(--surface-2);
+      border: 1px solid var(--border);
       border-radius: 12px;
       padding: 16px 18px;
       font-size: 14px;
-      color: #334155;
+      color: var(--text);
       margin-bottom: 24px;
       line-height: 1.6;
+      text-align: left;
+    }
+    .actions {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      margin-bottom: 22px;
+    }
+    .btn {
+      display: block;
+      font-family: inherit;
+      font-size: 15px;
+      font-weight: 700;
+      text-decoration: none;
+      border-radius: 999px;
+      padding: 12px 18px;
+      border: 2px solid var(--border);
+      background: var(--card);
+      color: var(--text);
+      cursor: pointer;
+    }
+    .btn-primary {
+      background: var(--accent);
+      border-color: var(--accent);
+      color: var(--primary-text);
     }
     .footer {
       font-size: 13px;
-      color: #94a3b8;
+      color: var(--muted);
     }
   </style>
 </head>
@@ -1099,6 +1126,17 @@ export function createApp(options: AppOptions = {}) {
     <div class="box">
       <strong>What happens next?</strong><br />
       You do not need to take any action. Once reviewed and confirmed by our team, your official quotation link will be sent directly to your WhatsApp.
+    </div>
+    <!-- Two ways forward, and both are real. A guest who followed an old link has a question that
+         this page cannot answer alone, and the honest action is the channel they already reached us
+         on — replying to the WhatsApp message — rather than a form or a phone number this service
+         does not have. The second is for staff, who do land here from an old link pasted into a
+         chat: the studio is where the quotation actually is. -->
+    <div class="actions">
+      <a class="btn btn-primary" href="https://wa.me/?text=${encodeURIComponent(
+        "Hello Casa Escondida, I opened my quotation link and it says it is still being prepared.",
+      )}" target="_blank" rel="noopener">Reply on WhatsApp instead of waiting</a>
+      <a class="btn" href="/login">Staff sign-in — open this quotation in the studio</a>
     </div>
     <div class="footer">Anilao, Batangas, Philippines · Thank you for your patience</div>
   </div>

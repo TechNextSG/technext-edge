@@ -1,3 +1,4 @@
+import { themeCss } from "./theme.js";
 import { randomUUID } from "node:crypto";
 import {
   buildBffTrip,
@@ -353,40 +354,7 @@ export function renderHonoQuotationEditorHtml(
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
   <style>
-    :root, [data-theme="light"] {
-      --bg: #f8fafc;
-      --surface: #ffffff;
-      --surface-2: #f1f5f9;
-      --input-bg: #ffffff;
-      --border: #cbd5e1;
-      --text: #0f172a;
-      --muted: #475569;
-      --accent: #0284c7;
-      --accent-soft: #e0f2fe;
-      --emerald: #059669;
-      --emerald-soft: #ecfdf5;
-      --amber: #d97706;
-      --amber-soft: #fffbeb;
-      --rose: #e11d48;
-      --shadow: 0 8px 24px rgba(15, 23, 42, 0.06);
-    }
-    [data-theme="dark"] {
-      --bg: #0b101b;
-      --surface: #131b2e;
-      --surface-2: #19233c;
-      --input-bg: #0d1424;
-      --border: #2d3f63;
-      --text: #f8fafc;
-      --muted: #cbd5e1;
-      --accent: #38bdf8;
-      --accent-soft: rgba(56, 189, 248, 0.14);
-      --emerald: #10b981;
-      --emerald-soft: rgba(16, 185, 129, 0.14);
-      --amber: #fbbf24;
-      --amber-soft: rgba(245, 158, 11, 0.16);
-      --rose: #fb7185;
-      --shadow: 0 12px 30px rgba(0, 0, 0, 0.45);
-    }
+${themeCss()}
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body {
       font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;

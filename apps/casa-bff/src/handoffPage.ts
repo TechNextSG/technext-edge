@@ -13,6 +13,7 @@
  * Reads only what the store already records. `missingFields` and `context` are best-effort: park
  * records written before those existed simply do not have them, and the row must still render.
  */
+import { themeCss } from "./theme.js";
 import type { PausedThread } from "./conversationStore.js";
 import type { DemoRole } from "./demoAuth.js";
 import { escapeHtml } from "./html.js";
@@ -86,16 +87,7 @@ export function renderHandoffPageHtml(paused: PausedThread[], role: DemoRole = "
   <title>Handoff Inbox — Casa Escondida</title>
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@500;600;700;800&display=swap" rel="stylesheet">
   <style>
-    :root, [data-theme="light"] {
-      --bg: #f1f5f9; --card: #ffffff; --border: #cbd5e1; --text: #0f172a;
-      --muted: #475569; --primary: #0284c7; --primary-text: #ffffff;
-      --row: #f8fafc; --warn: #b45309; --warn-bg: #fef3c7;
-    }
-    [data-theme="dark"] {
-      --bg: #0b101b; --card: #131b2e; --border: #263554; --text: #f1f5f9;
-      --muted: #94a3b8; --primary: #38bdf8; --primary-text: #090d16;
-      --row: #0d1424; --warn: #fcd34d; --warn-bg: rgba(252,211,77,0.12);
-    }
+${themeCss()}
     body {
       font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
       background: var(--bg); color: var(--text); margin: 0; padding: 24px;

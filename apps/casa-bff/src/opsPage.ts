@@ -14,6 +14,7 @@
  * A quotation that has not been priced has no operational data, and this says so instead of
  * inventing an empty day.
  */
+import { themeCss } from "./theme.js";
 import type { HonoQuotationDraft } from "../../../packages/extractor/src/index.js";
 import { escapeHtml } from "./html.js";
 
@@ -172,14 +173,7 @@ function page(body: string): string {
   <title>Ops sheet — Casa Escondida</title>
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@500;600;700;800&display=swap" rel="stylesheet">
   <style>
-    :root, [data-theme="light"] {
-      --bg: #f1f5f9; --card: #ffffff; --border: #cbd5e1; --text: #0f172a;
-      --muted: #475569; --row: #f8fafc; --primary: #0284c7;
-    }
-    [data-theme="dark"] {
-      --bg: #0b101b; --card: #131b2e; --border: #263554; --text: #f1f5f9;
-      --muted: #94a3b8; --row: #0d1424; --primary: #38bdf8;
-    }
+${themeCss()}
     body { font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
       background: var(--bg); color: var(--text); margin: 0; padding: 24px; }
     header { margin-bottom: 6px; }
