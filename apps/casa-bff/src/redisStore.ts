@@ -2,11 +2,14 @@ import type { ConversationTurn } from "../../../packages/extractor/src/index.js"
 import {
   type ConversationStore,
   type PausedThread,
+  type PauseContext,
   type ClaimResult,
   MAX_TURNS,
   THREAD_TTL_MS,
   IN_FLIGHT_CLAIM_TTL_MS,
+  sameFieldSet,
 } from "./conversationStore.js";
+import type { StatedValueChange } from "../../../packages/extractor/src/index.js";
 import { randomUUID } from "node:crypto";
 
 export interface RedisConfig {
@@ -16,6 +19,11 @@ export interface RedisConfig {
 
 interface StoredThread {
   turns: ConversationTurn[];
+  /** Progress fingerprint; optional because threads written before it existed do not carry one. */
+  openFields?: string[];
+  stallCount?: number;
+  /** Money-bearing values as of the last turn; optional for the same reason. */
+  statedValues?: Record<string, string | number | boolean>;
 }
 
 interface StoredClaim {
@@ -150,23 +158,35 @@ export function createRedisConversationStore(
     }
   }
 
+  /**
+   * The whole stored thread, not just its turns. `append` used to rebuild the record from
+   * `history()`, which silently dropped every field that was not `turns` — so a progress
+   * fingerprint written here would have been erased by the very next message. Reading and writing
+   * the full record is what keeps that from being possible again.
+   */
+  async function readThread(phone: string): Promise<StoredThread> {
+    const raw = await command<string | null>(["GET", `thread:${phone}`]);
+    if (!raw) return { turns: [] };
+    try {
+      const parsed = JSON.parse(raw) as StoredThread;
+      return { ...parsed, turns: Array.isArray(parsed?.turns) ? parsed.turns : [] };
+    } catch {
+      return { turns: [] };
+    }
+  }
+
+  async function writeThread(phone: string, thread: StoredThread): Promise<void> {
+    await command(["SET", `thread:${phone}`, JSON.stringify(thread), "EX", ttlSeconds]);
+  }
+
   return {
     async history(phone: string): Promise<ConversationTurn[]> {
-      const raw = await command<string | null>(["GET", `thread:${phone}`]);
-      if (!raw) return [];
-      try {
-        const parsed = JSON.parse(raw) as StoredThread;
-        return Array.isArray(parsed?.turns) ? parsed.turns : [];
-      } catch {
-        return [];
-      }
+      return (await readThread(phone)).turns;
     },
 
     async append(phone: string, ...turns: ConversationTurn[]): Promise<void> {
-      const existing = await this.history(phone);
-      const combined = [...existing, ...turns].slice(-MAX_TURNS);
-      const data: StoredThread = { turns: combined };
-      await command(["SET", `thread:${phone}`, JSON.stringify(data), "EX", ttlSeconds]);
+      const existing = await readThread(phone);
+      await writeThread(phone, { ...existing, turns: [...existing.turns, ...turns].slice(-MAX_TURNS) });
     },
 
     async claimMessage(messageId: string, inFlightMs = IN_FLIGHT_CLAIM_TTL_MS): Promise<ClaimResult> {
@@ -247,16 +267,42 @@ export function createRedisConversationStore(
       }
     },
 
-    async pause(phone: string, reason: string): Promise<void> {
+    async pause(phone: string, reason: string, extra?: PauseContext): Promise<void> {
       const existing = await this.paused(phone);
       const data: PausedThread = {
         phone,
         reason,
         since: existing?.since ?? Date.now(),
         toldAt: existing?.toldAt ?? 0,
+        ...(extra?.missingFields ? { missingFields: [...extra.missingFields] } : {}),
+        ...(extra?.context ? { context: extra.context } : {}),
       };
       await command(["SET", `pause:${phone}`, JSON.stringify(data), "EX", ttlSeconds]);
       await command(["SADD", "paused_phones", phone]);
+    },
+
+    async noteOpenFields(phone: string, fields: readonly string[], limit: number): Promise<{ stallCount: number; stalled: boolean }> {
+      const thread = await readThread(phone);
+      const previous = thread.openFields ?? [];
+      const noProgress = fields.length > 0 && sameFieldSet(previous, fields);
+      const stallCount = noProgress ? (thread.stallCount ?? 0) + 1 : 0;
+      await writeThread(phone, { ...thread, openFields: [...fields], stallCount });
+      return { stallCount, stalled: stallCount >= limit };
+    },
+
+    async noteStatedValues(phone: string, values: Record<string, string | number | boolean>): Promise<StatedValueChange[]> {
+      const thread = await readThread(phone);
+      const previous = thread.statedValues ?? {};
+      const changes: StatedValueChange[] = [];
+      for (const [field, value] of Object.entries(values)) {
+        const before = previous[field];
+        // Only a value the guest had already stated can change — see the memory store's note.
+        if (before !== undefined && before !== value) {
+          changes.push({ field, from: before, to: value });
+        }
+      }
+      await writeThread(phone, { ...thread, statedValues: { ...values } });
+      return changes;
     },
 
     async resume(phone: string): Promise<void> {

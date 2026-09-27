@@ -3,7 +3,7 @@ import { createHmac } from "node:crypto";
 import { createApp } from "../../../apps/casa-bff/src/app.js";
 import { createWhatsAppSender, parseInboundTexts, verifySignature } from "../../../apps/casa-bff/src/whatsapp.js";
 import { createInMemoryConversationStore, type ConversationStore } from "../../../apps/casa-bff/src/conversationStore.js";
-import { ASK_LIMIT } from "../src/questions.js";
+import { ASK_LIMIT, STALL_LIMIT } from "../src/questions.js";
 import type { ExtractProvider } from "../src/provider.js";
 
 const VERIFY_TOKEN = "casa-verify-token";
@@ -750,7 +750,16 @@ describe("handoff view", () => {  it("refuses to list or resume threads without 
 
     const list = await app.request("/v1/channels/whatsapp/threads", { headers: { "x-verify-token": VERIFY_TOKEN } });
     expect(await list.json()).toEqual({
-      paused: [{ phone: GUEST, reason: "guest_asked_for_human", since: expect.any(Number), toldAt: expect.any(Number) }],
+      paused: [
+        {
+          phone: GUEST,
+          reason: "guest_asked_for_human",
+          since: expect.any(Number),
+          toldAt: expect.any(Number),
+          // The message the bot stopped on, so whoever picks this up is not starting cold.
+          context: "Can I speak to a human please?",
+        },
+      ],
     });
 
     // Someone answered, so the bot takes the thread again — and this time it does
@@ -863,5 +872,172 @@ describe("createWhatsAppSender", () => {
     await createWhatsAppSender(config)({ to: GUEST, body: "x".repeat(5000) });
 
     expect(JSON.parse(fetchMock.mock.calls[0][1].body).text.body).toHaveLength(4096);
+  });
+});
+
+/** A provider that answers with a different raw payload on each call. */
+function providerSequence(raws: unknown[]): ExtractProvider {
+  const call = vi.fn();
+  for (const raw of raws) {
+    call.mockResolvedValueOnce({ raw, tokensIn: 10, tokensOut: 10, cacheReadTokens: 0, ms: 5 });
+  }
+  const last = raws[raws.length - 1];
+  call.mockResolvedValue({ raw: last, tokensIn: 10, tokensOut: 10, cacheReadTokens: 0, ms: 5 });
+  return { id: "fake:sequence", call };
+}
+
+describe("the stopping point", () => {
+  it("stops after a few turns that close no questions, and tells the guest what was still needed", async () => {
+    // The extractor keeps returning the same payload, which is what "the conversation is going
+    // nowhere" actually looks like from here: every turn asks the same questions again. Turn one
+    // cannot count (nothing recorded yet), so with STALL_LIMIT=3 the fourth message is the one
+    // that hands over.
+    const provider = providerReturning(PARTIAL_RAW);
+    const { app, sent, store } = harness(provider);
+
+    for (let i = 1; i <= STALL_LIMIT; i++) {
+      await post(app, textEvent(`wamid.${i}`, `still thinking about it ${i}`));
+    }
+    expect(await store.paused(GUEST)).toBeUndefined();
+    expect(sent).toHaveLength(STALL_LIMIT);
+
+    const res = await post(app, textEvent("wamid.final", "hmm"));
+    expect(await res.json()).toEqual({ received: 1, replied: 1, duplicates: 0, failed: 0, handoffs: 1 });
+
+    // The guest never asked for a person and nothing failed, so the reply owes them the reason —
+    // and the same list of gaps the human is being handed.
+    expect(sent[STALL_LIMIT]!.body).toContain("Rather than ask you the same things again");
+    expect(sent[STALL_LIMIT]!.body).toContain("how many guests");
+    expect(await store.paused(GUEST)).toMatchObject({
+      reason: "stalled",
+      missingFields: expect.arrayContaining(["guests"]),
+    });
+  });
+
+  it("does not stop a guest who is getting somewhere, however slowly", async () => {
+    // One field closed per turn. `ASK_LIMIT` alone would eventually cut this off; the progress
+    // signal must not, because every turn is real progress.
+    const withGuests = { ...PARTIAL_RAW, guests: { value: 2, state: "stated", evidence: "we are 2" } };
+    const withName = { ...withGuests, contactName: { value: "Minh", state: "stated", evidence: "Minh" } };
+    const provider = providerSequence([PARTIAL_RAW, withGuests, withName]);
+    const { app, sent, store } = harness(provider);
+
+    await post(app, textEvent("wamid.1", FIRST_TEXT));
+    await post(app, textEvent("wamid.2", "we are 2"));
+    await post(app, textEvent("wamid.3", "Minh"));
+
+    expect(provider.call).toHaveBeenCalledTimes(3);
+    expect(await store.paused(GUEST)).toBeUndefined();
+    // Every reply is an answer, not a holding message.
+    expect(sent.every((m) => !m.body.includes("passed your enquiry"))).toBe(true);
+  });
+
+  it("forgets the stall once the enquiry settles, so a settled guest starts clean", async () => {
+    // Two dead turns, then a complete trip: the counter resets rather than carrying two strikes
+    // into whatever the guest asks next.
+    const complete = {
+      ...PARTIAL_RAW,
+      guests: { value: 2, state: "stated", evidence: "we are 2" },
+      rooms: { value: 1, state: "stated", evidence: "one room" },
+      meals: { value: "full_board", state: "stated", evidence: "full board" },
+      transport: { value: false, state: "stated", evidence: "no transfer" },
+      contactName: { value: "Minh", state: "stated", evidence: "Minh" },
+      diver: { value: false, state: "stated", evidence: "no diving" },
+    };
+    const provider = providerSequence([PARTIAL_RAW, PARTIAL_RAW, complete, PARTIAL_RAW, PARTIAL_RAW]);
+    const { app, store } = harness(provider);
+
+    await post(app, textEvent("wamid.1", FIRST_TEXT));
+    await post(app, textEvent("wamid.2", "we are 2"));
+    const settled = await post(app, textEvent("wamid.3", "we are 2, one room, full board, no transfer, Minh, no diving"));
+    expect(settled).toBeDefined();
+
+    // Back to a thread that closes nothing, but it must take a fresh STALL_LIMIT to trip.
+    await post(app, textEvent("wamid.4", "one more thing"));
+    await post(app, textEvent("wamid.5", "one more thing again"));
+    expect(await store.paused(GUEST)).toBeUndefined();
+  });
+});
+
+describe("a count the guest changed their mind about", () => {
+  // The extractor re-reads the whole transcript each turn, so a changed count otherwise arrives as
+  // a silent substitution: the new number replaces the old one and the reply moves on. For a number
+  // a price is built from, that is a different quotation the guest never saw change.
+  it("reads the change back once, naming both numbers", async () => {
+    const five = { ...PARTIAL_RAW, guests: { value: 5, state: "stated", evidence: "5 of us" } };
+    const three = { ...PARTIAL_RAW, guests: { value: 3, state: "stated", evidence: "3 of us" } };
+    const provider = providerSequence([five, three, three]);
+    const { app, sent } = harness(provider);
+
+    await post(app, textEvent("wamid.1", "we are 5 of us"));
+    // Nothing to confirm yet: filling a field for the first time is the enquiry arriving, not the
+    // guest contradicting themselves.
+    expect(sent[0]!.body).not.toContain("Just to check");
+
+    await post(app, textEvent("wamid.2", "sorry, actually 3 of us"));
+    expect(sent[1]!.body).toContain("Just to check");
+    expect(sent[1]!.body).toContain("5 guests");
+    expect(sent[1]!.body).toContain("3 guests");
+
+    // Once, not every turn: the store recorded 3 as the stated value, so a third turn that changes
+    // nothing is not asked about again.
+    await post(app, textEvent("wamid.3", "yes that's right"));
+    expect(sent[2]!.body).not.toContain("Just to check");
+  });
+
+  it("does not treat a house-norm default as something the guest changed", async () => {
+    // `rooms` is defaulted by the pipeline, never stated by the guest, so it cannot have been
+    // changed by them — confirming it would be asking about Casa's own assumption.
+    const provider = providerSequence([PARTIAL_RAW, PARTIAL_RAW]);
+    const { app, sent } = harness(provider);
+
+    await post(app, textEvent("wamid.1", FIRST_TEXT));
+    await post(app, textEvent("wamid.2", "still thinking"));
+
+    expect(sent[1]!.body).not.toContain("Just to check");
+  });
+});
+
+describe("messages that are not booking enquiries", () => {  it("routes a cancellation to a person without spending a model call", async () => {
+    const provider = providerReturning(PARTIAL_RAW);
+    const { app, sent, store } = harness(provider);
+
+    const res = await post(app, textEvent("wamid.1", "Please cancel my booking for next week"));
+
+    expect(await res.json()).toEqual({ received: 1, replied: 1, duplicates: 0, failed: 0, handoffs: 1 });
+    // A person is needed because of what the message IS. Asking this guest for their check-in date
+    // would be the failure this branch exists to prevent.
+    expect(provider.call).not.toHaveBeenCalled();
+    expect(sent[0]!.body).toContain("A member of the Casa team");
+    expect(await store.paused(GUEST)).toMatchObject({ reason: "complaint_or_cancel" });
+  });
+
+  it("answers a message that is not about a stay by naming what this number is for", async () => {
+    const provider = providerReturning(PARTIAL_RAW);
+    const { app, sent, store } = harness(provider);
+
+    const res = await post(app, textEvent("wamid.1", "hey what is the wifi password?"));
+
+    expect(await res.json()).toEqual({ received: 1, replied: 1, duplicates: 0, failed: 0, handoffs: 1 });
+    expect(provider.call).not.toHaveBeenCalled();
+    expect(sent[0]!.body).toContain("This number is for new booking enquiries");
+    expect(await store.paused(GUEST)).toMatchObject({ reason: "not_booking" });
+  });
+
+  it("still treats an odd-looking first message as a booking enquiry", async () => {
+    // The list of "not a booking" patterns is deliberately short. "hi", a fragment, or an unusual
+    // phrasing is how real enquiries start, and dismissing one costs a customer — so the default
+    // is to try, exactly as before this existed.
+    const provider = providerReturning(PARTIAL_RAW);
+    const { app, sent, store } = harness(provider);
+
+    await post(app, textEvent("wamid.1", "hi"));
+    await post(app, textEvent("wamid.2", "do you have a room for two on Saturday?"));
+
+    expect(provider.call).toHaveBeenCalledTimes(2);
+    expect(await store.paused(GUEST)).toBeUndefined();
+    // Answered as an enquiry — the greeting, since "hi" states nothing a quote can use — rather
+    // than dismissed as a message this number does not handle.
+    expect(sent[0]!.body).toContain("Welcome to Casa Escondida");
   });
 });

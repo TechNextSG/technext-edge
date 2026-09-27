@@ -527,6 +527,31 @@ describe("extract", () => {
     expect(outcome.questions.map((q) => q.field)).not.toContain("divers");
   });
 
+  // The same field, seen from the guest's side of a live WhatsApp conversation (2026-09-25).
+  // The guest answered "Yes, all 4 of us will dive on Sunday and Monday" and the model read
+  // `divers: 4` correctly — but the count reader could not see the verb phrasing, so the number
+  // was wiped and the next reply both read "all 4 of you" back AND asked the guest to confirm
+  // how many of them would be diving. A right number turned into a question about itself.
+  it("keeps a diver count the guest wrote with the verb, and does not ask it back", async () => {
+    const message = "Yes, all 4 of us will dive on Sunday and Monday. 2 twin rooms and full board please.";
+    const raw = {
+      ...HAPPY_RAW,
+      checkIn: { value: null, state: "missing", evidence: null },
+      nights: { value: null, state: "missing", evidence: null },
+      guests: { value: 4, state: "stated", evidence: "all 4 of us" },
+      rooms: { value: 2, state: "stated", evidence: "2 twin rooms" },
+      meals: { value: "full_board", state: "stated", evidence: "full board" },
+      diver: { value: true, state: "stated", evidence: "will dive" },
+      divers: { value: 4, state: "stated", evidence: "all 4 of us will dive" },
+    };
+
+    const outcome = await extract(message, fakeProvider(raw));
+
+    expect(outcome.trip.divers).toEqual({ value: 4, state: "stated", evidence: "all 4 of us will dive" });
+    expect(outcome.trip.guests.value).toBe(4);
+    expect(outcome.questions.map((q) => q.field)).not.toContain("divers");
+  });
+
   // A guest who writes the stay as a date range has already done this arithmetic. Measured
   // against the real DeepSeek API before the fix: all 9 runs asked "how many nights?"
   // immediately after the guest wrote "Oct 17 to Oct 20" — asking someone to repeat a sum

@@ -638,6 +638,30 @@ describe("Phase 1 Hybrid AI Guardrails: NEVER RE-ASK, Fact Gate & Staff Alerts",
     expect(alerts[0]).toContain("30% agency discount");
   });
 
+  it("Staff Alerts: flags more rooms than overnight guests as a confirm note, not a question", () => {
+    const trip: Trip = {
+      ...(BLANK_RAW as unknown as Trip),
+      language: { value: "en", state: "inferred", evidence: null },
+      guests: { value: 2, state: "stated", evidence: "2 guests" },
+      rooms: { value: 3, state: "stated", evidence: "3 rooms" },
+    };
+    const alerts = getStaffAlerts(trip, "en");
+    expect(alerts).toHaveLength(1);
+    expect(alerts[0]).toContain("Rooms To Confirm");
+    expect(alerts[0]).toContain("3 rooms");
+    expect(alerts[0]).toContain("2 overnight guests");
+  });
+
+  it("Staff Alerts: stays quiet when rooms do not exceed guests", () => {
+    const trip: Trip = {
+      ...(BLANK_RAW as unknown as Trip),
+      language: { value: "en", state: "inferred", evidence: null },
+      guests: { value: 4, state: "stated", evidence: "4 guests" },
+      rooms: { value: 2, state: "stated", evidence: "2 rooms" },
+    };
+    expect(getStaffAlerts(trip, "en")).toEqual([]);
+  });
+
   it("Phase 2 Naturalness Scorer: awards 100/100 to warm non-redundant replies and penalizes re-asking", () => {
     const trip: Trip = {
       ...(BLANK_RAW as unknown as Trip),

@@ -36,17 +36,15 @@
 // turn those into guest counts. `(?<!\d)(\d{1,3})(?!\d)` keeps a digit run *inside* a
 // longer one out too: no prefix of a phone number is ever a room count.
 //
-// One hole was left, and it is the model's *quote* rather than its number. A count the
-// guest's words put one number on is settled by those words; a count they say nothing about
-// is left exactly as the rest of the pipeline left it. But that silence is only this reader's
-// — it is not proof that the model found the number on the field it labelled it with. So when
-// there is no reading for this count, the evidence the model chose is the only support the
-// number has, and it has to be about *this* count: `guests: 3` quoted from "cần 3 phòng cho
-// gia đình" is a room count with a guest label on it — the mirror image of vi-09, where the
-// number is real but is not this field's number — and it becomes a question. An evidence
-// quote that names both counts ("chúng tôi 5 người, cần 3 phòng") supports either, so it
-// decides nothing, exactly like a vague phrase in dates.ts. Only the quote is read this way,
-// never the whole message: what the guest wrote still decides whenever it says anything.
+// One hole was closed by deleting it (2026-09-25): the reader that judged a count by the
+// model's own quote. A count the guest's words put one number on is settled by those words; a
+// count they say nothing this reader recognises about is left exactly as the rest of the
+// pipeline left it, and the model's number stands. Reading the quote with the same noun list is
+// still comprehension — the model's job, not the code's — and it is what wiped a correct
+// `divers: 4`: "all 4 of us will dive" has no `diver` noun, so the quote check read "of us" as a
+// guests noun and turned a right answer into a question the guest had already answered.
+// Fabrication is already guarded by enforceVerbatimEvidence (the quote must be the guest's own
+// words); this file now only vetoes on a contradiction the guest's words actually state.
 
 export type CountField = "nights" | "guests" | "rooms" | "divers";
 
@@ -118,6 +116,33 @@ const PATTERNS = new Map<CountField, RegExp>();
 // does Chinese ("一家3口", read by 口).
 const COLLECTIVE_OF = new RegExp(`(?:party|group|family|team)\\s+of\\s+${NUMBER}`, "giu");
 
+// The mirror of DIVE_CLAUSE_AFTER_NOUN below, and the whole reason that guard needs one.
+//
+// A guest usually counts divers with the *verb*, not the noun: "all 4 of us will dive", "the
+// 4 of us are diving", "4 people dive both days". The count nouns above cannot see those, and
+// `guests` deliberately refuses them, so such a number lands on no count at all — and then
+// `corroborateCount` judges the model's `divers` by its own quote, where "4 of us" reads as a
+// *guests* noun and correctly-extracted `divers: 4` comes back "conflicting".
+//
+// Measured, not theorised. For "Yes, all 4 of us will dive on Sunday and Monday" the reader
+// returned [] for BOTH `guests` and `divers`, and corroborateCount("divers", 4, …) answered
+// "conflicting", so extract.ts wiped a right number and the guest was asked "how many of you
+// will be diving?" immediately after saying it — while the same reply's own summary line read
+// back "all 4 of you". A number no reader can see is a number nobody can check.
+//
+// Only a *person* noun may carry this count, never the activity: "2 boat dives" and "12 dives
+// logged" are numbers of dives, not of divers, and stay invisible here.
+const PERSON_NOUNS = "pax|of\\s+us|people|persons?|guests?|adults?|kids?|children|divers?";
+// Optional, so "4 of us dive both days" reads as readily as "the 4 of us are diving". A person
+// noun followed by a stay verb ("4 of us are staying") matches none of these and stays a guest
+// count, which is the distinction the guest's own sentence is making.
+const DIVE_AUX = "(?:(?:will|would|want\\s+to|wanna|going\\s+to|gonna|can|are|is|to)\\s+)?";
+const DIVERS_CLAUSE = new RegExp(
+  `${NUMBER}\\s*${CLASSIFIER}\\s*(?:(?:${PERSON_NOUNS})\\s+${DIVE_AUX}(?:dive|dives|diving)\\b` +
+    `|(?:人|客人|大人|小孩)\\s*(?:(?:去|要|会|想)\\s*)?(?:潜水|潛水|深潜))`,
+  "giu",
+);
+
 /**
  * The pattern that finds "a number written against this count's noun". One regex per
  * field, built once: it carries every noun and every number word, and rebuilding it per
@@ -161,31 +186,12 @@ export function countNumbersIn(text: string, field: CountField): number[] {
   if (field === "guests") {
     for (const match of text.matchAll(COLLECTIVE_OF)) collect(match);
   }
+  // Divers are counted with the verb far more often than with the noun, and `guests` refuses
+  // that phrasing on purpose — so it is read here, and only here (see DIVERS_CLAUSE).
+  if (field === "divers") {
+    for (const match of text.matchAll(DIVERS_CLAUSE)) collect(match);
+  }
   return [...found].sort((a, b) => a - b);
-}
-
-// The count nouns again, one compiled pattern per noun rather than the single alternation
-// above, because this reader asks a different question: not "is a number written against this
-// noun" but "does this quote name this count at all". A Han noun is matched as it stands —
-// Chinese is written without spaces to bound it by — while a Latin one is matched whole, so
-// the unmarked "dem" in "demand" is not a night and "ban" in "banana" is not a guest.
-function nounPatternsFor(field: CountField): readonly RegExp[] {
-  return COUNT_NOUNS[field]
-    .split("|")
-    .map((noun) => new RegExp(/[\u4e00-\u9fff]/.test(noun) ? noun : "(?<![\\p{L}])" + noun + "(?![\\p{L}])", "iu"));
-}
-
-const COUNT_FIELDS = ["nights", "guests", "rooms", "divers"] as const;
-const NOUN_PATTERNS: Record<CountField, readonly RegExp[]> = {
-  nights: nounPatternsFor("nights"),
-  guests: nounPatternsFor("guests"),
-  rooms: nounPatternsFor("rooms"),
-  divers: nounPatternsFor("divers"),
-};
-
-/** The counts a quote names — empty for a quote with no count noun in it at all ("we are a group"). */
-function countsNamedIn(quote: string): CountField[] {
-  return COUNT_FIELDS.filter((field) => NOUN_PATTERNS[field].some((pattern) => pattern.test(quote)));
 }
 
 const ADULT_NOUNS = "adults?|大人";
@@ -235,17 +241,20 @@ export function stayingGuestsCount(text: string): number | null {
 /**
  * The verdict on a count the model stated, in the same shape as
  * corroborateDatePhrase's: "consistent" is the only answer that keeps the model's number;
- * everything else means the field goes back to being a question. A count the guest never
- * put a number on is "no-opinion", because this file has nothing to hold the model to —
- * which is not the same thing as the model being right. The one exception is the model's own
- * evidence quote: when the guest's words are silent this reader still knows which count the
- * quote is about, and a quote about another count supports no number at all (see the header).
+ * "conflicting" means the guest's own words contradict it and it goes back to a question.
+ *
+ * Division of labour (2026-09-25): the model owns comprehension, the code owns contradiction
+ * detection. So this reader only answers "conflicting" on POSITIVE evidence — the guest's own
+ * words put a number on this count and it disagrees with the model's, or they put two different
+ * numbers on it. It never answers "conflicting" for an ABSENCE: when the guest's words put no
+ * recognisable number on this count, the answer is "no-opinion" and the model's number is kept.
+ * A number the code cannot see is still the model's to read, and punishing it for that is what
+ * turned a correct `divers: 4` into a re-asked question (see the header).
  */
 export function corroborateCount(
   field: CountField,
   proposed: number,
   guestText: string,
-  evidence?: string | null,
 ): CountCorroboration {
   // When a guest specifies both adults and children ("2 adults and 2 kids"),
   // their sum is the total guest count. If proposed matches that sum, corroborate it.
@@ -289,19 +298,10 @@ export function corroborateCount(
   // that picked the 8 had the guest's own words as its evidence.
   if (stated.length > 1) return "conflicting";
   if (stated.length === 1) return stated[0] === proposed ? "consistent" : "conflicting";
-  // The guest's words say nothing about this count, so the quote the model chose is all this
-  // number has behind it: a quote that names another count and not this one is not support
-  // for this field. A quote that names no count at all ("we are a group of friends") is not
-  // evidence against the number either, and one naming both counts decides nothing.
-  if (evidence) {
-    const named = countsNamedIn(evidence);
-    // Every diver is a guest, so a quote naming "divers" ("6 AOW divers") still supports
-    // "guests" — the two counts happen to be equal in that message, not in conflict. The
-    // reverse does not hold: a quote naming "guests" says nothing about how many of them
-    // dive, so it is not support for `divers`.
-    const supportsGuestsViaDivers = field === "guests" && named.includes("divers");
-    if (named.length > 0 && !named.includes(field) && !supportsGuestsViaDivers) return "conflicting";
-  }
+  // The guest's words say nothing this reader recognises about this count. That is silence, not
+  // contradiction — the model's number stands. Punishing silence here was the bug: a verb-phrased
+  // diver count ("all 4 of us will dive") fell through to a quote check that read "of us" as a
+  // guests noun and wiped a correct answer.
   return "no-opinion";
 }
 

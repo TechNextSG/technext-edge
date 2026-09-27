@@ -443,7 +443,7 @@ function postProcess(raw: unknown, today: string, sourceText: string): unknown {
   for (const key of ["nights", "guests", "rooms", "divers"] as const) {
     const field = trip[key];
     if (field?.state !== "stated" || typeof field.value !== "number") continue;
-    if (corroborateCount(key, field.value, guestText, field.evidence) === "conflicting") {
+    if (corroborateCount(key, field.value, guestText) === "conflicting") {
       trip[key] = { value: null, state: "missing", evidence: null };
     }
   }

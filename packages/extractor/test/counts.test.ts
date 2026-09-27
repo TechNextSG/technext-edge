@@ -108,26 +108,24 @@ describe("corroborateCount — what keeps a model's number", () => {
     expect(corroborateCount("guests", 3, "we need 3 rooms for the family")).toBe("no-opinion");
   });
 
-  it("refuses a number whose own quote is about a different count", () => {
-    // The one thing this reader knows when the guest's words say nothing about a count is which
-    // count the model's *own quote* is about — and a quote about another count is not support for
-    // this field. "we need 3 rooms for the family" states a room count and says nothing about
-    // guests, so a `guests: 3` quoted from it is a room count priced per head. Both become
-    // questions.
+  it("does not veto a count on the strength of the model's own quote", () => {
+    // The quote-based veto was removed on 2026-09-25: reading the quote with the noun list is
+    // still comprehension, which belongs to the model, and it is what wiped a correct
+    // `divers: 4` (see the header in counts.ts). A count the guest's own words settle is still
+    // decided by those words; a count they say nothing about is "no-opinion", and the model's
+    // number stands — whatever its quote names.
     const roomsOnly = "we need 3 rooms for the family";
-    expect(corroborateCount("guests", 3, roomsOnly, "3 rooms")).toBe("conflicting");
-    expect(corroborateCount("nights", 3, roomsOnly, "we need 3 rooms")).toBe("conflicting");
+    expect(corroborateCount("guests", 3, roomsOnly)).toBe("no-opinion");
+    expect(corroborateCount("nights", 3, roomsOnly)).toBe("no-opinion");
 
     // A count the guest's own words *do* settle is still decided by those words, and by nothing
-    // else: two nights asked for in the same message as three rooms is kept, quote and all, and
-    // the quote is support for the count it names.
-    expect(corroborateCount("rooms", 3, roomsOnly, "3 rooms")).toBe("consistent");
-    expect(corroborateCount("nights", 2, "staying 2 nights, need 3 rooms", "staying 2 nights")).toBe("consistent");
+    // else: two nights asked for in the same message as three rooms is kept.
+    expect(corroborateCount("rooms", 3, roomsOnly)).toBe("consistent");
+    expect(corroborateCount("nights", 2, "staying 2 nights, need 3 rooms")).toBe("consistent");
 
-    // A quote that names both counts is evidence for either, so it decides nothing…
-    expect(corroborateCount("guests", 4, "we booked 2 rooms for the group", "4 guests and 2 rooms")).toBe("no-opinion");
-    // …and a quote with no count noun in it is not evidence against the number either.
-    expect(corroborateCount("guests", 6, "the whole family is coming", "the whole family")).toBe("no-opinion");
+    // A quote that names a count, or none at all, is not evidence against the number either.
+    expect(corroborateCount("guests", 4, "we booked 2 rooms for the group")).toBe("no-opinion");
+    expect(corroborateCount("guests", 6, "the whole family is coming")).toBe("no-opinion");
   });
 
   it("reads divers as its own count, separate from guests", () => {
@@ -140,16 +138,51 @@ describe("corroborateCount — what keeps a model's number", () => {
     expect(corroborateCount("divers", 2, text)).toBe("consistent");
   });
 
-  it("lets a divers quote support guests, but not the reverse", () => {
-    // "6 AOW divers" does not sit directly against a guests noun, so corroboration falls
-    // back to what the model's own quote names. Every diver is a guest, so that quote is
-    // real support for a guests count that happens to equal it (en-01: the whole party
-    // dives) — not "conflicting" the way an unrelated quote would be.
+  it("keeps the model's number when the guest's words are silent, divers or guests alike", () => {
+    // The one-way "a divers quote supports guests, a guests quote does not support divers" rule
+    // was the same quote-reading that wiped a correct `divers: 4`. With the quote veto gone,
+    // silence about a count is "no-opinion" for every count.
     const text = "International group diving Anilao";
-    expect(corroborateCount("guests", 6, text, "6 AOW divers")).toBe("no-opinion");
-    // The relationship is one-way: a quote naming guests says nothing about how many of
-    // them dive, so it is not support for `divers`.
-    expect(corroborateCount("divers", 6, text, "6 guests confirmed")).toBe("conflicting");
+    expect(corroborateCount("guests", 6, text)).toBe("no-opinion");
+    expect(corroborateCount("divers", 6, text)).toBe("no-opinion");
+  });
+
+  it("reads a diver head-count written with the verb — the phrasing guests refuses on purpose", () => {
+    // Measured on WhatsApp, 2026-09-25. The guest answered "Yes, all 4 of us will dive on
+    // Sunday and Monday", the model read `divers: 4` correctly, and this reader said nothing:
+    // `guests` excludes the phrase (the noun is the subject of a diving verb) and `divers` only
+    // knew the noun "diver". The number belonged to no count, so the evidence-quote check read
+    // "of us" as a *guests* noun, answered "conflicting", and extract.ts wiped a right number —
+    // after which the guest was asked to confirm how many of them would be diving, in the same
+    // reply whose summary line already read back "all 4 of you".
+    const text = "Yes, all 4 of us will dive on Sunday and Monday. 2 twin rooms and full board please.\nYes";
+    expect(countNumbersIn(text, "divers")).toEqual([4]);
+    // The guard on the other side still holds, so this number answers exactly one count.
+    expect(countNumbersIn(text, "guests")).toEqual([]);
+    expect(corroborateCount("divers", 4, text)).toBe("consistent");
+    // A diver count that is not the one the guest gave is still refused.
+    expect(corroborateCount("divers", 5, text)).toBe("conflicting");
+  });
+
+  it("reads the verb phrasing in Chinese too, mirroring the guests guard", () => {
+    // DIVE_CLAUSE_AFTER_NOUN has a Chinese branch, so the same homeless-number hole existed
+    // there; the reader that reclaims it has to be bilingual for the same reason.
+    expect(countNumbersIn("我们4个人潜水", "divers")).toEqual([4]);
+    expect(countNumbersIn("我们4个人潜水", "guests")).toEqual([]);
+    expect(corroborateCount("divers", 4, "我们4个人潜水")).toBe("consistent");
+  });
+
+  it("widening to the verb does not read the activity or a stay as a diver count", () => {
+    // "12 dives logged" counts dives, not divers, and "we are staying" is not diving. The
+    // person noun has to be followed by the diving verb for this count to move.
+    expect(countNumbersIn("(12 dives logged each)", "divers")).toEqual([]);
+    expect(countNumbersIn("4 of us are staying for 3 nights", "divers")).toEqual([]);
+    expect(countNumbersIn("4 of us are coming next week", "divers")).toEqual([]);
+    // The split-day shape reads BOTH numbers rather than quietly picking one, so the field is
+    // wiped and NEVER RE-ASK routes the breakdown in `diveNotes` to staff instead of a guess.
+    const splitDay = "1 person dives day 1, 5 people dive both days";
+    expect(countNumbersIn(splitDay, "divers")).toEqual([1, 5]);
+    expect(corroborateCount("divers", 5, splitDay)).toBe("conflicting");
   });
 
   it("refuses both numbers when the guest's own message states two", () => {

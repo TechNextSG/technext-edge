@@ -1,8 +1,17 @@
 import { randomUUID } from "node:crypto";
 import type { Trip, BffTrip } from "./schema.js";
 import type { ExtractProvider } from "./provider.js";
-import { getStaffAlerts } from "./questions.js";
-import { buildBffTrip } from "./odooHandoff.js";
+import { getStaffAlerts, diveWindowIsGuessed } from "./questions.js";
+import { buildBffTrip, datesBetweenInclusive } from "./odooHandoff.js";
+import type { QuotationPricing } from "./pricing.js";
+import {
+  roomNightlyRate,
+  diveTierPrice,
+  MEAL_RATE,
+  TRANSPORT_RATE,
+  PARTNER_DISCOUNT_PCT,
+  type RoomType,
+} from "./rates.js";
 
 export interface QuotationLineItem {
   id: string;
@@ -16,8 +25,41 @@ export interface QuotationLineItem {
   subtotal: number;
 }
 
-export interface HonoQuotationDraft {
-  quoteId: string;
+/**
+ * The four states a reservation can be in, copied from the customer's own `submission` table
+ * (`docs/flows/F07-booking.md` D2). The distinctions are not cosmetic:
+ *
+ *   `pending`    written before the engine is called, and it is what locks the button. Odoo issues
+ *                no idempotency key, so this row IS the double-submit guard.
+ *   `confirmed`  the engine answered yes. Terminal.
+ *   `failed`     it answered no. Safe to try again — that is the only state that is.
+ *   `unknown`    it may have created a folio. Never retried blindly; a person reconciles it.
+ */
+export type QuotationSubmissionState = "pending" | "confirmed" | "failed" | "unknown";
+
+/** Who the reservation is for. Stored, but never rendered on a guest page and never logged. */
+export interface QuotationContact {
+  name: string;
+  email: string;
+  phone: string | null;
+}
+
+export interface QuotationSubmission {
+  state: QuotationSubmissionState;
+  /** The revision being booked. Pinned so a booking can be traced to what was quoted. */
+  seq: number;
+  contact: QuotationContact;
+  folioId: number | null;
+  orderIds: number[] | null;
+  /** True when this booking was made against labelled sample data. */
+  sample: boolean;
+  /** Why it failed. A category like "rejected" or "unknown", never anything from the guest. */
+  error: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface HonoQuotationDraft {  quoteId: string;
   slug: string;
   status: "pending_hono_review" | "confirmed_by_hono";
   createdAt: string;
@@ -51,6 +93,12 @@ export interface HonoQuotationDraft {
   staffAlerts: string[];
   aiConfirmedReply?: string;
   /**
+   * Version of the seeded studio fixture (see `quotationStore.ts` `SEED_VERSION`). Present only
+   * on the seed record: `ensureSeeded()` uses it to re-seed when the fixture's pricing changes,
+   * instead of leaving a stale copy in KV forever. Not part of any guest quotation.
+   */
+  seedVersion?: number;
+  /**
    * The validated Odoo/BFF `Trip` this quotation was priced from, when it was built from an
    * extraction `Trip` at all. Carried through so the Odoo-bound envelope contains the contract
    * shape (`guests[]` with `roomId`/`days`, `diveFrom`/`diveTo`, `guestType`) rather than only
@@ -58,6 +106,21 @@ export interface HonoQuotationDraft {
    * never an extraction result and so has no guest-level facts to send.
    */
   bffTrip?: BffTrip;
+  /**
+   * What the pricing engine said, in a shape a page can draw: per-guest cards, the category split,
+   * the warnings, and the operational half the Ops Sheet needs.
+   *
+   * Kept on the draft rather than fetched per render because it is the record of *what was quoted*,
+   * and a quotation whose price changes depending on when you open it is not a quotation. Absent
+   * until someone prices the trip, which is also what the studio's "not priced yet" state means.
+   */
+  pricing?: QuotationPricing | null;
+  /**
+   * The reservation, once anyone asked for one. Absent on a quotation nobody has tried to book —
+   * which is the difference between "not sent" and "sent and failed", and the studio has to be
+   * able to tell those apart before offering the button again.
+   */
+  submission?: QuotationSubmission | null;
 }
 
 export interface HonoToolCallTrace {
@@ -125,8 +188,14 @@ export function recalculateQuotationTotals(draft: HonoQuotationDraft): HonoQuota
     return { ...item, subtotal };
   });
   const subtotalAmount = updatedItems.reduce((sum, item) => sum + item.subtotal, 0);
+  // The only discount in the customer's model is the partner/agency rate, and the field guide
+  // is explicit that it is "30% off rooms" — meals are "never guest-type discounted". So the
+  // discount is computed against the ROOM lines only, not the whole table.
+  const roomSubtotal = updatedItems
+    .filter((item) => item.category === "room")
+    .reduce((sum, item) => sum + item.subtotal, 0);
   const discountPercent = Math.max(0, Math.min(100, Number(draft.discountPercent) || 0));
-  const discountAmount = Math.round(subtotalAmount * (discountPercent / 100));
+  const discountAmount = Math.round(roomSubtotal * (discountPercent / 100));
   const totalAmount = Math.max(0, subtotalAmount - discountAmount);
 
   return {
@@ -138,6 +207,27 @@ export function recalculateQuotationTotals(draft: HonoQuotationDraft): HonoQuota
     totalAmount,
     updatedAt: new Date().toISOString(),
   };
+}
+
+/**
+ * Does this note belong on a CUSTOMER's page?
+ *
+ * `staffNotes` is printed on the guest's quotation page and in the confirmed WhatsApp reply, and
+ * drafts saved before 2026-09-25 carry a default that talks about our own workflow
+ * ("Standard resort quotation draft ready for Hono confirmation.", or for a split-day plan
+ * "Custom split-day dive arrangement noted: … Verify boat manifest before confirming."). New
+ * drafts default to "" — this drops the known-bad stored values on the way out, so a guest who
+ * opens an OLD link does not read our internal to-do list. A migration shim, not a policy: real
+ * staff notes pass through untouched.
+ */
+const LEGACY_INTERNAL_STAFF_NOTES = new Set(["Standard resort quotation draft ready for Hono confirmation."]);
+
+export function guestSafeStaffNotes(staffNotes: string | undefined): string {
+  const note = (staffNotes ?? "").trim();
+  if (!note) return "";
+  if (LEGACY_INTERNAL_STAFF_NOTES.has(note)) return "";
+  if (note.startsWith("Custom split-day dive arrangement noted:")) return "";
+  return note;
 }
 
 /**
@@ -173,28 +263,46 @@ export function buildHonoQuotationDraft(
     existingQuoteId ?? `QT-${dateCompact}-${cleanName}-${randomUUID().slice(0, 8).toUpperCase()}`;
   const slug = randomUUID();
 
+  const bffTrip = buildBffTrip(trip);
+
   const lineItems: QuotationLineItem[] = [];
 
-  // 1. Room Accommodation Row
+  // 1. Rooms — the customer's per-night room rate for each room's occupancy, summed over the stay.
+  // buildBffTrip assigns guests to rooms round-robin (standard rooms), so the occupancy that Odoo
+  // will price is read back off it — the draft prices the same thing the payload sends.
+  const occupancyByRoom = new Map<string, number>();
+  for (const guest of bffTrip.guests) {
+    if (guest.roomId) occupancyByRoom.set(guest.roomId, (occupancyByRoom.get(guest.roomId) ?? 0) + 1);
+  }
+  let roomPerNight = 0;
+  let chargedRooms = 0;
+  for (const room of bffTrip.rooms) {
+    const occupancy = occupancyByRoom.get(room.id ?? "") ?? 0;
+    if (occupancy > 0) {
+      roomPerNight += roomNightlyRate(room.type as RoomType, occupancy);
+      chargedRooms += 1;
+    }
+  }
   lineItems.push({
     id: "item-rooms",
     category: "room",
-    description: "Deluxe Seaview Resort Room (Twin / Double Occupancy)",
-    quantity: rooms,
+    description: "Standard Room (Twin / Double Occupancy)",
+    quantity: chargedRooms || rooms,
     unitLabel: "rooms",
     multiplier: nights,
     multiplierLabel: "nights",
-    unitPrice: 4800,
-    subtotal: rooms * nights * 4800,
+    unitPrice: chargedRooms ? Math.round(roomPerNight / chargedRooms) : roomNightlyRate("standard", 1),
+    subtotal: roomPerNight * nights,
   });
 
-  // 2. Meal Plan Row
-  if (mealPlan !== "room_only" && mealPlan !== "none") {
-    const mealPrice = mealPlan === "full_board" ? 1600 : 950;
+  // 2. Meals — flat per person per day, never guest-type discounted. The customer has no
+  // half-board rate, and buildBffTrip sends both full_board and half_board as `meals: true`, so
+  // half-board is priced at the full-board rate until a real half-board price exists.
+  if (mealPlan === "full_board" || mealPlan === "half_board") {
     const mealLabel =
-      mealPlan === "full_board"
-        ? "Full-Board Dining Package (Breakfast, Lunch & Dinner)"
-        : "Half-Board Resort Dining Package";
+      mealPlan === "half_board"
+        ? "Half-Board Dining Package"
+        : "Full-Board Dining Package (Breakfast, Lunch & Dinner)";
     lineItems.push({
       id: "item-meals",
       category: "meals",
@@ -203,83 +311,66 @@ export function buildHonoQuotationDraft(
       unitLabel: "staying guests",
       multiplier: nights,
       multiplierLabel: "days",
-      unitPrice: mealPrice,
-      subtotal: stayingGuests * nights * mealPrice,
+      unitPrice: MEAL_RATE,
+      subtotal: stayingGuests * nights * MEAL_RATE,
     });
   }
 
-  // 3. Diving Package Rows (Smart Split-Day Detection from diveNotes!)
+  // 3. Diving — one line per dive DAY, at the tier price for the divers-out that day (see
+  // rates.ts). Priced only when the window is STATED (not guessed) and the head count is uniform.
+  // A split-day plan (`diveNotes` while `divers` is missing) carries no invented price: it is
+  // routed to staff by NEVER-RE-ASK and surfaced as a staff alert, exactly as before.
   let totalGroupSize = stayingGuests;
   if (diver) {
     const note = diveNotes ?? "";
     const day1Match = note.match(/(\d+)\s*(?:person|people|pax|diver|divers)\s*dives?\s*(?:on\s*)?day\s*1/i);
     const bothDaysMatch = note.match(/(\d+)\s*(?:person|people|pax|diver|divers)\s*dives?\s*(?:on\s*)?(?:both\s*days|all\s*days|2\s*days)/i);
-
     if (day1Match && bothDaysMatch) {
-      const d1Count = Number(day1Match[1]);
-      const bothCount = Number(bothDaysMatch[1]);
-      totalGroupSize = Math.max(stayingGuests, d1Count + bothCount);
+      totalGroupSize = Math.max(stayingGuests, Number(day1Match[1]) + Number(bothDaysMatch[1]));
+    } else if (typeof divers === "number") {
+      totalGroupSize = Math.max(stayingGuests, divers);
+    }
 
-      lineItems.push({
-        id: "item-dive-day1",
-        category: "diving",
-        description: `Anilao Guided Boat Diving — Day 1 Only (${note})`,
-        quantity: d1Count,
-        unitLabel: "diver(s)",
-        multiplier: 1,
-        multiplierLabel: "day",
-        unitPrice: 3800,
-        subtotal: d1Count * 1 * 3800,
-      });
-
-      lineItems.push({
-        id: "item-dive-both",
-        category: "diving",
-        description: "Anilao Guided Boat Diving — Both Days (3 Boat Dives/Day + Tanks & Weights)",
-        quantity: bothCount,
-        unitLabel: "diver(s)",
-        multiplier: Math.max(2, nights),
-        multiplierLabel: "days",
-        unitPrice: 3800,
-        subtotal: bothCount * Math.max(2, nights) * 3800,
-      });
-    } else {
-      const diverCount = divers ?? stayingGuests;
-      totalGroupSize = Math.max(stayingGuests, diverCount);
-      const diveDays = Math.max(1, nights);
-      lineItems.push({
-        id: "item-dive-std",
-        category: "diving",
-        description: diveNotes
-          ? `Anilao Guided Boat Diving Package (${diveNotes})`
-          : "Anilao Guided Boat Diving Package (3 Boat Dives/Day + Tanks & Weights)",
-        quantity: diverCount,
-        unitLabel: "diver(s)",
-        multiplier: diveDays,
-        multiplierLabel: "days",
-        unitPrice: 3800,
-        subtotal: diverCount * diveDays * 3800,
-      });
+    if (typeof divers === "number" && divers > 0 && !diveWindowIsGuessed(trip)) {
+      const from = trip.diveFrom?.value as string | null;
+      const to = trip.diveTo?.value as string | null;
+      const diveDates = from && to ? datesBetweenInclusive(from, to) : [];
+      for (const date of diveDates) {
+        const rate = diveTierPrice(divers);
+        lineItems.push({
+          id: `item-dive-${date}`,
+          category: "diving",
+          description: `Anilao Boat Dives — ${date}`,
+          quantity: divers,
+          unitLabel: "divers",
+          multiplier: 1,
+          multiplierLabel: "day",
+          unitPrice: rate,
+          subtotal: divers * rate,
+        });
+      }
     }
   }
 
-  // 4. Airport Transfer Row (if requested)
+  // 4. Airport transfer — a per-van price, not per guest.
   if (trip.transport?.value === true) {
+    const oneWay = trip.transportType?.value === "oneway";
+    const rate = oneWay ? TRANSPORT_RATE.oneway : TRANSPORT_RATE.roundtrip;
     lineItems.push({
       id: "item-transfer",
       category: "transfer",
-      description: "Private Van Transfer (Manila NAIA ↔ Casa Escondida Anilao)",
+      description: oneWay ? "Private Van Transfer (One Way)" : "Private Van Transfer (Round-Trip)",
       quantity: 1,
       unitLabel: "van",
-      multiplier: 2,
-      multiplierLabel: "ways",
-      unitPrice: 4500,
-      subtotal: 9000,
+      multiplier: 1,
+      multiplierLabel: "trip",
+      unitPrice: rate,
+      subtotal: rate,
     });
   }
 
   const isPartner = guestType === "agent" || guestType === "instructor";
-  const discountPercent = isPartner ? 30 : 0;
+  const discountPercent = isPartner ? PARTNER_DISCOUNT_PCT : 0;
   const now = new Date().toISOString();
 
   const draft: HonoQuotationDraft = {
@@ -309,9 +400,13 @@ export function buildHonoQuotationDraft(
     totalAmount: 0,
     quotationUrl: `${baseUrl}/q/${slug}`,
     honoEditorUrl: `${baseUrl}/quotes/${quoteId}`,
-    staffNotes: diveNotes
-      ? `Custom split-day dive arrangement noted: "${diveNotes}". Verify boat manifest before confirming.`
-      : "Standard resort quotation draft ready for Hono confirmation.",
+    // Empty by default, and it has to stay guest-safe: `staffNotes` is printed on the guest's
+    // quotation page and in the confirmed WhatsApp reply ("📝 Resort Note"). It used to default to
+    // internal wording — "Standard resort quotation draft ready for Hono confirmation" and, for a
+    // split-day plan, "Verify boat manifest before confirming" — which shipped our own workflow,
+    // and a to-do for our staff, onto the customer's page. The split-day signal staff need is
+    // `staffAlerts` below, which is deliberately phrased for both audiences.
+    staffNotes: "",
     staffAlerts: getStaffAlerts(trip, "en"),
     // The Odoo/BFF `Trip`, built here and nowhere else, because this is the last point where
     // the full extraction `Trip` still exists. `HonoQuotationDraft` is a lossy view of it —
@@ -320,7 +415,7 @@ export function buildHonoQuotationDraft(
     // what enforces the 6 mandatory groups `bff/src/trip/fill.ts` rejects with 422. Without
     // this, that validation existed and was tested but no Odoo-bound request ever carried its
     // result, so the contract was correct on paper and absent in production.
-    bffTrip: buildBffTrip(trip),
+    bffTrip,
   };
 
   return recalculateQuotationTotals(draft);
@@ -338,23 +433,26 @@ export async function synthesizeConfirmedQuotationReply(
   const symbol = draft.currency === "USD" ? "$" : "₱";
   const fmt = (n: number) => `${symbol}${n.toLocaleString("en-US")}`;
 
+  // Bold is ONE asterisk. WhatsApp does not render `**`, so the double form used to arrive in the
+  // guest's chat as literal asterisks around every line — the same mistake app.ts's
+  // `guestQuotationLinks` had already been fixed for.
   const tableLines = draft.lineItems.map(
     (item, idx) =>
-      `${idx + 1}. **${item.description}**\n   • ${item.quantity} ${item.unitLabel} × ${item.multiplier} ${item.multiplierLabel} @ ${fmt(item.unitPrice)} = **${fmt(item.subtotal)}**`
+      `${idx + 1}. *${item.description}*\n   • ${item.quantity} ${item.unitLabel} × ${item.multiplier} ${item.multiplierLabel} @ ${fmt(item.unitPrice)} = *${fmt(item.subtotal)}*`
   );
 
   const deterministicMessage = [
     `Hi ${draft.guestName}! Great news — our reservation team at Casa Escondida has reviewed and confirmed your customized quotation (#${draft.quoteId}).`,
     ``,
-    `📋 **Confirmed Quotation Breakdown (${draft.checkIn} to ${draft.checkOut} · ${draft.nights} nights):**`,
+    `📋 *Confirmed Quotation Breakdown (${draft.checkIn} to ${draft.checkOut} · ${draft.nights} nights):*`,
     ...tableLines,
     ``,
     draft.discountPercent > 0
-      ? `• **Subtotal:** ${fmt(draft.subtotalAmount)}\n• **Partner / Special Discount (${draft.discountPercent}%):** -${fmt(draft.discountAmount)}\n• **Total Confirmed Quote:** **${fmt(draft.totalAmount)} ${draft.currency}**`
-      : `• **Total Confirmed Quote:** **${fmt(draft.totalAmount)} ${draft.currency}**`,
-    draft.staffNotes ? `\n📝 **Resort Note:** ${draft.staffNotes}` : ``,
+      ? `• *Subtotal:* ${fmt(draft.subtotalAmount)}\n• *Partner / Special Discount (${draft.discountPercent}%):* -${fmt(draft.discountAmount)}\n• *Total Confirmed Quote:* *${fmt(draft.totalAmount)} ${draft.currency}*`
+      : `• *Total Confirmed Quote:* *${fmt(draft.totalAmount)} ${draft.currency}*`,
+    guestSafeStaffNotes(draft.staffNotes) ? `\n📝 *Resort Note:* ${guestSafeStaffNotes(draft.staffNotes)}` : ``,
     ``,
-    `🔗 **View & Download Your Interactive Quotation:**`,
+    `🔗 *View & Download Your Interactive Quotation:*`,
     `${draft.quotationUrl}`,
   ]
     .filter(Boolean)

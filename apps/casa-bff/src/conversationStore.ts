@@ -5,6 +5,7 @@
 // name) and the guest is asked to start over. This is the same reason the test
 // console sends its own `history` field instead of a bare `message`.
 import type { ConversationTurn } from "../../../packages/extractor/src/index.js";
+import type { StatedValueChange } from "../../../packages/extractor/src/index.js";
 import { randomUUID } from "node:crypto";
 import { createRedisConversationStore } from "./redisStore.js";
 
@@ -48,7 +49,7 @@ export interface ConversationStore {
    * Parking is not permanent — the record lives as long as the thread does (see
    * THREAD_TTL_MS), and `resume()` hands the enquiry back before that.
    */
-  pause(phone: string, reason: string): Promise<void>;
+  pause(phone: string, reason: string, extra?: PauseContext): Promise<void>;
   /** Hands the thread back to the bot once a person is done with it. */
   resume(phone: string): Promise<void>;
   /** The park record, or undefined while the bot still owns the thread. */
@@ -64,8 +65,49 @@ export interface ConversationStore {
   needsTelling(phone: string, withinMs: number): Promise<boolean>;
   /** Records that the guest has just been told (see needsTelling). */
   markTold(phone: string): Promise<void>;
+  /**
+   * Remembers which questions were still open at the end of this turn, and reports how many
+   * consecutive turns have now failed to shrink that set.
+   *
+   * This is the progress signal `ASK_LIMIT` cannot provide. Counting turns punishes a guest who
+   * answers one field per message and rewards an extractor that keeps failing on the same field;
+   * counting "the open set did not get smaller" catches exactly the case the limit exists for.
+   *
+   * Compares by SET, not by order: the question order is a presentation decision, and a reorder
+   * is not the guest's progress.
+   */
+  noteOpenFields(phone: string, fields: readonly string[], limit: number): Promise<StallState>;
+  /**
+   * Remembers the money-bearing values the guest has stated, and reports which of them changed
+   * since the previous turn.
+   *
+   * Prices are built from counts, so a count that quietly changes between two messages is a
+   * different quotation — and because the extractor re-reads the whole transcript each turn, the
+   * change is otherwise invisible: the new value simply replaces the old one. Recording the last
+   * stated values here is what lets the reply name the change instead of moving on.
+   */
+  noteStatedValues(phone: string, values: StatedValues): Promise<StatedValueChange[]>;
   /** Clears both the conversation transcript and any park record for this phone. */
   clear(phone: string): Promise<void>;
+}
+
+/** The values a price depends on, as the guest most recently stated them. */
+export type StatedValues = Record<string, string | number | boolean>;
+
+/** What a park records beyond its reason, so a person can pick the thread up fast. */
+export interface PauseContext {
+  /** The questions still open when the bot stopped — what the human has to ask. */
+  missingFields?: readonly string[];
+  /** The last thing the guest was acknowledged for, so the human is not starting cold. */
+  context?: string;
+}
+
+/** How far a thread has drifted from making progress. */
+export interface StallState {
+  /** Consecutive turns whose open-question set did not shrink. */
+  stallCount: number;
+  /** True once `stallCount` has reached the limit passed in. */
+  stalled: boolean;
 }
 
 /** A thread a human has to answer, as the reception view reads it. */
@@ -77,6 +119,14 @@ export interface PausedThread {
   since: number;
   /** When the guest was last told a person is on it (epoch ms), or 0 if never. */
   toldAt: number;
+  /**
+   * The questions still open when the thread was parked, in the pipeline's own field names.
+   * Optional because park records written before this existed do not carry it, and a reception
+   * view must render one without crashing.
+   */
+  missingFields?: string[];
+  /** One line of what the guest last had acknowledged, for the human picking it up. */
+  context?: string;
 }
 
 // Deliberately the same number as the BFF's own cap on ConverseRequest.history,
@@ -101,8 +151,31 @@ interface InternalClaimEntry {
   expiresAt: number;
 }
 
+/**
+ * One thread's memory. `openFields`/`stallCount` ride along with the transcript on purpose: they
+ * are facts about the conversation's progress, and a store that kept them somewhere else could
+ * report a stall for a thread whose transcript had already expired.
+ */
+interface ThreadEntry {
+  turns: ConversationTurn[];
+  expiresAt: number;
+  /** The open-question set as of the last completed turn (see noteOpenFields). */
+  openFields?: string[];
+  /** Consecutive turns whose open-question set did not shrink. */
+  stallCount?: number;
+  /** The money-bearing values as of the last turn (see noteStatedValues). */
+  statedValues?: StatedValues;
+}
+
+/** Order-insensitive equality: the question order is presentation, not progress. */
+export function sameFieldSet(a: readonly string[], b: readonly string[]): boolean {
+  if (a.length !== b.length) return false;
+  const set = new Set(a);
+  return b.every((field) => set.has(field));
+}
+
 export function createInMemoryConversationStore(ttlMs = THREAD_TTL_MS): ConversationStore {
-  const threads = new Map<string, { turns: ConversationTurn[]; expiresAt: number }>();
+  const threads = new Map<string, ThreadEntry>();
   const claimed = new Map<string, InternalClaimEntry>();
   const parkedThreads = new Map<string, PausedThread & { expiresAt: number }>();
   const phoneLocks = new Map<string, Promise<void>>();
@@ -144,7 +217,16 @@ export function createInMemoryConversationStore(ttlMs = THREAD_TTL_MS): Conversa
   // this adapter's business, and a caller copying a park record around must not be
   // able to mutate the map's entry by accident.
   function publicPause(entry: PausedThread): PausedThread {
-    return { phone: entry.phone, reason: entry.reason, since: entry.since, toldAt: entry.toldAt };
+    return {
+      phone: entry.phone,
+      reason: entry.reason,
+      since: entry.since,
+      toldAt: entry.toldAt,
+      // Spread only when present: `exactOptionalPropertyTypes` is off, but a `undefined` value
+      // that survives into JSON is a field the reception view has to special-case for nothing.
+      ...(entry.missingFields ? { missingFields: entry.missingFields } : {}),
+      ...(entry.context ? { context: entry.context } : {}),
+    };
   }
 
   return {
@@ -231,7 +313,7 @@ export function createInMemoryConversationStore(ttlMs = THREAD_TTL_MS): Conversa
       }
     },
 
-    async pause(phone, reason) {
+    async pause(phone, reason, extra) {
       sweep();
       const existing = livePause(phone);
       parkedThreads.set(phone, {
@@ -239,8 +321,45 @@ export function createInMemoryConversationStore(ttlMs = THREAD_TTL_MS): Conversa
         reason,
         since: existing?.since ?? Date.now(),
         toldAt: existing?.toldAt ?? 0,
+        ...(extra?.missingFields ? { missingFields: [...extra.missingFields] } : {}),
+        ...(extra?.context ? { context: extra.context } : {}),
         expiresAt: Date.now() + ttlMs,
       });
+    },
+
+    async noteOpenFields(phone, fields, limit) {
+      sweep();
+      const entry = live(phone) ?? { turns: [], expiresAt: 0 };
+      const previous = entry.openFields ?? [];
+      // A turn that closes questions is progress, and it resets the count. An unchanged non-empty
+      // set — including the very first turn, where `previous` is empty — cannot increment, because
+      // a thread with nothing recorded yet has nothing to be stuck on.
+      const noProgress = fields.length > 0 && sameFieldSet(previous, fields);
+      entry.stallCount = noProgress ? (entry.stallCount ?? 0) + 1 : 0;
+      entry.openFields = [...fields];
+      entry.expiresAt = Date.now() + ttlMs;
+      threads.set(phone, entry);
+      return { stallCount: entry.stallCount, stalled: entry.stallCount >= limit };
+    },
+
+    async noteStatedValues(phone, values) {
+      sweep();
+      const entry = live(phone) ?? { turns: [], expiresAt: 0 };
+      const previous = entry.statedValues ?? {};
+      const changes: StatedValueChange[] = [];
+      for (const [field, value] of Object.entries(values)) {
+        const before = previous[field];
+        // Only a value the guest had ALREADY stated can "change". The first time a field is filled
+        // it goes from nothing to something, which is the enquiry arriving, not the guest
+        // contradicting themselves — and confirming that on every new field would be a questionnaire.
+        if (before !== undefined && before !== value) {
+          changes.push({ field, from: before, to: value });
+        }
+      }
+      entry.statedValues = { ...values };
+      entry.expiresAt = Date.now() + ttlMs;
+      threads.set(phone, entry);
+      return changes;
     },
 
     async resume(phone) {

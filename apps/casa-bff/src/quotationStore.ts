@@ -1,12 +1,25 @@
 import { randomUUID } from "node:crypto";
 import {
   recalculateQuotationTotals,
-  SUBMIT_QUOTATION_TO_HONO_DECLARATION,
+  guestSafeStaffNotes,
   type HonoQuotationDraft,
 } from "../../../packages/extractor/src/index.js";
+import { createQuotationStoreFromEnv, type QuotationStore } from "./quotationStoreClient.js";
+import { DEMO_GAIS_BANNER, DEMO_ROLES, type DemoRole } from "./demoAuth.js";
+import { escapeHtml } from "./html.js";
 
-const quotesById = new Map<string, HonoQuotationDraft>();
-const quoteIdBySlug = new Map<string, string>();
+/**
+ * Lazily-built, so reading the env happens at first use rather than at import time. That keeps
+ * importing this module side-effect free (the contract test can still spin up its own stores
+ * without the production env leaking in), and means every caller shares one store for the life
+ * of the process — the in-memory one behaves like the old module `Map`s did, while the Redis one
+ * is the fix for guest links dying on redeploy.
+ */
+let storePromise: Promise<QuotationStore> | undefined;
+function getStore(): Promise<QuotationStore> {
+  storePromise ??= Promise.resolve(createQuotationStoreFromEnv());
+  return storePromise;
+}
 
 /**
  * The unpredictable part of a guest-facing quotation link.
@@ -43,14 +56,24 @@ function randomSlug(): string {
 // The guest-facing slug is randomised rather than derived from the name: this record is served by
 // `/q/:slug` with no credential, so a guessable slug is a guessable quotation. The quote id stays
 // readable because it is only reachable behind the staff token.
-function ensureSeeded() {
-  if (quotesById.has("QT-1010-SKY")) return;
-  const now = new Date().toISOString();
-  const baseUrl = "https://technext-edge-casa-bff.vercel.app";
-  const slug = randomSlug();
-  const seeded: HonoQuotationDraft = recalculateQuotationTotals({
+// Bump this whenever the seeded fixture's shape or pricing changes. `ensureSeeded()` compares it
+// to the stored record and re-seeds when they differ, so a deploy that changes the fixture (e.g.
+// the 2026-09-25 real-rate-card migration) does not leave the previous copy stuck in KV forever.
+const SEED_VERSION = 1;
+
+let seedPromise: Promise<void> | undefined;
+function ensureSeeded(): Promise<void> {
+  seedPromise ??= (async () => {
+    const store = await getStore();
+    const existing = await store.get("QT-1010-SKY");
+    if (existing && existing.seedVersion === SEED_VERSION) return;
+    const now = new Date().toISOString();
+    const baseUrl = "https://technext-edge-casa-bff.vercel.app";
+    const slug = randomSlug();
+    const seeded: HonoQuotationDraft = recalculateQuotationTotals({
     quoteId: "QT-1010-SKY",
     slug,
+    seedVersion: SEED_VERSION,
     status: "pending_hono_review",
     createdAt: now,
     updatedAt: now,
@@ -73,51 +96,32 @@ function ensureSeeded() {
       {
         id: "item-rooms",
         category: "room",
-        description: "Deluxe Seaview Resort Room (Twin / Double Occupancy)",
+        description: "Standard Room (Twin / Double Occupancy)",
         quantity: 2,
         unitLabel: "rooms",
         multiplier: 2,
         multiplierLabel: "nights",
-        unitPrice: 4800,
-        subtotal: 19200,
+        unitPrice: 7600,
+        subtotal: 30400,
       },
       {
         id: "item-meals",
         category: "meals",
-        description: "Full-Board Dining Package (Breakfast, Lunch & Dinner — Overnight Guests)",
+        description: "Full-Board Dining Package (Breakfast, Lunch & Dinner)",
         quantity: 4,
         unitLabel: "staying guests",
         multiplier: 2,
         multiplierLabel: "days",
-        unitPrice: 1600,
-        subtotal: 12800,
+        unitPrice: 1500,
+        subtotal: 12000,
       },
-      {
-        id: "item-dive-day1",
-        category: "diving",
-        description: "Anilao Guided Boat Diving — Day 1 Only (Oct 10)",
-        quantity: 1,
-        unitLabel: "diver",
-        multiplier: 1,
-        multiplierLabel: "day",
-        unitPrice: 3800,
-        subtotal: 3800,
-      },
-      {
-        id: "item-dive-both",
-        category: "diving",
-        description: "Anilao Guided Boat Diving — Both Days (Oct 10–11 · 3 Boat Dives/Day)",
-        quantity: 5,
-        unitLabel: "divers",
-        multiplier: 2,
-        multiplierLabel: "days",
-        unitPrice: 3800,
-        subtotal: 38000,
-      },
+      // No dive line: this fixture is a split-day arrangement, which the pricing model does not
+      // guess — it is routed to staff (see the Custom Dive Schedule alert below), same as a live
+      // enquiry whose `divers` slot is missing while `diveNotes` carries the breakdown.
     ],
-    subtotalAmount: 73800,
+    subtotalAmount: 42400,
     discountAmount: 0,
-    totalAmount: 73800,
+    totalAmount: 42400,
     quotationUrl: `${baseUrl}/q/${slug}`,
     honoEditorUrl: `${baseUrl}/quotes/QT-1010-SKY`,
     staffNotes:
@@ -126,16 +130,16 @@ function ensureSeeded() {
       "📋 **Custom Dive Schedule:** We have noted your specific diving arrangement (1 person dives day 1; 5 people dive both days) for our reservation team to prepare an accurate quote.",
     ],
   });
-  quotesById.set(seeded.quoteId, seeded);
-  quoteIdBySlug.set(seeded.slug, seeded.quoteId);
+    await store.save(seeded);
+  })();
+  return seedPromise;
 }
 
-export function saveQuotationDraft(draft: HonoQuotationDraft): HonoQuotationDraft {
-  ensureSeeded();
+export async function saveQuotationDraft(draft: HonoQuotationDraft): Promise<HonoQuotationDraft> {
+  const store = await getStore();
+  await ensureSeeded();
   const normalized = recalculateQuotationTotals(draft);
-  quotesById.set(normalized.quoteId, normalized);
-  quoteIdBySlug.set(normalized.slug.toLowerCase(), normalized.quoteId);
-  return normalized;
+  return store.save(normalized);
 }
 
 /**
@@ -150,24 +154,23 @@ export function saveQuotationDraft(draft: HonoQuotationDraft): HonoQuotationDraf
  * `GET /q/<anything at all>` returned a real guest's name, dates, party size and total —
  * verified against the live deployment, with no credential.
  */
-export function getQuotationByIdOrSlug(idOrSlug: string): HonoQuotationDraft | undefined {
-  ensureSeeded();
-  const direct = quotesById.get(idOrSlug) ?? quotesById.get(idOrSlug.toUpperCase());
-  if (direct) return direct;
-  const mappedId = quoteIdBySlug.get(idOrSlug.toLowerCase());
-  if (mappedId && quotesById.has(mappedId)) {
-    return quotesById.get(mappedId);
-  }
-  return undefined;
+export async function getQuotationByIdOrSlug(idOrSlug: string): Promise<HonoQuotationDraft | undefined> {
+  const store = await getStore();
+  await ensureSeeded();
+  return store.get(idOrSlug);
 }
 
-export function listQuotations(): HonoQuotationDraft[] {
-  ensureSeeded();
-  return Array.from(quotesById.values()).sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
+export async function listQuotations(): Promise<HonoQuotationDraft[]> {
+  const store = await getStore();
+  await ensureSeeded();
+  return store.list();
 }
 
-export function renderHonoQuotationEditorHtml(draft: HonoQuotationDraft, allQuotes: HonoQuotationDraft[]): string {
-  const initialJson = JSON.stringify(draft).replace(/</g, "\\u003c");
+export function renderHonoQuotationEditorHtml(
+  draft: HonoQuotationDraft,
+  allQuotes: HonoQuotationDraft[],
+  role: DemoRole = "staff",
+): string {  const initialJson = JSON.stringify(draft).replace(/</g, "\\u003c");
   const allQuotesJson = JSON.stringify(
     allQuotes.map((q) => ({
       quoteId: q.quoteId,
@@ -179,43 +182,164 @@ export function renderHonoQuotationEditorHtml(draft: HonoQuotationDraft, allQuot
       status: q.status,
     }))
   ).replace(/</g, "\\u003c");
-  const toolDeclJson = JSON.stringify(SUBMIT_QUOTATION_TO_HONO_DECLARATION, null, 2).replace(/</g, "\\u003c");
+  // What each demo role is allowed to see, per the field guide's "vai người gọi" table. Only
+  // `guest` is real today (Odoo decides the role from the API key); the other two describe what
+  // the view becomes once those keys exist. Nothing here fakes cost or profit data.
+  const roleNote =
+    role === "agent"
+      ? "Agent view — partner rate: 30% off rooms (meals and diving are never discounted)."
+      : role === "staff"
+        ? "Staff view — cost, profit and assumptions appear here once Odoo is connected (estimator is in fixture mode today)."
+        : "Guest view — retail pricing only.";
+
+  // ---- The engine's own answer, drawn -------------------------------------
+  // Everything below is read from `draft.pricing`, which is the pricing engine's response as it was
+  // when the quotation was priced. Nothing here is recomputed: a per-guest card that disagrees with
+  // the total above it would be worse than no card at all.
+  const pricing = draft.pricing ?? null;
+  const money = (n: number) => `${draft.currency === "USD" ? "$" : "₱"}${Math.round(n).toLocaleString("en-US")}`;
+  // `esc` is the shared escaper (html.ts). A guest's own words reach this page — their name, their
+  // dive notes, a line description staff edited — and none of it is trusted markup.
+  const esc = escapeHtml;
+
+  const guestCardsHtml =
+    !pricing || pricing.guests.length === 0
+      ? ""
+      : `<div style="margin-top:22px;">
+          <div style="font-size:15px;font-weight:800;margin-bottom:4px;">Per guest</div>
+          <div style="font-size:13.5px;color:var(--muted);margin-bottom:12px;">The engine's own lines, one card per guest${pricing.sample ? " · SAMPLE DATA" : ""}.</div>
+          <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(270px,1fr));gap:14px;">
+            ${pricing.guests
+              .map(
+                (guest) => `<div style="background:var(--surface-2);border:2px solid var(--border);border-radius:12px;padding:14px 16px;">
+              <div style="font-weight:800;font-size:16px;margin-bottom:6px;">${esc(guest.name)}</div>
+              ${guest.lines
+                .map(
+                  (line) => `<div style="display:flex;justify-content:space-between;gap:10px;font-size:14px;padding:6px 0;border-bottom:1px dashed var(--border);">
+                <span><strong>${esc(line.label)}</strong>${line.sub ? `<br><span style="color:var(--muted);font-size:12.5px;">${esc(line.sub)}</span>` : ""}</span>
+                <strong style="white-space:nowrap;">${money(line.net)}</strong>
+              </div>`,
+                )
+                .join("")}
+              ${
+                guest.discountTotal > 0
+                  ? `<div style="display:flex;justify-content:space-between;font-size:13.5px;color:var(--emerald);padding-top:6px;"><span>Partner discount</span><strong>-${money(guest.discountTotal)}</strong></div>`
+                  : ""
+              }
+              <div style="display:flex;justify-content:space-between;font-size:15px;font-weight:800;padding-top:8px;"><span>Total</span><span>${money(guest.total)}</span></div>
+            </div>`,
+              )
+              .join("")}
+          </div>
+          ${
+            pricing.warnings.length > 0
+              ? `<div style="margin-top:12px;padding:12px 14px;background:var(--surface-2);border-left:4px solid #f59e0b;border-radius:8px;font-size:13.5px;color:var(--text);">
+                  <strong>From the booking engine</strong>
+                  <ul style="margin:6px 0 0 18px;">${pricing.warnings.map((w) => `<li>${esc(w)}</li>`).join("")}</ul>
+                </div>`
+              : ""
+          }
+        </div>`;
+
+  /**
+   * Agent View: the retail value next to the partner rate.
+   *
+   * Only rendered when the engine returned a retail model — a retail session gets none, so this is
+   * absent for a guest rather than showing two identical columns and calling the difference margin.
+   * The margin is arithmetic on two numbers the engine produced, and it is left unrounded on
+   * purpose so nobody mistakes it for a booked figure.
+   */
+  const retailKpis = pricing?.retail?.kpis ?? null;
+  const agentCompareHtml =
+    !pricing?.retail || pricing.retail.guests.length === 0
+      ? ""
+      : `<div style="margin-top:20px;background:var(--surface-2);border:2px solid var(--border);border-radius:12px;padding:16px;">
+          <div style="font-size:15px;font-weight:800;margin-bottom:4px;">Agent view — retail value vs your rate</div>
+          <div style="font-size:13.5px;color:var(--muted);margin-bottom:12px;">Both columns are the engine's. The difference is your margin on this trip.</div>
+          <table class="quote-table" style="width:100%;">
+            <thead><tr><th>Guest</th><th style="text-align:right;">Retail</th><th style="text-align:right;">Your rate</th><th style="text-align:right;">Margin</th></tr></thead>
+            <tbody>
+              ${pricing.retail.guests
+                .map((retailGuest, i) => {
+                  const netGuest = pricing.guests[i];
+                  const retailTotal = retailGuest.total;
+                  const netTotal = netGuest ? netGuest.total : 0;
+                  const margin = retailTotal - netTotal;
+                  const pct = retailTotal > 0 ? Math.round((margin / retailTotal) * 1000) / 10 : 0;
+                  return `<tr>
+                    <td>${esc(retailGuest.name)}</td>
+                    <td style="text-align:right;">${money(retailTotal)}</td>
+                    <td style="text-align:right;">${money(netTotal)}</td>
+                    <td style="text-align:right;">${money(margin)}${pct ? ` <span style="color:var(--muted);font-size:12.5px;">(${pct}%)</span>` : ""}</td>
+                  </tr>`;
+                })
+                .join("")}
+              ${
+                retailKpis && retailKpis.revenue !== null
+                  ? `<tr style="font-weight:800;"><td>Total</td><td style="text-align:right;">${money(retailKpis.revenue)}</td><td style="text-align:right;">${money(pricing.kpis.revenue ?? 0)}</td><td style="text-align:right;">${money(retailKpis.revenue - (pricing.kpis.revenue ?? 0))}</td></tr>`
+                  : ""
+              }
+            </tbody>
+          </table>
+        </div>`;
 
   return `<!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-theme="light">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Hono Quotation Studio & Tool-Calling Hub — Casa Escondida (${draft.quoteId})</title>
+  <title>Staff Quotation Review (${draft.quoteId}) — Casa Escondida Anilao</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
   <style>
-    :root {
+    :root, [data-theme="light"] {
+      --bg: #f8fafc;
+      --surface: #ffffff;
+      --surface-2: #f1f5f9;
+      --input-bg: #ffffff;
+      --border: #cbd5e1;
+      --text: #0f172a;
+      --muted: #475569;
+      --accent: #0284c7;
+      --accent-soft: #e0f2fe;
+      --emerald: #059669;
+      --emerald-soft: #ecfdf5;
+      --amber: #d97706;
+      --amber-soft: #fffbeb;
+      --rose: #e11d48;
+      --shadow: 0 8px 24px rgba(15, 23, 42, 0.06);
+    }
+    [data-theme="dark"] {
       --bg: #0b101b;
       --surface: #131b2e;
       --surface-2: #19233c;
-      --border: #263554;
-      --text: #f1f5f9;
-      --muted: #94a3b8;
+      --input-bg: #0d1424;
+      --border: #2d3f63;
+      --text: #f8fafc;
+      --muted: #cbd5e1;
       --accent: #38bdf8;
+      --accent-soft: rgba(56, 189, 248, 0.14);
       --emerald: #10b981;
-      --amber: #f59e0b;
-      --rose: #f43f5e;
-      --purple: #a855f7;
+      --emerald-soft: rgba(16, 185, 129, 0.14);
+      --amber: #fbbf24;
+      --amber-soft: rgba(245, 158, 11, 0.16);
+      --rose: #fb7185;
+      --shadow: 0 12px 30px rgba(0, 0, 0, 0.45);
     }
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body {
       font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
       background: var(--bg);
       color: var(--text);
-      line-height: 1.5;
-      padding-bottom: 60px;
+      font-size: 16px;
+      line-height: 1.6;
+      padding-bottom: 72px;
+      transition: background 0.2s, color 0.2s;
     }
     .topbar {
-      background: rgba(19, 27, 46, 0.92);
-      backdrop-filter: blur(12px);
-      border-bottom: 1px solid var(--border);
-      padding: 14px 28px;
+      background: var(--surface);
+      border-bottom: 2px solid var(--border);
+      padding: 16px 28px;
       display: flex;
       align-items: center;
       justify-content: space-between;
@@ -224,73 +348,53 @@ export function renderHonoQuotationEditorHtml(draft: HonoQuotationDraft, allQuot
       z-index: 50;
       gap: 16px;
       flex-wrap: wrap;
+      box-shadow: var(--shadow);
     }
     .brand {
       display: flex;
       align-items: center;
-      gap: 12px;
+      gap: 14px;
     }
     .brand-badge {
-      background: linear-gradient(135deg, #0ea5e9, #6366f1);
+      background: linear-gradient(135deg, #0284c7, #2563eb);
       color: #fff;
       font-weight: 800;
-      font-size: 12px;
-      padding: 5px 10px;
-      border-radius: 6px;
-      letter-spacing: 0.06em;
+      font-size: 13px;
+      padding: 6px 12px;
+      border-radius: 8px;
+      letter-spacing: 0.05em;
       text-transform: uppercase;
     }
     .brand h1 {
-      font-size: 17px;
-      font-weight: 700;
+      font-size: 20px;
+      font-weight: 800;
     }
     .top-actions {
       display: flex;
       align-items: center;
-      gap: 10px;
+      gap: 12px;
       flex-wrap: wrap;
     }
-    .lang-switch {
+    .theme-btn {
       display: inline-flex;
+      align-items: center;
+      gap: 8px;
       background: var(--surface-2);
-      border: 1px solid var(--border);
-      border-radius: 8px;
-      overflow: hidden;
-    }
-    .lang-btn {
-      background: transparent;
-      color: var(--muted);
-      border: none;
-      padding: 6px 12px;
-      font-size: 12px;
+      border: 2px solid var(--border);
+      color: var(--text);
+      border-radius: 999px;
+      padding: 8px 16px;
+      font-size: 15px;
       font-weight: 700;
       cursor: pointer;
     }
-    .lang-btn.active {
-      background: var(--accent);
-      color: #090d16;
-    }
-    .nav-link {
-      color: var(--muted);
-      text-decoration: none;
-      font-size: 13px;
-      font-weight: 600;
-      padding: 7px 12px;
-      border-radius: 8px;
-      border: 1px solid var(--border);
-      background: var(--surface-2);
-      transition: 0.15s;
-    }
-    .nav-link:hover {
-      color: #fff;
-      border-color: var(--accent);
-    }
+    .theme-btn:hover { border-color: var(--accent); }
     .container {
-      max-width: 1320px;
+      max-width: 1360px;
       margin: 24px auto;
       padding: 0 24px;
       display: grid;
-      grid-template-columns: 300px 1fr;
+      grid-template-columns: 310px 1fr;
       gap: 24px;
     }
     @media (max-width: 1024px) {
@@ -298,126 +402,89 @@ export function renderHonoQuotationEditorHtml(draft: HonoQuotationDraft, allQuot
     }
     .card {
       background: var(--surface);
-      border: 1px solid var(--border);
-      border-radius: 14px;
-      padding: 20px;
-      margin-bottom: 20px;
+      border: 2px solid var(--border);
+      border-radius: 16px;
+      padding: 24px;
+      margin-bottom: 24px;
+      box-shadow: var(--shadow);
     }
     .card-title {
-      font-size: 14px;
-      font-weight: 700;
-      text-transform: uppercase;
-      letter-spacing: 0.06em;
+      font-size: 17px;
+      font-weight: 800;
       color: var(--accent);
-      margin-bottom: 12px;
+      margin-bottom: 14px;
       display: flex;
       align-items: center;
       justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 10px;
     }
     .status-pill {
       display: inline-flex;
       align-items: center;
       gap: 6px;
-      padding: 4px 11px;
+      padding: 6px 14px;
       border-radius: 999px;
-      font-size: 12px;
-      font-weight: 700;
+      font-size: 14px;
+      font-weight: 800;
     }
     .status-pending {
-      background: rgba(245, 158, 11, 0.15);
-      color: #fbbf24;
-      border: 1px solid rgba(245, 158, 11, 0.35);
+      background: var(--amber-soft);
+      color: var(--amber);
+      border: 2px solid var(--amber);
     }
     .status-confirmed {
-      background: rgba(16, 185, 129, 0.15);
-      color: #34d399;
-      border: 1px solid rgba(16, 185, 129, 0.35);
-    }
-    .pipeline-banner {
-      display: grid;
-      grid-template-columns: repeat(4, 1fr);
-      gap: 12px;
-      margin-bottom: 20px;
-    }
-    @media (max-width: 800px) {
-      .pipeline-banner { grid-template-columns: 1fr 1fr; }
-    }
-    .step-box {
-      background: var(--surface-2);
-      border: 1px solid var(--border);
-      border-radius: 10px;
-      padding: 12px 14px;
-      position: relative;
-    }
-    .step-box.active {
-      border-color: var(--accent);
-      box-shadow: 0 0 0 1px rgba(56, 189, 248, 0.3);
-    }
-    .step-box.done {
-      border-color: var(--emerald);
-    }
-    .step-num {
-      font-family: 'JetBrains Mono', monospace;
-      font-size: 11px;
-      font-weight: 700;
-      color: var(--accent);
-      margin-bottom: 4px;
-    }
-    .step-title {
-      font-size: 13px;
-      font-weight: 700;
-      margin-bottom: 2px;
-    }
-    .step-sub {
-      font-size: 11.5px;
-      color: var(--muted);
+      background: var(--emerald-soft);
+      color: var(--emerald);
+      border: 2px solid var(--emerald);
     }
     .link-editor-bar {
       display: flex;
       gap: 10px;
       align-items: center;
-      background: #0d1424;
-      border: 1px solid var(--border);
-      padding: 12px 14px;
-      border-radius: 10px;
-      margin-top: 8px;
+      background: var(--surface-2);
+      border: 2px solid var(--border);
+      padding: 14px;
+      border-radius: 12px;
+      margin-top: 12px;
       flex-wrap: wrap;
     }
     .link-editor-bar input {
       flex: 1;
       min-width: 260px;
-      background: var(--surface-2);
-      border: 1px solid var(--border);
-      color: #38bdf8;
+      background: var(--input-bg);
+      border: 2px solid var(--border);
+      color: var(--accent);
       font-family: 'JetBrains Mono', monospace;
-      font-size: 13px;
-      padding: 9px 12px;
-      border-radius: 8px;
+      font-size: 15px;
+      font-weight: 600;
+      padding: 10px 14px;
+      border-radius: 10px;
     }
     .btn {
       display: inline-flex;
       align-items: center;
-      gap: 6px;
-      padding: 9px 15px;
-      border-radius: 8px;
-      font-size: 13px;
-      font-weight: 700;
+      gap: 8px;
+      padding: 12px 18px;
+      border-radius: 10px;
+      font-size: 15px;
+      font-weight: 800;
       cursor: pointer;
-      border: 1px solid transparent;
+      border: 2px solid transparent;
       transition: 0.15s;
       text-decoration: none;
     }
     .btn-primary {
       background: var(--accent);
-      color: #090d16;
+      color: #ffffff;
     }
     .btn-primary:hover { filter: brightness(1.08); }
     .btn-emerald {
       background: linear-gradient(135deg, #10b981, #059669);
       color: #fff;
-      font-size: 14px;
-      padding: 11px 20px;
-      box-shadow: 0 4px 16px rgba(16, 185, 129, 0.25);
+      font-size: 16px;
+      padding: 14px 24px;
+      box-shadow: 0 4px 16px rgba(16, 185, 129, 0.28);
     }
     .btn-emerald:hover { filter: brightness(1.08); }
     .btn-outline {
@@ -427,39 +494,42 @@ export function renderHonoQuotationEditorHtml(draft: HonoQuotationDraft, allQuot
     }
     .btn-outline:hover { border-color: var(--accent); }
     .btn-danger {
-      background: rgba(244, 63, 94, 0.14);
-      color: #fb7185;
-      border-color: rgba(244, 63, 94, 0.3);
-      padding: 6px 10px;
-      font-size: 12px;
+      background: rgba(244, 63, 94, 0.12);
+      color: var(--rose);
+      border-color: rgba(244, 63, 94, 0.35);
+      padding: 8px 12px;
+      font-size: 14px;
     }
     table.quote-table {
       width: 100%;
       border-collapse: collapse;
-      margin-top: 10px;
+      margin-top: 12px;
     }
     table.quote-table th {
       text-align: left;
-      font-size: 11.5px;
+      font-size: 13.5px;
+      font-weight: 800;
       text-transform: uppercase;
-      letter-spacing: 0.05em;
+      letter-spacing: 0.04em;
       color: var(--muted);
-      padding: 10px 10px;
-      border-bottom: 1px solid var(--border);
+      padding: 12px 10px;
+      border-bottom: 2px solid var(--border);
+      background: var(--surface-2);
     }
     table.quote-table td {
-      padding: 10px 8px;
-      border-bottom: 1px solid rgba(38, 53, 84, 0.6);
+      padding: 12px 8px;
+      border-bottom: 1px solid var(--border);
       vertical-align: middle;
     }
     .cell-input {
       width: 100%;
-      background: #0d1424;
-      border: 1px solid var(--border);
+      background: var(--input-bg);
+      border: 2px solid var(--border);
       color: var(--text);
-      padding: 8px 10px;
-      border-radius: 7px;
-      font-size: 13px;
+      padding: 10px 12px;
+      border-radius: 9px;
+      font-size: 15px;
+      font-weight: 600;
       font-family: inherit;
     }
     .cell-input:focus {
@@ -467,230 +537,244 @@ export function renderHonoQuotationEditorHtml(draft: HonoQuotationDraft, allQuot
       border-color: var(--accent);
     }
     .cell-num {
-      width: 82px;
+      width: 90px;
       text-align: right;
       font-family: 'JetBrains Mono', monospace;
     }
     .cell-price {
-      width: 115px;
+      width: 125px;
       text-align: right;
       font-family: 'JetBrains Mono', monospace;
     }
     .subtotal-cell {
       font-family: 'JetBrains Mono', monospace;
-      font-weight: 700;
-      font-size: 14px;
-      color: #38bdf8;
+      font-weight: 800;
+      font-size: 16px;
+      color: var(--accent);
       text-align: right;
       padding-right: 12px;
     }
     .totals-grid {
       display: flex;
       justify-content: flex-end;
-      margin-top: 18px;
+      margin-top: 20px;
     }
     .totals-box {
-      width: 360px;
-      background: #0d1424;
-      border: 1px solid var(--border);
-      border-radius: 10px;
-      padding: 16px;
+      width: 400px;
+      max-width: 100%;
+      background: var(--surface-2);
+      border: 2px solid var(--border);
+      border-radius: 14px;
+      padding: 20px;
     }
     .totals-row {
       display: flex;
       justify-content: space-between;
       align-items: center;
-      padding: 6px 0;
-      font-size: 13.5px;
+      padding: 8px 0;
+      font-size: 16px;
+      font-weight: 600;
     }
     .totals-row.grand {
-      border-top: 1px solid var(--border);
-      margin-top: 8px;
-      padding-top: 12px;
-      font-size: 17px;
+      border-top: 2px solid var(--border);
+      margin-top: 10px;
+      padding-top: 14px;
+      font-size: 21px;
       font-weight: 800;
       color: var(--emerald);
     }
     .quote-list-item {
       display: block;
-      padding: 12px;
-      border-radius: 10px;
-      border: 1px solid var(--border);
+      padding: 14px;
+      border-radius: 12px;
+      border: 2px solid var(--border);
       background: var(--surface-2);
       color: var(--text);
       text-decoration: none;
-      margin-bottom: 10px;
+      margin-bottom: 12px;
       transition: 0.15s;
     }
     .quote-list-item:hover, .quote-list-item.active {
       border-color: var(--accent);
-      background: rgba(56, 189, 248, 0.08);
+      background: var(--accent-soft);
     }
     .ai-reply-box {
-      background: #09121e;
-      border: 1px solid rgba(16, 185, 129, 0.45);
-      border-radius: 12px;
-      padding: 18px;
-      font-size: 14px;
+      background: var(--surface-2);
+      border: 2px solid var(--emerald);
+      border-radius: 14px;
+      padding: 20px;
+      font-size: 16px;
+      font-weight: 500;
       white-space: pre-wrap;
-      line-height: 1.65;
-      color: #e2e8f0;
-      margin-top: 12px;
-    }
-    pre.code-block {
-      background: #080c15;
-      border: 1px solid var(--border);
-      border-radius: 8px;
-      padding: 12px;
-      font-family: 'JetBrains Mono', monospace;
-      font-size: 11.5px;
-      color: #93c5fd;
-      overflow-x: auto;
-      max-height: 240px;
+      line-height: 1.7;
+      color: var(--text);
+      margin-top: 14px;
     }
     .meta-grid {
       display: grid;
       grid-template-columns: repeat(4, 1fr);
-      gap: 12px;
-      margin-bottom: 16px;
+      gap: 14px;
+      margin-bottom: 18px;
     }
     @media (max-width: 768px) {
       .meta-grid { grid-template-columns: 1fr 1fr; }
     }
     .meta-field label {
       display: block;
-      font-size: 11px;
+      font-size: 13px;
+      font-weight: 800;
       color: var(--muted);
       text-transform: uppercase;
-      margin-bottom: 4px;
+      margin-bottom: 6px;
     }
+    /* The demo role the page was opened with decides whether the staff actions are offered at all.
+       A guest session sees the quotation, not the machinery that prices it — before this, the role
+       changed one line of text and nothing else. */
+    body[data-role="guest"] .staff-only { display: none !important; }
   </style>
 </head>
-<body>
+<body data-role="${role}">
+  <div style="background:var(--accent-soft);border-bottom:1px solid var(--border);color:var(--text);font-size:13.5px;padding:8px 20px;text-align:center;font-weight:600;">
+    ${DEMO_GAIS_BANNER} <span style="color:var(--muted);">· ${roleNote}</span>
+  </div>
   <header class="topbar">
     <div class="brand">
-      <span class="brand-badge">HONO TOOL-CALLING STUDIO</span>
-      <h1>Casa Escondida — Editable Quotation &amp; AI Confirmation Hub</h1>
+      <span class="brand-badge">RESORT STAFF DESK</span>
+      <h1>Casa Escondida — Quotation Review #${draft.quoteId}</h1>
     </div>
     <div class="top-actions">
-      <a class="nav-link" href="/test-console" target="_blank">🧪 Web Test Console</a>
-      <a class="nav-link" href="/flow" target="_blank">📐 Sequence Diagram</a>
-      <a class="nav-link" href="/plan" target="_blank">📊 Executive Plan</a>
+      <button type="button" class="theme-btn" id="theme-toggle-btn" onclick="toggleTheme()">
+        <span id="theme-icon">🌙</span>
+        <span id="theme-label">Dark Mode</span>
+      </button>
+      <span style="font-size:14px;color:var(--text);background:var(--surface-2);border:2px solid var(--border);border-radius:999px;padding:6px 14px;font-weight:700;">Staff Role: <strong>${role}</strong></span>
+      <select id="role-select" onchange="switchRole(this.value)" title="Switch staff view role" style="background:var(--input-bg);border:2px solid var(--border);color:var(--text);border-radius:10px;padding:8px 12px;font-size:14px;font-weight:700;">
+        ${DEMO_ROLES.map((r) => `<option value="${r}"${r === role ? " selected" : ""}>${r}</option>`).join("")}
+      </select>
     </div>
   </header>
 
   <div class="container">
-    <!-- Sidebar: Active Tool-Called Quotations + Simulate Tool Call -->
+    <!-- Sidebar: the quotations a staff member is reviewing -->
     <aside>
       <div class="card">
         <div class="card-title">
-          <span>📥 AI Tool-Called Quotes</span>
+          <span>📥 All Quotations</span>
         </div>
+        <p style="font-size:14px;color:var(--muted);margin-bottom:12px;">Click any quotation below to review or update:</p>
         <div id="quote-sidebar-list"></div>
-        <hr style="border:0;border-top:1px solid var(--border);margin:14px 0;" />
-        <div style="font-size:12px;color:var(--muted);margin-bottom:8px;">Trigger a fresh AI → Hono Tool Call from guest text:</div>
-        <textarea id="quick-msg" class="cell-input" rows="4" style="margin-bottom:8px;font-size:12px;">Our group has 6 people coming Oct 10, only 4 are staying for 2 nights in 2 rooms. 1 person dives day 1, and 5 people dive both days. My name is Sky.</textarea>
-        <button class="btn btn-primary" style="width:100%;justify-content:center;" onclick="triggerNewToolCall()" id="btn-trigger-tool">
-          ⚡ <span>Run AI Tool Call → Hono</span>
-        </button>
-      </div>
-
-      <div class="card">
-        <div class="card-title">
-          <span>🔧 Tool Schema (Gemini)</span>
-        </div>
-        <pre class="code-block">${toolDeclJson}</pre>
       </div>
     </aside>
 
     <!-- Main Studio -->
     <main>
-      <!-- 4-Step Pipeline Trace -->
-      <div class="pipeline-banner">
-        <div class="step-box done">
-          <div class="step-num">STEP 01 · AI EXTRACTOR</div>
-          <div class="step-title">Gemini 3.1 Flash-Lite</div>
-          <div class="step-sub">Extracted slots &amp; split-day diveNotes</div>
-        </div>
-        <div class="step-box done">
-          <div class="step-num">STEP 02 · TOOL CALLING</div>
-          <div class="step-title"><code>submit_quotation_to_hono</code></div>
-          <div class="step-sub">AI invokes Hono Quotation Engine</div>
-        </div>
-        <div class="step-box active" id="step-3-box">
-          <div class="step-num">STEP 03 · HONO EDIT &amp; REVIEW</div>
-          <div class="step-title">Edit Table &amp; Quote Link</div>
-          <div class="step-sub">Customize rows, prices, slug &amp; confirm</div>
-        </div>
-        <div class="step-box" id="step-4-box">
-          <div class="step-num">STEP 04 · HONO → AI REPLY</div>
-          <div class="step-title">Confirmed Quote to AI</div>
-          <div class="step-sub">AI sends confirmed table &amp; link to guest</div>
-        </div>
-      </div>
-
-      <!-- Editable Quotation Link -->
+      <!-- STEP 1: Guest Information & Shareable Quote Link -->
       <div class="card">
         <div class="card-title">
-          <span>🔗 1. Editable Quotation Link (Customer Shareable URL)</span>
-          <span id="quote-status-badge" class="status-pill status-pending">⏳ Pending Hono Confirmation</span>
+          <span>👤 STEP 1: Guest Details &amp; Customer Quotation Link</span>
+          <span id="quote-status-badge" class="status-pill status-pending">⏳ Waiting for Staff Approval</span>
         </div>
-        <p style="font-size:13px;color:var(--muted);">
-          Customize the shareable Quotation URL or custom slug below. When confirmed, Hono sends this exact edited link back to the AI to share with the guest.
-        </p>
-        <div class="link-editor-bar">
-          <span style="font-size:12px;font-weight:700;color:var(--muted);">URL:</span>
-          <input type="text" id="input-quotation-url" value="${draft.quotationUrl}" oninput="onUrlEdited()" />
-          <button class="btn btn-outline" onclick="copyQuoteLink()">📋 <span>Copy Link</span></button>
-          <a class="btn btn-primary" id="btn-open-public-quote" href="${draft.quotationUrl}" target="_blank">👁️ <span>Open Customer Quote Page</span></a>
-        </div>
-      </div>
 
-      <!-- Editable Quotation Table -->
-      <div class="card">
-        <div class="card-title">
-          <span>📊 2. Editable Quotation Table on Hono (Live Line-Item Editor)</span>
-          <div style="display:flex;gap:8px;align-items:center;">
-            <select id="select-currency" class="cell-input" style="width:95px;padding:5px 8px;" onchange="recalcUI()">
-              <option value="PHP" ${draft.currency === "PHP" ? "selected" : ""}>₱ PHP</option>
-              <option value="USD" ${draft.currency === "USD" ? "selected" : ""}>$ USD</option>
-            </select>
-            <button class="btn btn-outline" onclick="addLineItem()">+ <span>Add Row</span></button>
-          </div>
-        </div>
+        ${
+          Array.isArray(draft.staffAlerts) && draft.staffAlerts.length > 0
+            ? `<div style="margin-bottom:18px;padding:14px 16px;border-left:5px solid var(--amber);background:var(--amber-soft);border-radius:10px;">
+          <div style="font-size:15px;font-weight:800;color:var(--amber);margin-bottom:6px;">⚠️ IMPORTANT STAFF NOTES — Please check before approving:</div>
+          <ul style="margin:0;padding-left:22px;font-size:15px;line-height:1.65;font-weight:600;">
+            ${draft.staffAlerts.map((a) => `<li>${String(a).replace(/</g, "&lt;")}</li>`).join("")}
+          </ul>
+        </div>`
+            : ""
+        }
 
         <!-- Guest & Stay Metadata (Editable) -->
         <div class="meta-grid">
           <div class="meta-field">
-            <label>Guest Name</label>
-            <input class="cell-input" id="meta-guestName" value="${draft.guestName}" />
+            <label>Guest Full Name</label>
+            <input class="cell-input" id="meta-guestName" value="${esc(draft.guestName)}" />
           </div>
           <div class="meta-field">
             <label>Check-in Date</label>
-            <input class="cell-input" id="meta-checkIn" value="${draft.checkIn}" />
+            <input class="cell-input" id="meta-checkIn" value="${esc(draft.checkIn)}" />
           </div>
           <div class="meta-field">
             <label>Check-out Date</label>
-            <input class="cell-input" id="meta-checkOut" value="${draft.checkOut}" />
+            <input class="cell-input" id="meta-checkOut" value="${esc(draft.checkOut)}" />
           </div>
           <div class="meta-field">
-            <label>Stay / Rooms / Group</label>
-            <input class="cell-input" value="${draft.nights} nights · ${draft.rooms} rooms · ${draft.stayingGuests}/${draft.totalGroupSize} pax" readonly style="color:var(--muted);" />
+            <label>Nights / Rooms / Guests</label>
+            <input class="cell-input" value="${draft.nights} nights · ${draft.rooms} rooms · ${draft.stayingGuests}/${draft.totalGroupSize} pax" readonly style="color:var(--muted);background:var(--surface-2);" />
           </div>
+        </div>
+
+        <p style="font-size:15px;color:var(--muted);font-weight:600;">
+          🔗 Official Customer Quotation Page (Guest clicks this link to view &amp; print their invoice):
+        </p>
+        <p style="font-size:13.5px;color:var(--muted);font-weight:600;margin:0 0 10px;">
+          This page is the <strong>live working copy</strong>. The link below always shows whatever is saved here now — there is no frozen version yet, so a guest who opens an old link sees your latest edit.
+        </p>
+        <div class="link-editor-bar">
+          <span style="font-size:14px;font-weight:800;color:var(--muted);">Customer Link:</span>
+          <input type="text" id="input-quotation-url" value="${draft.quotationUrl}" readonly oninput="onUrlEdited()" title="Official customer link" />
+          <button class="btn btn-outline" onclick="copyQuoteLink()">📋 <span>Copy Link</span></button>
+          <a class="btn btn-primary" id="btn-open-public-quote" href="${draft.quotationUrl}" target="_blank">👁️ <span>Open Customer Quote Page</span></a>
+          <a class="btn btn-outline staff-only" id="btn-open-ops-sheet" href="/quotes/${encodeURIComponent(draft.quoteId)}/ops" target="_blank">🧾 <span>Ops Sheet (no prices)</span></a>
+        </div>
+      </div>
+
+      <!-- STEP 2: Quotation Price Table & Official Estimator -->
+      <div class="card">
+        <div class="card-title">
+          <span>📊 STEP 2: Quotation Price Table (Review &amp; Edit Items)</span>
+          <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
+            <select id="select-currency" class="cell-input" style="width:110px;padding:8px 10px;" onchange="recalcUI()">
+              <option value="PHP" ${draft.currency === "PHP" ? "selected" : ""}>₱ PHP</option>
+              <option value="USD" ${draft.currency === "USD" ? "selected" : ""}>$ USD</option>
+            </select>
+            <button class="btn btn-outline" onclick="addLineItem()">➕ <span>Add New Item Row</span></button>
+          </div>
+        </div>
+
+        <!-- Official Estimator BFF Bar moved to TOP of price table so staff price BEFORE editing -->
+        <div class="staff-only" style="margin-bottom:18px;padding:14px 16px;background:var(--surface-2);border:2px solid var(--border);border-radius:12px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;">
+          <div>
+            <div style="font-size:15px;font-weight:800;color:var(--text);">💱 Official Resort Rate Calculator (Estimator BFF)</div>
+            <div style="font-size:13.5px;color:var(--muted);">Click to automatically calculate official room, meal, and diving rates from the resort pricing engine.</div>
+          </div>
+          <div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap;">
+            <button class="btn btn-outline" onclick="syncEstimate()" id="btn-sync-estimate">💱 <span>Price with the Estimator BFF</span></button>
+            <span id="estimator-status-badge" style="font-size:14px;font-weight:700;color:var(--muted);">⏳ checking estimator connection…</span>
+          </div>
+          <pre id="sync-estimate-out" style="width:100%;margin-top:4px;white-space:pre-wrap;font-size:13.5px;color:var(--muted);display:none;"></pre>
+        </div>
+
+        <!-- Reservation bar. The one action on this page that creates something outside our own
+             store, so it is the one that has to be explicit about what happened and refuse to be
+             pressed twice. State lives on the quotation, not in this page: reloading must not
+             offer the button again for a reservation that already exists. -->
+        <div class="staff-only" style="margin-bottom:18px;padding:14px 16px;background:var(--surface-2);border:2px solid var(--border);border-radius:12px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;">
+          <div>
+            <div style="font-size:15px;font-weight:800;color:var(--text);">📅 Send reservation</div>
+            <div style="font-size:13.5px;color:var(--muted);">Books this quotation with the resort's booking engine. One reservation per quotation; a send the engine refused can be tried again.</div>
+          </div>
+          <div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap;">
+            <button class="btn btn-outline" onclick="submitReservation()" id="btn-submit-reservation">📅 <span>Send reservation</span></button>
+            <span id="reservation-status-badge" style="font-size:14px;font-weight:700;color:var(--muted);"></span>
+          </div>
+          <pre id="reservation-out" style="width:100%;margin-top:4px;white-space:pre-wrap;font-size:13.5px;color:var(--muted);display:none;"></pre>
         </div>
 
         <div style="overflow-x:auto;">
           <table class="quote-table">
             <thead>
               <tr>
-                <th style="width:120px;">Category</th>
-                <th>Item Description (Editable)</th>
-                <th style="width:95px;text-align:right;">Qty (Pax/Rm)</th>
-                <th style="width:95px;">Unit</th>
-                <th style="width:95px;text-align:right;">Nights/Days</th>
-                <th style="width:130px;text-align:right;">Unit Price</th>
-                <th style="width:135px;text-align:right;">Subtotal</th>
-                <th style="width:48px;"></th>
+                <th style="width:130px;">Category</th>
+                <th>Service / Package Description</th>
+                <th style="width:105px;text-align:right;">Qty (Pax/Rm)</th>
+                <th style="width:100px;">Unit</th>
+                <th style="width:105px;text-align:right;">Nights/Days</th>
+                <th style="width:140px;text-align:right;">Unit Price</th>
+                <th style="width:145px;text-align:right;">Row Subtotal</th>
+                <th style="width:56px;"></th>
               </tr>
             </thead>
             <tbody id="line-items-tbody"></tbody>
@@ -705,75 +789,57 @@ export function renderHonoQuotationEditorHtml(draft: HonoQuotationDraft, allQuot
             </div>
             <div class="totals-row">
               <span>Discount % (e.g. 30% Agency):</span>
-              <input type="number" min="0" max="100" id="input-discount" class="cell-input cell-num" style="width:72px;padding:4px 8px;" value="${draft.discountPercent}" oninput="recalcUI()" />
+              <input type="number" min="0" max="100" id="input-discount" class="cell-input cell-num" style="width:84px;padding:6px 10px;" value="${draft.discountPercent}" oninput="recalcUI()" />
             </div>
             <div class="totals-row" style="color:var(--amber);">
-              <span>Discount Amount:</span>
+              <span>Discount Savings:</span>
               <span id="ui-discount-amount">-₱0</span>
             </div>
             <div class="totals-row grand">
-              <span>TOTAL CONFIRMED:</span>
+              <span>GRAND TOTAL:</span>
               <span id="ui-total">₱0</span>
             </div>
           </div>
         </div>
 
-        <div style="margin-top:16px;">
-          <label style="display:block;font-size:12px;color:var(--muted);margin-bottom:6px;">📝 Staff / Concierge Note (Sent to AI &amp; Printed on Customer Quote):</label>
-          <input type="text" id="input-staff-notes" class="cell-input" value="${draft.staffNotes.replace(/"/g, "&quot;")}" />
+        ${guestCardsHtml}
+        ${agentCompareHtml}
+
+        <div style="margin-top:18px;">
+          <label style="display:block;font-size:15px;font-weight:800;color:var(--text);margin-bottom:8px;">📝 Note for Guest (Printed on Customer Quotation Page):</label>
+          <input type="text" id="input-staff-notes" class="cell-input" value="${esc(draft.staffNotes)}" />
         </div>
 
-        ${
-          Array.isArray(draft.staffAlerts) && draft.staffAlerts.length > 0
-            ? `<div style="margin-top:16px;padding:12px 14px;border-left:3px solid var(--accent);background:rgba(220,75,51,0.06);border-radius:4px;">
-          <div style="font-size:12px;font-weight:700;letter-spacing:.4px;color:var(--accent);margin-bottom:6px;">STAFF ALERTS — read before quoting</div>
-          <ul style="margin:0;padding-left:18px;font-size:13px;line-height:1.55;">
-            ${draft.staffAlerts.map((a) => `<li>${String(a).replace(/</g, "&lt;")}</li>`).join("")}
-          </ul>
-        </div>`
-            : ""
-        }
-
-        <div style="margin-top:20px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;padding-top:16px;border-top:1px solid var(--border);">
-          <div style="display:flex;align-items:center;gap:10px;">
-            <button class="btn btn-outline" onclick="saveEditsOnly()" id="btn-save-draft">💾 <span>Save Edits on Hono</span></button>
-            <span id="save-toast" style="font-size:12.5px;color:var(--emerald);"></span>
+        <div class="staff-only" style="margin-top:24px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:14px;padding-top:18px;border-top:2px solid var(--border);">
+          <div style="display:flex;align-items:center;gap:12px;">
+            <button class="btn btn-outline" onclick="saveEditsOnly()" id="btn-save-draft">💾 <span>Save Draft Changes</span></button>
+            <span id="save-toast" style="font-size:15px;font-weight:700;color:var(--emerald);"></span>
           </div>
           <button class="btn btn-emerald" onclick="confirmAndSendToAI()" id="btn-confirm-hono">
-            ✅ <span>Hono Confirm &amp; Send Back to AI</span>
+            ✅ <span>Approve Quotation &amp; Prepare Guest Message</span>
           </button>
         </div>
       </div>
 
-      <!-- Step 4 Output: AI Response After Hono Confirmation -->
-      <div class="card" id="ai-response-card">
+      <!-- STEP 3: Final Guest Message & Send to WhatsApp -->
+      <div class="card staff-only" id="ai-response-card">
         <div class="card-title">
-          <span>🤖 3. AI Response After Receiving Hono Confirmation (Tool Output → AI)</span>
-          <span style="font-size:12px;color:var(--emerald);">Gemini 3.1 Flash-Lite</span>
+          <span>📲 STEP 3: Send Confirmed Quotation to Guest's WhatsApp</span>
+          <span style="font-size:14px;font-weight:800;color:var(--emerald);">Ready to Send</span>
         </div>
-        <p style="font-size:13px;color:var(--muted);">
-          Once you edit the table or link above and click 'Hono Confirm &amp; Send Back to AI', Hono returns the confirmed tool payload to the AI, which generates the final guest message below:
+        <p style="font-size:15px;color:var(--muted);font-weight:500;">
+          After you click <strong>"✅ Approve Quotation &amp; Prepare Guest Message"</strong> in Step 2 above, the message below is prepared with the final price and quotation link. Click the blue WhatsApp button to send it directly to the guest:
         </p>
         <div class="ai-reply-box" id="ai-confirmed-reply-box">${
           draft.aiConfirmedReply
             ? draft.aiConfirmedReply
-            : "⏳ Waiting for Hono confirmation... Click [✅ Hono Confirm & Send Back to AI] above after editing any row, price, discount, or link!"
+            : "⏳ Waiting for approval... Please review the prices in Step 2 above and click [✅ Approve Quotation & Prepare Guest Message]."
         }</div>
-        <div style="margin-top:12px;display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
-          <input type="text" id="whatsapp-phone-input" class="cell-input" style="width:210px;" placeholder="WhatsApp phone (e.g. 639171234567)" value="${draft.phone ?? ""}" />
-          <button class="btn btn-primary" onclick="pushConfirmedQuoteToWhatsApp()" id="btn-push-wa">📲 <span>Send Confirmed AI Reply to WhatsApp</span></button>
-          <span id="wa-toast" style="font-size:12.5px;color:var(--accent);"></span>
-        </div>
-
-        <div style="margin-top:14px;padding-top:14px;border-top:1px dashed var(--line);">
-          <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
-            <button class="btn btn-outline" onclick="syncEstimate()" id="btn-sync-estimate">💱 <span>Price with the Estimator BFF</span></button>
-            <span id="estimator-status-badge" style="font-size:12px;color:var(--muted);">⏳ checking estimator connection…</span>
-          </div>
-          <p style="margin:8px 0 0;font-size:12px;color:var(--muted);">
-            The only path to Odoo. It prices and stores nothing — staff review the result here. This service holds no Odoo key.
-          </p>
-          <pre id="sync-estimate-out" style="margin-top:10px;white-space:pre-wrap;font-size:12.5px;color:var(--muted);"></pre>
+        <div style="margin-top:16px;display:flex;gap:12px;align-items:center;flex-wrap:wrap;">
+          <label style="font-size:15px;font-weight:800;">Guest WhatsApp Number:</label>
+          <input type="text" id="whatsapp-phone-input" class="cell-input" style="width:240px;" placeholder="e.g. 639171234567" value="${draft.phone ?? ""}" />
+          <button class="btn btn-primary" onclick="pushConfirmedQuoteToWhatsApp()" id="btn-push-wa">📲 <span>Send Message to Guest's WhatsApp</span></button>
+          <span id="wa-toast" style="font-size:15px;font-weight:700;color:var(--accent);"></span>
         </div>
       </div>
     </main>
@@ -783,6 +849,41 @@ export function renderHonoQuotationEditorHtml(draft: HonoQuotationDraft, allQuot
     let state = ${initialJson};
     const allQuotes = ${allQuotesJson};
 
+    // The same escaping the server does (html.ts), for the parts of this page the browser draws. A
+    // line description and a guest name arrive from WhatsApp, so a less-than sign in either is not
+    // markup — it is a guest's own text, and it reaches staff who are signed in.
+    function escHtml(value) {
+      return String(value == null ? '' : value)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;');
+    }
+
+    function applyTheme(theme) {
+      document.documentElement.setAttribute('data-theme', theme);
+      localStorage.setItem('casa_theme', theme);
+      const icon = document.getElementById('theme-icon');
+      const label = document.getElementById('theme-label');
+      if (icon && label) {
+        if (theme === 'dark') {
+          icon.textContent = '☀️';
+          label.textContent = 'Light Mode';
+        } else {
+          icon.textContent = '🌙';
+          label.textContent = 'Dark Mode';
+        }
+      }
+    }
+    function toggleTheme() {
+      const current = document.documentElement.getAttribute('data-theme') || 'light';
+      applyTheme(current === 'dark' ? 'light' : 'dark');
+    }
+    (function initTheme() {
+      const saved = localStorage.getItem('casa_theme') || 'light';
+      applyTheme(saved);
+    })();
+
     function fmtMoney(n, currency) {
       const sym = (currency || state.currency) === 'USD' ? '$' : '₱';
       return sym + Number(n || 0).toLocaleString('en-US');
@@ -790,16 +891,18 @@ export function renderHonoQuotationEditorHtml(draft: HonoQuotationDraft, allQuot
 
     function renderSidebar() {
       const el = document.getElementById('quote-sidebar-list');
+      const tok = staffToken();
+      const qs = tok ? '?token=' + encodeURIComponent(tok) : '';
       el.innerHTML = allQuotes.map(q => \`
-        <a class="quote-list-item \${q.quoteId === state.quoteId ? 'active' : ''}" href="/quotes/\${q.quoteId}">
-          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;">
-            <strong style="font-size:13px;color:#38bdf8;">\${q.quoteId}</strong>
-            <span style="font-size:11px;color:\${q.status === 'confirmed_by_hono' ? '#34d399' : '#fbbf24'};">
-              \${q.status === 'confirmed_by_hono' ? '✅ Confirmed' : '⏳ Pending'}
+        <a class="quote-list-item \${q.quoteId === state.quoteId ? 'active' : ''}" href="/quotes/\${q.quoteId}\${qs}">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
+            <strong style="font-size:15px;color:var(--accent);">\${q.quoteId}</strong>
+            <span style="font-size:13px;font-weight:800;color:\${q.status === 'confirmed_by_hono' ? 'var(--emerald)' : 'var(--amber)'};">
+              \${q.status === 'confirmed_by_hono' ? '✅ Approved' : '⏳ Needs Review'}
             </span>
           </div>
-          <div style="font-size:12.5px;font-weight:600;">\${q.guestName} · \${q.checkIn} (\${q.nights}N)</div>
-          <div style="font-size:12px;color:#94a3b8;">Total: \${fmtMoney(q.totalAmount, q.currency)}</div>
+          <div style="font-size:15px;font-weight:700;">\${escHtml(q.guestName)}</div>
+          <div style="font-size:14px;color:var(--muted);">\${q.checkIn} (\${q.nights} nights) · <strong>\${fmtMoney(q.totalAmount, q.currency)}</strong></div>
         </a>
       \`).join('');
     }
@@ -818,13 +921,13 @@ export function renderHonoQuotationEditorHtml(draft: HonoQuotationDraft, allQuot
             </select>
           </td>
           <td>
-            <input type="text" class="cell-input" value="\${item.description.replace(/"/g, '&quot;')}" oninput="updateItem(\${idx}, 'description', this.value)" />
+            <input type="text" class="cell-input" value="\${escHtml(item.description)}" oninput="updateItem(\${idx}, 'description', this.value)" />
           </td>
           <td>
             <input type="number" min="0" step="1" class="cell-input cell-num" value="\${item.quantity}" oninput="updateItem(\${idx}, 'quantity', Number(this.value))" />
           </td>
           <td>
-            <input type="text" class="cell-input" value="\${item.unitLabel}" oninput="updateItem(\${idx}, 'unitLabel', this.value)" />
+            <input type="text" class="cell-input" value="\${escHtml(item.unitLabel)}" oninput="updateItem(\${idx}, 'unitLabel', this.value)" />
           </td>
           <td>
             <input type="number" min="1" step="1" class="cell-input cell-num" value="\${item.multiplier}" oninput="updateItem(\${idx}, 'multiplier', Number(this.value))" />
@@ -894,8 +997,6 @@ export function renderHonoQuotationEditorHtml(draft: HonoQuotationDraft, allQuot
       if (state.status === 'confirmed_by_hono') {
         badge.className = 'status-pill status-confirmed';
         badge.textContent = '✅ Confirmed by Hono & Sent to AI';
-        document.getElementById('step-3-box').className = 'step-box done';
-        document.getElementById('step-4-box').className = 'step-box active done';
       } else {
         badge.className = 'status-pill status-pending';
         badge.textContent = '⏳ Pending Hono Confirmation';
@@ -969,7 +1070,25 @@ export function renderHonoQuotationEditorHtml(draft: HonoQuotationDraft, allQuot
      * to pick up a rotated token.
      */
     function staffToken() {
-      return new URLSearchParams(window.location.search).get('token') || '';
+      const fromUrl = new URLSearchParams(window.location.search).get('token');
+      if (fromUrl) {
+        sessionStorage.setItem('casa_staff_token', fromUrl);
+        return fromUrl;
+      }
+      return sessionStorage.getItem('casa_staff_token') || '';
+    }
+
+    /**
+     * Switch the DEMO role. Cosmetic only: the cookie it re-issues changes what this page says
+     * it is viewing as, not what it is allowed to read. Real roles come from the GAIS key.
+     */
+    async function switchRole(role) {
+      await fetch('/login/role', {
+        method: 'POST',
+        headers: { 'content-type': 'application/x-www-form-urlencoded' },
+        body: new URLSearchParams({ role })
+      });
+      window.location.reload();
     }
 
     async function pushConfirmedQuoteToWhatsApp() {
@@ -985,32 +1104,11 @@ export function renderHonoQuotationEditorHtml(draft: HonoQuotationDraft, allQuot
       toast.textContent = data.ok ? '✅ Sent confirmed quote + link to WhatsApp (' + phone + ')!' : ('⚠️ ' + (data.error || 'Could not send'));
     }
 
-    /**
-     * Asks the estimator BFF to price this quotation.
-     *
-     * This is the only path from here to Odoo, and it goes through the BFF — see
-     * estimatorClient.ts. The result is staff-facing feedback, not something the guest is told:
-     * a rejection names the field that is wrong with OUR payload, and the sample flag says the
-     * number came from a captured response rather than Odoo — which the fixture-mode BFF does
-     * not currently set, so if it ever reads true, believe it.
-     *
-     * Kept on the staff path on purpose. It is stateless: it prices and returns, and stores
-     * nothing. Calling it automatically on every guest turn would spend an Odoo compute and
-     * leave nothing behind, while pushing the turn's p95 (measured 3.8s) toward Meta's 20s
-     * deadline.
-     *
-     * NOTE for editors of this file: this comment lives INSIDE a template literal, so it must
-     * not contain a backtick — one closes the HTML string and breaks the build.
-     */
-    /**
-     * Pre-flight: is the estimator BFF configured and answering, and in which mode?
-     *
-     * Shown next to the button so staff learn the state before clicking. Without this, a missing
-     * ESTIMATOR_BASE_URL is discovered as a 503 after a click, and fixture mode is invisible —
-     * both are the kind of thing that otherwise only surfaces in logs.
-     */
     async function checkEstimatorStatus() {
       const badge = document.getElementById('estimator-status-badge');
+      // A guest session has no estimator bar at all, so there is no badge to write to. Reading a
+      // missing element here used to be a thrown TypeError that killed the rest of the script.
+      if (!badge) return;
       try {
         const res = await fetch('/v1/quotes/estimator-status?token=' + encodeURIComponent(staffToken()));
         const data = await res.json();
@@ -1018,14 +1116,16 @@ export function renderHonoQuotationEditorHtml(draft: HonoQuotationDraft, allQuot
           badge.textContent = '⚪ not configured — prices unavailable';
           badge.style.color = 'var(--muted)';
         } else if (!data.reachable) {
-          badge.textContent = '🔴 BFF not answering';
+          badge.textContent = '🔴 pricing engine not answering';
           badge.style.color = 'var(--accent)';
         } else if (data.mode === 'fixture') {
-          badge.textContent = '🟡 FIXTURE — prices are captured samples';
+          badge.textContent = data.kind === 'simulated'
+            ? '🟡 SIMULATED — sample prices, not a real quote'
+            : '🟡 FIXTURE — prices are captured samples';
           badge.style.color = 'var(--accent)';
         } else {
           badge.textContent = '🟢 connected';
-          badge.style.color = 'var(--muted)';
+          badge.style.color = 'var(--emerald)';
         }
       } catch (err) {
         badge.textContent = '⚪ status unknown';
@@ -1036,8 +1136,10 @@ export function renderHonoQuotationEditorHtml(draft: HonoQuotationDraft, allQuot
     async function syncEstimate() {
       const btn = document.getElementById('btn-sync-estimate');
       const out = document.getElementById('sync-estimate-out');
+      if (!btn || !out) return; // a guest session has no pricing bar
       btn.disabled = true;
-      out.textContent = '⏳ Asking the estimator BFF to price this trip...';
+      out.style.display = 'block';
+      out.textContent = '⏳ Asking the pricing engine to price this trip...';
       try {
         const res = await fetch('/v1/quotes/' + encodeURIComponent(state.quoteId) + '/sync-estimate?token=' + encodeURIComponent(staffToken()), {
           method: 'POST',
@@ -1047,14 +1149,19 @@ export function renderHonoQuotationEditorHtml(draft: HonoQuotationDraft, allQuot
         if (data.ok) {
           const issues = Array.isArray(data.issues) ? data.issues : [];
           out.textContent =
-            '✅ Priced by the estimator BFF (role=' + (data.role || '?') + ', mode=' + (data.mode || 'unknown') + ')' +
-            (data.sample ? '\n⚠️ SAMPLE DATA — these are captured prices, NOT a real quote. Do not send to a guest.' : '') +
-            (issues.length ? '\n⚠️ ' + issues.length + ' pricing warning(s): ' + issues.map(function (i) { return i.code || i; }).join(', ') : '');
-        } else {
-          out.textContent =
-            '⚠️ ' + (data.reason || 'failed') + ': ' + (data.detail || '') +
-            (Array.isArray(data.fields) && data.fields.length ? '\nfields: ' + data.fields.join(', ') : '');
+            '✅ Priced by the ' + (data.endpoint || 'pricing engine') + ' (role=' + (data.role || '?') + ', mode=' + (data.mode || 'unknown') + ')' +
+            (data.sample ? '\\n⚠️ SAMPLE DATA — these are NOT real quotes. Do not send to a guest.' : '') +
+            (issues.length ? '\\n⚠️ ' + issues.length + ' pricing warning(s): ' + issues.map(function (i) { return i.code || i; }).join(', ') : '') +
+            '\\nReloading so the per-guest breakdown and the ops sheet come from the saved price…';
+          // The answer is now part of the quotation, so the per-guest cards, the agent comparison
+          // and the ops sheet are all rendered from the record. Reloading is what guarantees this
+          // page and the record cannot disagree.
+          window.location.reload();
+          return;
         }
+        out.textContent =
+          '⚠️ ' + (data.reason || 'failed') + ': ' + (data.detail || '') +
+          (Array.isArray(data.fields) && data.fields.length ? '\\nfields: ' + data.fields.join(', ') : '');
       } catch (err) {
         out.textContent = '⚠️ ' + (err && err.message ? err.message : String(err));
       } finally {
@@ -1064,28 +1171,70 @@ export function renderHonoQuotationEditorHtml(draft: HonoQuotationDraft, allQuot
     }
 
     checkEstimatorStatus();
+    renderReservationStatus();
 
-    async function triggerNewToolCall() {
-      const btn = document.getElementById('btn-trigger-tool');
-      const text = document.getElementById('quick-msg').value.trim();
-      if (!text) return;
+    /**
+     * What the quotation's own record says about its reservation — not what this page remembers.
+     * A reload, or a second tab, must agree with it, which is why the state is read back rather
+     * than tracked here.
+     */
+    function renderReservationStatus() {
+      const badge = document.getElementById('reservation-status-badge');
+      const btn = document.getElementById('btn-submit-reservation');
+      if (!badge || !btn) return;
+      const s = state.submission;
+      if (!s) {
+        badge.textContent = '';
+        btn.disabled = false;
+        return;
+      }
+      const LABELS = {
+        pending: '⏳ Sending… do not press again',
+        confirmed: '✅ Reservation sent',
+        failed: '⚠️ Not accepted — you may try again',
+        unknown: '⚠️ Not confirmed — check with the resort before sending again'
+      };
+      badge.textContent = LABELS[s.state] || s.state;
+      // Only a refusal is retryable. "pending" is in flight; "confirmed" and "unknown" must not
+      // be re-sent, because a second send is a second folio.
+      btn.disabled = s.state !== 'failed';
+    }
+
+    async function submitReservation() {
+      const btn = document.getElementById('btn-submit-reservation');
+      const out = document.getElementById('reservation-out');
+      if (!btn || !out) return; // a guest session has no reservation bar
+      // Contact details are asked for rather than assumed: they are what the front desk confirms
+      // to, and quietly booking under the studio's own account is how a guest never hears back.
+      const name = window.prompt('Name for the reservation:', state.guestName || '');
+      if (!name) return;
+      const email = window.prompt('Email the front desk should confirm to:', '');
+      if (!email) return;
+      const phone = window.prompt('Phone (optional):', state.phone || '') || '';
       btn.disabled = true;
-      btn.textContent = '⏳ Calling AI → Hono Tool...';
+      out.style.display = 'block';
+      out.textContent = '⏳ Sending the reservation...';
       try {
-        const res = await fetch('/v1/converse', {
+        const res = await fetch('/v1/quotes/' + encodeURIComponent(state.quoteId) + '/submit?token=' + encodeURIComponent(staffToken()), {
           method: 'POST',
           headers: { 'content-type': 'application/json' },
-          body: JSON.stringify({ message: text })
+          body: JSON.stringify({ name: name, email: email, phone: phone || undefined })
         });
         const data = await res.json();
-        if (data.quotationDraft && data.quotationDraft.quoteId) {
-          window.location.href = '/quotes/' + data.quotationDraft.quoteId;
-          return;
+        if (data.submission) state.submission = data.submission;
+        if (data.ok) {
+          const s = data.submission || {};
+          out.textContent = '✅ Reservation sent'
+            + (s.sample ? '\\n⚠️ SAMPLE DATA — no folio was created. This is the simulated booking engine.' : '')
+            + (s.folioId ? '\\nFolio #' + s.folioId : '');
+        } else {
+          out.textContent = '⚠️ ' + (data.reason || 'failed') + ': ' + (data.detail || data.error || '')
+            + (data.reason === 'unknown' ? '\\nDo not send again — a person has to check whether the folio exists.' : '');
         }
-        alert('AI requested more details before calling tool: ' + (data.reply || ''));
+      } catch (err) {
+        out.textContent = '⚠️ ' + (err && err.message ? err.message : String(err));
       } finally {
-        btn.disabled = false;
-        btn.textContent = '⚡ Run AI Tool Call → Hono';
+        renderReservationStatus();
       }
     }
 
@@ -1094,10 +1243,6 @@ export function renderHonoQuotationEditorHtml(draft: HonoQuotationDraft, allQuot
       navigator.clipboard.writeText(input.value);
       document.getElementById('save-toast').textContent = '📋 Copied Quotation Link!';
     }
-
-    // setLang() was deleted on 2026-09-24 with the language toggle it drove. It called
-    // getElementById('btn-lang-vi').classList on a button the markup has not rendered
-    // for some time, so it would have thrown if anything had called it — nothing did.
 
     renderSidebar();
     renderTable();
@@ -1109,46 +1254,126 @@ export function renderHonoQuotationEditorHtml(draft: HonoQuotationDraft, allQuot
 export function renderCustomerQuotationViewHtml(draft: HonoQuotationDraft): string {
   const sym = draft.currency === "USD" ? "$" : "₱";
   const fmt = (n: number) => `${sym}${Number(n || 0).toLocaleString("en-US")}`;
+  const guestNote = guestSafeStaffNotes(draft.staffNotes);
+
+  /**
+   * What the guest is told about their reservation — the one line on this page that is about
+   * whether something happened, rather than about how much it costs.
+   *
+   * It is driven by the recorded submission, never by a query string or a flag in the link: the
+   * same link has to say the same thing to everyone who opens it. And `unknown` gets its own
+   * wording, because telling a guest "we could not book it" when the engine may hold a folio is
+   * how they end up booking twice.
+   */
+  const submission = draft.submission ?? null;
+  const reservationBlock = !submission
+    ? ""
+    : (() => {
+        const tone =
+          submission.state === "confirmed"
+            ? { colour: "#10b981", title: "✅ Reservation sent" }
+            : submission.state === "failed"
+              ? { colour: "#f43f5e", title: "⚠️ We could not send your reservation" }
+              : submission.state === "unknown"
+                ? { colour: "#f59e0b", title: "⚠️ We could not confirm your reservation" }
+                : { colour: "#f59e0b", title: "⏳ Your reservation is being sent" };
+        const detail =
+          submission.state === "confirmed"
+            ? (submission.sample
+                ? "Folio number pending — this was booked against sample data, so no folio was created. The front desk will confirm availability and contact you."
+                : submission.folioId
+                  ? `Folio #${submission.folioId}. The front desk will confirm availability and contact you.`
+                  : "The front desk will confirm availability and contact you.")
+            : submission.state === "failed"
+              ? "Nothing was booked. Please ask the resort team to try again."
+              : submission.state === "unknown"
+                ? "Please do not send it again — the resort team will check whether it went through."
+                : "Please give it a moment before sending anything else.";
+        return `<div style="margin-top:24px;padding:18px;background:var(--surface-2);border-left:5px solid ${tone.colour};border-radius:10px;font-size:16px;color:var(--text);">
+              <strong>${tone.title}</strong>
+              <div style="margin-top:6px;color:var(--muted);font-size:15px;">${detail}</div>
+            </div>`;
+      })();
 
   const rowsHtml = draft.lineItems
     .map(
       (item, i) => `
       <tr>
-        <td style="padding:14px 12px;border-bottom:1px solid #e2e8f0;color:#64748b;font-weight:600;">0${i + 1}</td>
-        <td style="padding:14px 12px;border-bottom:1px solid #e2e8f0;">
-          <div style="font-weight:700;color:#0f172a;font-size:15px;">${item.description}</div>
-          <div style="font-size:12px;color:#64748b;text-transform:uppercase;margin-top:2px;">Category: ${item.category}</div>
+        <td style="padding:16px 12px;border-bottom:1px solid var(--border);color:var(--muted);font-weight:700;">0${i + 1}</td>
+        <td style="padding:16px 12px;border-bottom:1px solid var(--border);">
+          <div style="font-weight:800;color:var(--text);font-size:16px;">${escapeHtml(item.description)}</div>
+          <div style="font-size:13px;color:var(--muted);text-transform:uppercase;margin-top:3px;font-weight:700;">Category: ${item.category}</div>
         </td>
-        <td style="padding:14px 12px;border-bottom:1px solid #e2e8f0;text-align:center;font-weight:600;">${item.quantity} ${item.unitLabel}</td>
-        <td style="padding:14px 12px;border-bottom:1px solid #e2e8f0;text-align:center;font-weight:600;">${item.multiplier} ${item.multiplierLabel}</td>
-        <td style="padding:14px 12px;border-bottom:1px solid #e2e8f0;text-align:right;font-family:monospace;font-size:14px;">${fmt(item.unitPrice)}</td>
-        <td style="padding:14px 12px;border-bottom:1px solid #e2e8f0;text-align:right;font-family:monospace;font-weight:700;font-size:15px;color:#0f172a;">${fmt(item.subtotal)}</td>
+        <td style="padding:16px 12px;border-bottom:1px solid var(--border);text-align:center;font-weight:700;font-size:16px;">${item.quantity} ${item.unitLabel}</td>
+        <td style="padding:16px 12px;border-bottom:1px solid var(--border);text-align:center;font-weight:700;font-size:16px;">${item.multiplier} ${item.multiplierLabel}</td>
+        <td style="padding:16px 12px;border-bottom:1px solid var(--border);text-align:right;font-family:monospace;font-size:16px;font-weight:600;">${fmt(item.unitPrice)}</td>
+        <td style="padding:16px 12px;border-bottom:1px solid var(--border);text-align:right;font-family:monospace;font-weight:800;font-size:17px;color:var(--text);">${fmt(item.subtotal)}</td>
       </tr>`
     )
     .join("");
 
   return `<!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-theme="light">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Official Quotation ${draft.quoteId} — Casa Escondida Anilao Resort & Dive Center</title>
+  <title>Official Quotation ${escapeHtml(draft.quoteId)} — Casa Escondida Anilao Resort &amp; Dive Center</title>
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <style>
+    :root, [data-theme="light"] {
+      --bg: #f8fafc;
+      --surface: #ffffff;
+      --surface-2: #f1f5f9;
+      --border: #cbd5e1;
+      --text: #0f172a;
+      --muted: #475569;
+      --accent: #0284c7;
+    }
+    [data-theme="dark"] {
+      --bg: #0b101b;
+      --surface: #131b2e;
+      --surface-2: #19233c;
+      --border: #2d3f63;
+      --text: #f8fafc;
+      --muted: #cbd5e1;
+      --accent: #38bdf8;
+    }
     body {
       font-family: 'Plus Jakarta Sans', sans-serif;
-      background: #f8fafc;
-      color: #0f172a;
+      background: var(--bg);
+      color: var(--text);
+      font-size: 16px;
       margin: 0;
-      padding: 36px 20px;
+      padding: 32px 20px;
+      transition: background 0.2s, color 0.2s;
+    }
+    .top-bar {
+      max-width: 940px;
+      margin: 0 auto 16px;
+      display: flex;
+      justify-content: flex-end;
+      gap: 10px;
+    }
+    .theme-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      background: var(--surface);
+      border: 2px solid var(--border);
+      color: var(--text);
+      border-radius: 999px;
+      padding: 8px 16px;
+      font-size: 15px;
+      font-weight: 700;
+      cursor: pointer;
     }
     .sheet {
-      max-width: 920px;
+      max-width: 940px;
       margin: 0 auto;
-      background: #ffffff;
-      border: 1px solid #e2e8f0;
-      border-radius: 18px;
-      box-shadow: 0 20px 50px rgba(15, 23, 42, 0.06);
+      background: var(--surface);
+      border: 2px solid var(--border);
+      border-radius: 20px;
+      box-shadow: 0 20px 50px rgba(15, 23, 42, 0.08);
       overflow: hidden;
     }
     .banner {
@@ -1163,10 +1388,10 @@ export function renderCustomerQuotationViewHtml(draft: HonoQuotationDraft): stri
     }
     .badge {
       display: inline-block;
-      padding: 5px 12px;
+      padding: 6px 14px;
       border-radius: 999px;
-      font-size: 12px;
-      font-weight: 700;
+      font-size: 13px;
+      font-weight: 800;
       background: ${draft.status === "confirmed_by_hono" ? "#10b981" : "#f59e0b"};
       color: #fff;
     }
@@ -1179,56 +1404,53 @@ export function renderCustomerQuotationViewHtml(draft: HonoQuotationDraft): stri
     }
     @media (max-width: 700px) { .summary-cards { grid-template-columns: 1fr 1fr; } }
     .s-card {
-      background: #f8fafc;
-      border: 1px solid #e2e8f0;
+      background: var(--surface-2);
+      border: 2px solid var(--border);
       border-radius: 12px;
-      padding: 14px;
+      padding: 16px;
     }
-    .s-card small { color: #64748b; font-size: 11px; text-transform: uppercase; font-weight: 700; }
-    .s-card strong { display: block; font-size: 15px; margin-top: 4px; color: #0f172a; }
+    .s-card small { color: var(--muted); font-size: 12px; text-transform: uppercase; font-weight: 800; }
+    .s-card strong { display: block; font-size: 16px; margin-top: 6px; color: var(--text); }
     table { width: 100%; border-collapse: collapse; }
     th {
-      background: #f1f5f9;
-      color: #475569;
-      font-size: 11.5px;
-      text-transform: uppercase;
-      padding: 12px;
-      text-align: left;
-    }
-    .edit-floating {
-      position: fixed;
-      bottom: 24px;
-      right: 24px;
-      background: #0f172a;
-      color: #fff;
-      padding: 12px 20px;
-      border-radius: 999px;
-      text-decoration: none;
-      font-weight: 700;
+      background: var(--surface-2);
+      color: var(--muted);
       font-size: 13px;
-      box-shadow: 0 10px 25px rgba(0,0,0,0.25);
+      font-weight: 800;
+      text-transform: uppercase;
+      padding: 14px 12px;
+      text-align: left;
+      border-bottom: 2px solid var(--border);
     }
   </style>
 </head>
 <body>
+  <div class="top-bar">
+    <button type="button" class="theme-btn" id="theme-toggle-btn" onclick="toggleTheme()">
+      <span id="theme-icon">🌙</span>
+      <span id="theme-label">Dark Mode</span>
+    </button>
+    <button type="button" class="theme-btn" onclick="window.print()">🖨️ Print / Save PDF</button>
+  </div>
   <div class="sheet">
     <div class="banner">
       <div>
-        <div style="font-size:12px;letter-spacing:0.1em;text-transform:uppercase;color:#38bdf8;font-weight:700;">CASA ESCONDIDA RESORT &amp; DIVE CENTER · ANILAO, BATANGAS</div>
-        <h1 style="margin:6px 0 4px;font-size:26px;">Quotation #${draft.quoteId}</h1>
-        <div style="color:#94a3b8;font-size:14px;">Prepared for <strong>${draft.guestName}</strong> · Updated ${new Date(draft.updatedAt).toLocaleString("en-US")}</div>
+        <div style="font-size:13px;letter-spacing:0.1em;text-transform:uppercase;color:#38bdf8;font-weight:800;">CASA ESCONDIDA RESORT &amp; DIVE CENTER · ANILAO, BATANGAS</div>
+        <h1 style="margin:6px 0 4px;font-size:28px;">Quotation #${escapeHtml(draft.quoteId)}</h1>
+        <div style="color:#cbd5e1;font-size:16px;">Prepared for <strong>${escapeHtml(draft.guestName)}</strong> · Updated ${new Date(draft.updatedAt).toLocaleString("en-US")}</div>
+        <div style="color:#94a3b8;font-size:13px;margin-top:4px;">This is the latest version of your quotation. The resort team keeps it up to date here — ask them to re-send the link if anything changes.</div>
       </div>
       <div style="text-align:right;">
         <span class="badge">${draft.status === "confirmed_by_hono" ? "✓ OFFICIAL CONFIRMED QUOTATION" : "⏳ DRAFT QUOTATION (UNDER REVIEW)"}</span>
-        <div style="margin-top:10px;font-size:24px;font-weight:800;color:#38bdf8;">${fmt(draft.totalAmount)} ${draft.currency}</div>
+        <div style="margin-top:10px;font-size:28px;font-weight:800;color:#38bdf8;">${fmt(draft.totalAmount)} ${draft.currency}</div>
       </div>
     </div>
     <div class="content">
       <div class="summary-cards">
-        <div class="s-card"><small>Check-In / Out</small><strong>${draft.checkIn} → ${draft.checkOut}</strong></div>
+        <div class="s-card"><small>Check-In / Out</small><strong>${escapeHtml(draft.checkIn)} → ${escapeHtml(draft.checkOut)}</strong></div>
         <div class="s-card"><small>Duration &amp; Rooms</small><strong>${draft.nights} Nights · ${draft.rooms} Rooms</strong></div>
         <div class="s-card"><small>Group Breakdown</small><strong>${draft.stayingGuests} Overnight / ${draft.totalGroupSize} Total Pax</strong></div>
-        <div class="s-card"><small>Diving Schedule</small><strong>${draft.diveNotes ?? (draft.diver ? "Standard Dive Package" : "No Diving")}</strong></div>
+        <div class="s-card"><small>Diving Schedule</small><strong>${escapeHtml(draft.diveNotes ?? (draft.diver ? "Standard Dive Package" : "No Diving"))}</strong></div>
       </div>
 
       <table>
@@ -1248,33 +1470,59 @@ export function renderCustomerQuotationViewHtml(draft: HonoQuotationDraft): stri
       </table>
 
       <div style="display:flex;justify-content:flex-end;margin-top:24px;">
-        <div style="width:340px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:12px;padding:18px;">
-          <div style="display:flex;justify-content:space-between;margin-bottom:8px;font-size:14px;">
+        <div style="width:360px;background:var(--surface-2);border:2px solid var(--border);border-radius:14px;padding:20px;">
+          <div style="display:flex;justify-content:space-between;margin-bottom:10px;font-size:16px;">
             <span>Subtotal:</span><strong>${fmt(draft.subtotalAmount)}</strong>
           </div>
           ${
             draft.discountPercent > 0
-              ? `<div style="display:flex;justify-content:space-between;margin-bottom:8px;font-size:14px;color:#059669;">
+              ? `<div style="display:flex;justify-content:space-between;margin-bottom:10px;font-size:16px;color:#059669;font-weight:700;">
                   <span>Discount (${draft.discountPercent}%):</span><strong>-${fmt(draft.discountAmount)}</strong>
                 </div>`
               : ""
           }
-          <div style="display:flex;justify-content:space-between;border-top:1px solid #cbd5e1;padding-top:10px;font-size:18px;font-weight:800;color:#0f172a;">
+          <div style="display:flex;justify-content:space-between;border-top:2px solid var(--border);padding-top:12px;font-size:21px;font-weight:800;color:var(--text);">
             <span>Total Quote:</span><span>${fmt(draft.totalAmount)} ${draft.currency}</span>
           </div>
         </div>
       </div>
 
+      ${reservationBlock}
+
       ${
-        draft.staffNotes
-          ? `<div style="margin-top:24px;padding:16px;background:#f0f9ff;border-left:4px solid #0284c7;border-radius:8px;font-size:14px;color:#0c4a6e;">
-              <strong>📝 Resort &amp; Dive Center Note:</strong> ${draft.staffNotes}
+        guestNote
+          ? `<div style="margin-top:24px;padding:18px;background:var(--surface-2);border-left:5px solid var(--accent);border-radius:10px;font-size:16px;color:var(--text);">
+              <strong>📝 Resort &amp; Dive Center Note:</strong> ${guestNote}
             </div>`
           : ""
       }
     </div>
   </div>
-  <a class="edit-floating" href="/quotes/${draft.quoteId}">✏️ Edit Table &amp; Link on Hono Studio</a>
+  <script>
+    function applyTheme(theme) {
+      document.documentElement.setAttribute('data-theme', theme);
+      localStorage.setItem('casa_theme', theme);
+      const icon = document.getElementById('theme-icon');
+      const label = document.getElementById('theme-label');
+      if (icon && label) {
+        if (theme === 'dark') {
+          icon.textContent = '☀️';
+          label.textContent = 'Light Mode';
+        } else {
+          icon.textContent = '🌙';
+          label.textContent = 'Dark Mode';
+        }
+      }
+    }
+    function toggleTheme() {
+      const current = document.documentElement.getAttribute('data-theme') || 'light';
+      applyTheme(current === 'dark' ? 'light' : 'dark');
+    }
+    (function initTheme() {
+      const saved = localStorage.getItem('casa_theme') || 'light';
+      applyTheme(saved);
+    })();
+  </script>
 </body>
 </html>`;
 }

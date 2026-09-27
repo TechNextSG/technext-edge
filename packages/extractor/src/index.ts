@@ -27,15 +27,30 @@ export {
   generateQuestions,
   renderReply,
   fallbackReply,
+  stalledHandoffReply,
+  changedValueNotice,
   wantsHuman,
   getStaffAlerts,
   ASK_LIMIT,
+  STALL_LIMIT,
   isReadyForHandoff,
   diveWindowIsGuessed,
   HANDOFF_REQUIRED_FIELDS,
   NEVER_ASKED_FIELDS,
 } from "./questions.js";
 export type { ReplyKind, RenderedReply, FallbackKind, GuestLanguage } from "./questions.js";
+export type { StatedValueChange } from "./questions.js";
+export { classifyEnquiry } from "./intent.js";
+export type { EnquiryIntent } from "./intent.js";
+export { normalizePricing, readWarnings } from "./pricing.js";
+export type {
+  QuotationPricing,
+  PricedGuest,
+  PricedLine,
+  PricedOps,
+  PricedKpis,
+  NormalizePricingInput,
+} from "./pricing.js";
 export { verifySynthesizedReply, synthesizeHospitalityReply } from "./synthesis.js";
 export type { FactGateResult, SynthesisInput } from "./synthesis.js";
 export { scoreReplyNaturalness } from "./naturalness.js";
@@ -54,11 +69,15 @@ export {
   buildHonoQuotationDraft,
   recalculateQuotationTotals,
   synthesizeConfirmedQuotationReply,
+  guestSafeStaffNotes,
 } from "./quotationTool.js";
 export type {
   QuotationLineItem,
   HonoQuotationDraft,
   HonoToolCallTrace,
+  QuotationSubmission,
+  QuotationSubmissionState,
+  QuotationContact,
 } from "./quotationTool.js";
 
 

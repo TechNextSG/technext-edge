@@ -270,8 +270,59 @@ for (const adapter of ADAPTERS) {
       expect((await store.pausedThreads()).map((p) => p.phone)).not.toContain("111");
     });
 
-    it("serialises overlapping work for one number and leaves other numbers free", async () => {
+    it("counts turns that close no questions, and forgets the count as soon as one closes", async () => {
       const { store } = adapter.make();
+      const fields = ["checkIn", "guests"];
+
+      // The first turn cannot be stuck: nothing has been recorded yet, so there is nothing to have
+      // failed to improve on.
+      expect(await store.noteOpenFields("111", fields, 3)).toEqual({ stallCount: 0, stalled: false });
+      expect(await store.noteOpenFields("111", fields, 3)).toEqual({ stallCount: 1, stalled: false });
+      expect(await store.noteOpenFields("111", fields, 3)).toEqual({ stallCount: 2, stalled: false });
+      // The fourth identical turn is the third that closed nothing.
+      expect(await store.noteOpenFields("111", fields, 3)).toEqual({ stallCount: 3, stalled: true });
+
+      // Order is presentation, not progress: the same set in a different order is still a stall.
+      expect((await store.noteOpenFields("111", ["guests", "checkIn"], 3)).stalled).toBe(true);
+
+      // One question closed resets it entirely.
+      expect(await store.noteOpenFields("111", ["guests"], 3)).toEqual({ stallCount: 0, stalled: false });
+    });
+
+    it("keeps the progress fingerprint across an appended turn", async () => {
+      // The transcript and the fingerprint have to live in the same record. A store that rebuilt
+      // the record from `history()` — which the Redis adapter did — would drop `openFields` on the
+      // very next message, and every stalled thread would look like it had just started.
+      const { store } = adapter.make();
+      const fields = ["checkIn"];
+      await store.noteOpenFields("111", fields, 3);
+      await store.append("111", { role: "guest", text: "hello" });
+      expect(await store.noteOpenFields("111", fields, 3)).toEqual({ stallCount: 1, stalled: false });
+    });
+
+    it("reports a stated value the guest changed, once, and never a first-time fill", async () => {
+      const { store } = adapter.make();
+
+      // Filling a field for the first time is the enquiry arriving, not the guest contradicting
+      // themselves — confirming that would be a questionnaire.
+      expect(await store.noteStatedValues("111", { guests: 5, nights: 2 })).toEqual([]);
+
+      expect(await store.noteStatedValues("111", { guests: 3, nights: 2 })).toEqual([
+        { field: "guests", from: 5, to: 3 },
+      ]);
+
+      // The new value is the recorded one, so the same change is not read back twice.
+      expect(await store.noteStatedValues("111", { guests: 3, nights: 2 })).toEqual([]);
+    });
+
+    it("keeps the stated values across an appended turn", async () => {
+      const { store } = adapter.make();
+      await store.noteStatedValues("111", { guests: 5 });
+      await store.append("111", { role: "guest", text: "hello" });
+      expect(await store.noteStatedValues("111", { guests: 3 })).toEqual([{ field: "guests", from: 5, to: 3 }]);
+    });
+
+    it("serialises overlapping work for one number and leaves other numbers free", async () => {      const { store } = adapter.make();
       const order: string[] = [];
 
       const slow = store.withPhoneLock("111", async () => {

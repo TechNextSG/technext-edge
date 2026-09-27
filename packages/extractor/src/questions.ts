@@ -720,6 +720,8 @@ function getNoFlyAdvisory(trip: Trip, lang: Lang): string | null {
  * 1. Partner / Agency rate confirmation (e.g. 30% agency or instructor discount).
  * 2. Custom split-day diving schedule (`diveNotes` present while single `divers`
  *    slot was intentionally bypassed via NEVER RE-ASK).
+ * 3. More rooms than overnight guests — unusual enough to flag for a second look,
+ *    surfaced as a "staff will confirm" note rather than a re-asked question.
  */
 export function getStaffAlerts(trip: Trip, lang?: GuestLanguage): string[] {
   const l: Lang = lang ?? trip.language?.value ?? "en";
@@ -766,6 +768,26 @@ export function getStaffAlerts(trip: Trip, lang?: GuestLanguage): string[] {
     } else {
       alerts.push(
         "📋 Dive Days To Confirm: you'd like to dive, but no dive dates were given, so our team will confirm the days with you before quoting — diving is charged per diver, per day.",
+      );
+    }
+  }
+
+  // More rooms than overnight guests is not impossible (a family may want separate rooms), but
+  // it is unusual enough that pricing it without a second look is a bet. It is a "staff will
+  // confirm" note, not a question: the BFF already treats an empty room as a warning rather than
+  // an error, and re-asking a guest who already told us their room count is the exact failure
+  // mode the count reader just stopped causing. The numeric check is all that is needed — a
+  // house-norm default room count is derived from the guest count, so it can never trip this.
+  const guestCount = typeof trip.guests?.value === "number" ? trip.guests.value : 0;
+  const roomCount = typeof trip.rooms?.value === "number" ? trip.rooms.value : 0;
+  if (guestCount > 0 && roomCount > guestCount) {
+    if (l === "zh") {
+      alerts.push(
+        `📋 房间数待确认：您预订了 ${roomCount} 间房，共 ${guestCount} 位住宿客人——报价前我们的团队会与您确认房间分配。`,
+      );
+    } else {
+      alerts.push(
+        `📋 Rooms To Confirm: ${roomCount} rooms for ${guestCount} overnight guests — our team will double-check the room split with you before quoting.`,
       );
     }
   }
@@ -842,7 +864,7 @@ export function renderReply(trip: Trip, questions: GuestQuestion[]): RenderedRep
 //
 // Same rule as everything else in this file: no model writes them, so they cannot
 // promise a room, a price, or a time.
-export type FallbackKind = "apology" | "handoff";
+export type FallbackKind = "apology" | "handoff" | "not_booking";
 
 /**
  * Asking is not progress after this many assistant turns on a thread that is still
@@ -853,6 +875,22 @@ export type FallbackKind = "apology" | "handoff";
  * question, so a normal enquiry finishes in two or three turns.
  */
 export const ASK_LIMIT = 8;
+
+/**
+ * How many consecutive replies may leave the SAME questions open before the thread is handed over.
+ *
+ * `ASK_LIMIT` counts turns, which is a blunt instrument in both directions: a guest who answers one
+ * field per message for nine messages is clearly getting somewhere and gets cut off, while a guest
+ * who repeats themselves — or an extractor that keeps failing to record the field it keeps asking
+ * about — burns the same nine turns producing nothing. This counts *progress* instead: it is the
+ * number of times the open-question set has failed to shrink, so one more turn that adds nothing is
+ * the signal, whatever the turn number.
+ *
+ * Three, not one: a guest may answer a question with something the extractor cannot use yet
+ * ("sometime in October"), which is not yet stuck. By the third identical ask with no ground
+ * gained, another round is no longer the best thing for the guest.
+ */
+export const STALL_LIMIT = 3;
 
 // Guests ask for a person in their own words, and both mistakes are not equal:
 // a false positive costs one handoff a human can decline, a false negative keeps a
@@ -891,10 +929,125 @@ const FALLBACKS: Record<FallbackKind, Record<GuestLanguage, string>> = {
     en: "A member of the Casa team is handling your enquiry now and will reply to you here. Thank you for your patience.",
     zh: "Casa 团队正在处理您的咨询，会在这里回复您。感谢您的耐心等待。",
   },
+  // Sent when the message is not a booking enquiry at all (see intent.ts). It names what this
+  // number is for and who answers, and it deliberately does not scold: a guest who asked the wrong
+  // channel a real question still deserves an answer, so a person follows up either way.
+  not_booking: {
+    en: "Thanks for your message! This number is for new booking enquiries, so I've passed it to the Casa team — a person will reply to you here.",
+    zh: "感谢您的消息！此号码用于新的预订咨询，我已将您的消息转给 Casa 团队，会有人在这里回复您。",
+  },
 };
 
 /** The static message for a moment with no trip to render, in the guest's language. */
 export function fallbackReply(kind: FallbackKind, language: GuestLanguage | null): string {
   return FALLBACKS[kind][language ?? "en"];
+}
+
+/**
+ * The holding message for a thread that has stopped making progress, naming what is still missing.
+ *
+ * This is the one handoff where the guest is told *why*, because they did not ask for a person and
+ * did not hit an error — they simply kept talking without the booking coming together. A bare "a
+ * person is handling it" leaves them unsure whether anything they said was understood, and the
+ * whole point of stopping is that a human is about to ask them the very same questions. Naming the
+ * gaps is also the honest readback: it is the same list the staff member sees on the parked thread.
+ *
+ * Field names are the pipeline's own, so they are translated here rather than shown.
+ */
+const FIELD_PHRASES: Record<string, Record<GuestLanguage, string>> = {
+  checkIn: { en: "your check-in date", zh: "入住日期" },
+  checkOut: { en: "your check-out date", zh: "退房日期" },
+  nights: { en: "how many nights", zh: "住几晚" },
+  guests: { en: "how many guests", zh: "客人人数" },
+  rooms: { en: "how many rooms", zh: "房间数" },
+  meals: { en: "your meal plan", zh: "餐食方案" },
+  transport: { en: "whether you need a transfer", zh: "是否需要接送" },
+  transportType: { en: "one-way or return transfer", zh: "单程还是往返接送" },
+  contactName: { en: "a name for the booking", zh: "预订人姓名" },
+  diver: { en: "whether you plan to dive", zh: "是否潜水" },
+  divers: { en: "how many of you dive", zh: "潜水人数" },
+  diveFrom: { en: "the first day you dive", zh: "开始潜水的日期" },
+  diveTo: { en: "the last day you dive", zh: "结束潜水的日期" },
+};
+
+export function stalledHandoffReply(
+  missingFields: ReadonlyArray<keyof Trip>,
+  language: GuestLanguage | null,
+): string {
+  const lang: GuestLanguage = language ?? "en";
+  const phrases = missingFields
+    .map((field) => FIELD_PHRASES[field as string]?.[lang])
+    .filter((p): p is string => Boolean(p))
+    .slice(0, 3);
+
+  if (lang === "zh") {
+    const list = phrases.length > 0 ? `（还差：${phrases.join("、")}）` : "";
+    return `为了避免重复询问，我已将您的咨询转给 Casa 团队成员，他们会在这里继续与您确认${list}。感谢您的耐心等待。`;
+  }
+  const list = phrases.length > 0 ? ` (still needed: ${joinList(phrases, lang)})` : "";
+  return `Rather than ask you the same things again, I've passed your enquiry to a member of the Casa team, who will pick it up with you here${list}. Thank you for your patience.`;
+}
+
+// ---- A money field the guest changed their mind about -----------------------
+//
+// Why this exists: the extractor re-reads the WHOLE transcript every turn, so when a guest says
+// "actually make it 3" after saying 5, the new number simply replaces the old one and the reply
+// carries on as though nothing happened. That is fine for a preference and wrong for a count the
+// price is built from — a silent change to `guests` or `divers` is a different quotation, and the
+// guest never sees the moment it changed.
+//
+// So the change is read back once, naming both numbers. Once, because the store records the new
+// value as it does so: a guest who confirms by saying nothing is not asked again, and a guest who
+// changes it a third time is told again. Only fields a price depends on are tracked — being asked
+// to confirm a changed meal plan would be noise.
+
+/** How a changed count reads back. Keyed by Trip field, so an unknown field is never shown. */
+const VALUE_LABELS: Record<string, Record<GuestLanguage, string>> = {
+  nights: { en: "nights", zh: "晚" },
+  guests: { en: "guests", zh: "位客人" },
+  rooms: { en: "rooms", zh: "间房" },
+  divers: { en: "divers", zh: "位潜水员" },
+};
+
+export interface StatedValueChange {
+  field: string;
+  from: string | number | boolean;
+  to: string | number | boolean;
+}
+
+function shownValue(field: string, value: string | number | boolean, lang: GuestLanguage): string {
+  if (typeof value === "boolean") return value ? YES_NO[lang][0] : YES_NO[lang][1];
+  return `${value} ${VALUE_LABELS[field]?.[lang] ?? ""}`.trim();
+}
+
+/**
+ * The readback line for values the guest has changed since they first gave them, or "" when nothing
+ * money-bearing changed. At most two are named: a third simultaneous change is far more likely to be
+ * a misread by the extractor than three genuine corrections, and listing them all would bury the
+ * first.
+ */
+export function changedValueNotice(
+  changes: ReadonlyArray<StatedValueChange>,
+  language: GuestLanguage | null,
+): string {
+  const lang: GuestLanguage = language ?? "en";
+  const known = changes.filter((c) => VALUE_LABELS[c.field]).slice(0, 2);
+  if (known.length === 0) return "";
+
+  const parts = known.map((change) =>
+    lang === "zh"
+      ? `${VALUE_LABELS[change.field]![lang]}从 ${shownValue(change.field, change.from, lang)} 改为 ${shownValue(change.field, change.to, lang)}`
+      : `${shownValue(change.field, change.from, lang)} → ${shownValue(change.field, change.to, lang)}`,
+  );
+  const last = known[known.length - 1]!;
+
+  if (lang === "zh") {
+    return `请确认一下：${parts.join("，")}。我先按最新的 ${shownValue(last.field, last.to, lang)} 记录。`;
+  }
+  return `Just to check — you changed ${joinList(parts, lang)}. I've kept the newest one (${shownValue(
+    last.field,
+    last.to,
+    lang,
+  )}); tell me if that's not right.`;
 }
 

@@ -28,6 +28,16 @@
  * because those endpoints are not on their `main`.
  */
 import type { BffTrip } from "../../../packages/extractor/src/schema.js";
+import type {
+  EstimateSendResult,
+  EstimatorHealth,
+  SubmitInput,
+  SubmitResult,
+} from "./estimatorPort.js";
+
+// Re-exported so existing importers keep working. This type was defined here until the simulated
+// port needed the same definition; one type with two implementations is what keeps them honest.
+export type { EstimateSendResult };
 
 /** Path of the estimate endpoint on the estimator BFF. */
 export const ESTIMATE_PATH = "/api/estimates";
@@ -42,37 +52,6 @@ export const DEFAULT_ESTIMATOR_BASE_URL = "http://127.0.0.1:8787";
 
 /** One compute is synchronous on their side; fixture mode answers in ~1ms, Odoo in ~8s. */
 const DEFAULT_TIMEOUT_MS = Number(process.env.ESTIMATOR_TIMEOUT_MS ?? 12_000);
-
-export type EstimateSendResult =
-  | {
-      ok: true;
-      status: number;
-      id: string | null;
-      role: string | null;
-      issues: unknown[];
-      computedAt: string | null;
-      /** Their computed model. Shape is theirs; we pass it through untouched. */
-      model: unknown;
-      /**
-       * True when the price came from captured data rather than Odoo.
-       *
-       * Two sources, because their fixture does not currently set the flag their own docs
-       * promise: their response body when it says so, or our probe of `GET /api/health`
-       * reporting `mode: 'fixture'` (see `fixtureMode`). Either one is enough.
-       */
-      sample: boolean;
-      /** Their reported mode, when we could establish it. `null` means we could not. */
-      mode: "fixture" | "odoo" | null;
-    }
-  | {
-      ok: false;
-      /** `rejected` is the one that means WE sent something wrong. */
-      reason: "not_configured" | "no_validated_trip" | "unreachable" | "timeout" | "rejected" | "unexpected";
-      status: number | null;
-      detail: string;
-      /** Field names their `fillTrip` named as missing or invalid, when it named any. */
-      fields: string[];
-    };
 
 export interface EstimatorClientOptions {
   baseUrl?: string;
@@ -201,6 +180,8 @@ export function createEstimatorClient(options: EstimatorClientOptions = {}) {
         issues: Array.isArray(parsed.issues) ? parsed.issues : [],
         computedAt: typeof parsed.computedAt === "string" ? parsed.computedAt : null,
         model: parsed.model,
+        // Their name for it. Null is a real answer — a retail session gets no comparison model.
+        retailModel: parsed.retail_model,
         sample: parsed.sample === true || mode === "fixture",
         mode,
       };
@@ -225,7 +206,7 @@ export function createEstimatorClient(options: EstimatorClientOptions = {}) {
    *
    * Never throws: an unreachable BFF is an answer (`reachable: false`), not an error.
    */
-  async function checkHealth(): Promise<{ reachable: boolean; mode: "fixture" | "odoo" | null }> {
+  async function checkHealth(): Promise<EstimatorHealth> {
     const baseUrl = options.baseUrl?.replace(/\/+$/, "") ?? estimatorBaseUrl();
     if (!baseUrl) return { reachable: false, mode: null };
     const mode = await probeMode(baseUrl);
@@ -242,19 +223,87 @@ export function createEstimatorClient(options: EstimatorClientOptions = {}) {
     }
   }
 
-  // The next step in this integration is their commit/share sequence, which mints the real
-  // `/quote/<token>` guest link:
-  //
-  //   POST /api/estimates            -> { id, model, issues } + Set-Cookie: ubg_sid=...
-  //   POST /api/estimates/:id/commit -> freezes a revision
-  //   POST /api/estimates/:id/share  -> { url: '/quote/<token>', expiresAt }
-  //
-  // It is NOT implemented here, on purpose. Those two endpoints do not exist on their `main`
-  // (commit `4c48918`, which is the branch their docs describe as current) — they live on the
-  // unmerged `feat/p2-booking`. A working client for them was written and tested here and then
-  // removed: it was reachable from no route, and wiring it would have produced 404s against the
-  // only BFF we can actually run. Re-add it from git history (commit `c00db6b`) when
-  // `feat/p2-booking` merges. Until then the guest-facing link is our own `/q/:slug`, and this
-  // client's job is to price — not to publish.
-  return { sendEstimate, checkHealth, baseUrl: options.baseUrl ?? estimatorBaseUrl() };
+  /**
+   * Ask their BFF to turn a frozen revision into a booking.
+   *
+   * Their route is `POST /api/estimates/:id/submit {seq, contact}` and it is the one call in the
+   * whole integration that creates something real (a folio), which is why the caller — not this
+   * client — owns the gate that decides whether it may be made at all. This function only reports
+   * what the engine said, in the four categories the route above already has to tell apart:
+   * `closed` (they refuse), `rejected` (they answered no — safe to retry), `busy` (we never got
+   * through), `unknown` (it may exist; never retry blindly).
+   *
+   * Two prerequisites are the caller's: `estimatorId` (their scenario) and `estimatorSeq` (the
+   * frozen revision). Without both there is nothing to address, and guessing either is how a
+   * reservation lands on the wrong trip — so this refuses instead.
+   */
+  async function submit(input: SubmitInput): Promise<SubmitResult> {
+    const baseUrl = options.baseUrl?.replace(/\/+$/, "") ?? estimatorBaseUrl();
+    if (!baseUrl) {
+      return { ok: false, reason: "not_configured", detail: "ESTIMATOR_BASE_URL is not set" };
+    }
+    if (!input.estimatorId || input.estimatorSeq == null) {
+      return {
+        ok: false,
+        reason: "not_configured",
+        detail:
+          "the remote booking engine is addressed by their scenario id + frozen revision; neither is on this quotation yet",
+      };
+    }
+
+    let res: Response;
+    try {
+      res = await doFetch(`${baseUrl}${ESTIMATE_PATH}/${encodeURIComponent(input.estimatorId)}/submit`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ seq: input.estimatorSeq, contact: input.contact }),
+        // Their own contract: 20s and no retries (spec §8). A retried booking is a second folio.
+        signal: AbortSignal.timeout(Math.max(timeoutMs, 20_000)),
+      });
+    } catch (err) {
+      const aborted = err instanceof Error && (err.name === "TimeoutError" || err.name === "AbortError");
+      // They may have created the folio and failed to answer. `unknown` is the whole point of
+      // this branch: it forbids the retry that would double-book.
+      return {
+        ok: false,
+        reason: "unknown",
+        detail: aborted ? "the booking engine did not answer in time" : err instanceof Error ? err.message : String(err),
+      };
+    }
+
+    const text = await res.text();
+    let parsed: Record<string, unknown> = {};
+    try {
+      parsed = JSON.parse(text) as Record<string, unknown>;
+    } catch {
+      // Non-JSON body: fall through to the status mapping below.
+    }
+
+    if (res.status === 200 && parsed.success !== false) {
+      const mode = (parsed.mode === "fixture" || parsed.mode === "odoo" ? parsed.mode : null) ?? (await probeMode(baseUrl));
+      return {
+        ok: true,
+        sample: parsed.sample === true || mode === "fixture",
+        folioId: typeof parsed.folio_id === "number" ? parsed.folio_id : null,
+        orderIds: Array.isArray(parsed.order_ids) ? (parsed.order_ids as number[]) : null,
+        mode,
+      };
+    }
+
+    const reason = typeof parsed.reason === "string" ? parsed.reason : "";
+    const detail = typeof parsed.error === "string" ? parsed.error : text.slice(0, 300) || `HTTP ${res.status}`;
+    if (res.status === 503) {
+      return { ok: false, reason: reason === "busy" ? "busy" : "closed", detail };
+    }
+    if (res.status === 502 && reason === "unknown") {
+      return { ok: false, reason: "unknown", detail };
+    }
+    return { ok: false, reason: "rejected", detail };
+  }
+
+  // Still deliberately absent: their commit/share sequence, which mints their own `/quote/<token>`
+  // guest link. Our guest link is `/q/:slug`, minted by our own draft store, so wiring theirs would
+  // mean two guest links for one enquiry. `submit` above is the one part of that group the booking
+  // flow genuinely needs; revisit commit/share only if the guest-facing link becomes theirs.
+  return { kind: "remote" as const, sendEstimate, submit, checkHealth, baseUrl: options.baseUrl ?? estimatorBaseUrl() };
 }

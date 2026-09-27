@@ -1,5 +1,6 @@
 import { randomUUID } from "node:crypto";
-import { Hono } from "hono";
+import { Hono, type Context } from "hono";
+import { getCookie, setCookie } from "hono/cookie";
 import { z } from "zod";
 // Relative import, not the "@technext-edge/extractor" package name: Vercel's
 // Node function bundler traces local files reliably but failed to resolve the
@@ -11,8 +12,12 @@ import {
   converse,
   detectLanguage,
   fallbackReply,
+  stalledHandoffReply,
+  changedValueNotice,
   wantsHuman,
+  classifyEnquiry,
   ASK_LIMIT,
+  STALL_LIMIT,
   ExtractionValidationError,
   createProviderFromEnv,
   createProviderByName,
@@ -21,11 +26,13 @@ import {
   buildHonoQuotationDraft,
   recalculateQuotationTotals,
   validateBffTripPrecheck,
+  normalizePricing,
   synthesizeConfirmedQuotationReply,
   type ConversationTurn,
   type ExtractProvider,
   type GuestLanguage,
   type HonoQuotationDraft,
+  type QuotationSubmission,
   type Trip,
 } from "../../../packages/extractor/src/index.js";
 import { TEST_PAGE_HTML } from "./testPage.js";
@@ -56,11 +63,22 @@ import {
 } from "./quotationStore.js";
 import {
   buildEstimateRequest,
-  createEstimatorClient,
   DEFAULT_ESTIMATOR_BASE_URL,
   ESTIMATE_PATH,
 } from "./estimatorClient.js";
+import { createEstimatorPortFromEnv, type EstimatorPort } from "./estimatorPort.js";
 import { createConversationStoreFromEnv, type ConversationStore } from "./conversationStore.js";
+import { renderHandoffPageHtml } from "./handoffPage.js";
+import { renderOpsSheetHtml } from "./opsPage.js";
+import {
+  DEMO_SESSION_COOKIE,
+  isDemoRole,
+  issueSession,
+  renderLoginHtml,
+  verifySession,
+  SAFE_NEXT_PREFIXES,
+  type DemoRole,
+} from "./demoAuth.js";
 import {
   checkSenderCredentials,
   createWhatsAppSender,
@@ -167,8 +185,26 @@ function guestLanguage(history: ConversationTurn[]): GuestLanguage {
   );
 }
 
-function isResetCommand(text: string): boolean {
-  const trimmed = text.trim().toLowerCase();
+/**
+ * The values a price is built from, as the guest themselves stated them.
+ *
+ * Only `stated`: a house-norm default and a code-derived value are not things the guest said, so
+ * they cannot be things the guest changed. Without that filter every trip would look like it had
+ * "changed" the moment a norm was applied to it.
+ */
+function statedMoneyValues(trip: Trip): Record<string, string | number | boolean> {
+  const out: Record<string, string | number | boolean> = {};
+  for (const key of ["nights", "guests", "rooms", "divers"] as const) {
+    const field = trip[key];
+    const value = field?.value;
+    if (field?.state === "stated" && (typeof value === "number" || typeof value === "string")) {
+      out[key] = value;
+    }
+  }
+  return out;
+}
+
+function isResetCommand(text: string): boolean {  const trimmed = text.trim().toLowerCase();
   // English only now — Vietnamese was removed from the product on 2026-09-24 (see
   // packages/extractor/src/normalize.ts), so a Vietnamese "reset" phrase is no longer a
   // command this bot recognises.
@@ -192,11 +228,11 @@ export interface AppOptions {
   store?: ConversationStore;
   sendWhatsApp?: WhatsAppSendText;
   /**
-   * The estimator BFF client. Injectable so a test can drive the sync route without a server,
-   * and so the base URL can be pointed at a local fixture-mode BFF (`ESTIMATOR_BASE_URL`)
-   * rather than being baked in.
+   * The pricing/booking engine. Injectable so a test can drive every route without a server, and
+   * so `ESTIMATOR_MODE` can pick the simulated engine (the default) or their BFF. See
+   * estimatorPort.ts for why the simulated one answers in the customer's own shape.
    */
-  estimator?: ReturnType<typeof createEstimatorClient>;
+  estimator?: EstimatorPort;
 }
 
 /**
@@ -227,7 +263,7 @@ export function createApp(options: AppOptions = {}) {
   // Per-app, so a warm serverless instance keeps the thread; see the caveat in
   // conversationStore.ts on why this is a POC store and not the real one.
   const store = options.store ?? createConversationStoreFromEnv();
-  const estimator = options.estimator ?? createEstimatorClient();
+  const estimator = options.estimator ?? createEstimatorPortFromEnv();
 
   app.post("/v1/extract", async (c) => {
     const body = await c.req.json().catch(() => null);
@@ -278,7 +314,7 @@ export function createApp(options: AppOptions = {}) {
         )
         : await converse(parsed.data.history as ConversationTurn[], provider);
       if (outcome.quotationDraft) {
-        saveQuotationDraft(outcome.quotationDraft);
+        await saveQuotationDraft(outcome.quotationDraft);
       }
       return c.json(outcome);
     } catch (err) {
@@ -445,8 +481,18 @@ export function createApp(options: AppOptions = {}) {
             // thread a person already owns — or one the guest has just asked a
             // person for — gets a static holding reply and no model call at all: a
             // model answering here would be talking over the human.
+            //
+            // `classifyEnquiry` joins them for the same reason. A cancellation, a refund or a
+            // complaint needs a person because of what it IS, not because of what could be
+            // extracted from it, and a message that is not a booking enquiry at all has no trip in
+            // it to find. Both would otherwise spend a model call producing booking questions for
+            // a message nobody wanted asked about.
             const parked = await store.paused(phone);
-            if (parked || wantsHuman(combinedText)) {
+            const intent = classifyEnquiry(combinedText);
+            const askedForHuman = wantsHuman(combinedText);
+            const escalate = askedForHuman || intent === "escalate_now";
+            const notBooking = !escalate && intent === "not_booking";
+            if (parked || escalate || notBooking) {
               // Parked and told a moment ago (HOLD_REPEAT_MS): nothing is repeated
               // at every "ok" the guest types. Not silence either — they were told
               // a person is on it, and that is still true.
@@ -454,8 +500,13 @@ export function createApp(options: AppOptions = {}) {
                 await markAllDone();
                 return;
               }
-              const text = fallbackReply("handoff", language);
-              await store.pause(phone, parked?.reason ?? "guest_asked_for_human");
+              // The reason is for the human reading the list, never for the guest, so it can name
+              // the real situation. A message that is neither can only be a park that already
+              // existed, which keeps its original reason.
+              const reason = parked?.reason ?? (askedForHuman ? "guest_asked_for_human" : escalate ? "complaint_or_cancel" : "not_booking");
+              const text =
+                !parked && notBooking ? fallbackReply("not_booking", language) : fallbackReply("handoff", language);
+              await store.pause(phone, reason, { context: combinedText.slice(0, 200) });
               await store.append(phone, { role: "assistant", text });
               sending = true;
               await send({ to: phone, body: text });
@@ -477,9 +528,29 @@ export function createApp(options: AppOptions = {}) {
             // Asking has stopped being progress: the guest is stuck, or the
             // extractor is, and one more round of the same questions is where an
             // enquiry dies. A person now is worth more than a ninth question.
-            if (!outcome.done && assistantTurns(history) >= ASK_LIMIT) {
-              const text = fallbackReply("handoff", language);
-              await store.pause(phone, "asking_limit");
+            //
+            // Two signals, and the earlier one wins. `stalled` counts consecutive turns that
+            // failed to close a single question — the shape of a conversation going nowhere, and
+            // it fires around turn three. `ASK_LIMIT` counts turns outright, and stays as the hard
+            // ceiling for a thread that keeps inching forward. Note this runs on every turn,
+            // including a finished one: an empty open set resets the counter, so a guest who
+            // settles the enquiry and then asks something new is not carrying a stall with them.
+            const stall = await store.noteOpenFields(
+              phone,
+              outcome.questions.map((q) => String(q.field)),
+              STALL_LIMIT,
+            );
+            if (!outcome.done && (stall.stalled || assistantTurns(history) >= ASK_LIMIT)) {
+              const missing = outcome.questions.map((q) => q.field);
+              // A stalled guest never asked for a person and nothing failed, so they are owed the
+              // reason: the same list of open questions the human is about to be handed.
+              const text = stall.stalled
+                ? stalledHandoffReply(missing, language)
+                : fallbackReply("handoff", language);
+              await store.pause(phone, stall.stalled ? "stalled" : "asking_limit", {
+                missingFields: missing.map(String),
+                context: combinedText.slice(0, 200),
+              });
               await store.append(phone, { role: "assistant", text });
               sending = true;
               await send({ to: phone, body: text });
@@ -490,11 +561,20 @@ export function createApp(options: AppOptions = {}) {
               return;
             }
 
+            // A count the guest changed between two messages is a different quotation, and because
+            // the extractor re-reads the whole transcript each turn the change would otherwise be
+            // silent. Read back once, naming both numbers — the store records the new value as it
+            // does so, so a guest who says nothing more is not asked again.
+            const valueChanges = await store.noteStatedValues(phone, statedMoneyValues(outcome.trip));
+            const changeNotice = changedValueNotice(valueChanges, language);
+
             let finalReplyText = outcome.reply;
             if (outcome.quotationDraft) {
               outcome.quotationDraft.phone = phone;
-              saveQuotationDraft(outcome.quotationDraft);
-              finalReplyText = `${outcome.reply}${guestQuotationLinks(outcome.quotationDraft)}`;
+              await saveQuotationDraft(outcome.quotationDraft);
+              finalReplyText = `${outcome.reply}${changeNotice ? `\n\n${changeNotice}` : ""}${guestQuotationLinks(outcome.quotationDraft)}`;
+            } else if (changeNotice) {
+              finalReplyText = `${outcome.reply}\n\n${changeNotice}`;
             }
 
             await store.append(phone, { role: "assistant", text: finalReplyText });
@@ -610,6 +690,37 @@ export function createApp(options: AppOptions = {}) {
     });
   });
 
+  // ---- Handoff inbox (a page, not JSON) -------------------------------------
+  // The JSON routes above are for scripts; this is the one a person on shift actually opens. A
+  // parked thread the team never sees is a guest who was told "a person is on it" and then
+  // waited — so the list has to be a page reachable from the studio, not a curl command.
+  //
+  // Guarded by the same demo session as the studio: whoever can read quotations can read this,
+  // because it is the same job.
+  app.get("/handoff", async (c) => {
+    const auth = staffSession(c);
+    if (!auth.ok) return c.redirect("/login?next=%2Fhandoff");
+    return c.html(renderHandoffPageHtml(await store.pausedThreads(), auth.role ?? "staff"));
+  });
+
+  // Handing a thread back. A write, so it is guard-checked here rather than only hidden in the
+  // page: a form post with the right path must not be able to un-park a thread without a session.
+  app.post("/handoff/:phone/resume", async (c) => {
+    const auth = staffSession(c);
+    if (!auth.ok) return c.json({ error: "unauthorized" }, 401);
+    if (auth.role !== "staff") return c.json({ error: "forbidden", detail: "only staff may hand a thread back" }, 403);
+    await store.resume(c.req.param("phone"));
+    return c.redirect("/handoff");
+  });
+
+  app.post("/handoff/:phone/reset", async (c) => {
+    const auth = staffSession(c);
+    if (!auth.ok) return c.json({ error: "unauthorized" }, 401);
+    if (auth.role !== "staff") return c.json({ error: "forbidden", detail: "only staff may clear a thread" }, 403);
+    await store.clear(c.req.param("phone"));
+    return c.redirect("/handoff");
+  });
+
   // Health check endpoints: /v1/health is canonical per Delivery Plan (Figure 3)
   // and Odoo API Guide; /healthz is kept for backward compatibility.
   app.get("/v1/health", (c) => c.json({ ok: true }));
@@ -704,28 +815,87 @@ export function createApp(options: AppOptions = {}) {
     return sameSecret(token, whatsAppConfig().verifyToken);
   }
 
-  app.get("/quotes", (c) => {
-    if (!staffAuthorizedWithQuery(c.req.header("x-verify-token"), c.req.query("token"))) {
+  /**
+   * Who is looking, for the studio: the GAIS-shaped `Authorization: Bearer` key, the shared
+   * header/query secret, or the demo session cookie set by `POST /login`.
+   *
+   * The cookie is the demo stand-in for `GAIS_API_KEY` (see demoAuth.ts). The header and query
+   * paths are kept so existing scripted callers and pasted handoff links keep working — the
+   * cookie is an addition, not a replacement.
+   */
+  function staffSession(c: Context): { ok: boolean; role: DemoRole | null } {
+    const bearer = c.req.header("authorization");
+    if (bearer?.startsWith("Bearer ") && sameSecret(bearer.slice(7).trim(), whatsAppConfig().verifyToken)) {
+      return { ok: true, role: "staff" };
+    }
+    if (staffAuthorizedWithQuery(c.req.header("x-verify-token"), c.req.query("token"))) {
+      return { ok: true, role: "staff" };
+    }
+    const role = verifySession(getCookie(c, DEMO_SESSION_COOKIE));
+    return role ? { ok: true, role } : { ok: false, role: null };
+  }
+
+  function setDemoSession(c: Context, role: DemoRole): void {
+    setCookie(c, DEMO_SESSION_COOKIE, issueSession(role), {
+      httpOnly: true,
+      sameSite: "Lax",
+      secure: process.env.NODE_ENV === "production" || process.env.VERCEL === "1",
+      path: "/",
+      maxAge: 8 * 60 * 60,
+    });
+  }
+
+  // ---- Demo GAIS sign-in ---------------------------------------------------
+  // A stand-in for the `Authorization: Bearer <GAIS_API_KEY>` of the edge spec §3.3. One
+  // password (the verify token we already have) plus a demo role; no accounts, no Odoo. See
+  // demoAuth.ts for why this exists and what it must not grow into.
+  app.get("/login", (c) => c.html(renderLoginHtml(false, c.req.query("next") || "/quotes")));
+
+  app.post("/login", async (c) => {
+    const body = await c.req.parseBody().catch(() => ({}) as Record<string, unknown>);
+    const password = typeof body.password === "string" ? body.password : "";
+    const rawNext = typeof body.next === "string" ? body.next : "";
+    const nextPath = SAFE_NEXT_PREFIXES.some((prefix) => rawNext.startsWith(prefix)) ? rawNext : "/quotes";
+    if (!sameSecret(password, whatsAppConfig().verifyToken)) {
+      return c.html(renderLoginHtml(true, nextPath), 401);
+    }
+    setDemoSession(c, isDemoRole(body.role) ? body.role : "staff");
+    return c.redirect(nextPath);
+  });
+
+  // Only a signed-in viewer may change their own demo role — otherwise this endpoint would mint
+  // a valid session for anyone who found it, which is the entire login bypassed.
+  app.post("/login/role", async (c) => {
+    if (!verifySession(getCookie(c, DEMO_SESSION_COOKIE))) {
       return c.json({ error: "unauthorized" }, 401);
     }
-    const all = listQuotations();
+    const body = await c.req.parseBody().catch(() => ({}) as Record<string, unknown>);
+    setDemoSession(c, isDemoRole(body.role) ? body.role : "staff");
+    return c.redirect("/quotes");
+  });
+
+  app.get("/quotes", async (c) => {
+    const auth = staffSession(c);
+    // A page, not an API: send an unauthenticated visitor to the sign-in form rather than a bare
+    // 401 they cannot act on.
+    if (!auth.ok) return c.redirect("/login");
+    const all = await listQuotations();
     const latest = all[0]!;
-    return c.html(renderHonoQuotationEditorHtml(latest, all));
+    return c.html(renderHonoQuotationEditorHtml(latest, all, auth.role ?? "staff"));
   });
 
-  app.get("/quotes/:id", (c) => {
-    if (!staffAuthorizedWithQuery(c.req.header("x-verify-token"), c.req.query("token"))) {
-      return c.json({ error: "unauthorized" }, 401);
-    }
+  app.get("/quotes/:id", async (c) => {
+    const auth = staffSession(c);
     const id = c.req.param("id");
-    const found = getQuotationByIdOrSlug(id);
+    if (!auth.ok) return c.redirect(`/login?next=${encodeURIComponent(`/quotes/${id}`)}`);
+    const found = await getQuotationByIdOrSlug(id);
     if (!found) return c.json({ error: "not_found" }, 404);
-    return c.html(renderHonoQuotationEditorHtml(found, listQuotations()));
+    return c.html(renderHonoQuotationEditorHtml(found, await listQuotations(), auth.role ?? "staff"));
   });
 
-  app.get("/q/:slug", (c) => {
+  app.get("/q/:slug", async (c) => {
     const slug = c.req.param("slug");
-    const found = getQuotationByIdOrSlug(slug);
+    const found = await getQuotationByIdOrSlug(slug);
     // A miss is a miss. This route is unauthenticated, so anything else would be serving
     // one guest's booking to whoever asked.
     if (!found) return c.json({ error: "not_found" }, 404);
@@ -746,7 +916,12 @@ export function createApp(options: AppOptions = {}) {
   function buildEstimatePreview(draft: HonoQuotationDraft) {
     const trip = draft.bffTrip ?? null;
     return {
-      endpoint: `${estimator.baseUrl ?? DEFAULT_ESTIMATOR_BASE_URL}${ESTIMATE_PATH}`,
+      // The simulated engine is in-process, so naming a URL here would be a fiction. Staff read
+      // this line to know where a price came from.
+      endpoint:
+        estimator.kind === "simulated"
+          ? "simulated engine (in-process)"
+          : `${estimator.baseUrl ?? DEFAULT_ESTIMATOR_BASE_URL}${ESTIMATE_PATH}`,
       body: trip ? buildEstimateRequest(trip).body : null,
       bffTrip: trip,
       validationIssues: trip ? validateBffTripPrecheck(trip) : [],
@@ -765,12 +940,12 @@ export function createApp(options: AppOptions = {}) {
     };
   }
 
-  app.get("/v1/quotes", (c) => {
+  app.get("/v1/quotes", async (c) => {
     // Every quotation, each with the guest's name and phone number. Staff only.
-    if (!staffAuthorizedWithQuery(c.req.header("x-verify-token"), c.req.query("token"))) {
+    if (!staffSession(c).ok) {
       return c.json({ error: "unauthorized" }, 401);
     }
-    return c.json({ quotations: listQuotations() });
+    return c.json({ quotations: await listQuotations() });
   });
 
   /**
@@ -786,29 +961,37 @@ export function createApp(options: AppOptions = {}) {
    * the first time it was written, and what the route test now pins.
    */
   app.get("/v1/quotes/estimator-status", async (c) => {
-    if (!staffAuthorizedWithQuery(c.req.header("x-verify-token"), c.req.query("token"))) {
+    if (!staffSession(c).ok) {
       return c.json({ error: "unauthorized" }, 401);
     }
     const baseUrl = estimator.baseUrl ?? null;
-    if (!baseUrl) {
+    // "Cannot be priced" is only true of a REMOTE port with no URL. The simulated port has no URL
+    // by design and is always reachable, so short-circuiting on `baseUrl` alone (which is what this
+    // did before there were two ports) told staff the demo was misconfigured while it was pricing
+    // perfectly well — a badge that lies in the one configuration the demo runs in.
+    if (estimator.kind === "remote" && !baseUrl) {
       return c.json({
         configured: false,
+        kind: estimator.kind,
         baseUrl: null,
         reachable: null,
         mode: null,
-        detail: "ESTIMATOR_BASE_URL is not set, so quotations cannot be priced",
+        detail: "ESTIMATOR_MODE=remote but ESTIMATOR_BASE_URL is not set, so quotations cannot be priced",
       });
     }
     const health = await estimator.checkHealth();
     return c.json({
       configured: true,
+      kind: estimator.kind,
       baseUrl,
       reachable: health.reachable,
       mode: health.mode,
       detail: health.reachable
-        ? health.mode === "fixture"
-          ? "connected in FIXTURE mode: prices are captured samples, not real quotes"
-          : "connected"
+        ? estimator.kind === "simulated"
+          ? "priced by the built-in simulated engine: sample data, not a real quote"
+          : health.mode === "fixture"
+            ? "connected in FIXTURE mode: prices are captured samples, not real quotes"
+            : "connected"
         : `no answer from ${baseUrl}/api/health`,
     });
   });
@@ -899,7 +1082,17 @@ export function createApp(options: AppOptions = {}) {
   });
 
   // Hop 1B: AI Tool-Calling Submit Endpoint (AI -> Hono Submit & Stage)
+  //
+  // Staff-only, and until 2026-09-26 it was not: this route CREATES and SAVES a quotation from a
+  // `trip` the caller supplies, with no credential at all. `/v1/quotes/compute` is deliberately open
+  // because it is stateless — it prices what it was handed and stores nothing — and that argument
+  // does not carry over to a route that writes a guest's name, phone and dates into the store for
+  // anyone who can reach the URL. Nothing in this repo or its tests calls it (the bot saves its own
+  // draft in-process through `/v1/converse`), so locking it costs no caller.
   app.post("/v1/quotes/submit", async (c) => {
+    if (!staffSession(c).ok) {
+      return c.json({ error: "unauthorized" }, 401);
+    }
     const body = (await c.req.json().catch(() => ({}))) as {
       trip?: Trip;
       phone?: string;
@@ -912,7 +1105,7 @@ export function createApp(options: AppOptions = {}) {
     if (typeof body.discountPercent === "number") {
       draft.discountPercent = body.discountPercent;
     }
-    const saved = saveQuotationDraft(recalculateQuotationTotals(draft));
+    const saved = await saveQuotationDraft(recalculateQuotationTotals(draft));
     return c.json({
       ok: true,
       quotation: saved,
@@ -920,23 +1113,23 @@ export function createApp(options: AppOptions = {}) {
     });
   });
 
-  app.get("/v1/quotes/:id", (c) => {
+  app.get("/v1/quotes/:id", async (c) => {
     // Carries the guest's name and phone plus the Odoo/GAIS envelope, so staff only.
-    if (!staffAuthorizedWithQuery(c.req.header("x-verify-token"), c.req.query("token"))) {
+    if (!staffSession(c).ok) {
       return c.json({ error: "unauthorized" }, 401);
     }
-    const found = getQuotationByIdOrSlug(c.req.param("id"));
+    const found = await getQuotationByIdOrSlug(c.req.param("id"));
     if (!found) return c.json({ error: "not_found" }, 404);
     return c.json({ quotation: found, estimatePreview: buildEstimatePreview(found) });
   });
 
   app.put("/v1/quotes/:id", async (c) => {
     // A write, and it edits what the guest will be shown. Staff only.
-    if (!staffAuthorizedWithQuery(c.req.header("x-verify-token"), c.req.query("token"))) {
+    if (!staffSession(c).ok) {
       return c.json({ error: "unauthorized" }, 401);
     }
     const id = c.req.param("id");
-    const existing = getQuotationByIdOrSlug(id);
+    const existing = await getQuotationByIdOrSlug(id);
     if (!existing) return c.json({ error: "not_found" }, 404);
     const body = (await c.req.json().catch(() => ({}))) as Partial<HonoQuotationDraft>;
     const merged: HonoQuotationDraft = {
@@ -946,17 +1139,17 @@ export function createApp(options: AppOptions = {}) {
       lineItems: Array.isArray(body.lineItems) ? body.lineItems : existing.lineItems,
       quotationUrl: body.quotationUrl || existing.quotationUrl,
     };
-    const saved = saveQuotationDraft(merged);
+    const saved = await saveQuotationDraft(merged);
     return c.json({ ok: true, quotation: saved, estimatePreview: buildEstimatePreview(saved) });
   });
 
   app.post("/v1/quotes/:id/confirm", async (c) => {
     // Confirming commits the price and can trigger an outbound AI reply, so staff only.
-    if (!staffAuthorizedWithQuery(c.req.header("x-verify-token"), c.req.query("token"))) {
+    if (!staffSession(c).ok) {
       return c.json({ error: "unauthorized" }, 401);
     }
     const id = c.req.param("id");
-    const existing = getQuotationByIdOrSlug(id);
+    const existing = await getQuotationByIdOrSlug(id);
     if (!existing) return c.json({ error: "not_found" }, 404);
     const body = (await c.req.json().catch(() => ({}))) as Partial<HonoQuotationDraft>;
     const merged: HonoQuotationDraft = {
@@ -969,14 +1162,14 @@ export function createApp(options: AppOptions = {}) {
       lineItems: Array.isArray(body.lineItems) ? body.lineItems : existing.lineItems,
       quotationUrl: body.quotationUrl || existing.quotationUrl,
     };
-    const saved = saveQuotationDraft(merged);
+    const saved = await saveQuotationDraft(merged);
     let provider: ExtractProvider | undefined;
     try {
       provider = options.provider ?? createProviderFromEnv();
     } catch {}
     const aiReply = await synthesizeConfirmedQuotationReply(saved, provider);
     saved.aiConfirmedReply = aiReply;
-    saveQuotationDraft(saved);
+    await saveQuotationDraft(saved);
     return c.json({ ok: true, quotation: saved, aiReply, estimatePreview: buildEstimatePreview(saved) });
   });
 
@@ -996,11 +1189,11 @@ export function createApp(options: AppOptions = {}) {
    * and not smoothed over — that is the whole reason for wiring this up.
    */
   app.post("/v1/quotes/:id/sync-estimate", async (c) => {
-    if (!staffAuthorizedWithQuery(c.req.header("x-verify-token"), c.req.query("token"))) {
+    if (!staffSession(c).ok) {
       return c.json({ error: "unauthorized" }, 401);
     }
     const id = c.req.param("id");
-    const existing = getQuotationByIdOrSlug(id);
+    const existing = await getQuotationByIdOrSlug(id);
     if (!existing) return c.json({ error: "not_found" }, 404);
 
     const result = await estimator.sendEstimate(existing.bffTrip);
@@ -1020,10 +1213,32 @@ export function createApp(options: AppOptions = {}) {
       );
     }
 
+    /**
+     * The engine answered, so this becomes the quotation's price — recorded, not just displayed.
+     *
+     * Saving it here is what makes the per-guest cards, the Ops Sheet and the agent comparison
+     * survive a reload, and it is also what stops a quotation from meaning two different things
+     * depending on which staff member has it open. `saveQuotationDraft` re-runs the totals, which
+     * is a no-op on the line items and leaves `pricing` alone.
+     */
+    const pricing = normalizePricing({
+      model: result.model,
+      retailModel: result.retailModel,
+      source: estimator.kind,
+      sample: result.sample,
+      mode: result.mode,
+      role: result.role,
+      computedAt: result.computedAt,
+    });
+    await saveQuotationDraft({ ...existing, pricing });
+
     return c.json({
       ok: true,
       syncedAt: new Date().toISOString(),
-      endpoint: `${estimator.baseUrl ?? DEFAULT_ESTIMATOR_BASE_URL}${ESTIMATE_PATH}`,
+      endpoint:
+        estimator.kind === "simulated"
+          ? "simulated engine (in-process)"
+          : `${estimator.baseUrl ?? DEFAULT_ESTIMATOR_BASE_URL}${ESTIMATE_PATH}`,
       role: result.role,
       /** Their pricing sanity warnings, if any. Names a category, not a field. */
       issues: result.issues,
@@ -1036,17 +1251,138 @@ export function createApp(options: AppOptions = {}) {
       sample: result.sample,
       mode: result.mode,
       model: result.model,
+      /** The same answer in the shape the studio and the Ops Sheet draw from. */
+      pricing,
       estimatePreview: buildEstimatePreview(existing),
     });
   });
 
-  app.post("/v1/quotes/:id/send-whatsapp", async (c) => {
-    if (!staffAuthorizedWithQuery(c.req.header("x-verify-token"), c.req.query("token"))) {
+  /**
+   * The Ops Sheet for a quotation's stay, one sheet per day.
+   *
+   * Deliberately a page of its own rather than a tab inside the studio: it is the sheet a person
+   * prints and carries, it has to fit on paper, and — the part that matters — it carries **no
+   * money at all**. Front desk, housekeeping, dive centre, kitchen and transfers are the five
+   * blocks the morning meeting works from (customer's F06), and a price on it would be a price
+   * leaked onto a sheet that gets left on a counter.
+   */
+  app.get("/quotes/:id/ops", async (c) => {
+    const auth = staffSession(c);
+    const id = c.req.param("id");
+    if (!auth.ok) return c.redirect(`/login?next=${encodeURIComponent(`/quotes/${id}/ops`)}`);
+    const found = await getQuotationByIdOrSlug(id);
+    if (!found) return c.json({ error: "not_found" }, 404);
+    return c.html(renderOpsSheetHtml(found));
+  });
+
+  /**
+   * Ask the booking engine for a reservation.
+   *
+   * The state machine is the customer's own (`docs/flows/F07-booking.md` D2), and the ordering here
+   * is what makes it safe rather than decorative:
+   *
+   *  1. one live submission per quotation — `pending`, `confirmed` and `unknown` all lock it, and
+   *     only `failed` may be retried. Odoo issues no idempotency key, so our own record is the lock.
+   *  2. the `pending` row is written BEFORE the engine is called. A crash between the two leaves a
+   *     locked quotation, which is the safe direction: a quote nobody can double-book beats one
+   *     that books twice.
+   *  3. `unknown` is its own state, not a failure. A timeout may have created a folio, and telling
+   *     a guest "we could not book it" when they are booked is worse than telling them to wait.
+   *
+   * What this route does NOT do: decide whether live booking is allowed. That gate belongs to the
+   * engine (`closed`), because only it knows whether it is pointed at Odoo at all.
+   */
+  const ReservationContact = z
+    .object({
+      name: z.string().min(1).max(120),
+      email: z.string().min(3).max(200),
+      phone: z.string().max(40).optional(),
+    })
+    .strict();
+
+  app.post("/v1/quotes/:id/submit", async (c) => {
+    if (!staffSession(c).ok) return c.json({ error: "unauthorized" }, 401);
+    const id = c.req.param("id");
+    const existing = await getQuotationByIdOrSlug(id);
+    if (!existing) return c.json({ error: "not_found" }, 404);
+
+    const parsed = ReservationContact.safeParse(await c.req.json().catch(() => ({})));
+    // `fields` carries paths only, never values: a 422 body with the guest's email in it is a
+    // guest's email in a log aggregator.
+    if (!parsed.success) {
+      return c.json(
+        { ok: false, error: "Check the contact details", fields: parsed.error.issues.map((i) => `contact.${i.path.join(".")}`) },
+        422,
+      );
+    }
+    const contact = parsed.data;
+    if (!contact.email.includes("@")) {
+      return c.json({ ok: false, error: "Check the contact details", fields: ["contact.email"] }, 422);
+    }
+
+    const previous = existing.submission ?? null;
+    if (previous && previous.state !== "failed") {
+      return c.json({ ok: false, error: "A reservation is already recorded for this quote", reason: "already", submission: previous }, 409);
+    }
+    if (!existing.bffTrip) {
+      return c.json({ ok: false, error: "This quotation has no trip to book", reason: "no_trip" }, 409);
+    }
+
+    const now = () => new Date().toISOString();
+    const pending: QuotationSubmission = {
+      state: "pending",
+      seq: (previous?.seq ?? 0) + 1,
+      contact: { name: contact.name.trim(), email: contact.email.trim(), phone: contact.phone?.trim() || null },
+      folioId: null,
+      orderIds: null,
+      sample: true,
+      error: null,
+      createdAt: now(),
+      updatedAt: now(),
+    };
+    // Written first, on purpose — see the ordering note above.
+    await saveQuotationDraft({ ...existing, submission: pending });
+
+    const result = await estimator.submit({ trip: existing.bffTrip, contact: pending.contact });
+    const settled: QuotationSubmission = result.ok
+      ? { ...pending, state: "confirmed", folioId: result.folioId, orderIds: result.orderIds, sample: result.sample, updatedAt: now() }
+      : {
+          ...pending,
+          // `unknown` keeps its own state; everything the engine refused (including "closed")
+          // is a failure the caller may retry once the reason is addressed.
+          state: result.reason === "unknown" ? "unknown" : "failed",
+          error: result.reason,
+          updatedAt: now(),
+        };
+    await saveQuotationDraft({ ...existing, submission: settled });
+
+    if (result.ok) return c.json({ ok: true, submission: settled });
+    const status = result.reason === "closed" ? 503 : result.reason === "unknown" ? 502 : 502;
+    return c.json({ ok: false, reason: result.reason, detail: result.detail, submission: settled }, status);
+  });
+
+  app.get("/v1/quotes/:id/submission", async (c) => {
+    if (!staffSession(c).ok) return c.json({ error: "unauthorized" }, 401);
+    const found = await getQuotationByIdOrSlug(c.req.param("id"));
+    if (!found) return c.json({ error: "not_found" }, 404);
+    return c.json({ ok: true, submission: found.submission ?? null });
+  });
+
+  app.post("/v1/quotes/:id/send-whatsapp", async (c) => {    if (!staffSession(c).ok) {
       return c.json({ error: "unauthorized" }, 401);
     }
     const id = c.req.param("id");
-    const existing = getQuotationByIdOrSlug(id);
+    const existing = await getQuotationByIdOrSlug(id);
     if (!existing) return c.json({ error: "not_found" }, 404);
+    // Approval is the whole point of the studio: only a quotation staff have actually confirmed may
+    // leave as a price to a guest. Without this, the button sends the draft the bot generated —
+    // numbers nobody checked, and in fixture mode a sample price presented as a real one.
+    if (existing.status !== "confirmed_by_hono") {
+      return c.json(
+        { ok: false, error: "Approve the quotation first — this one has not been confirmed by staff", reason: "not_approved" },
+        409,
+      );
+    }
     const body = (await c.req.json().catch(() => ({}))) as { phone?: string };
     const toPhone = (body.phone || existing.phone || "").replace(/\D/g, "");
     if (!toPhone) return c.json({ ok: false, error: "Phone number is required" }, 400);

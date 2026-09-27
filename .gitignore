@@ -21,3 +21,10 @@ tmp-*.log
 # One-off measurement scripts run by hand against a live provider key. Keeping them here
 # also keeps them out of the deployment bundle, because .vercelignore defaults to this file.
 .scratch-measure/
+
+# Archify visual-check artifacts. They are regenerated on every pass — several MB of PNGs per
+# diagram — and the pass/fail verdict is what matters, not the images, for the same reason a build
+# log is not committed. Re-create them by running the skill's visual-check step.
+*.visual-check.png
+*.visual-check.html
+*.visual-check.json

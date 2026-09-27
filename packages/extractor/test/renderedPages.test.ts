@@ -1,0 +1,96 @@
+// Every page this service renders is HTML with an inline <script>. Those scripts live inside
+// TypeScript template literals, where a single `\n` is a REAL newline by the time it reaches the
+// browser — so `'\n⚠️ …'` inside the studio's script shipped an unterminated string literal and the
+// browser threw `SyntaxError: Invalid or unexpected token`. One bad character killed the whole
+// script block: the quotation sidebar and the editable line-item table both rendered empty, and
+// nothing in the HTML looked broken.
+//
+// Found 2026-09-25 by opening the studio in a real browser and reading the console — every
+// server-side check (markers, string matching, even the archify visual pass) was green, because
+// none of them execute the page's JavaScript. This file does: it parses each rendered script.
+import { describe, it, expect, beforeAll, afterAll } from "vitest";
+import { createApp } from "../../../apps/casa-bff/src/app.js";
+import { listQuotations } from "../../../apps/casa-bff/src/quotationStore.js";
+
+const STAFF_TOKEN = "test-staff-token";
+const savedToken = process.env.WHATSAPP_VERIFY_TOKEN;
+
+beforeAll(() => {
+  process.env.WHATSAPP_VERIFY_TOKEN = STAFF_TOKEN;
+});
+afterAll(() => {
+  if (savedToken === undefined) delete process.env.WHATSAPP_VERIFY_TOKEN;
+  else process.env.WHATSAPP_VERIFY_TOKEN = savedToken;
+});
+
+/** Every inline script body on a page. */
+function inlineScripts(html: string): string[] {
+  return [...html.matchAll(/<script\b[^>]*>([\s\S]*?)<\/script>/gi)]
+    .map((m) => m[1] ?? "")
+    .filter((code) => code.trim() !== "");
+}
+
+/** `new Function` compiles the body without running it — a SyntaxError here is what the browser hit. */
+function firstSyntaxError(code: string): string | null {
+  try {
+    // eslint-disable-next-line no-new-func
+    new Function(code);
+    return null;
+  } catch (err) {
+    return err instanceof Error ? `${err.name}: ${err.message}` : String(err);
+  }
+}
+
+describe("the JavaScript on every rendered page parses", () => {
+  it("the staff studio page", async () => {
+    const app = createApp();
+    const quotations = await listQuotations();
+    const html = await (await app.request(`/quotes/${quotations[0]!.quoteId}?token=${STAFF_TOKEN}`)).text();
+
+    const scripts = inlineScripts(html);
+    expect(scripts.length).toBeGreaterThan(0);
+    for (const [i, code] of scripts.entries()) {
+      expect(firstSyntaxError(code), `studio script #${i + 1} does not parse`).toBeNull();
+    }
+  });
+
+  it("the guest quotation page", async () => {
+    const app = createApp();
+    const quotations = await listQuotations();
+    const html = await (await app.request(`/q/${quotations[0]!.slug}`)).text();
+
+    for (const [i, code] of inlineScripts(html).entries()) {
+      expect(firstSyntaxError(code), `guest script #${i + 1} does not parse`).toBeNull();
+    }
+  });
+
+  it("the sign-in page", async () => {
+    const app = createApp();
+    const html = await (await app.request("/login")).text();
+
+    for (const [i, code] of inlineScripts(html).entries()) {
+      expect(firstSyntaxError(code), `login script #${i + 1} does not parse`).toBeNull();
+    }
+  });
+
+  it("the handoff inbox", async () => {
+    const app = createApp();
+    const html = await (await app.request(`/handoff?token=${STAFF_TOKEN}`)).text();
+
+    for (const [i, code] of inlineScripts(html).entries()) {
+      expect(firstSyntaxError(code), `handoff script #${i + 1} does not parse`).toBeNull();
+    }
+  });
+
+  // The specific shape that broke: a template literal that should emit `\n` inside a JS string.
+  // A single backslash becomes a real newline and terminates the string early.
+  it("keeps escaped newlines inside the studio's estimator output", async () => {
+    const app = createApp();
+    const quotations = await listQuotations();
+    const html = await (await app.request(`/quotes/${quotations[0]!.quoteId}?token=${STAFF_TOKEN}`)).text();
+
+    // The emitted page must carry the two characters `\` `n`, never a raw line break mid-string.
+    expect(html).toContain("'\\n⚠️ SAMPLE DATA");
+    expect(html).not.toContain("'\n⚠️ SAMPLE DATA");
+  });
+});

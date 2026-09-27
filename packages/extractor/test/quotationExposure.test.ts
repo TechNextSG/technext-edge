@@ -42,7 +42,8 @@ const savedToken = process.env.WHATSAPP_VERIFY_TOKEN;
  */
 const SEED_PHONE = "639000000000";
 const SEED_GUEST = "Sample Group";
-const SEED_PII = [SEED_GUEST, SEED_PHONE, "Sample", "73,800", "73800", "QT-1010"];
+const SEED_QUOTE_ID = "QT-1010-SKY";
+const SEED_PII = [SEED_GUEST, SEED_PHONE, "Sample", "42,400", "42400", "QT-1010"];
 
 beforeAll(() => {
   // The staff guard reuses the WhatsApp handoff secret, so configuring it here is what makes
@@ -142,14 +143,14 @@ describe("an unknown quotation is a miss, not somebody's booking", () => {
     expect(await res.text()).not.toContain(SEED_GUEST);
   });
 
-  it("returns undefined from the lookup rather than falling back", () => {
-    expect(getQuotationByIdOrSlug("nope")).toBeUndefined();
-    expect(getQuotationByIdOrSlug("QT-9999-NOBODY-XYZ")).toBeUndefined();
+  it("returns undefined from the lookup rather than falling back", async () => {
+    expect(await getQuotationByIdOrSlug("nope")).toBeUndefined();
+    expect(await getQuotationByIdOrSlug("QT-9999-NOBODY-XYZ")).toBeUndefined();
   });
 
   it("still serves the real quotation to its own slug", async () => {
     const app = createApp();
-    const real = listQuotations()[0]!;
+    const real = (await listQuotations())[0]!;
     const res = await app.request(`/q/${real.slug}`);
     expect(res.status).toBe(200);
     expect(await res.text()).toContain(real.quoteId);
@@ -157,20 +158,33 @@ describe("an unknown quotation is a miss, not somebody's booking", () => {
 });
 
 describe("staff quotation routes require the staff token", () => {
-  const staffOnly: Array<[string, string]> = [
+  const staffOnlyJson: Array<[string, string]> = [
     ["GET", "/v1/quotes"],
-    ["GET", "/quotes"],
     ["GET", "/v1/quotes/estimator-status"],
-    ["GET", `/quotes/${listQuotations()[0]!.quoteId}`],
-    ["GET", `/v1/quotes/${listQuotations()[0]!.quoteId}`],
-    ["PUT", `/v1/quotes/${listQuotations()[0]!.quoteId}`],
-    ["POST", `/v1/quotes/${listQuotations()[0]!.quoteId}/confirm`],
+    ["GET", `/v1/quotes/${SEED_QUOTE_ID}`],
+    ["PUT", `/v1/quotes/${SEED_QUOTE_ID}`],
+    ["POST", `/v1/quotes/${SEED_QUOTE_ID}/confirm`],
   ];
 
-  it.each(staffOnly)("%s %s is 401 without the token", async (method, path) => {
+  it.each(staffOnlyJson)("%s %s is 401 without the token", async (method, path) => {
     const app = createApp();
     const res = await app.request(path, { method });
     expect(res.status).toBe(401);
+  });
+
+  // The studio is a PAGE, so an unauthenticated visitor is sent to the demo sign-in form rather
+  // than a bare 401 they cannot act on. The JSON API above still fails closed with 401 — the two
+  // surfaces answer differently on purpose.
+  const staffOnlyPages: Array<[string, string]> = [
+    ["GET", "/quotes"],
+    ["GET", `/quotes/${SEED_QUOTE_ID}`],
+  ];
+
+  it.each(staffOnlyPages)("%s %s redirects to /login without a session", async (method, path) => {
+    const app = createApp();
+    const res = await app.request(path, { method });
+    expect([301, 302, 303, 307, 308]).toContain(res.status);
+    expect(res.headers.get("location")).toContain("/login");
   });
 
   it("does not leak guest PII in the 401 body", async () => {
@@ -280,13 +294,69 @@ describe("staff quotation routes require the staff token", () => {
 
     it("never puts the staff token on the guest page", async () => {
       const app = createApp();
-      const quotation = listQuotations()[0]!;
+      const quotation = (await listQuotations())[0]!;
       const res = await app.request(`/q/${quotation.slug}`);
       expect(res.status).toBe(200);
       const html = await res.text();
       expect(html).not.toContain("token=");
       expect(html).not.toContain(STAFF_TOKEN);
       expect(html).not.toContain("staffToken");
+    });
+
+    // The guest page used to carry a floating "✏️ Edit Table & Link on Hono Studio" button
+    // pointing at `/quotes/<quoteId>`. A guest has no business seeing a staff action, and the
+    // href handed them our internal quotation id. Found on a live link, 2026-09-25.
+    it("offers the guest no route into the staff studio", async () => {
+      const app = createApp();
+      const built = await saveQuotationDraft(buildHonoQuotationDraft(makeTrip()));
+      const html = await (await app.request(`/q/${built.slug}`)).text();
+
+      expect(html).not.toContain("/quotes/");
+      expect(html).not.toContain("Edit Table");
+    });
+
+    // `staffNotes` is printed on the guest's page (and in the confirmed WhatsApp reply), so a
+    // default that talks about our own workflow reaches the customer. Measured on the same link:
+    // the guest page read "📝 Resort & Dive Center Note: Standard resort quotation draft ready
+    // for Hono confirmation." Built from a Trip rather than the seed, because the seed's note is
+    // hand-written and would not exercise the default this test exists to pin.
+    it("ships no internal workflow wording to the guest by default", async () => {
+      const app = createApp();
+      const built = await saveQuotationDraft(buildHonoQuotationDraft(makeTrip()));
+      expect(built.staffNotes).toBe("");
+
+      const html = await (await app.request(`/q/${built.slug}`)).text();
+      expect(html).not.toContain("ready for Hono confirmation");
+      expect(html).not.toContain("Verify boat manifest");
+    });
+
+    // Fixing the default is not enough on its own: a draft saved before the fix keeps whatever
+    // note it was saved with, and those records are still served by live links.
+    it("drops the legacy internal note already stored on an old draft", async () => {
+      const app = createApp();
+      const built = await saveQuotationDraft({
+        ...buildHonoQuotationDraft(makeTrip()),
+        quoteId: "QT-0000-LEGACYNOTE-AAA",
+        slug: randomUUID(),
+        staffNotes: "Standard resort quotation draft ready for Hono confirmation.",
+      });
+
+      const html = await (await app.request(`/q/${built.slug}`)).text();
+      expect(html).not.toContain("ready for Hono confirmation");
+      expect(html).not.toContain("Resort &amp; Dive Center Note");
+    });
+
+    it("still prints a genuine resort note to the guest", async () => {
+      const app = createApp();
+      const built = await saveQuotationDraft({
+        ...buildHonoQuotationDraft(makeTrip()),
+        quoteId: "QT-0000-REALNOTE-AAA",
+        slug: randomUUID(),
+        staffNotes: "Boat leaves at 7am; please be at the dive shop by 6:45.",
+      });
+
+      const html = await (await app.request(`/q/${built.slug}`)).text();
+      expect(html).toContain("Boat leaves at 7am");
     });
   });
 
@@ -327,7 +397,7 @@ describe("/v1/quotes/compute stays usable by the AI and reads nothing stored", (
 
   it("cannot be used to read a stored quotation by naming its id", async () => {
     const app = createApp();
-    const real = listQuotations()[0]!;
+    const real = (await listQuotations())[0]!;
     const res = await app.request("/v1/quotes/compute", {
       method: "POST",
       headers: { "content-type": "application/json" },
@@ -369,7 +439,7 @@ describe("/v1/quotes/compute stays usable by the AI and reads nothing stored", (
     };
     // 1 x 2 x 2500, computed from the request alone.
     expect(body.computed.subtotalAmount).toBe(5000);
-    expect(body.computed.quoteId).not.toBe(listQuotations()[0]!.quoteId);
+    expect(body.computed.quoteId).not.toBe((await listQuotations())[0]!.quoteId);
   });
 
   it("never echoes a stored guest's phone number", async () => {
@@ -452,7 +522,7 @@ describe("the validated BFF Trip reaches the Odoo-bound envelope", () => {
     // quotationStore.ts rather than built from a Trip, so it correctly has none — see the
     // next test, which pins that it reports null instead of inventing one.
     const built = buildHonoQuotationDraft(tripWithStatedDivers(2));
-    saveQuotationDraft(built);
+    await saveQuotationDraft(built);
 
     const res = await app.request(`/v1/quotes/${built.quoteId}/sync-estimate`, {
       method: "POST",
@@ -499,7 +569,7 @@ describe("the validated BFF Trip reaches the Odoo-bound envelope", () => {
     );
     const app = createApp({ estimator: createEstimatorClient({ baseUrl: "http://bff.test", fetchImpl: fetchImpl as never }) });
     const built = buildHonoQuotationDraft(tripWithStatedDivers(2));
-    saveQuotationDraft(built);
+    await saveQuotationDraft(built);
 
     const res = await app.request(`/v1/quotes/${built.quoteId}/sync-estimate`, {
       method: "POST",
@@ -520,7 +590,7 @@ describe("the validated BFF Trip reaches the Odoo-bound envelope", () => {
     const built = buildHonoQuotationDraft(tripWithStatedDivers(2));
     // A hand-written / line-items-only record: no `bffTrip`, exactly like the seed.
     const { bffTrip: _dropped, ...withoutTrip } = built;
-    const handwritten = saveQuotationDraft({
+    const handwritten = await saveQuotationDraft({
       ...recalculateQuotationTotals(withoutTrip as HonoQuotationDraft),
       quoteId: "QT-0000-NOTRIP-AAA",
       slug: randomUUID(),
