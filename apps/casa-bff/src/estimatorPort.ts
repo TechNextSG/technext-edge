@@ -19,7 +19,7 @@
  * here calls Odoo directly. `remote` posts to a BFF; `simulated` does not leave the process.
  */
 import type { BffTrip } from "../../../packages/extractor/src/schema.js";
-import { createEstimatorClient, estimatorBaseUrl } from "./estimatorClient.js";
+import { createEstimatorClient, estimatorAppUrl, estimatorBaseUrl } from "./estimatorClient.js";
 import { createSimulatedEstimator } from "./simulatedEstimator.js";
 
 export type EstimatorMode = "simulated" | "remote";
@@ -178,6 +178,15 @@ export interface EstimatorPort {
   readonly kind: EstimatorMode;
   /** Their BFF's base URL, when there is one. `undefined` for the simulated port. */
   readonly baseUrl?: string;
+  /**
+   * The host their GUEST pages are served from, when it differs from the API host.
+   *
+   * Their `/api/*` and their `/quote/:token` page are one Vercel project in production, so
+   * `baseUrl` is normally both. Their own local dev setup splits them — API on :8787, app on :5173
+   * — and joining a guest link to the API host there produces a URL that 404s while the token
+   * behind it is perfectly valid. Hence a separate, optional host rather than one assumed one.
+   */
+  readonly appBaseUrl?: string;
   sendEstimate(trip: BffTrip | null | undefined, session?: EstimatorSession): Promise<EstimateSendResult>;
   /**
    * Freeze the current draft as a revision. Their `POST /api/estimates/:id/commit`.
@@ -208,7 +217,7 @@ export function createEstimatorPortFromEnv(env: NodeJS.ProcessEnv = process.env)
     // inside the client: a factory that reads half its configuration from its argument and half
     // from the ambient process is a factory that cannot be tested, and the mismatch shows up as a
     // client quietly pointed at the wrong host.
-    return createEstimatorClient({ baseUrl: estimatorBaseUrl(env) });
+    return createEstimatorClient({ baseUrl: estimatorBaseUrl(env), appUrl: estimatorAppUrl(env) });
   }
   return createSimulatedEstimator();
 }

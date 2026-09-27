@@ -81,6 +81,8 @@ function readSetCookie(res: Response): string | null {
 
 export interface EstimatorClientOptions {
   baseUrl?: string;
+  /** The host their guest pages are served from, when it is not `baseUrl`. See `estimatorAppUrl`. */
+  appUrl?: string;
   /** Test seam. Injectable so tests never touch the network, and never mock our own logic. */
   fetchImpl?: typeof fetch;
   timeoutMs?: number;
@@ -90,6 +92,18 @@ export function estimatorBaseUrl(env: NodeJS.ProcessEnv = process.env): string |
   // Read lazily rather than at module load: tests set this per case, and on Vercel env vars are
   // not guaranteed to exist when the module is first evaluated.
   const raw = env.ESTIMATOR_BASE_URL;
+  return raw && raw.trim() !== "" ? raw.replace(/\/+$/, "") : undefined;
+}
+
+/**
+ * The host their guest pages are served from, when it is not the API host.
+ *
+ * Their local dev setup needs it: `npm run dev -w bff` puts the API on :8787 and
+ * `npm run dev:app -w bff` puts the app on :5173, so a guest link joined to the API host 404s even
+ * though the token is valid. In production it is one Vercel project and this stays unset.
+ */
+export function estimatorAppUrl(env: NodeJS.ProcessEnv = process.env): string | undefined {
+  const raw = env.ESTIMATOR_APP_URL;
   return raw && raw.trim() !== "" ? raw.replace(/\/+$/, "") : undefined;
 }
 
@@ -426,5 +440,7 @@ export function createEstimatorClient(options: EstimatorClientOptions = {}) {
     submit,
     checkHealth,
     baseUrl: options.baseUrl ?? estimatorBaseUrl(),
+    // Falls back to the API host, which is what production is.
+    appBaseUrl: options.appUrl ?? estimatorAppUrl() ?? options.baseUrl ?? estimatorBaseUrl(),
   };
 }

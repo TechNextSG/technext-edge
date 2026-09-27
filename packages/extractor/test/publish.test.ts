@@ -151,6 +151,47 @@ describe("publishing a guest link", () => {
     expect(stored.quotation.estimator.cookie).toContain("ubg_sid=");
   });
 
+  it("joins the guest link to the APP host when their app is not on the API host", async () => {
+    // Their local dev setup splits them (`npm run dev -w bff` → API on :8787, `dev:app` → the app on
+    // :5173). Joining a guest link to the API host there produces a URL that 404s while the token
+    // behind it is valid — measured against their own BFF, which is why the host is configurable.
+    const draft = await pricedQuote("QT-PUB-8");
+    const fetchImpl = vi.fn(async (url: string) => {
+      if (String(url).endsWith("/commit")) {
+        return new Response(JSON.stringify({ seq: 1 }), { status: 200, headers: { "content-type": "application/json" } });
+      }
+      return new Response(JSON.stringify({ url: "/quote/tok-split" }), {
+        status: 200,
+        headers: { "content-type": "application/json" },
+      });
+    });
+    const app = createApp({
+      estimator: createEstimatorClient({
+        baseUrl: "http://api.test:8787",
+        appUrl: "http://app.test:5173",
+        fetchImpl: fetchImpl as never,
+      }),
+    });
+
+    const body = await (await publish(app, draft.quoteId, { acknowledgeSample: true })).json();
+    expect(body.guestUrl).toBe("http://app.test:5173/quote/tok-split");
+  });
+
+  it("falls back to the API host, which is what production is", async () => {
+    const draft = await pricedQuote("QT-PUB-9");
+    const fetchImpl = vi.fn(async (url: string) =>
+      String(url).endsWith("/commit")
+        ? new Response(JSON.stringify({ seq: 1 }), { status: 200, headers: { "content-type": "application/json" } })
+        : new Response(JSON.stringify({ url: "/quote/tok-same" }), { status: 200, headers: { "content-type": "application/json" } }),
+    );
+    const app = createApp({
+      estimator: createEstimatorClient({ baseUrl: "https://quotes.customer.test", fetchImpl: fetchImpl as never }),
+    });
+
+    const body = await (await publish(app, draft.quoteId, { acknowledgeSample: true })).json();
+    expect(body.guestUrl).toBe("https://quotes.customer.test/quote/tok-same");
+  });
+
   it("joins their relative link to the host we called, and does not invent one when there is none", async () => {
     const draft = await pricedQuote("QT-PUB-7");
     const fetchImpl = vi.fn(async (url: string) => {

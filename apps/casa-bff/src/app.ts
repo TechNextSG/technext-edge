@@ -1396,8 +1396,9 @@ export function createApp(options: AppOptions = {}) {
       return c.json({ ok: false, reason: shared.reason, detail: shared.detail }, status);
     }
 
-    // Their `url` is relative; only we know which host the guest should be sent to.
-    const guestUrl = absoluteUrl(shared.url, estimator.baseUrl);
+    // Their `url` is relative; only we know which host the guest should be sent to. Usually the
+    // API host serves the guest pages too; their dev setup splits them, hence `appBaseUrl`.
+    const guestUrl = absoluteUrl(shared.url, estimator.appBaseUrl ?? estimator.baseUrl);
     const saved = await saveQuotationDraft({
       ...existing,
       estimator: {
