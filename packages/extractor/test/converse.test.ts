@@ -17,6 +17,7 @@ const PARTIAL_RAW = {
   nights: { value: 3, state: "stated", evidence: "3 nights" },
   guests: { value: null, state: "missing", evidence: null },
   rooms: { value: null, state: "missing", evidence: null },
+  roomType: { value: null, state: "missing", evidence: null },
   meals: { value: null, state: "missing", evidence: null },
   transport: { value: null, state: "missing", evidence: null },
   contactName: { value: null, state: "missing", evidence: null },
@@ -36,6 +37,7 @@ const COMPLETE_RAW = {
   ...PARTIAL_RAW,
   guests: { value: 2, state: "stated", evidence: "2 of us" },
   rooms: { value: 1, state: "stated", evidence: "1 room" },
+  roomType: { value: "deluxe", state: "stated", evidence: "a deluxe room" },
   meals: { value: "full_board", state: "stated", evidence: "full board" },
   transport: { value: false, state: "stated", evidence: "no transport needed" },
   diver: { value: false, state: "stated", evidence: "no diving" },
@@ -70,8 +72,9 @@ describe("converse", () => {
     // Every open field, in priority order — the guest can answer all of it in one
     // reply. Form UIs draw their fields from this same array, so the reply and the
     // array are asserted together. Rooms, meals and transport are absent: they are
-    // house norms, which are shown rather than asked about.
-    expect(outcome.questions.map((q) => q.field)).toEqual(["guests", "diver", "contactName"]);
+    // house norms, which are shown rather than asked about. The room type is not a
+    // norm — its three values are three different nightly rates — so it is asked.
+    expect(outcome.questions.map((q) => q.field)).toEqual(["guests", "roomType", "diver", "contactName"]);
     for (const { question } of outcome.questions) expect(outcome.reply).toContain(question);
     // What the guest already said is read back in prose, and never asked again.
     expect(outcome.reply).toContain("I've noted down your stay starting Sep 26 for 3 nights.");
@@ -103,7 +106,7 @@ describe("converse", () => {
       [
         {
           role: "guest",
-          text: "Hi, next Saturday for 3 nights, 2 of us, 1 room, full board, no transport needed, no diving. My name is Minh",
+          text: "Hi, next Saturday for 3 nights, 2 of us, 1 room, a deluxe room, full board, no transport needed, no diving. My name is Minh",
         },
       ],
       provider,

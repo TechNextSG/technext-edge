@@ -680,6 +680,19 @@ node packages/extractor/eval/runner.mjs --provider deepseek-flash
   what its *absent* state does — silence is this pipeline's default failure mode, and it
   leaves no trace.
 
+- **The room type was the largest line nobody asked about.** `buildBffTrip()` wrote
+  `type: "standard"` onto every room it created, so a guest who asked for "2 Deluxe rooms"
+  was priced as standard and nothing downstream could tell: the payload said `standard`,
+  the readback said `standard`, and the studio showed what the payload said. Their own rate
+  card (`contracts/odoo/examples/rates.json`) prices that mistake at ₱7,600 against
+  ₱11,200 a night for the same two guests — 47% under on the biggest line of the stay, per
+  night. `roomType` is therefore a real `Trip` field, asked like the dive questions and
+  kept only as `stated` (ADR-006 Decision 4, "ask what money depends on; never infer it"),
+  and the fact gate in `synthesis.ts` now rejects prose that names a type the guest did not
+  choose. The lesson generalises: **a field the estimator prices per night belongs in the
+  question list, not in a constant you seed the payload with.** A constant is invisible in
+  a way a wrong answer never is — it looks identical on every quotation.
+
 - **A date range is an answer, and asking for the night count anyway reads as not
   listening.** `nights` was a plain question with no gate, so a guest who wrote
   "Oct 17 to Oct 20" was asked "How many nights will you be staying?" on the very next

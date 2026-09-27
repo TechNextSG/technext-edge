@@ -34,6 +34,7 @@ const FIELD_LABELS: Record<string, string> = {
   nights: "number of nights",
   guests: "number of guests",
   rooms: "number of rooms",
+  roomType: "room type (standard / deluxe / suite)",
   meals: "meal plan",
   transport: "airport transfer (yes/no)",
   transportType: "one-way or return",

@@ -37,6 +37,7 @@ const BLANK_RAW = {
   nights: { value: null, state: "missing", evidence: null },
   guests: { value: null, state: "missing", evidence: null },
   rooms: { value: null, state: "missing", evidence: null },
+  roomType: { value: null, state: "missing", evidence: null },
   meals: { value: null, state: "missing", evidence: null },
   transport: { value: null, state: "missing", evidence: null },
   contactName: { value: null, state: "missing", evidence: null },
@@ -68,7 +69,14 @@ describe("the reply the guest gets back", () => {
     );
 
     // The open fields are still listed for a form UI...
-    expect(outcome.questions.map((q) => q.field)).toEqual(["checkIn", "nights", "guests", "diver", "contactName"]);
+    expect(outcome.questions.map((q) => q.field)).toEqual([
+      "checkIn",
+      "nights",
+      "guests",
+      "roomType",
+      "diver",
+      "contactName",
+    ]);
     // ...but the guest gets an introduction, not a numbered questionnaire. House
     // norms (rooms, meals, transport) are never asked about, so they are not in
     // the list to begin with.
@@ -98,8 +106,9 @@ describe("the reply the guest gets back", () => {
     expect(outcome.reply).toContain("To complete your enquiry, could you let me know:");
     expect(numbered(outcome.reply)).toEqual([
       "1. How many guests in total?",
-      "2. Would you like to go diving during your stay?",
-      "3. What name should we put on the booking?",
+      "2. Would you like a standard, deluxe, or suite room?",
+      "3. Would you like to go diving during your stay?",
+      "4. What name should we put on the booking?",
     ]);
     // The meals Casa assumed and the room count it defaulted to are *not* read
     // back as the guest's own answers — that is the fabricated confirmation the
@@ -203,11 +212,12 @@ describe("the reply the guest gets back", () => {
       checkIn: { value: null, state: "stated", evidence: "next Saturday" },
       nights: { value: 3, state: "stated", evidence: "3 nights" },
       guests: { value: 2, state: "stated", evidence: "2 of us" },
+      roomType: { value: "standard", state: "stated", evidence: "a standard room" },
       diver: { value: false, state: "stated", evidence: "no diving" },
       contactName: { value: "Nhat", state: "stated", evidence: "Nhat" },
     };
     const outcome = await converse(
-      [{ role: "guest", text: "Hi, next Saturday for 3 nights, 2 of us, no diving. Name: Nhat" }],
+      [{ role: "guest", text: "Hi, next Saturday for 3 nights, 2 of us, a standard room, no diving. Name: Nhat" }],
       providerReturning(raw),
     );
 
@@ -230,8 +240,11 @@ describe("the reply the guest gets back", () => {
     expect(outcome.reply).toContain("• Guests: 2");
     expect(outcome.reply).toContain("• Diving: no");
     expect(outcome.reply).toContain("• Contact name: Nhat");
-    // House norms are shown, but as Casa's guess rather than the guest's words.
+    // House norms are shown, but as Casa's guess rather than the guest's words. The room
+    // type is NOT one of them: it is the guest's own answer, so it carries no such note.
     expect(outcome.reply).toContain("• Rooms: 1 (assumed)");
+    expect(outcome.reply).toContain("• Room type: standard");
+    expect(outcome.reply).not.toContain("• Room type: standard (assumed)");
     expect(outcome.reply).toContain("• Meals: full board (assumed)");
     expect(outcome.reply).toContain("• Airport transfer: no (assumed)");
     // Internal fields stay internal.
@@ -252,6 +265,7 @@ describe("the reply the guest gets back", () => {
       nights: { value: 3, state: "stated" as const, evidence: "3 nights" },
       guests: { value: 2, state: "stated" as const, evidence: "2 of us" },
       rooms: { value: 1, state: "default" as const, evidence: null },
+      roomType: { value: "standard", state: "stated" as const, evidence: "a standard room" },
       meals: { value: "full_board" as const, state: "default" as const, evidence: null },
       transport: { value: true, state: "stated" as const, evidence: "need pickup" },
       transportType: { value: "roundtrip" as const, state: "derived" as const, evidence: null },
@@ -270,6 +284,7 @@ describe("the reply the guest gets back", () => {
       nights: { value: 2, state: "stated" as const, evidence: "2 nights" },
       guests: { value: 3, state: "stated" as const, evidence: "3 are staying" },
       rooms: { value: 1, state: "default" as const, evidence: null },
+      roomType: { value: "standard", state: "stated" as const, evidence: "a standard room" },
       meals: { value: "full_board" as const, state: "default" as const, evidence: null },
       transport: { value: false, state: "default" as const, evidence: null },
       diver: { value: true, state: "stated" as const, evidence: "will dive" },
@@ -294,6 +309,7 @@ describe("the reply the guest gets back", () => {
       nights: { value: 2, state: "stated" as const, evidence: "2 nights" },
       guests: { value: 3, state: "stated" as const, evidence: "3 are staying" },
       rooms: { value: 1, state: "default" as const, evidence: null },
+      roomType: { value: "standard", state: "stated" as const, evidence: "a standard room" },
       meals: { value: "full_board" as const, state: "default" as const, evidence: null },
       transport: { value: false, state: "default" as const, evidence: null },
       diver: { value: true, state: "stated" as const, evidence: "will dive" },
@@ -341,6 +357,7 @@ describe("the reply the guest gets back", () => {
       checkIn: { value: null, state: "stated", evidence: "下周六" },
       nights: { value: 2, state: "stated", evidence: "2晚" },
       guests: { value: 4, state: "stated", evidence: "4位" },
+      roomType: { value: "deluxe", state: "stated", evidence: "豪华房" },
       diver: { value: true, state: "stated", evidence: "要潜水" },
       divers: { value: 4, state: "stated", evidence: "4位潜水员" },
       diveFrom: { value: "2026-09-26", state: "stated", evidence: "9月26日" },
@@ -351,7 +368,7 @@ describe("the reply the guest gets back", () => {
       [
         {
           role: "guest",
-          text: "你好，我们4位，下周六到，住2晚，要潜水，4位潜水员9月26日到9月27日，名字Nhat",
+          text: "你好，我们4位，下周六到，住2晚，要豪华房，要潜水，4位潜水员9月26日到9月27日，名字Nhat",
         },
       ],
       providerReturning(raw),
@@ -361,6 +378,7 @@ describe("the reply the guest gets back", () => {
     expect(outcome.reply).toContain("谢谢 Nhat！");
     // "下周六" resolves through dates.ts's 下周 + 周六 form.
     expect(outcome.reply).toContain("• 住宿: 2026年9月26–28日 (2 晚)");
+    expect(outcome.reply).toContain("• 房型: 豪华房");
     expect(outcome.reply).toContain("• 是否潜水: 是 · 4 位潜水 · 2026年9月26–27日");
     expect(outcome.reply).toContain("Casa 团队会很快与您联系");
     expect(outcome.reply).not.toContain("Thanks");
@@ -372,17 +390,19 @@ describe("the reply the guest gets back", () => {
       checkIn: { value: null, state: "stated", evidence: "26/09/2026" },
       nights: { value: 3, state: "stated", evidence: "3晚" },
       guests: { value: 2, state: "stated", evidence: "2位" },
+      roomType: { value: "standard", state: "stated", evidence: "标准房" },
       diver: { value: false, state: "stated", evidence: "不潜水" },
       contactName: { value: "Li", state: "stated", evidence: "Li" },
     };
     const outcome = await converse(
-      [{ role: "guest", text: "我们26/09/2026入住3晚，2位客人，不潜水，我叫Li" }],
+      [{ role: "guest", text: "我们26/09/2026入住3晚，2位客人，要标准房，不潜水，我叫Li" }],
       providerReturning(raw),
     );
 
     expect(outcome.replyKind).toBe("summary");
     expect(outcome.reply).toContain("谢谢 Li！");
     expect(outcome.reply).toContain("• 住宿: 2026年9月26–29日 (3 晚)");
+    expect(outcome.reply).toContain("• 房型: 标准房");
   });
 
   it("walks the whole arc for one guest: greeting → acknowledgment → summary", async () => {
@@ -410,6 +430,7 @@ describe("the reply the guest gets back", () => {
           checkIn: { value: null, state: "stated", evidence: "next Saturday" },
           nights: { value: 3, state: "stated", evidence: "3 nights" },
           guests: { value: 2, state: "stated", evidence: "2 of us" },
+          roomType: { value: "deluxe", state: "stated", evidence: "a deluxe room" },
           diver: { value: false, state: "stated", evidence: "no diving" },
           contactName: { value: "Nhat", state: "stated", evidence: "Nhat" },
         },
@@ -431,9 +452,12 @@ describe("the reply the guest gets back", () => {
     const second = await converse(turns, provider);
     expect(second.replyKind).toBe("questions");
     expect(second.reply).toContain("I've noted down your stay starting Sep 26 for 3 nights, 2 guests and no diving.");
-    expect(numbered(second.reply)).toEqual(["1. What name should we put on the booking?"]);
+    expect(numbered(second.reply)).toEqual([
+      "1. Would you like a standard, deluxe, or suite room?",
+      "2. What name should we put on the booking?",
+    ]);
 
-    turns.push({ role: "assistant", text: second.reply }, { role: "guest", text: "Nhat" });
+    turns.push({ role: "assistant", text: second.reply }, { role: "guest", text: "Nhat, and a deluxe room please" });
     const third = await converse(turns, provider);
 
     expect(third.replyKind).toBe("summary");
@@ -445,6 +469,7 @@ describe("the reply the guest gets back", () => {
     expect(third.reply).toContain("Thanks, Nhat!");
     expect(third.reply).toContain("• Stay: Sep 26 – 29, 2026 (3 nights)");
     expect(third.reply).toContain("• Guests: 2");
+    expect(third.reply).toContain("• Room type: deluxe");
     expect(third.reply).toContain("• Diving: no");
     expect(third.reply).toMatch(/nothing is booked yet/);
     expect(numbered(third.reply)).toHaveLength(0);
@@ -505,6 +530,7 @@ describe("fallbacks", () => {
       checkIn: { value: "2026-10-10", state: "stated", evidence: "Oct 10" },
       nights: { value: 2, state: "stated", evidence: "2 nights" },
       guests: { value: 2, state: "stated", evidence: "2 of us" },
+      roomType: { value: "standard", state: "stated", evidence: "standard room" },
       diver: { value: true, state: "stated", evidence: "we dive" },
       divers: { value: 2, state: "stated", evidence: "2 divers" },
       diveFrom: { value: "2026-10-11", state: "stated", evidence: "Oct 11" },
@@ -512,7 +538,7 @@ describe("fallbacks", () => {
       contactName: { value: "Tom", state: "stated", evidence: "Tom" },
     };
     const outcome = await converse(
-      [{ role: "guest", text: "2 of us Oct 10 for 2 nights, Tom. Diving Oct 11 to Oct 12. we dive, 2 divers" }],
+      [{ role: "guest", text: "2 of us Oct 10 for 2 nights, standard room, Tom. Diving Oct 11 to Oct 12. we dive, 2 divers" }],
       providerReturning(raw),
     );
 
@@ -529,6 +555,7 @@ describe("Phase 1 Hybrid AI Guardrails: NEVER RE-ASK, Fact Gate & Staff Alerts",
       checkIn: { value: "2026-10-10", state: "stated", evidence: "Oct 10" },
       nights: { value: 2, state: "stated", evidence: "2 nights" },
       guests: { value: 6, state: "stated", evidence: "6 of us" },
+      roomType: { value: "standard", state: "stated", evidence: "standard room" },
       diver: { value: true, state: "stated", evidence: "dives" },
       divers: { value: null, state: "missing", evidence: null }, // cannot collapse 1 vs 5 into single integer
       diveNotes: {
@@ -543,7 +570,7 @@ describe("Phase 1 Hybrid AI Guardrails: NEVER RE-ASK, Fact Gate & Staff Alerts",
       [
         {
           role: "guest",
-          text: "Hi, 6 of us Oct 10 for 2 nights, Sky. 1 person dives day 1, 5 people dive both days.",
+          text: "Hi, 6 of us Oct 10 for 2 nights, standard room, Sky. 1 person dives day 1, 5 people dive both days.",
         },
       ],
       providerReturning(raw),
@@ -578,6 +605,7 @@ describe("Phase 1 Hybrid AI Guardrails: NEVER RE-ASK, Fact Gate & Staff Alerts",
       nights: { value: 3, state: "stated", evidence: "3 nights" },
       guests: { value: 4, state: "stated", evidence: "4 guests" },
       rooms: { value: 2, state: "stated", evidence: "2 rooms" },
+      roomType: { value: "deluxe", state: "stated", evidence: "deluxe rooms" },
     };
 
     // 1. Price invention ($150, ₱4,500, PHP 3000) -> rejected
@@ -604,7 +632,22 @@ describe("Phase 1 Hybrid AI Guardrails: NEVER RE-ASK, Fact Gate & Staff Alerts",
       verifySynthesizedReply("Thank you! I have noted your stay for 3 nights in 1 room.", trip),
     ).toEqual({ ok: false, reason: "mismatched_rooms_count" });
 
-    // 5. Valid warm concierge reply -> passes
+    // 5. A different room type than the guest chose -> rejected. The guest said deluxe, and the
+    // nightly rate for a standard room is ₱3,600 lower, so prose that promises one is the same
+    // class of error as an invented price.
+    expect(
+      verifySynthesizedReply("Lovely! I have you in a standard room for 3 nights.", trip),
+    ).toEqual({ ok: false, reason: "mismatched_room_type" });
+    // ...while the type the guest actually chose, and the words a concierge uses around it, pass.
+    expect(
+      verifySynthesizedReply("Lovely! I have you in a deluxe room for 3 nights, and our standard check-in time is 2pm.", trip),
+    ).toEqual({ ok: true });
+    // "en suite" is a bathroom, not a room type — the gate must not read it as a contradiction.
+    expect(
+      verifySynthesizedReply("Your deluxe room has an en suite bathroom and a sea view for 3 nights.", trip),
+    ).toEqual({ ok: true });
+
+    // 6. Valid warm concierge reply -> passes
     expect(
       verifySynthesizedReply(
         "Thank you so much! I have recorded your stay for 3 nights in 2 rooms. Someone from our team will follow up shortly to confirm availability and pricing — nothing is booked yet.",
@@ -612,7 +655,7 @@ describe("Phase 1 Hybrid AI Guardrails: NEVER RE-ASK, Fact Gate & Staff Alerts",
       ),
     ).toEqual({ ok: true });
 
-    // 6. Verify synthesizeHospitalityReply automatically rolls back to fallbackText on violation
+    // 7. Verify synthesizeHospitalityReply automatically rolls back to fallbackText on violation
     const badProvider: ExtractProvider = {
       id: "bad-llm",
       call: vi.fn(),
@@ -718,6 +761,7 @@ describe("Phase 1 Hybrid AI Guardrails: NEVER RE-ASK, Fact Gate & Staff Alerts",
       nights: { value: 2, state: "stated", evidence: "2 nights" },
       guests: { value: 2, state: "stated", evidence: "2 guests" },
       rooms: { value: 1, state: "default", evidence: null },
+      roomType: { value: "standard", state: "stated", evidence: "standard room" },
       meals: { value: "full_board", state: "default", evidence: null },
       transport: { value: false, state: "stated", evidence: "no transfer" },
       transportType: { value: "none", state: "derived", evidence: null },
@@ -772,6 +816,7 @@ describe("a dive window the guest never gave", () => {
       nights: { value: 4, state: "stated", evidence: "4 nights" },
       guests: { value: 4, state: "stated", evidence: "family of 4" },
       rooms: { value: 2, state: "stated", evidence: "2 rooms" },
+      roomType: { value: "standard", state: "stated", evidence: "2 standard rooms" },
       meals: { value: "full_board", state: "default", evidence: null },
       transport: { value: false, state: "stated", evidence: "we'll drive ourselves" },
       transportType: { value: "none", state: "derived", evidence: null },
@@ -1004,6 +1049,7 @@ function settledTrip(): Trip {
     nights: { value: 3, state: "stated", evidence: "3 nights" },
     guests: { value: 2, state: "stated", evidence: "2 of us" },
     rooms: { value: 1, state: "default", evidence: null },
+    roomType: { value: "deluxe", state: "stated", evidence: "a deluxe room" },
     meals: { value: "full_board", state: "default", evidence: null },
     transport: { value: true, state: "stated", evidence: "airport pickup" },
     transportType: { value: "roundtrip", state: "stated", evidence: "return transfer" },

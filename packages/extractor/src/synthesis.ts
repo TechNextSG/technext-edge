@@ -77,6 +77,7 @@ export interface FactGateResult {
     | "mismatched_rooms_count"
     | "mismatched_guests_count"
     | "mismatched_divers_count"
+    | "mismatched_room_type"
     | "fabricated_date";
 }
 
@@ -183,6 +184,21 @@ export function verifySynthesizedReply(text: string, trip: Trip): FactGateResult
     }
   }
 
+  // The room type, which is the single largest per-night lever in the rate card and therefore the
+  // worst thing to get wrong in prose. Only a STATED type is checked, for the same reason as the
+  // counts above: a house norm nobody chose cannot be contradicted by the model restating
+  // something else. The pattern deliberately requires the noun to sit against the type
+  // ("a deluxe room", "room type: deluxe") rather than matching the bare word — "en suite" and
+  // "our standard check-in time" are ordinary hospitality English and must not trip the gate.
+  if (trip.roomType?.state === "stated" && typeof trip.roomType.value === "string") {
+    const stated = trip.roomType.value;
+    const named = [
+      ...text.matchAll(/\b(standard|deluxe|suite)\s+(?:rooms?|suites?)\b/gi),
+      ...text.matchAll(/\broom\s+type\s*:?\s*(standard|deluxe|suite)\b/gi),
+    ].map((m) => m[1]!.toLowerCase());
+    if (named.some((type) => type !== stated)) return { ok: false, reason: "mismatched_room_type" };
+  }
+
   // Any ISO date the reply names has to be one of the trip's own. Written this way round on
   // purpose: the trip is a closed set of four dates, so a fifth one is fabricated by definition,
   // and the check needs no understanding of the sentence it sits in. Deliberately ISO only — a
@@ -277,6 +293,9 @@ export async function synthesizeHospitalityReply(
       `- Stay: ${input.trip.checkIn?.value ?? "not specified"} to ${input.trip.checkOut?.value ?? "not specified"} (${input.trip.nights?.value ?? "not specified"} nights)\n` +
       `- Guests staying overnight: ${input.trip.guests?.value ?? "not specified"}\n` +
       `- Rooms: ${String(input.trip.rooms?.value ?? "1")}${markAssumed(input.trip.rooms)}\n` +
+      (typeof input.trip.roomType?.value === "string"
+        ? `- Room type: ${input.trip.roomType.value}${markAssumed(input.trip.roomType)}\n`
+        : "") +
       `- Meals: ${String(input.trip.meals?.value ?? "full board")}${markAssumed(input.trip.meals)}\n` +
       `- Diving: ${divingLine(input)}\n` +
       (typeof input.trip.divers?.value === "number" ? `- Divers in the party: ${input.trip.divers.value}\n` : "") +

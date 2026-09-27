@@ -155,9 +155,13 @@ export function buildBffTrip(trip: Trip): BffTrip {
     if (diveTo < diveFrom) diveTo = diveFrom;
   }
 
+  // The type the guest actually named, when they named one. `standard` remains the fallback
+  // because a room type nobody stated is a gap for staff to fill in the studio, not a reason to
+  // refuse the enquiry — but sending `standard` over a stated `deluxe` was simply the wrong room.
+  const roomType = trip.roomType?.value ?? "standard";
   const rooms: BffRoom[] = Array.from({ length: roomCount }, (_, idx) => ({
     id: `r${idx + 1}`,
-    type: "standard",
+    type: roomType,
     name: null,
   }));
 

@@ -30,9 +30,9 @@ import { buildBffTrip } from "../../../packages/extractor/src/odooHandoff.js";
 import type { BffTrip, Trip } from "../../../packages/extractor/src/schema.js";
 
 /** The couple in the captured fixture: Ana dives one day, Ben does not, both full board. */
-function retailCoupleTrip(): BffTrip {
+function retailCoupleSource(overrides: Partial<Record<keyof Trip, unknown>> = {}): Trip {
   const f = <T,>(value: T | null, state = "stated") => ({ value, state, evidence: null });
-  const trip = {
+  return {
     language: f("en", "default"),
     contactName: f("Ana"),
     checkIn: f("2026-11-20"),
@@ -51,14 +51,29 @@ function retailCoupleTrip(): BffTrip {
     diveNotes: f(null, "missing"),
     specialRequests: f(null, "missing"),
     guestNames: f(["Ana", "Ben"]),
+    ...overrides,
   } as Trip;
-  return buildBffTrip(trip);
+}
+
+function retailCoupleTrip(): BffTrip {
+  return buildBffTrip(retailCoupleSource());
 }
 
 /** The same trip quoted on a partner account — the Agent View's second model. */
 function agentCoupleTrip(): BffTrip {
   const trip = retailCoupleTrip();
   return { ...trip, guestType: "agent" };
+}
+
+/**
+ * The couple's stay, in a room type the guest actually named.
+ *
+ * `buildBffTrip` writes the type onto every room it creates, and the pricing path reads it back
+ * per room — so this is the whole chain from the extractor's `roomType` field to the money.
+ */
+function coupleTripInRoomType(type: "standard" | "deluxe" | "suite"): BffTrip {
+  const trip = retailCoupleTrip();
+  return { ...trip, rooms: trip.rooms.map((r) => ({ ...r, type })) };
 }
 
 describe("buildSimulatedModel — the captured couple, reproduced", () => {
@@ -149,8 +164,50 @@ describe("buildSimulatedModel — the captured couple, reproduced", () => {
   });
 });
 
-describe("buildSimulatedModel — partner pricing", () => {
-  it("takes 30% off rooms only, never off meals", () => {
+/**
+ * The room type is not a cosmetic detail: it is the largest per-night lever on the quotation, and
+ * until the Trip model learned it every enquiry was sent to the estimator as `standard`. The
+ * numbers below come from the customer's own `rates.json` (`standard` 7,600 / `deluxe` 11,200 /
+ * `suite` 14,200 for two guests), so the gap between these three totals is the size of the
+ * under-quote a guest who asked for a suite used to receive.
+ */
+describe("buildSimulatedModel — the room type the guest named", () => {
+  it("prices each type at its own nightly rate, not at the standard one", () => {
+    const standard = buildSimulatedModel(coupleTripInRoomType("standard"));
+    const deluxe = buildSimulatedModel(coupleTripInRoomType("deluxe"));
+    const suite = buildSimulatedModel(coupleTripInRoomType("suite"));
+
+    // Two guests, two nights, and the rate is per room per night then split across the roommates:
+    // 7,600 / 11,200 / 14,200 over the stay ⇒ 7,600 / 11,200 / 14,200 on each guest's room line.
+    expect(standard.catRev.room).toBe(15200);
+    expect(deluxe.catRev.room).toBe(22400);
+    expect(suite.catRev.room).toBe(28400);
+
+    // Only the room moves: meals and diving do not depend on which room the guest sleeps in.
+    expect(deluxe.catRev.meals).toBe(standard.catRev.meals);
+    expect(deluxe.catRev.dive).toBe(standard.catRev.dive);
+
+    expect(standard.kpis.revenue).toBe(31200);
+    expect(deluxe.kpis.revenue).toBe(38400);
+    expect(suite.kpis.revenue).toBe(44400);
+  });
+
+  it("reaches the price from a Trip, so the field the guest was asked for is the one that is charged", () => {
+    // `buildBffTrip` carries the stated type onto every room it creates.
+    const source = retailCoupleSource({ roomType: { value: "suite", state: "stated", evidence: "the suite" } });
+    expect(buildBffTrip(source).rooms.map((r) => r.type)).toEqual(["suite"]);
+    expect(buildSimulatedModel(buildBffTrip(source)).kpis.revenue).toBe(44400);
+  });
+
+  it("falls back to a standard room only when the guest never chose one", () => {
+    // A missing type is a gap for staff to fill in the studio — never a reason to refuse the
+    // enquiry, and never a reason to quote a room nobody asked for at a price nobody agreed to.
+    const source = retailCoupleSource({ roomType: { value: null, state: "missing", evidence: null } });
+    expect(buildBffTrip(source).rooms.map((r) => r.type)).toEqual(["standard"]);
+  });
+});
+
+describe("buildSimulatedModel — partner pricing", () => {  it("takes 30% off rooms only, never off meals", () => {
     const model = buildSimulatedModel(agentCoupleTrip());
     const ana = model.quotes[0]!;
     const room = ana.lines.find((l) => l.cat === "room")!;

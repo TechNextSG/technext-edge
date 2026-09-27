@@ -25,6 +25,7 @@ const PARTIAL_RAW = {
   nights: { value: 3, state: "stated", evidence: "3 nights" },
   guests: { value: null, state: "missing", evidence: null },
   rooms: { value: null, state: "missing", evidence: null },
+  roomType: { value: null, state: "missing", evidence: null },
   meals: { value: null, state: "missing", evidence: null },
   transport: { value: null, state: "missing", evidence: null },
   contactName: { value: null, state: "missing", evidence: null },
@@ -328,8 +329,9 @@ describe("WhatsApp webhook (Meta Cloud API)", () => {
     // what was understood, then asks every open field, numbered.
     expect(sent).toHaveLength(1);
     const numbered = sent[0].body.split("\n").filter((line) => /^\d+\. /.test(line));
-    expect(numbered).toHaveLength(3); // guests, diver, contactName
+    expect(numbered).toHaveLength(4); // guests, roomType, diver, contactName
     expect(sent[0].body).toContain("1. How many guests in total?"); // priority order, not alphabetical
+    expect(sent[0].body).toContain("Would you like a standard, deluxe, or suite room?");
     expect(sent[0].body).toContain("I've noted down your stay starting Sep 26 for 3 nights.");
     expect(sent[0].body).not.toContain("Rooms:"); // a house norm, shown in the summary rather than asked
     expect(sent[0].body.length).toBeLessThan(4096); // the whole reply is nowhere near Meta's limit
@@ -692,10 +694,11 @@ describe("the links on a guest's reply once a quotation exists", () => {
   const COMPLETE_RAW = {
     ...PARTIAL_RAW,
     guests: { value: 4, state: "stated", evidence: "4 of us" },
+    roomType: { value: "suite", state: "stated", evidence: "the suite" },
     contactName: { value: "Ana", state: "stated", evidence: "Ana" },
     diver: { value: false, state: "stated", evidence: "no diving" },
   };
-  const TEXT = "4 of us next Saturday for 3 nights, no diving, my name is Ana";
+  const TEXT = "4 of us next Saturday for 3 nights, the suite, no diving, my name is Ana";
 
   async function replyForCompletedTurn() {
     vi.stubEnv("ENABLE_HONO_QUOTATION_TOOL", "true");
@@ -1010,10 +1013,11 @@ describe("one quotation per enquiry, and a stopping point once it is complete", 
   const COMPLETE_RAW = {
     ...PARTIAL_RAW,
     guests: { value: 4, state: "stated", evidence: "4 of us" },
+    roomType: { value: "suite", state: "stated", evidence: "the suite" },
     contactName: { value: "Ana", state: "stated", evidence: "Ana" },
     diver: { value: false, state: "stated", evidence: "no diving" },
   };
-  const TEXT = "4 of us next Saturday for 3 nights, no diving, my name is Ana";
+  const TEXT = "4 of us next Saturday for 3 nights, the suite, no diving, my name is Ana";
 
   it("reuses the thread's quotation instead of minting one per message", async () => {
     vi.stubEnv("ENABLE_HONO_QUOTATION_TOOL", "true");

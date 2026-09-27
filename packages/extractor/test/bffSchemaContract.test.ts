@@ -16,6 +16,10 @@ function makeCompleteSarahTrip(): Trip {
     nights: { value: 3, state: "stated", evidence: "3 nights" },
     guests: { value: 4, state: "stated", evidence: "4 guests" },
     rooms: { value: 2, state: "stated", evidence: "2 Deluxe rooms" },
+    // Sarah said "2 Deluxe rooms" in one breath, and the two facts are recorded separately
+    // because they are priced separately: the count is a house norm when nobody says it, the
+    // type never is.
+    roomType: { value: "deluxe", state: "stated", evidence: "2 Deluxe rooms" },
     meals: { value: "full_board", state: "stated", evidence: "full board" },
     transport: { value: true, state: "stated", evidence: "airport pickup from Manila" },
     guestType: { value: "retail", state: "default", evidence: null },
@@ -98,10 +102,12 @@ describe("P5 BFF & Odoo Estimate Schema Contract (docs/06-p5-bff-schema-contract
     expect(bffTrip.diveFrom).toBe("2026-10-18");
     expect(bffTrip.diveTo).toBe("2026-10-19");
 
-    // Rooms and Guest assignments
+    // Rooms and Guest assignments. The type is the guest's own word, carried through instead of
+    // being flattened to `standard` — for these two rooms that is ₱11,200 a night against
+    // ₱7,600, so the payload used to under-quote the largest line of the stay by 47%.
     expect(bffTrip.rooms).toEqual([
-      { id: "r1", type: "standard", name: null },
-      { id: "r2", type: "standard", name: null },
+      { id: "r1", type: "deluxe", name: null },
+      { id: "r2", type: "deluxe", name: null },
     ]);
     expect(bffTrip.guests).toHaveLength(4);
 

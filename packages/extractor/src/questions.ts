@@ -69,6 +69,17 @@ const RULES: QuestionRule[] = [
   },
   { key: "guests", question: { en: "How many guests in total?", zh: "一共有几位客人？" } },
   { key: "rooms", question: { en: "How many rooms do you need?", zh: "您需要几间房？" } },
+  // The single biggest lever on the nightly rate, and the one field a guest always knows and
+  // the model can only guess. Their own rate card prices a deluxe room at ₱11,200 a night
+  // against ₱7,600 for a standard one for the same two guests, so quietly sending `standard`
+  // for a guest who asked for deluxe is not a rounding error — it is a 47% under-quote on the
+  // largest line of the stay, and nobody downstream could see that it had happened. ADR-006
+  // Decision 4 ("ask what money depends on; never infer it") is why this is a question and
+  // why extract.ts keeps only a `stated` answer.
+  {
+    key: "roomType",
+    question: { en: "Would you like a standard, deluxe, or suite room?", zh: "您想订标准房、豪华房，还是套房？" },
+  },
   { key: "meals", question: { en: "Would you like full board, half board, or room only?", zh: "您需要全餐、半餐，还是只要住宿？" } },
   { key: "transport", question: { en: "Do you need an airport transfer?", zh: "您需要机场接送吗？" } },
   // A stay at a dive resort is either a diving trip or it is not, and the answer
@@ -204,6 +215,9 @@ export const HANDOFF_REQUIRED_FIELDS: ReadonlyArray<keyof Trip> = [
   "nights",
   "guests",
   "rooms",
+  // Priced per night off their own rate card (`standard` / `deluxe` / `suite`), and the field
+  // with the widest spread of any of them — so it is asked and it is required, not defaulted.
+  "roomType",
   "meals",
   "transport",
   "contactName",
@@ -336,7 +350,7 @@ export interface RenderedReply {
 // `language` and `guestType` are absent on purpose: the first is a property of the
 // message itself and the second is an internal Odoo distinction, so neither means
 // anything to the person reading the reply.
-const SUMMARY_ORDER: ReadonlyArray<keyof Trip> = ["guests", "rooms", "meals", "contactName"];
+const SUMMARY_ORDER: ReadonlyArray<keyof Trip> = ["guests", "rooms", "roomType", "meals", "contactName"];
 
 const LABELS: Record<keyof Trip, Record<Lang, string>> = {
   language: { en: "Language", zh: "语言" },
@@ -345,6 +359,7 @@ const LABELS: Record<keyof Trip, Record<Lang, string>> = {
   nights: { en: "Nights", zh: "晚数" },
   guests: { en: "Guests", zh: "客人数" },
   rooms: { en: "Rooms", zh: "房间数" },
+  roomType: { en: "Room type", zh: "房型" },
   meals: { en: "Meals", zh: "餐食" },
   transport: { en: "Airport transfer", zh: "机场接送" },
   contactName: { en: "Contact name", zh: "联系人姓名" },
@@ -373,6 +388,11 @@ const ENUM_LABELS: Record<string, Record<Lang, string>> = {
   retail: { en: "retail guest", zh: "散客" },
   agent: { en: "agent", zh: "代理" },
   instructor: { en: "instructor", zh: "教练" },
+  // Room types read back as the words the question offered, so the guest can see that the
+  // type they picked is the one being quoted.
+  standard: { en: "standard", zh: "标准房" },
+  deluxe: { en: "deluxe", zh: "豪华房" },
+  suite: { en: "suite", zh: "套房" },
 };
 
 const YES_NO: Record<Lang, [string, string]> = {

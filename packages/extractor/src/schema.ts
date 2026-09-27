@@ -45,6 +45,16 @@ export const Trip = z.object({
   nights: field(z.number().int().positive()),
   guests: field(z.number().int().positive()),
   rooms: field(z.number().int().positive()),
+  /**
+   * Which room type the guest asked for. Asked because the guest knows it and the price does not:
+   * a deluxe room is a materially different nightly rate from a standard one, and the payload used
+   * to send `standard` for everyone — so a guest who said "a deluxe room" was quoted the cheaper
+   * room and nobody could tell.
+   *
+   * Like the dive fields, only `stated` survives postProcess: "a nice room" must become a question
+   * rather than an `inferred` deluxe.
+   */
+  roomType: field(z.enum(["standard", "deluxe", "suite"])).optional(),
   meals: field(MealPlan),
   transport: field(z.boolean()), // airport van round trip requested
   contactName: field(z.string()),

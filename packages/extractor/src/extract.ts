@@ -251,6 +251,31 @@ export async function extract(rawText: string, provider: ExtractProvider): Promi
 // and, being non-missing, would keep the question from ever being asked.
 const CODE_ONLY_STATES: ReadonlyArray<FieldState> = ["default", "derived"];
 
+/**
+ * The words a guest actually uses for each room type, in the two languages this pipeline replies
+ * in. Latin words are matched on a word boundary; the Han ones are matched as plain substrings,
+ * because Chinese is written without spaces (the same reason counts.ts carries a separate Han
+ * number table).
+ *
+ * "standard" is deliberately broad — a guest writing "standard check-in is fine" would let the
+ * model's `standard` stand, which costs nothing, because standard is also the value this pipeline
+ * falls back to when nobody said anything. The expensive direction is the other two: "deluxe" and
+ * "suite" are the types a model could over-claim, so they are matched narrowly — `\bsuite\b` does
+ * not fire on "en suite", which is a bathroom, and a guest who asks for one is asked the room
+ * question rather than priced into a suite.
+ */
+const ROOM_TYPE_WORDS: Record<string, RegExp> = {
+  standard: /\bstandard\b|标准|標準|标间|標間/iu,
+  deluxe: /\bdeluxe\b|\blux(?:e|ury)\b|豪华|豪華/u,
+  suite: /(?<!\ben\s)suites?\b|套房|套间|套間/iu,
+};
+
+/** Whether the guest's own message names this room type at all. */
+function roomTypeNamedBy(type: string, text: string): boolean {
+  const words = ROOM_TYPE_WORDS[type];
+  return words ? words.test(text) : false;
+}
+
 // Everything the model is not trusted to get right, done here instead:
 //  - relative dates resolved against Manila "today" — and, for a phrase the table
 //    cannot read, a model-proposed date corroborated against that phrase first
@@ -391,9 +416,22 @@ function postProcess(raw: unknown, today: string, sourceText: string): unknown {
   // about, which is the same money bug through a different door. ADR-006 Decision 4
   // is "ask what money depends on; never infer it", so an unconfirmed answer becomes
   // `missing` again and the guest's own reply is the only thing that fills it.
-  for (const key of ["diver", "diveFrom", "diveTo", "divers"] as const) {
+  for (const key of ["diver", "diveFrom", "diveTo", "divers", "roomType"] as const) {
     if (trip[key]?.state !== "stated") {
       trip[key] = { value: null, state: "missing", evidence: null };
+    }
+  }
+
+  // ...and the room type has to pass the same test `checkIn` does: the guest's own words have to
+  // name it. `stated` alone is not enough here, because the model choosing one of three values is
+  // comprehension, and a verbatim quote is not proof the quote was about the room type — "a nice
+  // room" is verbatim, and it is not "deluxe". Their rate card is what makes this worth a check
+  // rather than a hope: the same two guests cost ₱7,600 a night in a standard room and ₱11,200 in
+  // a deluxe one, so a type nobody said is a 47% error in whichever direction the model guessed.
+  // No type word in the guest's message means the field is a question (questions.ts), not a guess.
+  if (trip.roomType?.state === "stated" && typeof trip.roomType.value === "string") {
+    if (!roomTypeNamedBy(trip.roomType.value, guestText)) {
+      trip.roomType = { value: null, state: "missing", evidence: null };
     }
   }
 

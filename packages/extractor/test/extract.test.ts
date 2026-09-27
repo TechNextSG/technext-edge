@@ -37,6 +37,10 @@ const HAPPY_RAW = {
   nights: { value: 3, state: "stated", evidence: "3 nights" },
   guests: { value: 4, state: "stated", evidence: "4 of us" },
   rooms: { value: null, state: "missing", evidence: null },
+  // Room type is a house norm's opposite: `rooms` has a defensible default (one room) but the
+  // nightly rate swings from ₱7,600 to ₱14,200 across the three types, so nothing may fill it
+  // in. Left missing here the way a provider that read the guest's message honestly returns it.
+  roomType: { value: null, state: "missing", evidence: null },
   meals: { value: null, state: "missing", evidence: null },
   transport: { value: null, state: "missing", evidence: null },
   contactName: { value: "Minh", state: "stated", evidence: "My name is Minh" },
@@ -65,9 +69,14 @@ describe("extract", () => {
     const askedFields = outcome.questions.map((q) => q.field);
     // A house norm is not a question. rooms, meals and transport were all filled
     // from a norm here, so they are shown to the guest as assumed (the summary)
-    // rather than asked about. Diving is the one field nobody guessed, so it is
-    // the one thing this enquiry is still asked.
-    expect(askedFields).toEqual(["diver"]);
+    // rather than asked about. Diving and the room type are the two fields nobody
+    // guessed — not for lack of a norm, but because no norm could be right — so
+    // they are the two things this enquiry is still asked.
+    expect(askedFields).toEqual(["roomType", "diver"]);
+
+    // The room type carries no default: it stays missing rather than being filled from a
+    // norm, which is what keeps the question above open.
+    expect(outcome.trip.roomType).toEqual({ value: null, state: "missing", evidence: null });
 
     expect(outcome.meta.provider).toBe("fake:v1");
     expect(outcome.meta.retried).toBe(false);
@@ -273,8 +282,9 @@ describe("extract", () => {
 
     // Absent is not an answer: it is the state that becomes a question.
     expect(outcome.trip.diver).toEqual({ value: null, state: "missing", evidence: null });
-    // Diving is the one thing nobody guessed, so it is the one thing still asked.
-    expect(outcome.questions.map((q) => q.field)).toEqual(["diver"]);
+    // Diving is the one thing nobody guessed, so it is still asked — alongside the room
+    // type, which no norm may fill either.
+    expect(outcome.questions.map((q) => q.field)).toEqual(["roomType", "diver"]);
     // And the window stays gated on that answer — asking for one now would price a
     // dive package the guest never agreed to.
     expect(outcome.trip.diveFrom).toEqual({ value: null, state: "missing", evidence: null });
@@ -301,8 +311,62 @@ describe("extract", () => {
     expect(outcome.questions.map((q) => q.field)).toContain("diver");
   });
 
-  it("asks rather than prices a diving answer the guest never gave", async () => {
-    const ambiguous = {
+  // The room type is the one enum in the Trip that changes the nightly rate, so it gets the same
+  // treatment `checkIn` gets: the model may propose a value, and the guest's own words decide
+  // whether it stands. These three cases are the whole rule.
+  it("keeps a room type the guest named, and asks for one they only implied", async () => {
+    const named = {
+      ...HAPPY_RAW,
+      roomType: { value: "deluxe", state: "stated", evidence: "2 deluxe rooms" },
+    };
+    const namedOutcome = await extract(
+      "Hi! We are 4 of us, want to come next Saturday for 3 nights in 2 deluxe rooms. My name is Minh.",
+      fakeProvider(named),
+    );
+    expect(namedOutcome.trip.roomType).toEqual({ value: "deluxe", state: "stated", evidence: "2 deluxe rooms" });
+    expect(namedOutcome.questions.map((q) => q.field)).not.toContain("roomType");
+  });
+
+  it("does not let a verbatim quote that is not about the room type fill it in", async () => {
+    // "a deluxe room" is nowhere in the guest's message, but "My name is Minh" is — and a real
+    // model that decided the guest probably wants deluxe could quote any of their own words as
+    // the evidence. Evidence enforcement alone cannot tell the two apart; naming the type can.
+    const implied = {
+      ...HAPPY_RAW,
+      roomType: { value: "deluxe", state: "stated", evidence: "My name is Minh" },
+    };
+    const outcome = await extract(MESSAGE, fakeProvider(implied));
+
+    expect(outcome.trip.roomType).toEqual({ value: null, state: "missing", evidence: null });
+    expect(outcome.questions.map((q) => q.field)).toContain("roomType");
+  });
+
+  it("reads the room type out of the guest's own words in either language", async () => {
+    const cases: Array<[string, string, "standard" | "deluxe" | "suite"]> = [
+      ["We would like the suite please", "the suite", "suite"],
+      ["我们想要豪华房", "豪华房", "deluxe"],
+      ["2 standard rooms for 3 nights", "2 standard rooms", "standard"],
+    ];
+
+    for (const [text, evidence, expected] of cases) {
+      const outcome = await extract(
+        text,
+        fakeProvider({ ...HAPPY_RAW, roomType: { value: expected, state: "stated", evidence } }),
+      );
+      expect(outcome.trip.roomType.value, text).toBe(expected);
+    }
+
+    // "en suite" is a bathroom, not a room type — a guest who writes it must be asked, not
+    // priced into a suite. And "deluxe" offered for a message that says only "nice room" is the
+    // same guess as above, in the language where the words are adjacent.
+    const bathroom = await extract(
+      "We want a room with an en suite bathroom",
+      fakeProvider({ ...HAPPY_RAW, roomType: { value: "suite", state: "stated", evidence: "en suite" } }),
+    );
+    expect(bathroom.trip.roomType.state).toBe("missing");
+  });
+
+  it("asks rather than prices a diving answer the guest never gave", async () => {    const ambiguous = {
       ...HAPPY_RAW,
       // "we might dive, from the 26th" is not a booking for a dive package. ADR-006
       // Decision 4: ask what money depends on; never infer it.

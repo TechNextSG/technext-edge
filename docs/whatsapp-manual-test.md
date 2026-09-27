@@ -30,13 +30,14 @@ Staff key: **lấy từ Vercel env `WHATSAPP_VERIFY_TOKEN`** (Production). Khôn
 ## KB1 — Chốt đủ trong một lượt, và **không** có link
 
 **Gửi (copy nguyên):**
-> Hi, I'm Miguel. We are 4 guests and we need 1 room. Check in on 2026-11-20 and check out on 2026-11-22, so 2 nights. Full board please. No airport transfer. All 4 of us will dive on 2026-11-21.
+> Hi, I'm Miguel. We are 4 guests and we need 1 deluxe room. Check in on 2026-11-20 and check out on 2026-11-22, so 2 nights. Full board please. No airport transfer. All 4 of us will dive on 2026-11-21.
 
 **Mong đợi:**
-- Tóm tắt đầy đủ thông tin.
+- Tóm tắt đầy đủ thông tin, trong đó có dòng **`• Room type: deluxe`** (không có chữ *(assumed)*).
 - Câu **"Our reservations team is preparing your quotation now, and will send it to you here shortly."**
 - **KHÔNG có link** — không `/q/...`, không `/quote/...`, không biểu tượng 🔗. Đây là điểm chính của Đợt 1: giá không được tới tay khách trước khi nhân viên xem.
 - Không hỏi lại "how many of you will be diving" (câu "All 4 of us will dive" là ca `DIVERS_CLAUSE`).
+- Không hỏi lại **"Would you like a standard, deluxe, or suite room?"** — đã nói "deluxe room".
 
 **Kiểm chứng:** mở `/quotes` → quotation vừa sinh → **xem tiếp mục "Publish" bên dưới**.
 
@@ -47,14 +48,32 @@ Staff key: **lấy từ Vercel env `WHATSAPP_VERIFY_TOKEN`** (Production). Khôn
 **Lượt 1:** `Hi, 4 of us, full board, we want to dive.`
 **Mong đợi:** bot hỏi **ngày check-in** và **số đêm**.
 
-**Lượt 2:** `Oct 17 to Oct 20, so 3 nights, name is Miguel.`
+**Lượt 2:** `Oct 17 to Oct 20, so 3 nights, 2 deluxe rooms, name is Miguel.`
 **Mong đợi:** không hỏi lại số đêm (đã suy ra từ khoảng ngày), đi tới tóm tắt, **không link**.
+
+---
+
+## KB2b — Câu hỏi mới: loại phòng (Đợt 4)
+
+**Gửi:** `Hi, 2 of us from Oct 17 to Oct 19, full board, no transfer, no diving, name is Miguel.`
+**Mong đợi:** bot **hỏi đúng một câu còn thiếu**:
+> Would you like a standard, deluxe, or suite room?
+
+Đây là lý do có câu hỏi này: bảng giá của khách (`rates.json`) tính **standard 7,600 / deluxe 11,200 /
+suite 14,200** cho 2 khách một đêm. Trước đây payload luôn gửi `standard`, nên khách hỏi "deluxe" bị
+báo giá thấp hơn **47%** ở dòng lớn nhất của kỳ nghỉ, và không ai nhìn ra.
+
+**Gửi tiếp:** `Deluxe please`
+**Mong đợi:** tóm tắt có **`• Room type: deluxe`**, không link.
+**Kiểm chứng giá:** sau khi publish trong studio, mở link khách → tiền phòng phải theo giá deluxe
+(2 đêm × 11,200 = 22,400), **không phải** 15,200 của standard. Đây là điểm kiểm tiền quan trọng nhất
+của đợt này.
 
 ---
 
 ## KB3 — Lịch lặn lẻ ngày (NEVER RE-ASK)
 
-**Gửi:** `We are 6 guests staying 3 nights from 2026-12-01 in 3 rooms, full board, no transfer. Diving: 1 person dives day 1, 5 people dive both days. Name is Ana.`
+**Gửi:** `We are 6 guests staying 3 nights from 2026-12-01 in 3 deluxe rooms, full board, no transfer. Diving: 1 person dives day 1, 5 people dive both days. Name is Ana.`
 
 **Mong đợi:** **KHÔNG** hỏi "How many of you will be diving?" — thay vào đó là câu
 **"We've noted your diving plan (…) — our team will confirm the day-by-day details with you."**
@@ -103,6 +122,7 @@ Thử thêm: `I want a refund`, `this is a complaint`, `cancelling`.
 - một **con số tiền** (₱, $, PHP…)
 - "your booking is confirmed" / "you're all set" / "reserved for you" / "we'll email you a confirmation"
 - số khách / số đêm / số phòng **khác** với thứ bạn vừa nói
+- **loại phòng khác** với thứ bạn vừa nói (bạn nói deluxe mà bot đọc lại standard/suite)
 - một **ngày** bạn không hề nhắc
 
 Bot phải nói "nothing is booked yet" và "someone from our team will follow up".
@@ -112,7 +132,7 @@ Bot phải nói "nothing is booked yet" và "someone from our team will follow u
 ## KB9 — Tiếng Trung
 
 **Gửi:** `我想找人工客服` → mong đợi câu giữ chỗ **bằng tiếng Trung**.
-**Gửi tiếp:** `我们4个人，11月20日入住，住2晚，全餐，不需要接送，我的名字是 Miguel。` → tóm tắt tiếng Trung, **không link**.
+**Gửi tiếp:** `我们4个人，11月20日入住，住2晚，要豪华房，全餐，不需要接送，我的名字是 Miguel。` → tóm tắt tiếng Trung có dòng **`• 房型: 豪华房`**, **không link**.
 
 ---
 
@@ -161,7 +181,8 @@ Bot phải nói "nothing is booked yet" và "someone from our team will follow u
 | `/q/<slug>` | **410** (trang khách cũ đã bỏ) |
 | `/v1/converse` đủ thông tin | `done=true`, reply **không có** `/q/` lẫn `/quote/` |
 
-**Test được ngay:** mọi thứ thuộc về bot — KB1 (không có link trong tin), KB2–KB10.
+**Test được ngay:** mọi thứ thuộc về bot — KB1 (không có link trong tin), KB2, **KB2b (loại phòng)**,
+KB3–KB10.
 
 **Chưa test được:** mục Publish → link khách, vì bản deploy BFF của khách là build cũ
 (`POST /api/estimates` không trả `id`, không set `ubg_sid`). Cần deploy lại BFF của họ từ nhánh
