@@ -189,6 +189,19 @@ export interface EstimatorPort {
   readonly appBaseUrl?: string;
   sendEstimate(trip: BffTrip | null | undefined, session?: EstimatorSession): Promise<EstimateSendResult>;
   /**
+   * Re-price a trip staff have **edited** in the studio, on the same scenario.
+   *
+   * This is not `sendEstimate` again. Their `POST /api/estimates` always mints a NEW scenario, so
+   * re-posting an edited trip would leave the quotation holding one scenario's price, another
+   * scenario's `id`, and a `commit`/`share` addressed to whichever `id` won — two scenarios for one
+   * enquiry, which is exactly the mess `findOpenQuotationForPhone` exists to prevent. Their own
+   * `PATCH /api/estimates/:id` recomputes in place and answers in the same shape, so an edit keeps
+   * one scenario from first price to published link.
+   *
+   * The simulated port just recomputes: it has no scenario to keep.
+   */
+  updateEstimate(session: EstimatorSession, trip: BffTrip): Promise<EstimateSendResult>;
+  /**
    * Freeze the current draft as a revision. Their `POST /api/estimates/:id/commit`.
    *
    * Required before a share: their `share` answers `409 no-snapshot` for a quotation nobody has

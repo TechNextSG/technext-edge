@@ -36,6 +36,7 @@ import {
   type QuotationSubmission,
   type Trip,
 } from "../../../packages/extractor/src/index.js";
+import { BffTrip } from "../../../packages/extractor/src/schema.js";
 import { TEST_PAGE_HTML } from "./testPage.js";
 import {
   getIndexHtml,
@@ -1430,36 +1431,8 @@ export function createApp(options: AppOptions = {}) {
       );
     }
 
-    /**
-     * The engine answered, so this becomes the quotation's price — recorded, not just displayed.
-     *
-     * Saving it here is what makes the per-guest cards, the Ops Sheet and the agent comparison
-     * survive a reload, and it is also what stops a quotation from meaning two different things
-     * depending on which staff member has it open. `saveQuotationDraft` re-runs the totals, which
-     * is a no-op on the line items and leaves `pricing` alone.
-     */
-    const pricing = normalizePricing({
-      model: result.model,
-      retailModel: result.retailModel,
-      source: estimator.kind,
-      sample: result.sample,
-      mode: result.mode,
-      role: result.role,
-      computedAt: result.computedAt,
-    });
-    await saveQuotationDraft({
-      ...existing,
-      pricing,
-      estimator: {
-        id: result.id ?? existing.estimator?.id ?? null,
-        cookie: result.sessionCookie ?? existing.estimator?.cookie ?? null,
-        // Never reset by a re-price: a committed seq is what their `submit` will be addressed to,
-        // and their link always resolves to the newest saved revision (Q-005).
-        seq: existing.estimator?.seq ?? null,
-        guestUrl: existing.estimator?.guestUrl ?? null,
-        sharedAt: existing.estimator?.sharedAt ?? null,
-      },
-    });
+    const pricing = estimateToRecord(existing, result);
+    await saveQuotationDraft({ ...existing, ...pricing });
 
     return c.json({
       ok: true,
@@ -1481,10 +1454,150 @@ export function createApp(options: AppOptions = {}) {
       mode: result.mode,
       model: result.model,
       /** The same answer in the shape the studio and the Ops Sheet draw from. */
-      pricing,
+      pricing: pricing.pricing,
       estimatePreview: buildEstimatePreview(existing),
     });
   });
+
+  /**
+   * Save the trip staff edited in the studio, then re-price it — on the same engine scenario.
+   *
+   * Why this route has to exist at all: the estimator's answer is only as right as the `BffTrip` it
+   * was given, and that payload is built from a WhatsApp conversation. A guest who says "the kids
+   * are in the second room" or "make it a deluxe" gives facts the extractor cannot place, and until
+   * this route existed the only way to fix them was to hand-edit the price table — which is how a
+   * quotation stops agreeing with the engine that priced it. Here the fix is to correct the trip
+   * and let the engine answer again, so there is still exactly one source of the price.
+   *
+   * Three refusals, all of them safety rather than convenience:
+   *
+   *   * a trip that fails our own contract mirror is **422**, before anything is asked of the
+   *     engine — their `fillTrip` is the authority, and our job is to not send it rubbish;
+   *   * an edit **after publish** is refused, because the guest is holding a link to what staff
+   *     approved and changing it underneath them is the silent re-quote their Q-005 forbids;
+   *   * the edit **drops the approval** (`status`), because approval is a statement about a
+   *     specific trip. Keeping it would let a trip nobody has looked at be published by one click
+   *     of a button that says "publish", which is precisely the failure the publish gate exists for.
+   */
+  app.post("/v1/quotes/:id/trip", async (c) => {
+    if (!staffSession(c).ok) return c.json({ error: "unauthorized" }, 401);
+    const existing = await getQuotationByIdOrSlug(c.req.param("id"));
+    if (!existing) return c.json({ error: "not_found" }, 404);
+    if (!existing.bffTrip) {
+      return c.json({ ok: false, reason: "no_trip", detail: "this quotation has no trip to edit" }, 409);
+    }
+    if (existing.estimator?.sharedAt) {
+      return c.json(
+        {
+          ok: false,
+          reason: "already_shared",
+          detail: "this quotation is already published; a published trip must not change — start a new quotation instead",
+          guestUrl: existing.estimator.guestUrl,
+        },
+        409,
+      );
+    }
+
+    const body = (await c.req.json().catch(() => null)) as { trip?: unknown } | null;
+    const parsed = BffTrip.safeParse(body?.trip);
+    if (!parsed.success) {
+      return c.json(
+        {
+          ok: false,
+          reason: "invalid_trip",
+          detail: "the edited trip does not match the estimator contract",
+          fields: parsed.error.issues.map((i) => i.path.join(".") || "(root)"),
+        },
+        422,
+      );
+    }
+
+    // Our mirror of their `fillTrip` rules, run here so a bad edit is a message in the studio
+    // rather than an Odoo 422 buried in a log. Errors refuse; warnings travel to the caller.
+    const precheck = validateBffTripPrecheck(parsed.data);
+    if (precheck.some((i) => i.level === "error")) {
+      return c.json({ ok: false, reason: "trip_not_priceable", issues: precheck }, 422);
+    }
+
+    const session = { id: existing.estimator?.id ?? null, cookie: existing.estimator?.cookie ?? null };
+    const result = await estimator.updateEstimate(session, parsed.data);
+    if (!result.ok) {
+      const status = result.reason === "rejected" ? 422 : result.reason === "not_configured" ? 503 : 502;
+      return c.json({ ok: false, reason: result.reason, detail: result.detail, fields: result.fields }, status);
+    }
+
+    const recorded = estimateToRecord(existing, result);
+    // One save, and it is the edited trip that goes in: the price, the scenario id the engine just
+    // answered with, and the corrected trip all have to move together, or the quotation ends up
+    // holding one scenario's price beside another scenario's id.
+    //
+    // The approval is dropped with the trip it was given for, and `aiConfirmedReply` goes with it:
+    // it is a message written about the old numbers, and sending it after an edit would quote a
+    // price the guest is no longer being offered.
+    const saved = await saveQuotationDraft({
+      ...existing,
+      ...recorded,
+      bffTrip: parsed.data,
+      status: "pending_hono_review",
+      confirmedAt: undefined,
+      confirmedBy: undefined,
+      aiConfirmedReply: undefined,
+    });
+
+    return c.json({
+      ok: true,
+      editedAt: new Date().toISOString(),
+      issues: [...precheck, ...result.issues.map((i) => ({ level: "warn", source: "estimator", detail: i }))],
+      computedAt: result.computedAt,
+      sample: result.sample,
+      mode: result.mode,
+      pricing: recorded.pricing,
+      quotation: saved,
+    });
+  });
+
+  /**
+   * Turn an engine answer into the quotation's recorded price.
+   *
+   * Shared by the first price and by every staff edit, because "what this quotation costs" has to
+   * be decided in one place: recording it is what makes the per-guest cards, the Ops Sheet and the
+   * agent comparison survive a reload, and what stops a quotation from meaning two different things
+   * depending on which staff member has it open.
+   *
+   * It returns the two fields to write rather than writing them, because an edit has to be ONE
+   * save: writing the price here and the edited trip afterwards would take the old `estimator`
+   * record from the copy the route read, and silently put back the scenario id the engine just
+   * handed over.
+   *
+   * `status`/`confirmedAt`/`aiConfirmedReply` are deliberately absent. Dropping an approval belongs
+   * to the caller that invalidated the trip, not to the act of pricing — a re-price of the same trip
+   * (the `/sync-estimate` button) must not silently un-approve a quotation a person already read.
+   */
+  function estimateToRecord(
+    existing: HonoQuotationDraft,
+    result: Extract<Awaited<ReturnType<typeof estimator.sendEstimate>>, { ok: true }>,
+  ): Pick<HonoQuotationDraft, "pricing" | "estimator"> {
+    return {
+      pricing: normalizePricing({
+        model: result.model,
+        retailModel: result.retailModel,
+        source: estimator.kind,
+        sample: result.sample,
+        mode: result.mode,
+        role: result.role,
+        computedAt: result.computedAt,
+      }),
+      estimator: {
+        id: result.id ?? existing.estimator?.id ?? null,
+        cookie: result.sessionCookie ?? existing.estimator?.cookie ?? null,
+        // Never reset by a re-price: a committed seq is what their `submit` will be addressed to,
+        // and their link always resolves to the newest saved revision (Q-005).
+        seq: existing.estimator?.seq ?? null,
+        guestUrl: existing.estimator?.guestUrl ?? null,
+        sharedAt: existing.estimator?.sharedAt ?? null,
+      },
+    };
+  }
 
   /**
    * Publish the quotation: freeze it as a revision on the customer's app and mint the guest link.

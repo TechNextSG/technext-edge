@@ -137,7 +137,6 @@ export function createEstimatorClient(options: EstimatorClientOptions = {}) {
   const timeoutMs = options.timeoutMs ?? DEFAULT_TIMEOUT_MS;
 
   let cachedMode: { mode: "fixture" | "odoo"; at: number } | null = null;
-
   async function probeMode(baseUrl: string): Promise<"fixture" | "odoo" | null> {
     if (cachedMode && Date.now() - cachedMode.at < MODE_CACHE_MS) return cachedMode.mode;
     try {
@@ -203,6 +202,23 @@ export function createEstimatorClient(options: EstimatorClientOptions = {}) {
       };
     }
 
+    return interpretEstimate(res, baseUrl, session);
+  }
+
+  /**
+   * The body of an estimate call, read the same way for both verbs.
+   *
+   * Their `PATCH /api/estimates/:id` answers the same shape as their `POST`
+   * (`{id, role, model, retail_model, issues, computedAt, sample}`), and the studio must not care
+   * which verb produced a price. Reading it in one place is what stops the two from drifting into
+   * "an edited trip shows a cost but no per-guest cards", which is the kind of difference nobody
+   * notices until a demo.
+   */
+  async function interpretEstimate(
+    res: Response,
+    baseUrl: string,
+    session?: EstimatorSession,
+  ): Promise<EstimateSendResult> {
     const text = await res.text();
     let parsed: Record<string, unknown> = {};
     try {
@@ -245,6 +261,61 @@ export function createEstimatorClient(options: EstimatorClientOptions = {}) {
       detail,
       fields,
     };
+  }
+
+  /**
+   * Re-price an edited trip on the scenario it already belongs to.
+   *
+   * `save: true` because the whole point of the call is that staff corrected the trip and want the
+   * engine's answer for the corrected trip — a `save: false` preview would price it and drop it,
+   * so the next commit would freeze the OLD trip and the guest's link would disagree with the
+   * screen the approver was looking at.
+   */
+  async function updateEstimate(session: EstimatorSession, trip: BffTrip): Promise<EstimateSendResult> {
+    const baseUrl = options.baseUrl?.replace(/\/+$/, "") ?? estimatorBaseUrl();
+    if (!baseUrl) {
+      return {
+        ok: false,
+        reason: "not_configured",
+        status: null,
+        detail: "ESTIMATOR_BASE_URL is not set",
+        fields: [],
+      };
+    }
+    if (!session.id) {
+      return {
+        ok: false,
+        reason: "no_validated_trip",
+        status: null,
+        detail: "this quotation has no scenario to edit — price it first",
+        fields: [],
+      };
+    }
+
+    let res: Response;
+    try {
+      res = await doFetch(`${baseUrl}${ESTIMATE_PATH}/${encodeURIComponent(session.id)}`, {
+        method: "PATCH",
+        headers: sessionHeaders(session),
+        body: JSON.stringify({ trip, save: true }),
+        signal: AbortSignal.timeout(timeoutMs),
+      });
+    } catch (err) {
+      const aborted = err instanceof Error && (err.name === "TimeoutError" || err.name === "AbortError");
+      return {
+        ok: false,
+        reason: aborted ? "timeout" : "unreachable",
+        status: null,
+        detail: aborted
+          ? `estimator BFF did not answer within ${timeoutMs}ms`
+          : err instanceof Error
+            ? err.message
+            : String(err),
+        fields: [],
+      };
+    }
+
+    return interpretEstimate(res, baseUrl, session);
   }
 
   /**
@@ -428,13 +499,13 @@ export function createEstimatorClient(options: EstimatorClientOptions = {}) {
     return { ok: false, reason: "rejected", detail };
   }
 
-  // Still deliberately absent: their commit/share sequence, which mints their own `/quote/<token>`
-  // guest link. Our guest link is `/q/:slug`, minted by our own draft store, so wiring theirs would
-  // mean two guest links for one enquiry. `submit` above is the one part of that group the booking
-  // flow genuinely needs; revisit commit/share only if the guest-facing link becomes theirs.
+  // Still deliberately absent: our own `/q/:slug` guest page was removed in favour of the
+  // customer's `/quote/<token>`, so `commit`/`share` above ARE the guest-link path now. What
+  // remains unwired is only their `/revisions` reads, which nothing here needs.
   return {
     kind: "remote" as const,
     sendEstimate,
+    updateEstimate,
     commit,
     share,
     submit,

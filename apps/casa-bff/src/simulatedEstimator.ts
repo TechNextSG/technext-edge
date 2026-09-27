@@ -545,5 +545,16 @@ export function createSimulatedEstimator(options: SimulatedEstimatorOptions = {}
     return { reachable: true, mode: "fixture" };
   }
 
-  return { kind: "simulated", sendEstimate, commit, share, submit, checkHealth };
+  return {
+    kind: "simulated",
+    sendEstimate,
+    // A simulation has no scenario to keep, so an edit is just another compute. Present anyway,
+    // because the studio's edit path has to be exercisable in the mode the demo actually runs in —
+    // a port method the default mode does not implement is a method nobody has tested.
+    updateEstimate: (session: EstimatorSession, trip: BffTrip) => sendEstimate(trip, session),
+    commit,
+    share,
+    submit,
+    checkHealth,
+  };
 }
