@@ -47,6 +47,71 @@ export function isDemoRole(value: unknown): value is DemoRole {
 }
 
 /**
+ * The key a person types to reach the studio.
+ *
+ * Deliberately NOT `WHATSAPP_VERIFY_TOKEN`, which is what it used to be. That one string was doing
+ * two unrelated jobs: answering Meta's webhook handshake, and signing staff in. So rotating it for
+ * either reason broke the other, and — the part that actually bit — the staff key had to be a
+ * string Meta already knew, which meant it lived in a Meta dashboard and in every place the webhook
+ * was configured.
+ *
+ * `STAFF_ACCESS_KEY` separates them. The fallback to `WHATSAPP_VERIFY_TOKEN` is for the deployment
+ * that is already running: without it, adding this env var would lock everyone out until it was
+ * set, and a security change that takes the tool offline is not one anybody applies.
+ */
+export function staffAccessKey(env: NodeJS.ProcessEnv = process.env): string {
+  return env.STAFF_ACCESS_KEY || env.WHATSAPP_VERIFY_TOKEN || "";
+}
+
+export interface LoginAttemptLimiter {
+  /** Whether this address may try again, and how long to wait if not. */
+  check(ip: string): { allowed: boolean; retryAfterSeconds: number };
+  /** Record a wrong key. */
+  fail(ip: string): void;
+  /** Forget an address's failures — called on a correct key. */
+  reset(ip: string): void;
+}
+
+/**
+ * A brake on guessing the staff key.
+ *
+ * Per-instance, in memory, and deliberately so: Vercel runs concurrent requests in separate
+ * instances, so this cannot bound an attacker who lands on ten of them. What it does bound is the
+ * case that matters for a demo — one address trying keys in a loop — and it does it without adding
+ * a Redis round trip to every sign-in. Their own repo documents the same trade-off for the same
+ * endpoint (`bff/src/auth/rate-limit.ts`, D-021), and upgrading this to a shared counter is a
+ * follow-up rather than something to fake here.
+ */
+export function createLoginAttemptLimiter(
+  options: { limit?: number; windowMs?: number; now?: () => number } = {},
+): LoginAttemptLimiter {
+  const limit = options.limit ?? 5;
+  const windowMs = options.windowMs ?? 15 * 60 * 1000;
+  const now = options.now ?? (() => Date.now());
+  const failures = new Map<string, number[]>();
+
+  function live(ip: string): number[] {
+    const cutoff = now() - windowMs;
+    return (failures.get(ip) ?? []).filter((at) => at > cutoff);
+  }
+
+  return {
+    check(ip) {
+      const recent = live(ip);
+      if (recent.length < limit) return { allowed: true, retryAfterSeconds: 0 };
+      const oldest = recent[0] ?? now();
+      return { allowed: false, retryAfterSeconds: Math.max(1, Math.ceil((oldest + windowMs - now()) / 1000)) };
+    },
+    fail(ip) {
+      failures.set(ip, [...live(ip), now()]);
+    },
+    reset(ip) {
+      failures.delete(ip);
+    },
+  };
+}
+
+/**
  * The demo's signing key. Prefers a real `GAIS_API_KEY` if one is ever configured, so pointing
  * the demo at the real gateway is a config change rather than a code change.
  */
@@ -148,48 +213,80 @@ export function renderLoginHtml(error = false, nextPath = "/quotes"): string {
       flex-direction: column;
       align-items: center;
       justify-content: center;
-      padding: 20px;
+      padding: 24px 20px;
       transition: background 0.2s, color 0.2s;
+      position: relative;
     }
     .theme-bar {
-      margin-bottom: 16px;
+      position: fixed;
+      top: 20px;
+      right: 24px;
+      z-index: 50;
     }
     .theme-btn {
       background: var(--card);
       color: var(--text);
       border: 2px solid var(--border);
       border-radius: 999px;
-      padding: 10px 18px;
-      font-size: 15px;
+      padding: 8px 16px;
+      font-size: 14px;
       font-weight: 700;
       cursor: pointer;
-      box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+      box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+      transition: border-color 0.15s;
     }
+    .theme-btn:hover { border-color: var(--primary); }
     .card {
       background: var(--card);
       border: 2px solid var(--border);
-      border-radius: 18px;
-      padding: 36px 32px;
+      border-radius: 20px;
+      padding: 40px 36px;
       width: 100%;
-      max-width: 420px;
+      max-width: 440px;
       box-shadow: 0 16px 40px rgba(15, 23, 42, 0.08);
     }
-    h1 { font-size: 24px; font-weight: 800; margin: 0 0 6px; }
-    p.sub { color: var(--muted); font-size: 16px; margin: 0 0 24px; font-weight: 500; }
+    .brand-kicker {
+      font-size: 12px;
+      font-weight: 800;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--primary);
+      margin-bottom: 8px;
+    }
+    h1 { font-size: 26px; font-weight: 800; margin: 0 0 6px; }
+    p.sub { color: var(--muted); font-size: 15px; margin: 0 0 26px; font-weight: 500; }
     label { display: block; font-size: 14px; font-weight: 700; color: var(--text); margin-bottom: 8px; }
-    input, select {
+    .password-wrapper {
+      position: relative;
+      margin-bottom: 24px;
+    }
+    input {
       width: 100%;
       box-sizing: border-box;
       background: var(--input-bg);
       border: 2px solid var(--border);
       color: var(--text);
-      padding: 13px 14px;
+      padding: 13px 48px 13px 14px;
       border-radius: 10px;
       font-size: 16px;
       font-weight: 600;
-      margin-bottom: 20px;
     }
-    input:focus, select:focus { outline: none; border-color: var(--primary); }
+    input:focus { outline: none; border-color: var(--primary); }
+    .pwd-toggle {
+      position: absolute;
+      right: 12px;
+      top: 50%;
+      transform: translateY(-50%);
+      background: none;
+      border: none;
+      color: var(--muted);
+      font-size: 13px;
+      font-weight: 700;
+      cursor: pointer;
+      padding: 4px 6px;
+      border-radius: 6px;
+    }
+    .pwd-toggle:hover { color: var(--text); }
     button[type="submit"] {
       width: 100%;
       background: var(--primary);
@@ -197,28 +294,27 @@ export function renderLoginHtml(error = false, nextPath = "/quotes"): string {
       border: none;
       padding: 15px;
       border-radius: 12px;
-      font-size: 17px;
+      font-size: 16px;
       font-weight: 800;
       cursor: pointer;
+      transition: filter 0.15s;
     }
+    button[type="submit"]:hover { filter: brightness(1.08); }
     .err {
       background: rgba(244, 63, 94, 0.12);
       border: 2px solid #f43f5e;
       color: #e11d48;
       padding: 12px 14px;
       border-radius: 10px;
-      font-size: 15px;
+      font-size: 14.5px;
       font-weight: 700;
-      margin: 0 0 18px;
+      margin: 0 0 20px;
     }
-    .banner {
+    .footer-note {
       font-size: 13px;
-      color: var(--banner-text);
-      background: var(--banner-bg);
-      border: 1px solid var(--banner-border);
-      border-radius: 10px;
-      padding: 12px 14px;
-      margin-top: 22px;
+      color: var(--muted);
+      text-align: center;
+      margin-top: 26px;
       line-height: 1.5;
     }
   </style>
@@ -229,15 +325,21 @@ export function renderLoginHtml(error = false, nextPath = "/quotes"): string {
   </div>
   <form class="card" method="post" action="/login">
     <input type="hidden" name="next" value="${safeNext.replace(/"/g, "&quot;")}" />
+    <input type="hidden" name="role" value="staff" />
+    <div class="brand-kicker">CASA ESCONDIDA RESORT &amp; DIVE CENTER</div>
     <h1>Quotation Studio</h1>
-    <p class="sub">Casa Escondida — Staff Review Access</p>
-    ${error ? `<p class="err">Incorrect access password. Please try again.</p>` : ""}
-    <label for="role">1. Choose View Mode</label>
-    <select id="role" name="role">${options}</select>
-    <label for="password">2. Staff Access Key (Verify Token)</label>
-    <input id="password" name="password" type="password" placeholder="Paste your Staff Access Key here..." autocomplete="current-password" autofocus />
+    <p class="sub">Staff sign-in to review &amp; finalize guest reservations</p>
+    ${error ? `<p class="err">Incorrect password. Please verify and try again.</p>` : ""}
+    <label for="password">Staff Access Key / Password</label>
+    <div class="password-wrapper">
+      <input id="password" name="password" type="password" placeholder="Enter staff access key or password..." autocomplete="current-password" autofocus />
+      <button type="button" class="pwd-toggle" id="pwd-toggle-btn" onclick="togglePasswordVisibility()">Show</button>
+    </div>
     <button type="submit">Sign In to Quotation Studio</button>
-    <div class="banner">${DEMO_GAIS_BANNER}</div>
+    <div class="footer-note">
+      Casa Escondida Anilao · Reservation Management System<br />
+      <span style="font-size:12px;opacity:0.8;">Authorized personnel and resort staff only</span>
+    </div>
   </form>
   <script>
     (function initTheme() {
@@ -254,6 +356,18 @@ export function renderLoginHtml(error = false, nextPath = "/quotes"): string {
     function updateThemeBtn(theme) {
       const btn = document.getElementById('theme-toggle-btn');
       if (btn) btn.textContent = theme === 'dark' ? 'Switch to Light Mode' : 'Switch to Dark Mode';
+    }
+    function togglePasswordVisibility() {
+      const input = document.getElementById('password');
+      const btn = document.getElementById('pwd-toggle-btn');
+      if (!input || !btn) return;
+      if (input.type === 'password') {
+        input.type = 'text';
+        btn.textContent = 'Hide';
+      } else {
+        input.type = 'password';
+        btn.textContent = 'Show';
+      }
     }
   </script>
 </body>

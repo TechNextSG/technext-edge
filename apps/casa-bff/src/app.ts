@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { Hono, type Context } from "hono";
-import { getCookie, setCookie } from "hono/cookie";
+import { deleteCookie, getCookie, setCookie } from "hono/cookie";
+import { secureHeaders } from "hono/secure-headers";
 import { z } from "zod";
 // Relative import, not the "@technext-edge/extractor" package name: Vercel's
 // Node function bundler traces local files reliably but failed to resolve the
@@ -72,7 +73,10 @@ import { renderHandoffPageHtml } from "./handoffPage.js";
 import { renderOpsSheetHtml } from "./opsPage.js";
 import {
   DEMO_SESSION_COOKIE,
+  createLoginAttemptLimiter,
   isDemoRole,
+  staffAccessKey,
+  type LoginAttemptLimiter,
   issueSession,
   renderLoginHtml,
   verifySession,
@@ -241,6 +245,8 @@ const RESET_REPLY: Record<GuestLanguage, string> = {
  * rung by Meta and has no caller to take one from.
  */
 export interface AppOptions {
+  /** Injectable so a test can drive the sign-in brake without waiting out its window. */
+  loginLimiter?: LoginAttemptLimiter;
   provider?: ExtractProvider;
   store?: ConversationStore;
   sendWhatsApp?: WhatsAppSendText;
@@ -912,9 +918,25 @@ export function createApp(options: AppOptions = {}) {
   }
 
   // ---- Demo GAIS sign-in ---------------------------------------------------
-  // A stand-in for the `Authorization: Bearer <GAIS_API_KEY>` of the edge spec §3.3. One
-  // password (the verify token we already have) plus a demo role; no accounts, no Odoo. See
-  // demoAuth.ts for why this exists and what it must not grow into.
+  // A stand-in for the `Authorization: Bearer <GAIS_API_KEY>` of the edge spec §3.3. One key plus a
+  // demo role; no accounts, no Odoo. See demoAuth.ts for why this exists and what it must not grow
+  // into.
+  //
+  // Security headers on every HTML page: the studio and the handoff inbox print a guest's own words
+  // (escaped, but escaping is one mistake away from not being), so the browser is told not to frame
+  // these pages, not to sniff a type, and not to leak the URL onward. `secureHeaders` is Hono's own
+  // middleware rather than a hand-rolled list — one place to read, one place to extend.
+  app.use("*", secureHeaders({
+    xFrameOptions: "DENY",
+    xContentTypeOptions: "nosniff",
+    referrerPolicy: "same-origin",
+    // The demo pages load fonts from Google and nothing else; the initial CSP would need tuning for
+    // the inline scripts the studio ships, so it is left to the deployment rather than guessed here.
+    contentSecurityPolicy: undefined,
+  }));
+
+  const loginLimiter = options.loginLimiter ?? createLoginAttemptLimiter();
+
   app.get("/login", (c) => c.html(renderLoginHtml(false, c.req.query("next") || "/quotes")));
 
   app.post("/login", async (c) => {
@@ -922,11 +944,35 @@ export function createApp(options: AppOptions = {}) {
     const password = typeof body.password === "string" ? body.password : "";
     const rawNext = typeof body.next === "string" ? body.next : "";
     const nextPath = SAFE_NEXT_PREFIXES.some((prefix) => rawNext.startsWith(prefix)) ? rawNext : "/quotes";
-    if (!sameSecret(password, whatsAppConfig().verifyToken)) {
+
+    // Checked before the comparison, so a brute force is answered the same way however the key is
+    // guessed. The address is the one the platform forwards; without a proxy header there is no
+    // useful key and the limiter simply does nothing rather than lumping every caller together.
+    const ip = c.req.header("x-forwarded-for")?.split(",")[0]?.trim() || c.req.header("x-real-ip") || "";
+    if (ip) {
+      const verdict = loginLimiter.check(ip);
+      if (!verdict.allowed) {
+        return c.html(renderLoginHtml(true, nextPath), 429, {
+          "retry-after": String(verdict.retryAfterSeconds),
+        });
+      }
+    }
+
+    if (!sameSecret(password, staffAccessKey())) {
+      if (ip) loginLimiter.fail(ip);
       return c.html(renderLoginHtml(true, nextPath), 401);
     }
+    if (ip) loginLimiter.reset(ip);
     setDemoSession(c, isDemoRole(body.role) ? body.role : "staff");
     return c.redirect(nextPath);
+  });
+
+  // Signing out clears the cookie. There is no server-side session to revoke — the demo session is
+  // a signed cookie and nothing else — so this is the whole of it, and saying so here is cheaper
+  // than someone later assuming a revocation that does not exist.
+  app.post("/logout", (c) => {
+    deleteCookie(c, DEMO_SESSION_COOKIE, { path: "/" });
+    return c.redirect("/login");
   });
 
   // Only a signed-in viewer may change their own demo role — otherwise this endpoint would mint
@@ -976,6 +1022,90 @@ export function createApp(options: AppOptions = {}) {
 
     // Not published yet. 410 rather than 404: the record is real, and "there is nothing to show
     // here yet" is the truthful answer to someone who guessed or kept the link.
+    if (c.req.header("accept")?.includes("text/html")) {
+      return c.html(
+        `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Quotation In Preparation — Casa Escondida Anilao</title>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    body {
+      font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+      background: #f8fafc;
+      color: #0f172a;
+      margin: 0;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 24px 20px;
+    }
+    .card {
+      background: #ffffff;
+      border: 2px solid #cbd5e1;
+      border-radius: 20px;
+      padding: 44px 36px;
+      max-width: 520px;
+      width: 100%;
+      box-shadow: 0 16px 40px rgba(15, 23, 42, 0.06);
+      text-align: center;
+    }
+    .kicker {
+      font-size: 12px;
+      font-weight: 800;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: #0284c7;
+      margin-bottom: 12px;
+    }
+    h1 {
+      font-size: 24px;
+      font-weight: 800;
+      margin: 0 0 14px;
+      color: #0f172a;
+    }
+    p {
+      font-size: 15.5px;
+      line-height: 1.65;
+      color: #475569;
+      margin: 0 0 20px;
+    }
+    .box {
+      background: #f1f5f9;
+      border: 1px solid #cbd5e1;
+      border-radius: 12px;
+      padding: 16px 18px;
+      font-size: 14px;
+      color: #334155;
+      margin-bottom: 24px;
+      line-height: 1.6;
+    }
+    .footer {
+      font-size: 13px;
+      color: #94a3b8;
+    }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <div class="kicker">CASA ESCONDIDA RESORT &amp; DIVE CENTER</div>
+    <h1>Your Quotation Is Being Prepared</h1>
+    <p>Our reservations team is currently reviewing your trip details and checking resort availability to ensure the most accurate rates.</p>
+    <div class="box">
+      <strong>What happens next?</strong><br />
+      You do not need to take any action. Once reviewed and confirmed by our team, your official quotation link will be sent directly to your WhatsApp.
+    </div>
+    <div class="footer">Anilao, Batangas, Philippines · Thank you for your patience</div>
+  </div>
+</body>
+</html>`,
+        410,
+      );
+    }
+
     return c.json(
       {
         error: "not_published",

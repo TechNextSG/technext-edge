@@ -660,6 +660,7 @@ export function renderHonoQuotationEditorHtml(
       <h1>Casa Escondida — Quotation Review #${draft.quoteId}</h1>
     </div>
     <div class="top-actions">
+      <form method="post" action="/logout" style="display:inline;"><button type="submit" class="theme-btn">Sign out</button></form>
       <button type="button" class="theme-btn" id="theme-toggle-btn" onclick="toggleTheme()">
         <span id="theme-icon">🌙</span>
         <span id="theme-label">Dark Mode</span>

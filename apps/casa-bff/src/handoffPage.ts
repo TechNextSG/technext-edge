@@ -134,6 +134,7 @@ export function renderHandoffPageHtml(paused: PausedThread[], role: DemoRole = "
   <div class="bar">
     <span class="pill">${paused.length} waiting</span>
     <a class="back" href="/quotes">← Quotation studio</a>
+    <form method="post" action="/logout" style="display:inline;"><button type="submit">Sign out</button></form>
     <button type="button" class="theme-btn" id="theme-toggle-btn" onclick="toggleTheme()">Dark Mode</button>
   </div>
   ${
