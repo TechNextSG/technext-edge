@@ -1,0 +1,86 @@
+{
+  "schema_version": 1,
+  "diagram_type": "sequence",
+  "meta": {
+    "title": "Casa Escondida — Inbound WhatsApp Message & Quotation Flow (End-to-End)",
+    "locale": "en",
+    "output": "docs/diagrams/casa-inbound-message-flow.html",
+    "viewBox": [1080, 517],
+    "column_fit": "spread",
+    "quality_profile": "showcase",
+    "views": [
+      {
+        "id": "inbound-and-extract",
+        "label": "1. Inbound gate, lock & extraction",
+        "focus": ["guest_wa", "casa_bff", "upstash_kv", "extractor_ai"],
+        "note": "Signature check, WAMID claim, per-phone lock, then converse() extraction."
+      },
+      {
+        "id": "reply-and-persist",
+        "label": "2. Reply, KV persistence & guest link",
+        "focus": ["casa_bff", "extractor_ai", "upstash_kv", "guest_wa"],
+        "note": "Synthesis, the quotation draft written to KV, and the link sent to the guest."
+      },
+      {
+        "id": "guest-page-and-studio",
+        "label": "3. Guest page & staff studio",
+        "focus": ["guest_wa", "staff", "casa_bff", "estimator_bff"],
+        "note": "The guest opens the link; staff sign in before pricing with the Estimator BFF."
+      }
+    ]
+  },
+  "participants": [
+    { "id": "guest_wa", "type": "frontend", "label": "WhatsApp Guest", "sublabel": "Meta Cloud API" },
+    { "id": "staff", "type": "frontend", "label": "Staff Browser", "sublabel": "/login → /quotes" },
+    { "id": "casa_bff", "type": "backend", "label": "Casa BFF", "sublabel": "app.ts" },
+    { "id": "upstash_kv", "type": "database", "label": "Upstash Redis", "sublabel": "Lock · History · KV" },
+    { "id": "extractor_ai", "type": "cloud", "label": "Extractor AI", "sublabel": "extract · counts" },
+    { "id": "estimator_bff", "type": "external", "label": "Estimator BFF", "sublabel": "fixture mode → Odoo" }
+  ],
+  "messages": [
+    { "id": "m1_inbound", "from": "guest_wa", "to": "casa_bff", "y": 160, "label": "1. POST /v1/channels/whatsapp/webhook", "variant": "emphasis" },
+    { "id": "m2_claim_lock", "from": "casa_bff", "to": "upstash_kv", "y": 190, "label": "2. claimMessage + withPhoneLock", "variant": "security" },
+    { "id": "m3_history_ret", "from": "upstash_kv", "to": "casa_bff", "y": 220, "label": "3. history(phone) — 24h TTL, 20 turns", "variant": "return" },
+    { "id": "m4_extract", "from": "casa_bff", "to": "extractor_ai", "y": 250, "label": "4. converse() → extract() + corroborateCount()", "variant": "emphasis" },
+    { "id": "m5_synthesis", "from": "extractor_ai", "to": "casa_bff", "y": 280, "label": "5. done=true → synthesizeHospitalityReply() + buildHonoQuotationDraft()", "variant": "return" },
+    { "id": "m6_save_kv", "from": "casa_bff", "to": "upstash_kv", "y": 310, "label": "6. saveQuotationDraft() — survives redeploys", "variant": "emphasis" },
+    { "id": "m7_send_wa", "from": "casa_bff", "to": "guest_wa", "y": 340, "label": "7. Reply: summary + link /q/<slug>", "variant": "return" },
+    { "id": "m8_open_quote", "from": "guest_wa", "to": "casa_bff", "y": 370, "label": "8. Guest opens GET /q/:slug → 200 (no credential)", "variant": "dashed" },
+    { "id": "m9_staff_login", "from": "staff", "to": "casa_bff", "y": 400, "label": "9. POST /login (demo GAIS) → session cookie", "variant": "dashed" },
+    { "id": "m10_estimator", "from": "casa_bff", "to": "estimator_bff", "y": 430, "label": "10. Staff: Price with Estimator BFF → POST /api/estimates (fixture mode)", "variant": "dashed" }
+  ],
+  "activations": [
+    { "participant": "casa_bff", "from": 152, "to": 436, "type": "backend" },
+    { "participant": "upstash_kv", "from": 184, "to": 316, "type": "database" },
+    { "participant": "extractor_ai", "from": 244, "to": 286, "type": "cloud" }
+  ],
+  "cards": [
+    {
+      "dot": "cyan",
+      "title": "Inbound: gate, lock & extraction",
+      "items": [
+        "Signature verified, WAMID claimed, phone locked",
+        "Upstash thread: 24h TTL, up to 20 turns",
+        "converse() → extract() + corroborateCount()"
+      ]
+    },
+    {
+      "dot": "emerald",
+      "title": "Reply, persistence & guest link",
+      "items": [
+        "done=true → synthesizeHospitalityReply()",
+        "buildHonoQuotationDraft() → saveQuotationDraft() in KV",
+        "Guest gets the summary plus the /q/<slug> link"
+      ]
+    },
+    {
+      "dot": "amber",
+      "title": "Guest page & staff studio (today)",
+      "items": [
+        "GET /q/:slug: no credential, the slug is it",
+        "Staff sign in at /login before /quotes",
+        "Estimator BFF is fixture mode, not live Odoo"
+      ]
+    }
+  ]
+}
