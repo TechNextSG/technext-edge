@@ -562,7 +562,11 @@ describe("Phase 1 Hybrid AI Guardrails: NEVER RE-ASK, Fact Gate & Staff Alerts",
     expect(outcome.done).toBe(true);
     expect(outcome.replyKind).toBe("summary");
     expect(outcome.reply).toContain("1 person dives day 1, 5 people dive both days");
-    expect(outcome.reply).toContain("📋 Custom Dive Schedule:");
+    // Wording for the GUEST, not for us. It used to say the arrangement was "routed to staff for
+    // manual per-day quote calculation" — our workflow, in our vocabulary, told to the customer.
+    expect(outcome.reply).toContain("our team will confirm the day-by-day details with you");
+    expect(outcome.reply).not.toContain("routed to staff");
+    expect(outcome.reply).not.toContain("per-day quote calculation");
   });
 
   it("Post-Generation Fact Gate: rejects LLM replies that invent prices or contradict verified counts", async () => {
@@ -627,7 +631,7 @@ describe("Phase 1 Hybrid AI Guardrails: NEVER RE-ASK, Fact Gate & Staff Alerts",
     expect(safeReply).toBe("SAFE_DETERMINISTIC_FALLBACK");
   });
 
-  it("Staff Alerts: flags travel agency / partner enquiries for 30% discount confirmation", () => {
+  it("Staff Alerts: tells a partner enquiry that a person confirms the rate, without naming one", () => {
     const agentTrip: Trip = {
       ...(BLANK_RAW as unknown as Trip),
       language: { value: "en", state: "inferred", evidence: null },
@@ -635,7 +639,13 @@ describe("Phase 1 Hybrid AI Guardrails: NEVER RE-ASK, Fact Gate & Staff Alerts",
     };
     const alerts = getStaffAlerts(agentTrip, "en");
     expect(alerts).toHaveLength(1);
-    expect(alerts[0]).toContain("30% agency discount");
+    expect(alerts[0]).toContain("partner rates");
+    // These lines are appended to the GUEST's own message, and the old wording promised
+    // "applicable partner discount rates (e.g. 30% agency discount)" — a discount this pipeline
+    // never applies, because the bot always quotes retail. A percentage here is a number the
+    // guest would look for on a quotation that cannot show it.
+    expect(alerts[0]).not.toContain("30%");
+    expect(alerts[0]).not.toContain("e.g.");
   });
 
   it("Staff Alerts: flags more rooms than overnight guests as a confirm note, not a question", () => {

@@ -730,26 +730,31 @@ export function getStaffAlerts(trip: Trip, lang?: GuestLanguage): string[] {
 
   if (guestType === "agent" || guestType === "instructor") {
     const typeLabel = ENUM_LABELS[guestType]?.[l] ?? guestType;
+    // Guest-facing, and it deliberately names no figure. The previous wording promised "applicable
+    // partner discount rates (e.g. 30% agency discount)" — a discount this pipeline never applies,
+    // because the bot always quotes retail. So the guest was told to expect money off and the
+    // quotation would not show it. Naming a percentage here promises a number we cannot stand
+    // behind; a person confirms the rate, on the quote.
     if (l === "zh") {
-      alerts.push(
-        `📋 合作伙伴/代理价格：已记录为${typeLabel}咨询——我们的团队将在报价单中直接确认适用合作折扣（如 30% 代理折扣）。`,
-      );
+      alerts.push(`📋 已记录为${typeLabel}咨询——合作价将由我们的团队在报价单上直接确认。`);
     } else {
       alerts.push(
-        `📋 Partner / Agency Rate: Noted as ${typeLabel} enquiry — our team will confirm applicable partner discount rates (e.g. 30% agency discount) directly on your quote.`,
+        `📋 Noted as a ${typeLabel} enquiry — our team will confirm your partner rates directly on the quotation.`,
       );
     }
   }
 
   const diveNotes = notedValue<string>(trip, "diveNotes");
   if (diveNotes && trip.divers?.state === "missing") {
+    // Guest-facing. The previous wording — "routed to staff for manual per-day quote calculation"
+    // — described our own workflow to the customer, in our own vocabulary ("split-day", "per-day
+    // quote calculation"). The guest said something simple and should hear it acknowledged simply;
+    // the fact that a person computes it is staff's business, not theirs.
     if (l === "zh") {
-      alerts.push(
-        `📋 定制潜水日程：已将具体安排（${diveNotes}）转交工作人员按天核算准确报价。`,
-      );
+      alerts.push(`📋 我们已记录您的潜水安排（${diveNotes}），团队会与您确认每天的细节。`);
     } else {
       alerts.push(
-        `📋 Custom Dive Schedule: Split-day diving arrangement (${diveNotes}) routed to staff for manual per-day quote calculation.`,
+        `📋 We've noted your diving plan (${diveNotes}) — our team will confirm the day-by-day details with you.`,
       );
     }
   }

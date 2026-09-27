@@ -48,6 +48,7 @@ function toTranscript(turns: ConversationTurn[]): string {
 export async function converse(
   input: ConversationTurn[] | ConversationInput,
   provider: ExtractProvider,
+  options: { synthesisBudgetMs?: number } = {},
 ): Promise<ConverseOutcome> {
   const turns = Array.isArray(input) ? input : [...(input.history ?? []), { role: "guest" as const, text: input.message }];
   const transcript = toTranscript(turns);
@@ -67,6 +68,9 @@ export async function converse(
       questions: outcome.questions,
       replyKind: kind,
       fallbackText,
+      // Passed through from the caller, which is the only layer that knows how much of the channel's
+      // turn deadline is left. The synthesis call is the last one in the turn.
+      ...(options.synthesisBudgetMs !== undefined ? { budgetMs: options.synthesisBudgetMs } : {}),
     },
     provider,
   );

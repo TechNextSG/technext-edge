@@ -463,6 +463,9 @@ export function createApp(options: AppOptions = {}) {
 
     for (const [phone, batch] of byPhone) {
       await store.withPhoneLock(phone, async () => {
+        // When this turn began, so the synthesis call can be given whatever is left of the deadline
+        // rather than a fixed budget that might not fit inside it.
+        const turnStartedAt = Date.now();
         const combinedText = batch.map((b) => b.message.text).join("\n");
         const batchIds = batch.map((b) => b.message.id);
         const batchTokens = batch.map((b) => b.fenceToken);
@@ -547,7 +550,14 @@ export function createApp(options: AppOptions = {}) {
             }
 
             // The same call the test console makes: full history in, one reply out.
-            const outcome = await converse(history, model);
+            //
+            // The synthesis budget is what is LEFT of this turn's deadline, minus a second for the
+            // send itself. The synthesis call is the last of five to seven in a turn, so it is the
+            // one that decides whether the reply arrives at all; without this it could run to the
+            // provider's own timeout, which is longer than the whole turn is allowed to be.
+            const elapsedMs = Date.now() - turnStartedAt;
+            const synthesisBudgetMs = Math.max(1_500, config.turnTimeoutMs - elapsedMs - 1_000);
+            const outcome = await converse(history, model, { synthesisBudgetMs });
             // Abandoned while the provider was still thinking: Meta already has its
             // answer for this wamid, so stop here rather than appending and sending
             // behind the redelivery's back. This is what keeps "one guest message,

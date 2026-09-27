@@ -10,7 +10,19 @@ export interface SynthesisInput {
   questions: GuestQuestion[];
   replyKind: ReplyKind;
   fallbackText: string;
+  /**
+   * How long the model may take before this falls back to the deterministic reply.
+   *
+   * The synthesis call is the LAST of five to seven in a turn, and it is the one that cannot start
+   * until the facts are settled — so it is the call that decides whether a turn fits inside Meta's
+   * deadline. Without a budget it could run to the provider's own timeout, which is longer than the
+   * whole turn is allowed to be.
+   */
+  budgetMs?: number;
 }
+
+/** The default budget when the caller does not know its own deadline. */
+const DEFAULT_SYNTHESIS_BUDGET_MS = 4_000;
 
 /**
  * The single "Diving:" line in the verified-facts prompt.
@@ -37,7 +49,10 @@ export interface FactGateResult {
     | "unauthorized_price_quote"
     | "false_booking_confirmation"
     | "mismatched_nights_count"
-    | "mismatched_rooms_count";
+    | "mismatched_rooms_count"
+    | "mismatched_guests_count"
+    | "mismatched_divers_count"
+    | "fabricated_date";
 }
 
 // VND is a real currency code and stays in the gate even though Vietnamese replies were
@@ -46,8 +61,49 @@ export interface FactGateResult {
 const PRICE_QUOTE_RE =
   /(?:\$\s*\d|₱\s*\d|\b(?:PHP|USD|VND|EUR)\s*\d|\d[\d,.]*\s*(?:PHP|USD|VND|pesos?|dollars?)\b)/i;
 
-const FALSE_CONFIRMATION_RE =
-  /\b(?:your booking is confirmed|reservation is confirmed|officially booked|we have booked your room|预订已确认|已为您预订成功)\b/i;
+/**
+ * Phrases that promise something the product does not do.
+ *
+ * The first group is the outright false confirmation: the bot cannot confirm a booking, and only
+ * staff can. The second is subtler and was found by reading replies rather than by a failing test —
+ * a model that writes "you're all set" or "we'll email you a confirmation" has made a promise the
+ * resort does not keep: their Q-015 is that this app sends no confirmation at all, and the front
+ * desk contacts the guest from the folio. Both read to a guest as done, so both roll back.
+ */
+const FALSE_CONFIRMATION_RE = new RegExp(
+  [
+    "\\b(?:your booking is confirmed|reservation is confirmed|officially booked|we have booked your room)\\b",
+    "\\b(?:you(?:'re| are)|we(?:'re| are)) all set\\b",
+    "\\breserved for you\\b",
+    "\\bbooking is (?:complete|completed|finali[sz]ed|done|set)\\b",
+    "\\b(?:we|i)(?:'ll| will) (?:send|email|whatsapp) (?:you )?(?:a |your )?(?:confirmation|confirm|booking confirmation)\\b",
+    "\\bwe(?:'ll| will) (?:hold|reserve) (?:the |your )?(?:room|rooms|booking)\\b",
+    "预订已确认|已为您预订成功|已为您预留",
+  ].join("|"),
+  "i",
+);
+
+/**
+ * A count written against its own noun, which is the only place a number means that count.
+ *
+ * `excludeDiveClause` skips a count whose noun is the subject of a diving verb. Without it, the
+ * sentence a split-day guest actually wrote — "1 person dives day 1, 5 people dive both days" —
+ * reads as two guest counts that contradict the party size, and the gate would reject the correct
+ * summary of a six-person trip. The same guard, for the same reason, is `DIVE_CLAUSE_AFTER_NOUN` in
+ * counts.ts: a diver head-count is not a guest count.
+ */
+function countsFor(text: string, nouns: string, options: { excludeDiveClause?: boolean } = {}): number[] {
+  const guard = options.excludeDiveClause
+    ? "(?!\\s+(?:will\\s+|are\\s+|is\\s+|to\\s+)?(?:dive|dives|diving)\\b)"
+    : "";
+  const pattern = new RegExp(`\\b(\\d+)\\s*(?:${nouns})\\b${guard}`, "gi");
+  return [...text.matchAll(pattern)].map((m) => Number(m[1]));
+}
+
+/** ISO dates the reply names, whatever they are attached to. */
+function isoDatesIn(text: string): string[] {
+  return [...text.matchAll(/\b(\d{4}-\d{2}-\d{2})\b/g)].map((m) => m[1]!);
+}
 
 /**
  * Deterministic Symbolic Fact Gate (Post-Generation Verifier):
@@ -74,21 +130,47 @@ export function verifySynthesizedReply(text: string, trip: Trip): FactGateResult
 
   if (trip.nights?.state === "stated" && typeof trip.nights.value === "number") {
     const expectedNights = trip.nights.value;
-    const nightMatches = [...text.matchAll(/\b(\d+)\s*(?:nights?|晚)\b/gi)];
-    for (const m of nightMatches) {
-      if (Number(m[1]) !== expectedNights) {
-        return { ok: false, reason: "mismatched_nights_count" };
-      }
+    for (const count of countsFor(text, "nights?|晚")) {
+      if (count !== expectedNights) return { ok: false, reason: "mismatched_nights_count" };
     }
   }
 
   if (trip.rooms?.state === "stated" && typeof trip.rooms.value === "number") {
     const expectedRooms = trip.rooms.value;
-    const roomMatches = [...text.matchAll(/\b(\d+)\s*(?:rooms?|间房)\b/gi)];
-    for (const m of roomMatches) {
-      if (Number(m[1]) !== expectedRooms) {
-        return { ok: false, reason: "mismatched_rooms_count" };
-      }
+    for (const count of countsFor(text, "rooms?|间房")) {
+      if (count !== expectedRooms) return { ok: false, reason: "mismatched_rooms_count" };
+    }
+  }
+
+  // The party size, which the first version of this gate did not check at all — the largest line of
+  // a quotation was the one number a model could contradict freely. Only checked when the guest
+  // STATED it: a house-norm count is not something they said, so the model restating it is not a
+  // contradiction. "people" is included because that is how a guest's own count is echoed back.
+  if (trip.guests?.state === "stated" && typeof trip.guests.value === "number") {
+    for (const count of countsFor(text, "guests?|people|pax|adults?|客人", { excludeDiveClause: true })) {
+      if (count !== trip.guests.value) return { ok: false, reason: "mismatched_guests_count" };
+    }
+  }
+
+  if (trip.divers?.state === "stated" && typeof trip.divers.value === "number") {
+    for (const count of countsFor(text, "divers?|潜水员")) {
+      if (count !== trip.divers.value) return { ok: false, reason: "mismatched_divers_count" };
+    }
+  }
+
+  // Any ISO date the reply names has to be one of the trip's own. Written this way round on
+  // purpose: the trip is a closed set of four dates, so a fifth one is fabricated by definition,
+  // and the check needs no understanding of the sentence it sits in. Deliberately ISO only — a
+  // model writing "Oct 17" is normal prose, and matching month names is how this rule would start
+  // rejecting correct replies ("14 days' notice" and similar).
+  const knownDates = new Set(
+    [trip.checkIn?.value, trip.checkOut?.value, trip.diveFrom?.value, trip.diveTo?.value].filter(
+      (d): d is string => typeof d === "string" && d !== "",
+    ),
+  );
+  if (knownDates.size > 0) {
+    for (const date of isoDatesIn(text)) {
+      if (!knownDates.has(date)) return { ok: false, reason: "fabricated_date" };
     }
   }
 
@@ -96,16 +178,26 @@ export function verifySynthesizedReply(text: string, trip: Trip): FactGateResult
 }
 
 /**
- * The suffix that marks a fact as the resort's own assumption rather than the guest's choice.
+ * The transfer line in the verified-facts prompt.
  *
- * The prompt used to print `Rooms: 1`, `Meals: full board` and `Airport transfer: no` as bare
- * facts even when those were house norms nobody had chosen. The deterministic summary marks them
- * `(assumed)`; the model was never told, so it read them back as the guest's own answers. Measured
- * on a real WhatsApp enquiry — "Hi, 4 of us next Saturday for 3 nights, my name is Ana" — all three
- * come back `state: "default"`, and the guest was told "Airport transfer: Not needed" when they had
- * never mentioned a transfer. A guest who does want the van gets no cue to say so, and the transfer
- * is a priced line.
+ * The bug this replaced: `yes (${transportType ?? "roundtrip"})` — a guest who said "we need the
+ * airport pickup" and had not said one-way or return was handed to the model as `yes (roundtrip)`,
+ * and the model duly read it back. That is a priced choice the guest never made, arriving in their
+ * own message as though they had made it. `transportType` is a money field for exactly this reason
+ * (see extract.ts: a `true` transport is deliberately left unfilled), so the prompt must say so.
  */
+function transportLine(trip: Trip): string {
+  if (trip.transport?.value !== true) {
+    return trip.transport?.value === false ? "no" : "unconfirmed";
+  }
+  const type = trip.transportType;
+  if (type?.state === "stated" && typeof type.value === "string" && type.value !== "none") {
+    return `yes (${type.value})`;
+  }
+  return "yes (one-way or return — the guest has NOT said which)";
+}
+
+/** The suffix that marks a fact as the resort's own guess rather than the guest's choice. */
 function markAssumed(field: { state?: string } | undefined): string {
   return field?.state === "default" ? " (HOUSE ASSUMPTION — the guest has not chosen this)" : "";
 }
@@ -162,13 +254,23 @@ export async function synthesizeHospitalityReply(
       (input.trip.diveNotes?.value ? `- Diving breakdown: ${input.trip.diveNotes.value}\n` : "") +
       (input.trip.specialRequests?.value ? `- Special notes: ${input.trip.specialRequests.value}\n` : "") +
       (input.trip.guestNames?.value && input.trip.guestNames.value.length > 0 ? `- Guest names in party: ${input.trip.guestNames.value.join(", ")}\n` : "") +
-      `- Airport transfer: ${input.trip.transport?.value ? `yes (${input.trip.transportType?.value ?? "roundtrip"})` : input.trip.transport?.value === false ? "no" : "unconfirmed"}${markAssumed(input.trip.transport)}\n` +
+      `- Airport transfer: ${transportLine(input.trip)}${markAssumed(input.trip.transport)}\n` +
       `- Contact name: ${input.trip.contactName?.value ?? "Guest"}\n\n` +
       `Situation: ${input.replyKind}\n` +
       (input.questions.length > 0 ? `Remaining questions to ask:\n${input.questions.map((q, i) => `${i + 1}. ${q.question}`).join("\n")}\n\n` : "") +
       `Reference summary (keep core details matching this):\n${input.fallbackText}`;
 
-    const text = await provider.generateText(systemPrompt, userPrompt);
+    // The budget is enforced here rather than left to the provider: this is the last call in the
+    // turn, so a provider that hangs would take the whole turn past Meta's deadline and the guest
+    // would get nothing at all. Losing the polish and keeping the reply is the right trade.
+    const budgetMs = input.budgetMs && input.budgetMs > 0 ? input.budgetMs : DEFAULT_SYNTHESIS_BUDGET_MS;
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const text = await Promise.race([
+      provider.generateText(systemPrompt, userPrompt),
+      new Promise<never>((_, reject) => {
+        timer = setTimeout(() => reject(new Error(`synthesis budget of ${budgetMs}ms elapsed`)), budgetMs);
+      }),
+    ]).finally(() => clearTimeout(timer));
 
     // Post-Generation Symbolic Fact Gate: verify no hallucinated prices, confirmations, or mismatched counts
     const check = verifySynthesizedReply(text, input.trip);
