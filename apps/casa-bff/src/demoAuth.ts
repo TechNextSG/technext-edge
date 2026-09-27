@@ -166,9 +166,6 @@ export function renderLoginHtml(error = false, nextPath = "/quotes"): string {
   // deep-links itself ("/login?next=%2Fhandoff") and the earlier check only knew about `/quotes`,
   // so a person sent to sign in from the inbox landed in the studio instead.
   const safeNext = SAFE_NEXT_PREFIXES.some((prefix) => nextPath.startsWith(prefix)) ? nextPath : "/quotes";
-  const options = DEMO_ROLES.map(
-    (role) => `<option value="${role}"${role === "staff" ? " selected" : ""}>${role === "staff" ? "Staff (Full Review & Pricing)" : role === "agent" ? "Partner Agency (30% Room Rate)" : "Guest (Retail View)"}</option>`,
-  ).join("");
   return `<!DOCTYPE html>
 <html lang="en" data-theme="light">
 <head>
