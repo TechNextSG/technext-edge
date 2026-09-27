@@ -400,6 +400,21 @@ const YES_NO: Record<Lang, [string, string]> = {
   zh: ["是", "否"],
 };
 
+/**
+ * Wording that says somebody in the party cannot dive the boat package yet.
+ *
+ * This is a *note for staff*, not a question and not a priced field, which is why a keyword list is
+ * acceptable here where it would not be anywhere else in this pipeline: the cost of a false
+ * positive is a line in the studio that a person reads and dismisses, and the cost of a false
+ * negative is exactly today's behaviour (nothing). It never fills a field, never blocks a handoff,
+ * and never moves a number.
+ *
+ * Only the model's own nuance fields are searched — not the raw message — so the note is about what
+ * the conversation actually recorded, in the guest's own words.
+ */
+const CERTIFICATION_HINT_RE =
+  /\b(?:(?:not|non)[-\s]?certified|uncertified|beginner|first[-\s]?time|never\s+(?:dived|dove|been\s+diving)|discover\s+scuba|dsd|learn\s+to\s+dive|try\s+(?:scuba|diving))\b|没有证书|没有潜水证|不会潜水|第一次潜水|体验潜水/iu;
+
 // A value the guest never said is flagged, so the summary cannot read as a
 // confirmation of something Casa assumed. Only house norms carry this note:
 // "derived" values are arithmetic on the guest's own answers (checkOut is checkIn
@@ -779,6 +794,29 @@ export function getStaffAlerts(trip: Trip, lang?: GuestLanguage): string[] {
     }
   }
 
+  // A diver without a certification cannot take the boat-dive package at all — they need a Discover
+  // Scuba Diving course instead, which is a different product at a different price. This pipeline
+  // cannot decide that: their rate card prices courses (`courseRates.dsd`) but models no
+  // "uncertified" state, and the course is assigned per guest by staff in the estimator's own app.
+  // So it is not a question the bot asks (it would add a handoff gate for a fact the estimator
+  // cannot price) and not something to guess either: the guest's own nuance reaches staff as a note.
+  //
+  // Read from the nuance fields rather than the raw message, because those are what the model
+  // already lifted out of the conversation and what the guest can see us acknowledging.
+  const diveNuance = [diveNotes, notedValue<string>(trip, "specialRequests")]
+    .filter((n): n is string => typeof n === "string" && n.length > 0)
+    .join(" · ");
+  if (trip.diver?.value === true && diveNuance.length > 0 && CERTIFICATION_HINT_RE.test(diveNuance)) {
+    if (l === "zh") {
+      alerts.push(
+        "📋 潜水证书待确认：您的留言提到有潜水员可能还没有证书——团队会在报价前与您确认，未持证者可以改上体验潜水（DSD）课程。",
+      );
+    } else {
+      alerts.push(
+        "📋 Dive Certification To Confirm: your message mentions someone who may not be certified yet — our team will confirm this before quoting, and a Discover Scuba Diving course is available for anyone without a certification.",
+      );
+    }
+  }
   // A dive window nobody stated is the one gap that reaches pricing silently: the guest said they
   // dive, the never-re-ask rule stopped us asking which days, and the payload builder fills the
   // gap. Naming it here is what stops a charged-per-day number appearing from nowhere. Phrased to

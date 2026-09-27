@@ -674,8 +674,36 @@ describe("Phase 1 Hybrid AI Guardrails: NEVER RE-ASK, Fact Gate & Staff Alerts",
     expect(safeReply).toBe("SAFE_DETERMINISTIC_FALLBACK");
   });
 
-  it("Staff Alerts: tells a partner enquiry that a person confirms the rate, without naming one", () => {
-    const agentTrip: Trip = {
+  // A diver without a certification cannot take the boat-dive package — they need a Discover Scuba
+  // Diving course, a different product at a different price. The estimator prices courses but models
+  // no "uncertified" state, so this is deliberately a note for staff rather than a question: asking
+  // the guest would add a handoff gate for a fact nothing downstream can price.
+  it("Staff Alerts: flags a diver who may not be certified, as a note rather than a question", () => {
+    const uncertified: Trip = {
+      ...(settledTrip() as Trip),
+      diveNotes: { value: "2 certified divers, 1 beginner who has never dived", state: "stated", evidence: "never dived" },
+    };
+    const alerts = getStaffAlerts(uncertified, "en");
+    expect(alerts.some((a) => a.includes("Dive Certification To Confirm"))).toBe(true);
+    // Guest-safe: it says what we will do, not what our workflow is called, and it promises no price.
+    expect(alerts.join(" ")).not.toMatch(/₱|\$/);
+    expect(alerts.join(" ")).not.toContain("manual");
+    // A note, not a question: the open-question list is untouched by an alert.
+    expect(generateQuestions(uncertified).map((q) => q.field)).not.toContain("diveNotes");
+
+    // Certified party, or a nuance that says nothing about certification: nothing to confirm.
+    const certified: Trip = {
+      ...(settledTrip() as Trip),
+      diveNotes: { value: "2 PADI Open Water divers, 3 boat dives each", state: "stated", evidence: "PADI Open Water" },
+    };
+    expect(getStaffAlerts(certified, "en").some((a) => a.includes("Dive Certification"))).toBe(false);
+
+    // ...and the note is not raised for a guest who is not diving at all.
+    const notDiving: Trip = { ...uncertified, diver: { value: false, state: "stated", evidence: "no diving" } };
+    expect(getStaffAlerts(notDiving, "en").some((a) => a.includes("Dive Certification"))).toBe(false);
+  });
+
+  it("Staff Alerts: tells a partner enquiry that a person confirms the rate, without naming one", () => {    const agentTrip: Trip = {
       ...(BLANK_RAW as unknown as Trip),
       language: { value: "en", state: "inferred", evidence: null },
       guestType: { value: "agent", state: "inferred", evidence: null },
