@@ -151,17 +151,35 @@ Bot phải nói "nothing is booked yet" và "someone from our team will follow u
 > link mở được. Các bước 1–2 (định giá) thì **chạy được ngay**.
 
 1. `/login` (staff key) → `/quotes` → mở quotation.
+   - Sidebar giờ có thẻ **🎯 Extractor scorecard**: *x/y unchanged* — bao nhiêu báo giá đã được định giá
+     mà **không phải sửa chuyến**. Đây là con số duy nhất đo được chất lượng trích xuất, và là thứ
+     đáng cho lead xem.
 2. Bấm **Price with the Estimator BFF** → thẻ **Per guest**, nhãn `SAMPLE DATA`, khối *From the booking engine*.
    - Badge **"FIXTURE — prices are captured samples"** = đang gọi BFF của khách (đúng cấu hình hiện tại).
    - Badge **"SIMULATED"** = đang chạy bộ giả lập trong tiến trình.
-3. Bấm **Approve Quotation & Prepare Guest Message** (bắt buộc — publish từ chối báo giá chưa duyệt).
-4. Khung **Publish guest link**: tick **"I have checked this SAMPLE price"** rồi bấm **Publish guest link**.
+3. **Trip review** (mới): bảng **Rooms** (chọn `standard/deluxe/suite` cho từng phòng) và bảng **Guests**
+   (phòng của từng khách, khoá học `DSD / Open Water / AOW`, và lưới **D · 3rd · Night** cho từng ngày).
+   - Sửa xong bấm **Save trip & re-price** → giá được tính lại **trên cùng một scenario** (PATCH), không
+     tạo scenario thứ hai.
+   - **Sửa chuyến sẽ huỷ duyệt**: status về *Pending Hono Confirmation* và tin nhắn đã soạn bị xoá —
+     nên phải Approve lại. Đây là điều cố ý: duyệt là duyệt cho **một chuyến cụ thể**.
+   - Thử đổi `standard` → `deluxe` để thấy tiền phòng đổi (2 khách/1 đêm: 7.600 → 11.200).
+   - Bấm **Save trip & re-price** khi không sửa gì → không ghi nhận "sửa" (scorecard không bị lệch).
+4. Bấm **Approve Quotation & Prepare Guest Message** (bắt buộc — publish từ chối báo giá chưa duyệt).
+5. Khung **Publish guest link**: tick **"I have checked this SAMPLE price"** rồi bấm **Publish guest link**.
    - Chưa tick → **409 `sample_not_acknowledged`** (đúng thiết kế).
    - **Hiện tại → 409 `not_priced`** (BFF cũ của khách, xem khung trên).
    - Khi có BFF mới → `✅ Published as version 1` + link.
-5. Mở link đó → phải mở được app báo giá của khách, số tiền **trùng** số trong studio, có nhãn sample.
-6. Bấm **Publish** lần hai → **409 `already_shared`** (một link cho mỗi báo giá; Q-005).
-7. `/q/<slug>` (đường cũ của mình) → **410**, không còn phục vụ báo giá. ← **kiểm được ngay**
+   - Đã publish rồi thì **không sửa chuyến được nữa** → **409 `already_shared`** (khách đang giữ link;
+     sửa dưới chân khách là tự động đổi giá — Q-005).
+6. Mở link đó → phải mở được app báo giá của khách, số tiền **trùng** số trong studio, có nhãn sample.
+7. Bấm **Publish** lần hai → **409 `already_shared`** (một link cho mỗi báo giá; Q-005).
+8. `/q/<slug>` (đường cũ của mình) → **410**, không còn phục vụ báo giá — trang đó giờ có hai nút:
+   *Reply on WhatsApp* và *Staff sign-in*. ← **kiểm được ngay**
+
+**Không còn bảng giá tự nhập.** Bảng line-item và ô `Discount %` đã bị bỏ: chúng là nguồn giá thứ hai
+( nhập tay 42.400 trong khi engine, thẻ per-guest và link khách nói số khác). Giá bây giờ chỉ có một
+nguồn: engine. Nếu thấy chỗ nào vẫn cho nhập giá bằng tay, **báo lại ngay** — đó là lỗi.
 
 ## Nếu có gì sai, gửi mình
 - Nguyên văn tin bạn gửi và **nguyên văn tin bot trả**.
