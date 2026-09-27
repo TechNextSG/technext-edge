@@ -24,7 +24,6 @@ tmp-*.log
 
 # Archify visual-check artifacts. They are regenerated on every pass — several MB of PNGs per
 # diagram — and the pass/fail verdict is what matters, not the images, for the same reason a build
-# log is not committed. Re-create them by running the skill's visual-check step.
-*.visual-check.png
-*.visual-check.html
-*.visual-check.json
+# log is not committed. The pattern is deliberately loose: the files carry a viewport and a theme in
+# their names (`x.visual-check.1440x900.dark.png`), so a per-extension rule would miss them.
+*.visual-check.*

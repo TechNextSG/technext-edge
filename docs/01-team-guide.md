@@ -884,6 +884,16 @@ node packages/extractor/eval/runner.mjs --provider deepseek-flash
   throw, deliberately: degraded memory beats no service. **Check the function logs for
   `NO KV CONFIGURED IN PRODUCTION` after any deploy.**
 
+- **Local quotation prices are a COPY of the customer's rate card, and a copy drifts.** The
+  draft prices in `packages/extractor/src/rates.ts` come from the three sources the lead pointed
+  at — `https://casa-escondida-estimator-tools.vercel.app/casa-api-guide`,
+  `contracts/odoo/examples/rates.json` in the cloned `tn-casa-quotation-estimator`, and the
+  `compute.*.json` examples — and they are a local estimate only. The authoritative price is
+  Odoo's `POST /v1/estimate/compute` response (`model.quotes[].lines` + `catRev`), which this
+  service must display instead once the estimator leaves `FIXTURE_MODE`. Do not add a price to
+  `rates.ts` without a source; expect it to drift the day the customer changes their rates.
+  `rates.ts` carries the full provenance comment.
+
 ## 9. Before this becomes the real Extractor pod deliverable
 
 1. `packages/extractor/src/schema.ts` is no longer a guess about the *shape* of the Odoo

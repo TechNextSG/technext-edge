@@ -33,6 +33,11 @@
     { "source": "/demo", "destination": "/api" },
     { "source": "/quotes", "destination": "/api" },
     { "source": "/quotes/:id", "destination": "/api" },
+    { "source": "/quotes/:id/ops", "destination": "/api" },
+    { "source": "/login", "destination": "/api" },
+    { "source": "/login/:path*", "destination": "/api" },
+    { "source": "/handoff", "destination": "/api" },
+    { "source": "/handoff/:path*", "destination": "/api" },
     { "source": "/q/:slug", "destination": "/api" },
     { "source": "/v1/:path*", "destination": "/api" },
     { "source": "/healthz", "destination": "/api" }
