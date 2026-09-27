@@ -19,11 +19,25 @@ export interface WhatsAppConfig {
   accessToken?: string;
   phoneNumberId?: string;
   apiVersion: string;
+  /**
+   * Where Meta's Graph API lives. Overridable **for tests only**, and the reason is that the reply a
+   * guest reads is the one thing no server-side assertion can see: the webhook answers
+   * `{replied: 1}` whether the message said the right thing or not, and with the real host a test
+   * run either sends to a real phone or fails on a dummy token — so the text itself went
+   * unverified. Pointing this at a local capture server lets a test read the exact bytes Meta would
+   * have delivered, with no traffic leaving the machine.
+   *
+   * Defaults to the real host, so nothing changes for a deployment that does not set it.
+   */
+  graphBaseUrl?: string;
   /** One POST to graph.facebook.com. */
   timeoutMs: number;
   /** One whole inbound turn — and therefore how long Meta waits for our 200. */
   turnTimeoutMs: number;
 }
+
+/** The real Graph API host, and the default for `graphBaseUrl`. */
+export const GRAPH_BASE_URL = "https://graph.facebook.com";
 
 /**
  * Read lazily rather than at module load: this module is imported by app.ts,
@@ -37,6 +51,7 @@ export function whatsAppConfig(env: NodeJS.ProcessEnv = process.env): WhatsAppCo
     accessToken: env.WHATSAPP_ACCESS_TOKEN,
     phoneNumberId: env.WHATSAPP_PHONE_NUMBER_ID,
     apiVersion: env.WHATSAPP_API_VERSION ?? "v21.0",
+    graphBaseUrl: env.WHATSAPP_GRAPH_BASE_URL ?? GRAPH_BASE_URL,
     timeoutMs: Number(env.WHATSAPP_TIMEOUT_MS ?? 10_000),
     // The turn has to clear a normal provider call plus a send (measured 1.9s and
     // ~1.5s on this path, and the adapters cap themselves at Gemini 8s / DeepSeek
@@ -100,7 +115,7 @@ export interface SenderCheck {
  * of the phone number's own public attributes, so it cannot send anything.
  */
 export async function checkSenderCredentials(config: WhatsAppConfig): Promise<SenderCheck> {
-  const { accessToken, phoneNumberId, apiVersion, timeoutMs } = config;
+  const { accessToken, phoneNumberId, apiVersion, timeoutMs, graphBaseUrl } = config;
   if (!accessToken || !phoneNumberId) {
     return { ok: false, error: "WHATSAPP_ACCESS_TOKEN and WHATSAPP_PHONE_NUMBER_ID are both required" };
   }
@@ -108,7 +123,7 @@ export async function checkSenderCredentials(config: WhatsAppConfig): Promise<Se
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
   try {
-    const url = new URL(`https://graph.facebook.com/${apiVersion}/${phoneNumberId}`);
+    const url = new URL(`${graphBaseUrl ?? GRAPH_BASE_URL}/${apiVersion}/${phoneNumberId}`);
     url.searchParams.set("fields", "display_phone_number,quality_rating,platform_type");
     const res = await fetch(url, { headers: { authorization: `Bearer ${accessToken}` }, signal: controller.signal });
     const body = await res.text();
@@ -188,7 +203,7 @@ export type WhatsAppSendText = (input: { to: string; body: string }) => Promise<
 const MAX_BODY_CHARS = 4096;
 
 export function createWhatsAppSender(config: WhatsAppConfig): WhatsAppSendText {
-  const { accessToken, phoneNumberId, apiVersion, timeoutMs } = config;
+  const { accessToken, phoneNumberId, apiVersion, timeoutMs, graphBaseUrl } = config;
   if (!accessToken || !phoneNumberId) {
     throw new Error("WHATSAPP_ACCESS_TOKEN and WHATSAPP_PHONE_NUMBER_ID are both required to send a reply");
   }
@@ -198,7 +213,7 @@ export function createWhatsAppSender(config: WhatsAppConfig): WhatsAppSendText {
     const timer = setTimeout(() => controller.abort(), timeoutMs);
 
     try {
-      const res = await fetch(`https://graph.facebook.com/${apiVersion}/${phoneNumberId}/messages`, {
+      const res = await fetch(`${graphBaseUrl ?? GRAPH_BASE_URL}/${apiVersion}/${phoneNumberId}/messages`, {
         method: "POST",
         headers: { authorization: `Bearer ${accessToken}`, "content-type": "application/json" },
         body: JSON.stringify({

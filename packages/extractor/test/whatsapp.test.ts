@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { createHmac } from "node:crypto";
 import { createApp } from "../../../apps/casa-bff/src/app.js";
-import { createWhatsAppSender, parseInboundTexts, verifySignature } from "../../../apps/casa-bff/src/whatsapp.js";
+import { createWhatsAppSender, parseInboundTexts, verifySignature, whatsAppConfig } from "../../../apps/casa-bff/src/whatsapp.js";
 import { createInMemoryConversationStore, type ConversationStore } from "../../../apps/casa-bff/src/conversationStore.js";
 import { ASK_LIMIT, STALL_LIMIT } from "../src/questions.js";
 import type { ExtractProvider } from "../src/provider.js";
@@ -867,8 +867,28 @@ describe("createWhatsAppSender", () => {
     });
   });
 
-  it("surfaces Meta's own error body, which is where the actionable part lives", async () => {
-    const metaError = '{"error":{"message":"Message failed to send because more than 24 hours have passed"}}';
+  // The reply a guest reads is the one artefact no server-side assertion can see: the webhook
+  // answers `{replied: 1}` whether the message said the right thing or not. `WHATSAPP_GRAPH_BASE_URL`
+  // exists so a test can capture the exact bytes Meta would have delivered — and it is exactly the
+  // kind of seam that quietly becomes a security hole, so both directions are pinned here.
+  it("sends to Meta by default, and to the configured host only when one is set", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(new Response("{}", { status: 200 }));
+    vi.stubGlobal("fetch", fetchMock);
+
+    // A deployment that sets nothing must reach the real host: this is the default that ships.
+    expect(whatsAppConfig({} as NodeJS.ProcessEnv).graphBaseUrl).toBe("https://graph.facebook.com");
+    await createWhatsAppSender(config)({ to: GUEST, body: "hi" });
+    expect(fetchMock.mock.calls[0][0]).toContain("https://graph.facebook.com/");
+
+    // And a configured host is honoured, which is what makes the capture possible.
+    fetchMock.mockClear();
+    const capture = whatsAppConfig({ WHATSAPP_GRAPH_BASE_URL: "http://127.0.0.1:8899" } as NodeJS.ProcessEnv);
+    expect(capture.graphBaseUrl).toBe("http://127.0.0.1:8899");
+    await createWhatsAppSender({ ...config, graphBaseUrl: capture.graphBaseUrl })({ to: GUEST, body: "hi" });
+    expect(fetchMock.mock.calls[0][0]).toBe("http://127.0.0.1:8899/v21.0/PHONE_ID/messages");
+  });
+
+  it("surfaces Meta's own error body, which is where the actionable part lives", async () => {    const metaError = '{"error":{"message":"Message failed to send because more than 24 hours have passed"}}';
     vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response(metaError, { status: 400 })));
 
     await expect(createWhatsAppSender(config)({ to: GUEST, body: "hi" })).rejects.toThrow(/400 .*24 hours/);

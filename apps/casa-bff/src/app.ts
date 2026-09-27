@@ -63,6 +63,8 @@ import {
   getQuotationByIdOrSlug,
   listQuotations,
   findOpenQuotationForPhone,
+  duplicateQuotationIds,
+  removeQuotation,
   renderHonoQuotationEditorHtml,
 } from "./quotationStore.js";
 import {
@@ -1424,6 +1426,47 @@ export function createApp(options: AppOptions = {}) {
     saved.aiConfirmedReply = aiReply;
     await saveQuotationDraft(saved);
     return c.json({ ok: true, quotation: saved, aiReply, estimatePreview: buildEstimatePreview(saved) });
+  });
+
+  /**
+   * Remove the duplicate drafts the pre-`findOpenQuotationForPhone` bug left in the store.
+   *
+   * One guest, thirteen quotations, four of them inside the same minute: the queue in the studio
+   * was unworkable and every row looked current. The bug is fixed; this clears the backlog already
+   * sitting in Redis.
+   *
+   * It is a POST with an explicit `confirm`, and **dry by default**, because this is the only route
+   * in the product that deletes a business record. What may go is decided in
+   * `duplicateQuotationIds()`, so the dry run and the delete share one code path, and the response
+   * names every record it touched — a cleanup nobody can audit is a cleanup nobody should run.
+   */
+  app.post("/v1/quotes/cleanup-duplicates", async (c) => {
+    if (!staffSession(c).ok) return c.json({ error: "unauthorized" }, 401);
+
+    const body = (await c.req.json().catch(() => ({}))) as { confirm?: unknown };
+    const all = await listQuotations();
+    const doomed = duplicateQuotationIds(all);
+
+    if (body.confirm !== true) {
+      return c.json({
+        ok: true,
+        dryRun: true,
+        total: all.length,
+        wouldRemove: doomed.map((q) => ({
+          quoteId: q.quoteId,
+          phone: q.phone ?? null,
+          guestName: q.guestName,
+          createdAt: q.createdAt,
+        })),
+        detail: "nothing was removed — POST {confirm: true} to apply",
+      });
+    }
+
+    const removed: string[] = [];
+    for (const q of doomed) {
+      if (await removeQuotation(q.quoteId)) removed.push(q.quoteId);
+    }
+    return c.json({ ok: true, dryRun: false, total: all.length, removed, kept: all.length - removed.length });
   });
 
   /**

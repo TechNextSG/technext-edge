@@ -39,3 +39,63 @@ gateway run **unchanged** — the only wrapper is the export shape.
 This is a demo deployment of **their** code and is for sample data only. When they deploy their own
 BFF (real Odoo, after Phillip issues keys), point `ESTIMATOR_BASE_URL` at that instead; nothing
 else on our side changes.
+
+## Update 2026-09-27 — rebuilt from `Stage1_Estimator_Tools@dac70e6`, and it works end to end
+
+The old fixture was built from `main@4c48918`, where `POST /api/estimates` returned no `id` and set
+no `ubg_sid`. That is why publishing was impossible: there was no scenario to commit or share. The
+fixture is now rebuilt from the current Stage1 branch, and `POST /api/estimates` returns both — so
+`PATCH`, `commit` and `share` all work and the guest link opens.
+
+**How to rebuild it** (nothing of theirs is committed or modified; the wrapper lives outside the
+repo at `E:\casa-estimator-fixture`):
+
+```powershell
+# 1. their code, at the branch we want to demo
+cd E:\casa-stage1-walk
+git fetch origin --prune
+git checkout -B stage1-fixture origin/Stage1_Estimator_Tools
+npm install
+npm run build:app -w bff                     # -> bff/app/dist (their SPA, serves /quote/<token>)
+
+# 2. bundle the function (esbuild resolves their `.ts` specifiers at build time)
+cd E:\casa-estimator-fixture
+npx esbuild entry.ts --bundle --platform=node --format=esm --target=node22 --outfile=api/index.js
+Copy-Item E:\casa-stage1-walk\bff\app\dist\* -Destination . -Recurse -Force
+
+# 3. deploy into the existing project, so the alias does not change
+npx vercel link --yes --project tn-casa-estimator-fixture --scope aidev1-technexts-projects
+npx vercel deploy --prod --yes
+```
+
+Three things that are easy to get wrong, all of them found by deploying and reading the logs:
+
+1. **`SESSION_SECRET` is required even in fixture mode** (`bff/src/env.ts`: *"Bắt buộc ở MỌI chế độ,
+   kể cả FIXTURE_MODE=1"*). Missing it is a 500 with `Thiếu hoặc sai biến môi trường: SESSION_SECRET`
+   on every route. It is set as a Secret on the project; `FIXTURE_MODE=1` is the only other variable.
+2. **The entry must export HTTP methods and NOT a default export.** With both, Vercel prefers the
+   default, calls it as `(req, res)`, discards the returned `Response` and the request times out —
+   its own runtime log says so. Reached that way, Hono also fails with
+   `c.req.raw.headers.get is not a function`.
+3. **No `DATABASE_URL` means the in-RAM store**: their own warning is logged on every cold start
+   ("mọi bản nháp, phiên bản, link chia sẻ … sẽ MẤT khi tiến trình khởi động lại"). Fine for a demo
+   session; a long-lived fixture would want Postgres.
+
+### What their repo still needs (two small fixes, both in `bff/`)
+
+- every relative import in `bff/src/*.ts` carries a `.ts` extension — Vercel's function tracer does
+  not resolve those, so their own `api/index.ts` 500s with `ERR_MODULE_NOT_FOUND` when deployed as-is;
+- `api/index.ts` sets `config.runtime = 'nodejs'` while exporting `handle(app)` from `hono/vercel`,
+  which the Node runtime ignores. Either drop the `config` (so it runs on the Edge runtime, where
+  `handle` is right) or export named HTTP methods.
+
+Both are one-line-per-file changes, and neither shows up under `tsx` locally — which is exactly why
+this note exists instead of a guess.
+
+### One more thing to know before demoing the price
+
+Their fixture gateway **does not compute prices**: `bff/src/odoo/fixture.ts` says *"Không có logic giá
+ở đây"* and returns a captured response cloned, chosen by trip shape (`pickCompute`). So with
+`ESTIMATOR_MODE=remote` a room-type or dive-day edit changes the **payload and the frozen revision**
+but not the number (the couple stays 31,200). To show the money following the trip, run our
+`simulated` port, which implements their `rates.json` arithmetic.

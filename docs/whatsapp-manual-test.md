@@ -1,5 +1,23 @@
 # Kịch bản test tay trên WhatsApp
 
+> **Chạy tự động được rồi (27/09).** Toàn bộ kịch bản dưới đây có một bản chạy bằng script, và nó đọc
+> **đúng tin nhắn mà khách sẽ nhận** thay vì chỉ tin rằng webhook trả `replied: 1`:
+>
+> ```powershell
+> # terminal 1 — BFF cục bộ, trỏ sender về máy mình để bắt được tin gửi đi
+> $env:PORT="8799"; $env:WHATSAPP_GRAPH_BASE_URL="http://127.0.0.1:8899"; npx tsx apps/casa-bff/src/dev.ts
+> # terminal 2
+> node apps/casa-bff/scripts/whatsapp-manual-run.mjs --port 8799 --capture 8899 --delay 4000 --verbose
+> ```
+>
+> Kết quả lần chạy 27/09: **21/21 check xanh**. Hai điều cần biết khi đọc kết quả: `--delay` để tránh
+> quota Gemini free tier (15 request/phút, mỗi lượt tốn vài request); và nếu lượt nào provider chết thì
+> script ghi **`⊘ skipped`** chứ không tính là lỗi sản phẩm — một lượt không tới được model thì không
+> nói gì về bot cả.
+>
+> **Khoá DeepSeek trong `.env.local` đã chết** (`404 Application not found`), nên khi Gemini bị 429 thì
+> lượt đó fail. Bản production có env riêng trên Vercel và đang chạy tốt.
+
 > **Đã cập nhật cho Đợt 1.** Bot **không còn gửi link báo giá**. Link khách nhận là link do **app
 > báo giá của khách** phát ra, và chỉ được phát khi **nhân viên bấm Publish** trong studio. Nếu bạn
 > test trên production mà bot vẫn gửi `/q/...` thì production đang chạy **build cũ** — xem mục cuối.
@@ -142,13 +160,18 @@ Bot phải nói "nothing is booked yet" và "someone from our team will follow u
 
 ---
 
-## Sau khi chat: Publish trong studio — ⛔ chưa test được, xem lý do dưới
+## Sau khi chat: Publish trong studio — ✅ chạy được end-to-end (27/09)
 
-> **Trạng thái 27/09:** phần này sẽ trả **409 `not_priced`** ở bước 4 cho tới khi BFF của khách được
-> deploy lại. Không phải lỗi phía mình — bản deploy hiện tại của họ là build cũ (`4c48918`) và
-> `POST /api/estimates` **không trả `id`** cũng **không set cookie `ubg_sid`**, nên không có scenario
-> nào để commit/share. Đã kiểm chứng bằng E2E cục bộ với code Stage1 của họ: chuỗi chạy hết và ra
-> link mở được. Các bước 1–2 (định giá) thì **chạy được ngay**.
+> **Cập nhật 27/09:** bản fixture của BFF khách (`tn-casa-estimator-fixture.vercel.app`) đã được
+> build lại từ **Stage1_Estimator_Tools hiện tại** (`dac70e6`), nên `POST /api/estimates` **có trả
+> `id`** và **có set cookie `ubg_sid`**, và `PATCH /api/estimates/:id` + `commit` + `share` đều chạy.
+> Chuỗi dưới đây đã chạy hết một lần thật trên production (ghi lại ở mục "Đã kiểm live" cuối file).
+>
+> **Một điều phải nói đúng khi demo:** gateway fixture của khách **không tính giá** — nó trả về
+> response đã chụp (`bff/src/odoo/fixture.ts`: *"Không có logic giá ở đây"*, chọn file theo hình dạng
+> trip). Nên trong chế độ `remote` + fixture, sửa **loại phòng** đổi **payload và revision** nhưng
+> **không đổi con số** (vẫn 31.200 của ca couple đã chụp). Muốn thấy tiền chạy theo loại phòng thì
+> dùng `ESTIMATOR_MODE=simulated` (bộ giả lập của mình tính theo đúng `rates.json`: 7.600 → 11.200).
 
 1. `/login` (staff key) → `/quotes` → mở quotation.
    - Sidebar giờ có thẻ **🎯 Extractor scorecard**: *x/y unchanged* — bao nhiêu báo giá đã được định giá
@@ -163,23 +186,36 @@ Bot phải nói "nothing is booked yet" và "someone from our team will follow u
      tạo scenario thứ hai.
    - **Sửa chuyến sẽ huỷ duyệt**: status về *Pending Hono Confirmation* và tin nhắn đã soạn bị xoá —
      nên phải Approve lại. Đây là điều cố ý: duyệt là duyệt cho **một chuyến cụ thể**.
-   - Thử đổi `standard` → `deluxe` để thấy tiền phòng đổi (2 khách/1 đêm: 7.600 → 11.200).
    - Bấm **Save trip & re-price** khi không sửa gì → không ghi nhận "sửa" (scorecard không bị lệch).
 4. Bấm **Approve Quotation & Prepare Guest Message** (bắt buộc — publish từ chối báo giá chưa duyệt).
 5. Khung **Publish guest link**: tick **"I have checked this SAMPLE price"** rồi bấm **Publish guest link**.
    - Chưa tick → **409 `sample_not_acknowledged`** (đúng thiết kế).
-   - **Hiện tại → 409 `not_priced`** (BFF cũ của khách, xem khung trên).
-   - Khi có BFF mới → `✅ Published as version 1` + link.
+   - Thành công → `✅ Published as version 1` + link dạng
+     `https://tn-casa-estimator-fixture.vercel.app/quote/<token>`.
    - Đã publish rồi thì **không sửa chuyến được nữa** → **409 `already_shared`** (khách đang giữ link;
      sửa dưới chân khách là tự động đổi giá — Q-005).
-6. Mở link đó → phải mở được app báo giá của khách, số tiền **trùng** số trong studio, có nhãn sample.
+6. Mở link đó → mở được app báo giá của khách (SPA của họ), số tiền **trùng** số trong studio, có nhãn
+   sample. `GET /api/share/<token>` trả đúng revision đã đóng băng, **kèm `trip.rooms[].type`** — đây là
+   chỗ chứng minh loại phòng khách nói đi tới tận bản đã publish.
 7. Bấm **Publish** lần hai → **409 `already_shared`** (một link cho mỗi báo giá; Q-005).
 8. `/q/<slug>` (đường cũ của mình) → **410**, không còn phục vụ báo giá — trang đó giờ có hai nút:
-   *Reply on WhatsApp* và *Staff sign-in*. ← **kiểm được ngay**
+   *Reply on WhatsApp* và *Staff sign-in*.
 
 **Không còn bảng giá tự nhập.** Bảng line-item và ô `Discount %` đã bị bỏ: chúng là nguồn giá thứ hai
 ( nhập tay 42.400 trong khi engine, thẻ per-guest và link khách nói số khác). Giá bây giờ chỉ có một
 nguồn: engine. Nếu thấy chỗ nào vẫn cho nhập giá bằng tay, **báo lại ngay** — đó là lỗi.
+
+### Đã kiểm live (27/09, production)
+
+| Bước | Kết quả |
+|---|---|
+| `POST /v1/converse` câu đủ thông tin (2 phòng deluxe, 4 khách, 4 diver) | `done=true`, tóm tắt có `• Room type: deluxe`, draft `bffTrip` 2 phòng `deluxe` |
+| `POST /v1/quotes/:id/sync-estimate` | 200, ghi được `estimator.id` + cookie `ubg_sid` (BFF khách đã trả) |
+| `POST /v1/quotes/:id/trip` (đổi `standard` → `deluxe`) | 200, `changedFields=["rooms[0].type"]`, `staffEdits=1`, status về *pending* |
+| `POST /v1/quotes/:id/confirm` | 200, `confirmed_by_hono` |
+| `POST /v1/quotes/:id/publish` + `acknowledgeSample` | 200, `seq=1`, link khách `…/quote/<token>` |
+| Mở link khách | 200 (SPA của khách), `GET /api/share/<token>` → `seq=1`, `trip.rooms[].type = deluxe` |
+| `/api/health` của BFF khách | `{"ok":true,"mode":"fixture"}` |
 
 ## Nếu có gì sai, gửi mình
 - Nguyên văn tin bạn gửi và **nguyên văn tin bot trả**.
@@ -196,15 +232,16 @@ nguồn: engine. Nếu thấy chỗ nào vẫn cho nhập giá bằng tay, **bá
 |---|---|
 | `/healthz` | 200 |
 | `estimator-status` | `kind:"remote"`, `reachable:true`, `mode:"fixture"` — gọi BFF của khách |
-| `/q/<slug>` | **410** (trang khách cũ đã bỏ) |
+| `/q/<slug>` | **410** (trang khách cũ đã bỏ), HTML có 2 nút |
 | `/v1/converse` đủ thông tin | `done=true`, reply **không có** `/q/` lẫn `/quote/` |
+| BFF khách `/api/health` | `{"ok":true,"mode":"fixture"}` — build từ Stage1 `dac70e6` |
 
-**Test được ngay:** mọi thứ thuộc về bot — KB1 (không có link trong tin), KB2, **KB2b (loại phòng)**,
-KB3–KB10.
+**Test được ngay:** tất cả — bot (KB1–KB10) **và** mục Publish → link khách, vì BFF của khách đã được
+build lại từ Stage1 hiện tại nên có `id`, cookie `ubg_sid`, `PATCH`, `commit`, `share`. Xem bảng
+"Đã kiểm live" ở mục Publish.
 
-**Chưa test được:** mục Publish → link khách, vì bản deploy BFF của khách là build cũ
-(`POST /api/estimates` không trả `id`, không set `ubg_sid`). Cần deploy lại BFF của họ từ nhánh
-Stage1 — xem `docs/upstream-note-bff-vercel-deploy.md` cho cách bundle đã dùng lần trước.
-
-**Giá vẫn là sample** ở cả hai đường: bản deploy của khách chạy `FIXTURE_MODE=1`.
+**Giá vẫn là sample** ở cả hai đường: bản deploy của khách chạy `FIXTURE_MODE=1`, và bộ giả lập của
+mình luôn gắn `sample: true`. Khác biệt duy nhất đáng nhớ: **fixture của khách trả lại response đã
+chụp** (không tính giá), còn `ESTIMATOR_MODE=simulated` **tính theo `rates.json`** — nên chỉ ở chế độ
+simulated mới thấy con số đổi khi sửa loại phòng / số ngày lặn.
 

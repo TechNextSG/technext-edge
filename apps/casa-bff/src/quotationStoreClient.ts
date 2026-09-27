@@ -18,6 +18,18 @@ export interface QuotationStore {
   get(idOrSlug: string): Promise<HonoQuotationDraft | undefined>;
   save(draft: HonoQuotationDraft): Promise<HonoQuotationDraft>;
   list(): Promise<HonoQuotationDraft[]>;
+  /**
+   * Remove one quotation: the record, its slug index and its membership of the list.
+   *
+   * Exists for exactly one caller — the duplicate cleanup — because the bug it clears (one
+   * quotation per message in a thread) left a staff queue where the same guest appeared thirteen
+   * times. Nothing else in the product deletes a quotation: a published one is a link a guest may
+   * be holding, and the cleanup refuses those.
+   *
+   * Returns true when a record was there to remove, so a caller can report honestly rather than
+   * claim a deletion that was a no-op.
+   */
+  remove(idOrSlug: string): Promise<boolean>;
 }
 
 export interface RedisConfig {
@@ -49,6 +61,17 @@ export function createInMemoryQuotationStore(): QuotationStore {
         .map((id) => quotesById.get(id))
         .filter((d): d is HonoQuotationDraft => d !== undefined)
         .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
+    },
+    async remove(idOrSlug: string): Promise<boolean> {
+      const id = quotesById.has(idOrSlug)
+        ? idOrSlug
+        : quoteIdBySlug.get(idOrSlug.toLowerCase()) ?? idOrSlug.toUpperCase();
+      const draft = quotesById.get(id);
+      if (!draft) return false;
+      quotesById.delete(id);
+      quoteIdBySlug.delete(draft.slug.toLowerCase());
+      allIds.delete(id);
+      return true;
     },
   };
 }
@@ -113,6 +136,16 @@ export function createRedisQuotationStore(config: RedisConfig): QuotationStore {
         if (draft) drafts.push(draft);
       }
       return drafts.sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
+    },
+    async remove(idOrSlug: string): Promise<boolean> {
+      const draft = await this.get(idOrSlug);
+      if (!draft) return false;
+      // The slug index goes with the record: leaving it would point a guest link at a quotation
+      // that no longer exists, which reads as "not found" but is really a stale pointer.
+      await command(["DEL", `quote:${draft.quoteId}`]);
+      await command(["DEL", `quote_slug:${draft.slug.toLowerCase()}`]);
+      await command(["SREM", "quotes:all", draft.quoteId]);
+      return true;
     },
   };
 }

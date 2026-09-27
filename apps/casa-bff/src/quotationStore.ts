@@ -166,6 +166,52 @@ export async function saveQuotationDraft(draft: HonoQuotationDraft): Promise<Hon
 }
 
 /**
+ * The duplicate drafts a fixed bug left behind, and the rule that says which are safe to remove.
+ *
+ * Before `findOpenQuotationForPhone` existed, every message in a thread that had enough information
+ * minted a NEW quotation for the same phone: one manual test produced thirteen (`QT-1120-MIGU-*`,
+ * four of them inside the same minute). Staff cannot work a queue like that, and every one of them
+ * looked current.
+ *
+ * The rule is deliberately conservative, because this is the only code in the product that deletes
+ * a business record:
+ *
+ *   * one record per phone survives — the **newest** by `updatedAt`;
+ *   * anything **published** survives, because a guest may be holding that link;
+ *   * anything staff have **corrected** survives, because somebody's work is in it;
+ *   * the **seeded** fixture survives, so a cold start still has a quotation to show;
+ *   * a record with no phone is not a duplicate of anything, and survives.
+ *
+ * Everything it does remove is a record nobody published and nobody corrected, which a newer record
+ * for the same guest already replaces. It is a pure function of the list, so the route and its test
+ * cannot disagree about what would go.
+ */
+export function duplicateQuotationIds(all: HonoQuotationDraft[]): HonoQuotationDraft[] {
+  const newestByPhone = new Map<string, HonoQuotationDraft>();
+  for (const q of all) {
+    const key = q.phone ? `phone:${q.phone}` : `quote:${q.quoteId}`;
+    const incumbent = newestByPhone.get(key);
+    // `list()` is newest-first, but this must not depend on that: compare timestamps outright.
+    if (!incumbent || q.updatedAt > incumbent.updatedAt) newestByPhone.set(key, q);
+  }
+
+  return all.filter((q) => {
+    const key = q.phone ? `phone:${q.phone}` : `quote:${q.quoteId}`;
+    if (newestByPhone.get(key)?.quoteId === q.quoteId) return false;
+    if (q.estimator?.sharedAt) return false;
+    if ((q.staffEdits ?? []).length > 0) return false;
+    if (typeof q.seedVersion === "number" || q.quoteId === "QT-1010-SKY") return false;
+    return true;
+  });
+}
+
+/** Remove one quotation by id or slug. Returns false when there was nothing to remove. */
+export async function removeQuotation(idOrSlug: string): Promise<boolean> {
+  const store = await getStore();
+  return store.remove(idOrSlug);
+}
+
+/**
  * Looks a quotation up by id or by guest-facing slug.
  *
  * Returns `undefined` for anything unknown, and that is the whole security property: the
