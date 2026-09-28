@@ -76,7 +76,6 @@ một dòng tiền đang thiếu trong cả hai hệ.
 → Chỉ cần nếu lễ tân muốn dùng hệ cho day-tripper; hiện phải thêm bằng `items`.
 
 ### 2.6. Giờ làm việc của lễ tân và lời hứa của bot
-
 - Website: **lễ tân mở đến 21:00**, check-in từ 14:00, check-out 12:00.
 - Bot: mọi handoff đều hứa *"a member of the Casa team will reply here"*, **không nói giờ**.
 
@@ -119,4 +118,32 @@ một dòng tiền đang thiếu trong cả hai hệ.
 
 Vẫn **chưa** làm, vì cần Phillip chốt: trẻ 0–6 tuổi miễn phí, day use, và luồng đại lý nào là chính
 (website upload chứng chỉ hay app tự phục vụ).
+
+## 7. Chính sách cọc & hạn giữ chỗ (bổ sung 28/09, tối)
+
+Đã làm: khối **Booking & Deposit Policy** trên trang copy của khách (`/q/:slug`), huy hiệu **Follow up
+(>48h)** và **Stale (>72h)** trong studio (thẻ workflow + sidebar), mẫu tin nhắn nhắc copy được ở Bước 4,
+và điều khoản nằm luôn trong tin nhắn gửi khách. Cửa sổ 48/72 giờ đọc từ `QUOTATION_NUDGE_HOURS` /
+`QUOTATION_VALID_HOURS` (mặc định 48/72), tính từ **`sentToGuestAt`** — không phải từ lúc publish, và
+bỏ qua record đã huỷ hoặc đã có folio (`submission`).
+
+**Nguồn của từng câu** (vì đây là câu nói với khách):
+
+| Câu | Nguồn | Trạng thái |
+|---|---|---|
+| "50% non-refundable down payment confirms your reservation" | `rates.json` → `terms.depositPct: 50` **và** website | ✅ hai nguồn |
+| "The balance is due at least 1 month before your travel date" | website (`/rooms` → Booking & Payment) | ✅ một nguồn |
+| "This quotation is valid until &lt;ngày giờ Manila&gt;" | **của mình** — mình biết lúc gửi, nên mình nói được lúc hết hạn; đây là hạn của **báo giá**, không phải lời hứa giữ phòng | ✅ trong tầm kiểm soát |
+| ~~"we are holding your room for 72 hours"~~ | **không nguồn nào** — hệ thống mình không giữ phòng; phòng nằm trong Odoo của khách và do lễ tân xếp | ❌ đã bỏ, chờ Phillip |
+| ~~"rooms and dive boats are first-come, first-served"~~ | website có câu "first come, first served" nhưng nói về **bãi xe** ("free for the first 20 cars") | ❌ đã bỏ, chờ Phillip |
+| ~~"rooms are filling up quickly"~~ (mẫu tin nhắc) | **không nguồn nào** — mình không đọc tồn phòng của Odoo | ❌ đã bỏ |
+
+**Hai câu hỏi cho Phillip** (nếu trả lời "có", mỗi câu là một dòng trong `bookingPolicyLines`):
+
+1. Lễ tân có **thực sự giữ phòng** cho một báo giá chưa cọc không, và giữ bao lâu? Nếu có, câu chữ
+   được phép nói "we are holding room X until …" — nhưng khi đó cần một chỗ trong hệ thống để lễ tân
+   **thấy và gia hạn** việc giữ đó, chứ không chỉ là câu nói.
+2. Phòng và thuyền lặn có theo nguyên tắc **ai cọc trước giữ trước** không? (Website hiện chỉ nói vậy
+   với bãi xe.)
+
 

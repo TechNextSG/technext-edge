@@ -117,6 +117,16 @@ export const COURSE_RATES = { dsd: 5500, ow: 22000, aow: 18000 } as const;
 export const PARTNER_DISCOUNT_PCT = 30;
 
 /**
+ * The deposit that confirms a reservation, from the customer's own rate card.
+ *
+ * `contracts/odoo/examples/rates.json` carries `"terms":{"depositPct":50}`, and the resort's site
+ * states it in words: "50% non-refundable down payment required to confirm reservation" (read
+ * 2026-09-28). Two sources, one number — which is what makes it safe to put in a guest-facing
+ * sentence. Nothing in this service charges it; the front desk takes the payment.
+ */
+export const DEPOSIT_PERCENT = 50;
+
+/**
  * How many vans a group of `guests` needs, and never fewer than one: a transfer that was asked for
  * is at least one van, whatever the party size looks like in the record.
  */

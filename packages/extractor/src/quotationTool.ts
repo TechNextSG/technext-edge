@@ -5,6 +5,7 @@ import type { ExtractProvider } from "./provider.js";
 import { getStaffAlerts, diveWindowIsGuessed } from "./questions.js";
 import { buildBffTrip, datesBetweenInclusive } from "./odooHandoff.js";
 import { verifyGuestFacingText, withBudget, type GuestFacingFacts } from "./synthesis.js";
+import { bookingPolicyLines, quotationValidUntil } from "./quotationValidity.js";
 import type { QuotationPricing } from "./pricing.js";
 import {
   roomNightlyRate,
@@ -580,7 +581,10 @@ export async function synthesizeConfirmedQuotationReply(
     ``,
     `Open the link to see the full breakdown. If anything looks wrong, just reply here and a member of our team will fix it — nothing is booked yet.`,
     ``,
-    `💡 Casa Escondida Note: A 50% non-refundable deposit is required to secure your reservation (first-come, first-served). This provisional quote is held for 72 hours.`,
+    // The resort's booking terms, written by code rather than by the model: these are sentences a guest
+    // may hold the desk to, so they come from `bookingPolicyLines` — sourced lines only. See it for
+    // what is deliberately absent, and why "we are holding your room for 72 hours" is not among them.
+    `💡 Casa Escondida booking terms: ${bookingPolicyLines(quotationValidUntil(draft)).join(" ")}`,
   ]
     .filter(Boolean)
     .join("\n");

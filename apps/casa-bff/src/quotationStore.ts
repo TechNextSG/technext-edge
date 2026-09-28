@@ -5,6 +5,10 @@ import {
   normalizePricing,
   recalculateQuotationTotals,
   guestLinkFor,
+  bookingPolicyLines,
+  followUpState,
+  followUpWindowFromEnv,
+  quotationValidUntil,
   type HonoQuotationDraft,
   type Trip,
 } from "../../../packages/extractor/src/index.js";
@@ -431,12 +435,44 @@ export function renderHonoQuotationEditorHtml(
               ? "Priced — needs approval"
               : "Needs review";
   const statusTone = archived ? "rose" : published || approved ? "emerald" : "amber";
-  const sentTime = draft.sentToGuestAt
-    ? new Date(draft.sentToGuestAt).getTime()
-    : draft.estimator?.sharedAt
-      ? new Date(draft.estimator.sharedAt).getTime()
-      : null;
-  const isStale = Boolean(published && !archived && sentTime && (Date.now() - sentTime) > 72 * 3600 * 1000);
+  /**
+   * Whether the resort owes this guest a chase, and how urgently.
+   *
+   * `followUpState` is the one place that decides, and it is deliberately strict about what counts:
+   * only a quotation that was actually **sent** (a link-only publish is not a delivery), that is not
+   * archived, and that has no folio against it. The first version of this badge used `sharedAt` as a
+   * fallback and ignored `submission`, so it called a never-sent link "overdue", and it would have
+   * kept saying "no deposit yet" about a booking that already had one.
+   */
+  const followUp = followUpState(draft);
+  const validUntil = quotationValidUntil(draft);
+  const isStale = followUp === "stale";
+  /** Sent, past the nudge threshold, still inside the stated validity: a gentle chase is due. */
+  const isDueForNudge = followUp === "nudge";
+  const window = followUpWindowFromEnv();
+  /**
+   * The follow-up staff copy and paste, built here rather than in the browser.
+   *
+   * It says what is true — the stay, the link, the terms the resort publishes — and nothing about
+   * scarcity: "rooms are filling up quickly" was in the first version of this feature and is not
+   * something this system can know, because availability lives in the customer's Odoo and nothing
+   * here ever asks. A template that invents urgency is a sentence a guest can check.
+   */
+  const followUpText =
+    followUp === "none"
+      ? ""
+      : [
+          `Hi ${draft.guestName || "there"}! Just checking in about your quotation for ${draft.checkIn} to ${draft.checkOut} at Casa Escondida Anilao.`,
+          "",
+          ...bookingPolicyLines(validUntil),
+          guestLink ? `You can look at it here: ${guestLink}` : "",
+          "",
+          "If you would like to go ahead, just reply here and our front desk will take it from there.",
+        ]
+          .filter((line) => line !== "")
+          .join("\n");
+  /** A JS string literal that cannot close the page's template literal, whatever the guest is called. */
+  const followUpJsString = JSON.stringify(followUpText).replace(/`/g, "\\u0060");
 
   // A step is `done` when it is behind us, `current` when it is the next thing to do. "Get price"
   // counts as done only when the ENGINE priced it: a figure with no scenario behind it cannot become
@@ -1238,7 +1274,13 @@ ${themeCss()}
           <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
             <div style="font-size:15px;font-weight:800;">This quotation</div>
             <span id="quote-status-badge" class="status-pill status-${statusTone}">${statusLabel}</span>
-            ${isStale ? `<span class="status-pill status-amber" title="Sent over 72 hours ago without confirmed deposit" style="font-size:12.5px;padding:4px 10px;">⚠️ Stale (&gt;72h)</span>` : ""}
+            ${
+              isStale
+                ? `<span class="status-pill status-amber" title="Sent over ${window.staleHours} hours ago, with no deposit recorded" style="font-size:12.5px;padding:4px 10px;">⚠️ Stale (&gt;${window.staleHours}h)</span>`
+                : isDueForNudge
+                  ? `<span class="status-pill status-amber" title="Sent over ${window.nudgeHours} hours ago and no answer yet — a gentle chase is due" style="font-size:12.5px;padding:4px 10px;">⏳ Follow up (&gt;${window.nudgeHours}h)</span>`
+                  : ""
+            }
           </div>
           <a class="btn btn-outline staff-only" id="workflow-ops-sheet-btn" href="/quotes/${encodeURIComponent(draft.quoteId)}/ops" target="_blank" style="padding:6px 14px;font-size:13px;font-weight:700;text-decoration:none;display:inline-flex;align-items:center;gap:6px;">Ops Sheet &nearr;</a>
         </div>
@@ -1488,18 +1530,29 @@ ${themeCss()}
         </div>
         <p id="send-hint" style="font-size:13px;color:var(--muted);font-weight:600;margin-top:10px;">
           The message carries the guest's own quotation link and no price of ours: the figures they read are the engine's, on their page.
+          ${published ? "" : "The button at the bottom of the screen creates the link and sends it."}
         </p>
 
-        <!-- Casa 48h/72h Follow-up Reminder -->
-        <div style="margin-top:20px;padding:16px 18px;border:1px solid var(--border);border-radius:12px;background:var(--surface-2);">
+        ${
+          // Only once the guest actually has the quotation. Chasing somebody about a link they were
+          // never sent is how a helpful follow-up reads as a mistake, and the box also stated a
+          // scarcity nobody has checked: "rooms are filling up quickly" is not something this system
+          // knows (availability lives in the customer's Odoo, and we never ask). What it says instead
+          // is what is true: the quotation's own deadline, the deposit that confirms it, and the link
+          // to look at. Whether the resort holds a room, and whether rooms are first-come, are
+          // questions for Phillip — see `bookingPolicyLines`.
+          followUp === "none"
+            ? ""
+            : `<div style="margin-top:20px;padding:16px 18px;border:1px solid var(--border);border-radius:12px;background:var(--surface-2);">
           <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;margin-bottom:8px;">
-            <div style="font-size:14px;font-weight:800;color:var(--text);">Casa 48h/72h Follow-up Reminder</div>
-            <button type="button" class="btn btn-outline" onclick="copyFollowupMessage()" style="padding:6px 12px;font-size:12.5px;font-weight:700;">Copy Follow-up Message</button>
+            <div style="font-size:14px;font-weight:800;color:var(--text);">
+              ${isStale ? `⚠️ Past its validity (${window.staleHours}h) — chase or release` : `⏳ Follow-up due (${window.nudgeHours}h, still valid)`}
+            </div>
+            <button type="button" class="btn btn-outline" onclick="copyFollowupMessage()" style="padding:6px 12px;font-size:12.5px;font-weight:700;">Copy follow-up message</button>
           </div>
-          <div style="font-size:13px;color:var(--muted);line-height:1.55;">
-            "Hi ${esc(draft.guestName || "there")}! Just checking in regarding your quotation for ${esc(draft.checkIn)} &rarr; ${esc(draft.checkOut)} at Casa Escondida Anilao. Rooms for those dates are filling up quickly on a first-come basis (50% deposit to confirm). Let us know if you would like us to secure your stay!"
-          </div>
-        </div>
+          <div id="followup-preview" style="font-size:13px;color:var(--muted);line-height:1.55;white-space:pre-line;">${esc(followUpText)}</div>
+        </div>`
+        }
       </div>
 
       <!-- The wizard bar. One action finishes the screen it belongs to, and Back is always there:
@@ -1521,6 +1574,10 @@ ${themeCss()}
   <script>
     let state = ${initialJson};
     const allQuotes = ${allQuotesJson};
+    // The follow-up window and its text, decided on the server so the badge here, the badge on the
+    // record and the sentence in the guest's message cannot disagree about when a quotation lapses.
+    const FOLLOW_UP_HOURS = { nudge: ${window.nudgeHours}, stale: ${window.staleHours} };
+    const FOLLOW_UP_TEXT = ${followUpJsString};
 
     // The same escaping the server does (html.ts), for the parts of this page the browser draws. A
     // line description and a guest name arrive from WhatsApp, so a less-than sign in either is not
@@ -1820,8 +1877,13 @@ ${themeCss()}
       el.innerHTML = pageItems.map(q => {
         const isApproved = q.status === 'confirmed_by_hono';
         const isCancelled = q.status === 'cancelled';
-        const sentTime = q.sentToGuestAt ? new Date(q.sentToGuestAt).getTime() : (q.estimator && q.estimator.sharedAt ? new Date(q.estimator.sharedAt).getTime() : null);
-        const isStale = Boolean(!isCancelled && sentTime && (Date.now() - sentTime) > 72 * 3600 * 1000);
+        // Same rule as the record's own badge, in the browser: sent (not merely published), not
+        // archived, no folio. Hours come from the server so the two cannot drift.
+        const sentTime = q.sentToGuestAt ? new Date(q.sentToGuestAt).getTime() : null;
+        const hoursSince = (sentTime && Number.isFinite(sentTime)) ? (Date.now() - sentTime) / 3600000 : null;
+        const chasable = !isCancelled && !q.submission && hoursSince !== null;
+        const isStale = Boolean(chasable && hoursSince >= FOLLOW_UP_HOURS.stale);
+        const isNudge = Boolean(chasable && !isStale && hoursSince >= FOLLOW_UP_HOURS.nudge);
         const statusLabel = isCancelled ? 'Archived' : (isApproved ? 'Approved' : 'Needs Review');
         const statusColor = isCancelled ? 'var(--rose, #f43f5e)' : (isApproved ? 'var(--emerald)' : 'var(--amber)');
         return \`
@@ -1830,7 +1892,11 @@ ${themeCss()}
             <strong style="font-size:15px;color:var(--accent);">\${q.quoteId}</strong>
             <span style="font-size:12.5px;font-weight:800;color:\${statusColor};display:flex;align-items:center;gap:6px;">
               \${statusLabel}
-              \${isStale ? '<span style="font-size:10px;font-weight:800;color:var(--amber);background:var(--amber-soft);padding:1px 5px;border-radius:4px;border:1px solid var(--amber);">Stale</span>' : ''}
+              \${isStale
+                ? '<span style="font-size:10px;font-weight:800;color:var(--amber);background:var(--amber-soft);padding:1px 5px;border-radius:4px;border:1px solid var(--amber);">Stale</span>'
+                : isNudge
+                  ? '<span style="font-size:10px;font-weight:800;color:var(--amber);background:var(--amber-soft);padding:1px 5px;border-radius:4px;border:1px solid var(--amber);">Follow up</span>'
+                  : ''}
             </span>
           </div>
           <div style="font-size:15px;font-weight:700;">\${escHtml(q.guestName)}</div>
@@ -2283,16 +2349,24 @@ ${themeCss()}
     }
 
     function copyFollowupMessage() {
-      const name = state.guestName || 'there';
-      const checkIn = state.checkIn || '';
-      const checkOut = state.checkOut || '';
-      const input = document.getElementById('input-quotation-url');
-      const link = (input && input.value) || state.quotationUrl || '';
-      const text = 'Hi ' + name + '! Just checking in regarding your quotation for ' + checkIn + ' to ' + checkOut + ' at Casa Escondida Anilao.\\n\\nOur rooms for those dates are filling up quickly on a first-come basis. As a reminder, reservations are confirmed upon receipt of a 50% non-refundable deposit.\\n\\nYou can review your quotation here: ' + link + '\\n\\nPlease let us know if you would like us to secure your room!';
+      // The text is built server-side (see FOLLOW_UP_TEXT in this page) so the follow-up, the guest's
+      // page and the sent message all quote the same terms — and so a scarcity sentence nobody has
+      // checked cannot creep back in here, which is where the first version of this had one.
+      const text = FOLLOW_UP_TEXT;
+      if (!text) return;
       navigator.clipboard.writeText(text).then(function() {
-        showInfo('Follow-up message copied to clipboard!');
+        showInfo('Follow-up message copied to clipboard.');
       }).catch(function() {
-        showError('Copy failed', { detail: 'Please copy the message manually.' });
+        // Clipboard access needs a secure context and permission. Falling back to the preview block,
+        // which is already on screen and selectable, beats an error box for a copy button.
+        const preview = document.getElementById('followup-preview');
+        if (preview) {
+          const range = document.createRange();
+          range.selectNodeContents(preview);
+          const selection = window.getSelection();
+          if (selection) { selection.removeAllRanges(); selection.addRange(range); }
+        }
+        showInfo('Copy is blocked here — the message is selected below, press Ctrl+C.');
       });
     }
 

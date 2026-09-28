@@ -231,6 +231,22 @@ describe("an unknown quotation is a miss, not somebody's booking", () => {
       expect(html).toContain("https://wa.me/15551506595?text=");
       vi.unstubAllEnvs();
     });
+
+    it("states the booking terms it can source, and no term it cannot", async () => {
+      // The deposit and the balance are the resort's own published terms (their rate card carries
+      // `terms.depositPct: 50`, and their site states both). The room hold and the first-come rule are
+      // not: nothing in this service holds inventory, and "first-come, first-served" is published
+      // about parking. Both were on this page in the first version of the feature.
+      const saved = await mirroredCopy();
+      const app = createApp();
+
+      const html = await (await app.request(`/q/${saved.slug}`)).text();
+      expect(html).toContain("Booking &amp; Deposit Policy");
+      expect(html).toContain("50% non-refundable down payment confirms your reservation");
+      expect(html).toContain("The balance is due at least 1 month before your travel date");
+      expect(html.toLowerCase()).not.toContain("room hold");
+      expect(html.toLowerCase()).not.toContain("first-come");
+    });
   });
 });
 

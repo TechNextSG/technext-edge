@@ -150,6 +150,93 @@ describe("one status, and it is the record's", () => {
   });
 });
 
+describe("chasing a guest who has not answered", () => {
+  // The 48h nudge / 72h stale pair the operation runs on, drawn from the record rather than from
+  // anything in the browser. What counts is a quotation the guest was actually SENT: a link-only
+  // publish, an archived record and a booking with a folio are all "nothing to chase".
+  const hoursAgo = (hours: number) => new Date(Date.now() - hours * 3_600_000).toISOString();
+
+  async function sentQuote(id: string, hours: number, extra: Partial<HonoQuotationDraft> = {}) {
+    const base = await seed();
+    return saveQuotationDraft(
+      copyOf(enginePriced(base), id, {
+        status: "confirmed_by_hono",
+        phone: "639171234567",
+        sentToGuestAt: hoursAgo(hours),
+        estimator: {
+          id: "sim-sent",
+          cookie: "ubg_sid=sent",
+          seq: 1,
+          guestUrl: "https://their-app.test/quote/tok",
+          sharedAt: hoursAgo(hours),
+        },
+        ...extra,
+      }),
+    );
+  }
+
+  it("is quiet indoors, nudges after 48 hours and goes stale after 72", async () => {
+    const fresh = await sentQuote("QT-CHASE-FRESH", 10);
+    const markupFresh = markupOnly(await studioFor(fresh.quoteId));
+    expect(markupFresh).not.toContain("Stale");
+    expect(markupFresh).not.toContain("Follow up");
+
+    const nudge = await sentQuote("QT-CHASE-NUDGE", 50);
+    const markupNudge = markupOnly(await studioFor(nudge.quoteId));
+    expect(markupNudge).toContain("Follow up (&gt;48h)");
+    expect(markupNudge).not.toContain("Stale");
+
+    const stale = await sentQuote("QT-CHASE-STALE", 80);
+    const markupStale = markupOnly(await studioFor(stale.quoteId));
+    expect(markupStale).toContain("Stale (&gt;72h)");
+  });
+
+  it("chases nobody about a link they were never sent", async () => {
+    // "Create link only" publishes without sending. The first version of this badge fell back to
+    // `sharedAt`, so it called that state overdue for a guest who had received nothing at all.
+    const base = await seed();
+    const publishedOnly = await saveQuotationDraft(
+      copyOf(enginePriced(base), "QT-CHASE-NOSEND", {
+        status: "confirmed_by_hono",
+        estimator: {
+          id: "sim-nosend",
+          cookie: "ubg_sid=nosend",
+          seq: 1,
+          guestUrl: "https://their-app.test/quote/tok",
+          sharedAt: hoursAgo(100),
+        },
+      }),
+    );
+    const markup = markupOnly(await studioFor(publishedOnly.quoteId));
+    expect(markup).not.toContain("Stale");
+    expect(markup).not.toContain("Follow up");
+    // …and the follow-up box is not offered for it either.
+    expect(markup).not.toContain("Copy follow-up message");
+  });
+
+  it("stops asking for a deposit the guest has already paid", async () => {
+    const booked = await sentQuote("QT-CHASE-BOOKED", 90, {
+      submission: { folioId: 7, orderIds: null, sample: false, mode: "fixture" },
+    } as Partial<HonoQuotationDraft>);
+    const markup = markupOnly(await studioFor(booked.quoteId));
+    expect(markup).not.toContain("Stale");
+    expect(markup).not.toContain("Copy follow-up message");
+  });
+
+  it("offers the follow-up once there is something to follow up, in the resort's own terms", async () => {
+    const stale = await sentQuote("QT-CHASE-TEXT", 80);
+    const html = await studioFor(stale.quoteId);
+
+    expect(html).toContain("Copy follow-up message");
+    // The message quotes the terms the resort publishes, and invents no scarcity: "rooms are filling
+    // up quickly" was in the first version of this and is not something this system can know.
+    expect(html).toContain("50% non-refundable down payment confirms your reservation");
+    expect(html).toContain("The balance is due at least 1 month before your travel date");
+    expect(html).not.toContain("filling up");
+    expect(html).not.toContain("secure your room");
+  });
+});
+
 describe("the four steps", () => {
   it("server-renders which steps are done, and which one is next", async () => {
     const base = await seed();

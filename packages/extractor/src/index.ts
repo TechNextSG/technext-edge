@@ -70,6 +70,17 @@ export { diffBffTrip, pricedFactsChanged, pricedFactsKey } from "./tripDiff.js";
 export type { StaffTripEdit } from "./tripDiff.js";
 export { extractorFieldsForTripPath, pathsRestatedByGuest } from "./tripCorrections.js";
 export {
+  DEFAULT_FOLLOW_UP_WINDOW,
+  bookingPolicyLines,
+  followUpState,
+  followUpWindowFromEnv,
+  formatManila,
+  hoursSinceSent,
+  quotationValidUntil,
+  sentAtMs,
+} from "./quotationValidity.js";
+export type { FollowUpState, FollowUpWindow } from "./quotationValidity.js";
+export {
   SUBMIT_QUOTATION_TO_HONO_DECLARATION,
   buildHonoQuotationDraft,
   recalculateQuotationTotals,

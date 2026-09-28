@@ -29,6 +29,7 @@
  *   4. shows nothing staff-facing: no phone number, no internal notes, no cost, no other guest.
  */
 import type { HonoQuotationDraft } from "../../../packages/extractor/src/index.js";
+import { bookingPolicyLines, quotationValidUntil } from "../../../packages/extractor/src/index.js";
 import { escapeHtml } from "./html.js";
 import { themeCss } from "./theme.js";
 
@@ -55,6 +56,12 @@ export function renderGuestQuotationCopyHtml(
   const pricing = draft.pricing ?? null;
   const currency = draft.currency;
   const version = draft.estimator?.seq ?? null;
+  /**
+   * When this quotation lapses. From the send time, not the publish time: a link nobody was sent has
+   * no start, so it has no deadline either — see `quotationValidUntil`. Null leaves the deadline line
+   * off the page rather than inventing one.
+   */
+  const validUntil = quotationValidUntil(draft);
 
   const guestCards =
     !pricing || pricing.guests.length === 0
@@ -185,10 +192,9 @@ export function renderGuestQuotationCopyHtml(
       <div style="margin-top:18px;border-left:5px solid var(--accent);background:var(--surface-2);padding:16px 18px;border-radius:14px;">
         <div style="font-size:12px;font-weight:800;letter-spacing:0.08em;text-transform:uppercase;color:var(--accent);margin-bottom:6px;">Casa Escondida Anilao · Booking &amp; Deposit Policy</div>
         <ul style="margin:0;padding-left:18px;font-size:13.5px;color:var(--text);line-height:1.65;font-weight:600;">
-          <li><strong>50% non-refundable down payment</strong> required to confirm reservation.</li>
-          <li><strong>Full payment</strong> required at least 1 month prior to travel date.</li>
-          <li>Rooms and dive boats are allocated on a <strong>first-come, first-served</strong> basis.</li>
-          <li>This provisional quotation and room hold are valid for <strong>72 hours</strong> from issuance.</li>
+          ${bookingPolicyLines(validUntil)
+            .map((line) => `<li>${esc(line)}</li>`)
+            .join("\n          ")}
         </ul>
       </div>
     </div>
