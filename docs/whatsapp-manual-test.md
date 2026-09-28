@@ -14,6 +14,29 @@
 > quota Gemini free tier (15 request/phút, mỗi lượt tốn vài request); và nếu lượt nào provider chết thì
 > script ghi **`⊘ skipped`** chứ không tính là lỗi sản phẩm — một lượt không tới được model thì không
 > nói gì về bot cả.
+
+### Kiểm chứng hành trình (đóng vai guest → staff → guest)
+
+Muốn xem **cả hành trình trong một lần chạy**, in ra đúng những gì mỗi vai nhìn thấy:
+
+```powershell
+# terminal 1 — BFF nối đúng như khi demo (engine của khách + bắt tin gửi đi ở máy mình)
+$env:PORT="8799"; $env:ESTIMATOR_MODE="remote"
+$env:ESTIMATOR_BASE_URL="https://tn-casa-estimator-fixture.vercel.app"
+$env:WHATSAPP_GRAPH_BASE_URL="http://127.0.0.1:8899"; npx tsx apps/casa-bff/src/dev.ts
+# terminal 2
+node apps/casa-bff/scripts/journey-walkthrough.mjs --port 8799 --capture 8899
+```
+
+Sáu bước, đúng thứ tự một khách thật đi: guest hỏi (thiếu loại phòng) → bot hỏi đúng một câu → guest
+trả lời → **staff** mở studio (thấy chuyến bot dựng) → staff định giá + sửa chuyến + re-price → approve
+→ publish → **guest** mở link và đọc trang báo giá của khách.
+
+Script **dừng và báo lỗi** nếu hành trình đó không sinh ra quotation, hoặc sinh ra nhiều hơn một — vì
+một walkthrough không phân biệt được "bot không tạo gì" với "đây là việc bot đã làm" thì tệ hơn không
+có. Lần chạy đầu của nó đã bắt được một lỗi thật: `roomType` bị mất chữ `i` trong bảng regex, nên khách
+trả lời "**Deluxe** please" bị bot hỏi lại — xem `docs/01-team-guide.md` (mục "A table of hand-written
+regexes drifts").
 >
 > **Khoá DeepSeek trong `.env.local` đã chết** (`404 Application not found`), nên khi Gemini bị 429 thì
 > lượt đó fail. Bản production có env riêng trên Vercel và đang chạy tốt.

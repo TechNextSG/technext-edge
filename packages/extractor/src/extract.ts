@@ -257,6 +257,15 @@ const CODE_ONLY_STATES: ReadonlyArray<FieldState> = ["default", "derived"];
  * because Chinese is written without spaces (the same reason counts.ts carries a separate Han
  * number table).
  *
+ * The patterns are SOURCES, compiled once below with one set of flags. That is not tidiness: this
+ * table was three hand-written literals, and the `deluxe` one was written without the `i` flag while
+ * the other two had it. The effect was invisible and expensive — a guest who answered the pipeline's
+ * own question with "**Deluxe** please" had the answer thrown away (the check is "did the guest's
+ * own words name this type?", and a capital D did not match), so `roomType` went back to `missing`
+ * and the bot asked the same question again. Found by walking the whole journey rather than by a
+ * unit test: every unit test happened to write the type in lower case. One `new RegExp` per type
+ * means a missing flag is no longer a thing anyone can do.
+ *
  * "standard" is deliberately broad — a guest writing "standard check-in is fine" would let the
  * model's `standard` stand, which costs nothing, because standard is also the value this pipeline
  * falls back to when nobody said anything. The expensive direction is the other two: "deluxe" and
@@ -264,11 +273,15 @@ const CODE_ONLY_STATES: ReadonlyArray<FieldState> = ["default", "derived"];
  * not fire on "en suite", which is a bathroom, and a guest who asks for one is asked the room
  * question rather than priced into a suite.
  */
-const ROOM_TYPE_WORDS: Record<string, RegExp> = {
-  standard: /\bstandard\b|标准|標準|标间|標間/iu,
-  deluxe: /\bdeluxe\b|\blux(?:e|ury)\b|豪华|豪華/u,
-  suite: /(?<!\ben\s)suites?\b|套房|套间|套間/iu,
+const ROOM_TYPE_PATTERNS: Record<string, string> = {
+  standard: "\\bstandard\\b|标准|標準|标间|標間",
+  deluxe: "\\bdeluxe\\b|\\blux(?:e|ury)\\b|豪华|豪華",
+  suite: "(?<!\\ben\\s)suites?\\b|套房|套间|套間",
 };
+
+const ROOM_TYPE_WORDS: Record<string, RegExp> = Object.fromEntries(
+  Object.entries(ROOM_TYPE_PATTERNS).map(([type, source]) => [type, new RegExp(source, "iu")]),
+);
 
 /** Whether the guest's own message names this room type at all. */
 function roomTypeNamedBy(type: string, text: string): boolean {

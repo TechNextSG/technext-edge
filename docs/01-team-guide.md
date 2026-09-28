@@ -696,6 +696,19 @@ node packages/extractor/eval/runner.mjs --provider deepseek-flash
   question list, not in a constant you seed the payload with.** A constant is invisible in
   a way a wrong answer never is — it looks identical on every quotation.
 
+- **A table of hand-written regexes drifts, one entry at a time.** The room-type vocabulary is three
+  patterns, and the `deluxe` one shipped without the `i` flag while the other two had it. Nothing
+  failed: the model returned `stated deluxe` with the guest's own words as evidence, and the *only*
+  thing that threw it away was "did the guest's own words name this type?" — which asked
+  `/\bdeluxe\b/` against "**Deluxe** please". So the bot asked the same question again, and again,
+  until the stall guard handed the enquiry to a person. **Every unit test wrote the type in lower
+  case**, which is exactly why they were green. The fix is structural, not another flag: the patterns
+  are now sources compiled together with one set of flags (`ROOM_TYPE_PATTERNS` → `new RegExp(...,
+  "iu")`), so a single entry cannot be written differently from its neighbours. The generalisable
+  half: when a rule is one of N near-identical entries, build them from one place — and when you find
+  a bug like this, the test to add is the *shape* the tests never used (here: a capital letter), not
+  just the case in front of you.
+
 - **A date range is an answer, and asking for the night count anyway reads as not
   listening.** `nights` was a plain question with no gate, so a guest who wrote
   "Oct 17 to Oct 20" was asked "How many nights will you be staying?" on the very next

@@ -346,6 +346,14 @@ describe("extract", () => {
       ["We would like the suite please", "the suite", "suite"],
       ["我们想要豪华房", "豪华房", "deluxe"],
       ["2 standard rooms for 3 nights", "2 standard rooms", "standard"],
+      // The capital-letter cases, and the reason they are here: every other line writes the type in
+      // lower case, and the `deluxe` pattern once shipped without the `i` flag. A guest who answered
+      // the bot's own question with "Deluxe please" therefore had the answer discarded, and the bot
+      // asked again. Found by walking the whole journey end to end — no unit test had a capital in it.
+      ["Deluxe please", "Deluxe please", "deluxe"],
+      ["Suite, thank you", "Suite", "suite"],
+      ["A Deluxe room would be perfect", "A Deluxe room", "deluxe"],
+      ["Standard is fine", "Standard", "standard"],
     ];
 
     for (const [text, evidence, expected] of cases) {
@@ -354,6 +362,7 @@ describe("extract", () => {
         fakeProvider({ ...HAPPY_RAW, roomType: { value: expected, state: "stated", evidence } }),
       );
       expect(outcome.trip.roomType.value, text).toBe(expected);
+      expect(outcome.trip.roomType.state, text).toBe("stated");
     }
 
     // "en suite" is a bathroom, not a room type — a guest who writes it must be asked, not
