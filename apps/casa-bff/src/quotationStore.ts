@@ -70,7 +70,14 @@ function randomSlug(): string {
 //
 // v3: the seed's staff alert was markdown (`**Custom Dive Schedule:**`), and staff alerts render as
 // text, so the first quotation anyone opens showed literal asterisks.
-const SEED_VERSION = 3;
+//
+// v4: the stored fixture had been PUBLISHED, against the customer's fixture deployment, and that
+// deployment keeps share tokens in one serverless instance's memory — so its link is dead and cannot
+// be repaired (the token is gone from their side). A fixture that opens on "send the message again"
+// with a link nobody can open is a bad first impression of a flow that works, so the fixture is
+// rebuilt to its pre-publish state: no estimator session, pending review, priced by the sample
+// engine. See `docs/upstream-note-bff-vercel-deploy.md` for the measurement.
+const SEED_VERSION = 4;
 
 /**
  * The fixture's trip, as the extractor would have produced it: a split-day diving group, which is
