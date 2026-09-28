@@ -25,15 +25,24 @@ Dành cho người **tự bấm tay** trên production, không dùng script. M�
    $t = (Get-Content .env.local | Where-Object { $_ -match '^STAFF_ACCESS_KEY=' }) -replace '^STAFF_ACCESS_KEY=','' -replace '"',''
    Start-Process "https://technext-edge-casa-bff.vercel.app/quotes?token=$t"
    ```
+
+   **Hai secret khác nhau, đừng lẫn** (từ 2026-09-28): `STAFF_ACCESS_KEY` mở studio và mọi route
+   `/v1/quotes/*`. Các route của **kênh** (`/v1/channels/whatsapp/threads/...`) vẫn dùng
+   `WHATSAPP_VERIFY_TOKEN` — vì Meta cũng là người gọi chúng. Đo trên production: key staff vào route
+   kênh → **401**; token WhatsApp vào → 200.
 3. **Tab thứ hai (tuỳ chọn)** — chỉ cần khi muốn cho lead thấy *tiền đổi theo dữ liệu*: tab đó là
    `https://technext-edge-casa-bff-sim.vercel.app/quotes?token=$t`, chạy engine giả lập **có tính lại**
    (7.600 → 11.200/đêm khi đổi sang deluxe). Tab production thì **không** đổi số, vì fixture trả lại bản
    chụp — nói thẳng điều đó khi demo.
-4. **Reset cho lần chạy sạch** (xoá hội thoại + đóng báo giá đang mở của số đó):
+4. **Reset cho lần chạy sạch** (xoá hội thoại + đóng báo giá đang mở của số đó) — dùng token **kênh**:
 
    ```powershell
-   Invoke-RestMethod -Method Post -Uri "https://technext-edge-casa-bff.vercel.app/v1/channels/whatsapp/threads/84359386414/reset" -Headers @{ 'x-verify-token' = $t }
+   $w = (Get-Content .env.local | Where-Object { $_ -match '^WHATSAPP_VERIFY_TOKEN=' }) -replace '^WHATSAPP_VERIFY_TOKEN=','' -replace '"',''
+   Invoke-RestMethod -Method Post -Uri "https://technext-edge-casa-bff.vercel.app/v1/channels/whatsapp/threads/84359386414/reset" -Headers @{ 'x-verify-token' = $w }
    ```
+
+   > Reset **đóng** báo giá đang mở của số đó (nó chuyển sang tab *Archived*). Record đã publish thì
+   > không bị đóng. Nên chạy reset **trước** mỗi lần test, không phải giữa chừng.
 
 ---
 
@@ -61,6 +70,11 @@ Nhắn **từ WhatsApp của bạn** tới số resort (số test `+1 555-150-65
 Mở báo giá mới nhất của Ana trong sidebar (mã dạng `QT-1120-ANA-…`). Trạng thái lúc này:
 **Needs review**, màn 1, `Rooms: r1:deluxe`.
 
+> Queue hiện có sẵn vài record test cũ. **Bỏ qua** `QT-1121-ANA-911E50C7` (record tôi publish lúc audit,
+> `Link ready — not sent`) và `QT-1205-SAM-7798D2B1` (record test trên tab sim). Record của lần chạy này
+> là record **mới nhất** cùng số điện thoại, và là record duy nhất ở trạng thái `Needs review` có
+> `r1:deluxe` do chính bạn vừa tạo.
+
 | Bước | Bấm | Phải thấy |
 |---|---|---|
 | 1 | **Save & get price** (thanh dưới) | vài giây → màn 2 · badge `Priced — needs approval` · **Engine total ₱31.200** · badge engine `Sample engine (captured prices) — not a real quote` |
@@ -84,6 +98,10 @@ Mở link trên điện thoại (hoặc dán vào tab 3 của máy tính). Phả
 - **Your quote · Version 1**
 - **TOTAL ₱31.200** và itinerary có ngày lặn
 - thẻ *Per guest* với phòng "Standard A" và Full board
+
+> Thẻ per-guest ghi **"Standard A"** dù mình đặt deluxe: đó là **bản chụp** của fixture, không phải lỗi
+> phía mình — engine không tính lại, chỉ phát lại câu trả lời đã chụp (đây chính là điều phải nói thật
+> với lead). Phòng **deluxe** mà studio gửi đi thì kiểm được ở payload: `GET /v1/quotes/<ID>` → `bffTrip.rooms[0].type`.
 
 > ⚠️ Nếu hiện *"This quote link is not valid or has expired"*: đó là **bản fixture của khách mất dữ
 > liệu**, không phải lỗi luồng. Bấm **Create link only** một lần nữa rồi mở lại ngay — nếu vẫn 404 thì
