@@ -34,24 +34,25 @@ Mục đích: biết chỗ nào ba bên **khớp**, chỗ nào **lệch**, để
   `"transport":{"roundtrip":13000.0,"oneway":6500.0}`.
 - Engine khách: mỗi **lượt** van là `rev: 6500`; round trip = 2 lượt = **13.000**
   (`compute.agent-group.json`: `vanRuns` arrival + departure, `vanCount: 2, rev: 13000`).
-- Mình: `TRANSPORT_RATE = { roundtrip: 14000, oneway: 6500 }` — round trip **theo website**, one-way
-  theo rate card.
+- Mình: `TRANSPORT_RATE.roundtrip` **đã trả về 13.000** (quyết định 28/09, xem kết luận bên dưới).
 
-→ **Hai nguồn của khách nói 13.000, một trang công khai nói 14.000.** Engine mới là chỗ tính tiền thật,
-nên hôm nay khách sẽ bị tính 13.000 còn trang web nói 14.000 — một trong hai đã cũ. Câu hỏi cho Phillip:
-*giá van round trip hiện hành là bao nhiêu, và nguồn nào chuẩn — trang web hay rate card trong Odoo?*
-Nếu chốt 13.000 thì sửa **một dòng** (`TRANSPORT_RATE.roundtrip`) + test.
+→ **Đã chốt 28/09 (TechNext tự quyết, không chờ Phillip): giữ 13.000, theo dữ liệu của khách.** Lý do:
+engine mới là nơi thu tiền thật, và rate card này tồn tại để **xấp xỉ câu trả lời của engine** — bản nháp
+nói 14.000 trong khi engine nói 13.000 là bản nháp mâu thuẫn với nguồn sự thật, đúng loại lỗi repo này
+đang chống. Nếu trang web mới là đúng thì **sửa ở trang web (hoặc trong Odoo — nơi engine đọc)**, rồi con
+số ở đây đi theo sau. Đã đổi `TRANSPORT_RATE.roundtrip` về 13.000 và khoá bằng test. Khi gặp Phillip chỉ
+cần nói một câu: trang `/book-now` đang ghi 14.000, lệch 1.000/van so với rate card trong Odoo.
 
-### 2.2. Sức chứa van: website 7 khách, mình **suy ra** 6 từ một ví dụ
+### 2.2. Sức chứa van: website 7 khách, engine chia 6+1 → chọn **6**
 
-- Website: *"max 7 pax with light luggage"*.
-- Engine: trong **một** bản chụp, 7 khách được chia **2 van** (van 1: 6 khách, van 2: 1 khách).
-- `VAN_CAPACITY = 6` trong `rates.ts` là **suy luận của mình** từ đúng một data point đó — không nguồn
-  nào nói sức chứa là 6. Cần Phillip xác nhận 6 hay 7; con số này chỉ dùng để nháp đủ số van,
-  giá thật vẫn của engine.
+→ **Cũng chốt 28/09:** giữ `VAN_CAPACITY = 6`, vì đó là sức chứa duy nhất mà hệ thống của khách đã thể
+hiện (một chuyến 7 khách bị chia thành van 6 + van 1), và đó là cách engine của họ tính tiền. Nếu trang
+web đúng (7 khách) thì **số học của engine** mới là thứ cần sửa; còn nếu mình giả định 7 thì bản nháp
+**thiếu một van** cho đoàn 7 người — tức thiếu tiền thật.
 
-→ Ảnh hưởng tiền thật với nhóm đông: 7 khách theo website = 1 van 14.000; theo engine = 2 van
-26.000 (và nếu tính 6.500/lượt thì 2 lượt × 2 van = 26.000).
+→ Ảnh hưởng tiền thật với nhóm đông: 7 khách = **2 van × 13.000 = 26.000** (không phải 1 van).
+
+→ Ảnh hưởng tiền thật với nhóm đông: 7 khách = **2 van** (26.000), không phải 1 van.
 
 
 ### 2.3. Rate card mẫu của mình chỉ tính **1 van** cho mọi nhóm
@@ -112,7 +113,7 @@ một dòng tiền đang thiếu trong cả hai hệ.
 
 | Việc | Thay đổi | Ghi chú |
 |---|---|---|
-| Giá van | `TRANSPORT_RATE.roundtrip: 13000 → 14000` (giữ `oneway: 6500` của engine) | Theo **giá công bố trên website**; engine vẫn tính 13.000 → **vẫn là câu hỏi mở cho Phillip**, đã ghi ngay trong comment của `rates.ts` |
+| Giá van | đổi 13.000 → 14.000 (28/09 sáng), rồi **trả về 13.000** (28/09 tối) | Chốt cuối: theo dữ liệu của khách (rate card + engine). Trang `/book-now` ghi 14.000 là chỗ lệch cần khách sửa |
 | Số van theo nhóm | thêm `VAN_CAPACITY = 6`, `vansForGuests()`, `vanLoads()`; `quotationTool.ts` và `simulatedEstimator.ts` đều tính đủ van | Nhóm 7 khách: 2 van × 14.000 = 28.000 (trước đây luôn 1 van) |
 | Câu chữ handoff | `fallbackReply("handoff")` và `("apology")` thêm *"Our front desk is open until 9 PM (Manila time) … next morning"* (+ bản tiếng Trung) | Câu tĩnh, đúng ở mọi giờ; câu mở đầu mà test/field guide đang gắn vẫn giữ nguyên |
 

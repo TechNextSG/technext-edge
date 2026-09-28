@@ -95,21 +95,23 @@ export const MEAL_RATE = 1500;
  *     **`"transport":{"roundtrip":13000.0,"oneway":6500.0}`**, and the compute examples charge 6,500
  *     per van RUN, so a round trip is 13,000 there too.
  *
- * Two customer-side sources against one public page. The engine is what actually prices a real
- * quotation, so 13,000 is what a guest would be charged today; the page is what a guest is told.
- * One of the two is stale and only Phillip can say which — see `docs/resort-website-cross-check.md`.
- * The one-way price keeps the rate card's 6,500, which the site does not contradict.
+ * DECIDED 2026-09-28: this table follows the customer's data (13,000), not the page. Their engine is
+ * what a guest is actually charged, and a draft that disagrees with the engine disagrees with the
+ * source of truth — which is the failure this repository keeps finding. If the page turns out to be the
+ * newer truth, the correction belongs on the page (or in Odoo, which the engine reads) and this number
+ * follows from there rather than the other way round. See `docs/resort-website-cross-check.md` §2.1.
  */
-export const TRANSPORT_RATE = { roundtrip: 14000, oneway: 6500 } as const;
+export const TRANSPORT_RATE = { roundtrip: 13000, oneway: 6500 } as const;
 
 /**
- * Guests one van carries — **our inference, not a published fact**.
+ * Guests one van carries.
  *
- * Taken from one captured run that split 7 guests into a van of 6 and a van of 1
- * (`contracts/odoo/examples/compute.agent-group.json`). No source states a capacity, and the resort's
- * site says "max 7 pax with light luggage", so 6 and 7 are both defensible readings of a single data
- * point. It is here so a big group is drafted with the vans it needs rather than one; the number
- * itself is a question for Phillip.
+ * Decided the same way as the price above: 6, because it is the only capacity any customer system has
+ * demonstrated — their captured run split seven guests into a van of 6 and a van of 1
+ * (`contracts/odoo/examples/compute.agent-group.json`), and that is what their engine bills for. The
+ * resort's site says "max 7 pax with light luggage"; if that is right, the engine's own arithmetic is
+ * what needs fixing. Assuming 7 here would under-count a van for a seven-guest group and under-quote by
+ * a whole van. Open question for Phillip: `docs/resort-website-cross-check.md` §2.2.
  */
 export const VAN_CAPACITY = 6;
 

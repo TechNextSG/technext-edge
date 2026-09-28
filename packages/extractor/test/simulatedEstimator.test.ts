@@ -168,13 +168,15 @@ describe("buildSimulatedModel — the captured couple, reproduced", () => {
       [{ pax: 6 }, { pax: 1 }],
       [{ pax: 6 }, { pax: 1 }],
     ]);
-    // 2 vans × PHP 14,000, split across the seven riders.
-    expect(seven.catRev.transport).toBe(28000);
+    // 2 vans × PHP 13,000 (the figure in the customer's own rate card), split across the seven riders.
+    // The three-cent drift is that split: 26,000 does not divide by 7, and the model rounds each
+    // passenger's share rather than hiding the remainder somewhere.
+    expect(seven.catRev.transport).toBeCloseTo(26000, 1);
     const rider = seven.quotes[0]!;
-    expect(rider.lines.find((l) => l.cat === "transport")!.gross).toBeCloseTo(4000, 2);
+    expect(rider.lines.find((l) => l.cat === "transport")!.gross).toBeCloseTo(26000 / 7, 2);
   });
 
-  it("keeps one van for a couple, at the resort's published round-trip price", () => {
+  it("keeps one van for a couple, at the rate the customer's own card carries", () => {
     const couple = buildSimulatedModel(
       buildBffTrip(
         retailCoupleSource({
@@ -184,7 +186,7 @@ describe("buildSimulatedModel — the captured couple, reproduced", () => {
       ),
     );
     expect(couple.vans).toBe(1);
-    expect(couple.catRev.transport).toBe(14000);
+    expect(couple.catRev.transport).toBe(13000);
   });
 
   it("keeps the nullable cost half null — we have no cost data in any mode", () => {
