@@ -220,6 +220,14 @@ ${themeCss()}
       const btn = document.getElementById('theme-toggle-btn');
       if (btn) btn.textContent = theme === 'dark' ? 'Switch to Light Mode' : 'Switch to Dark Mode';
     }
+    (function syncBackLink() {
+      const tok = new URLSearchParams(window.location.search).get('token');
+      if (!tok) return;
+      const back = document.querySelector('a.back');
+      if (back && !back.href.includes('token=')) {
+        back.href += (back.href.includes('?') ? '&' : '?') + 'token=' + encodeURIComponent(tok);
+      }
+    })();
   </script>
 </body>
 </html>`;

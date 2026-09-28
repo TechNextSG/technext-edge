@@ -1160,6 +1160,7 @@ ${themeCss()}
       <h1>Casa Escondida — Quotation Review #${draft.quoteId}</h1>
     </div>
     <div class="top-actions">
+      <a class="theme-btn staff-only" id="topbar-ops-btn" href="/quotes/${encodeURIComponent(draft.quoteId)}/ops" target="_blank" style="text-decoration:none;font-weight:700;display:inline-flex;align-items:center;gap:6px;">Ops Sheet &nearr;</a>
       <form method="post" action="/logout" style="display:inline;"><button type="submit" class="theme-btn">Sign out</button></form>
       <button type="button" class="theme-btn" id="theme-toggle-btn" onclick="toggleTheme()">
         <span id="theme-label">Dark Mode</span>
@@ -1219,8 +1220,11 @@ ${themeCss()}
       <!-- Where the quotation is, and what is left to do. One status, one bar. -->
       <div class="card staff-only" id="workflow-card">
         <div style="display:flex;justify-content:space-between;align-items:center;gap:14px;flex-wrap:wrap;margin-bottom:12px;">
-          <div style="font-size:15px;font-weight:800;">This quotation</div>
-          <span id="quote-status-badge" class="status-pill status-${statusTone}">${statusLabel}</span>
+          <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
+            <div style="font-size:15px;font-weight:800;">This quotation</div>
+            <span id="quote-status-badge" class="status-pill status-${statusTone}">${statusLabel}</span>
+          </div>
+          <a class="btn btn-outline staff-only" id="workflow-ops-sheet-btn" href="/quotes/${encodeURIComponent(draft.quoteId)}/ops" target="_blank" style="padding:6px 14px;font-size:13px;font-weight:700;text-decoration:none;display:inline-flex;align-items:center;gap:6px;">Ops Sheet &nearr;</a>
         </div>
         ${progressHtml}
         <!-- The one action that finishes a step lives in the wizard bar at the bottom of the screen,
@@ -2590,6 +2594,15 @@ ${themeCss()}
       if (remembered > serverStep) goStep(remembered);
       else if (remembered > 0 && remembered < serverStep) goStep(remembered);
       else updateWizard();
+    })();
+    (function syncOpsLinks() {
+      const tok = staffToken();
+      if (!tok) return;
+      document.querySelectorAll('a[href*="/ops"]').forEach(a => {
+        if (!a.href.includes('token=')) {
+          a.href += (a.href.includes('?') ? '&' : '?') + 'token=' + encodeURIComponent(tok);
+        }
+      });
     })();
     renderStatus();
   </script>
