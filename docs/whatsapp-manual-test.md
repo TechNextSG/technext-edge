@@ -262,6 +262,7 @@ enquiry rồi hiển thị **tên của khách ở enquiry sau** bên cạnh con
      dụ tab này mở trong khi tab khác đã lưu một sửa đổi) — bấm **Price with the Estimator BFF** lại rồi
      mới duyệt. Khác biệt **không ảnh hưởng giá** (sửa tên, ghi chú) vẫn duyệt được, và được ghi vào
      scorecard như một lần sửa.
+     - Danh sách đầy đủ mã từ chối của 6 route ghi: `docs/error-codes.md`.
 5. Khung **Publish guest link**: tick **"I have checked this SAMPLE price"** rồi bấm **Publish guest link**.
    - Chưa tick → **409 `sample_not_acknowledged`** (đúng thiết kế).
    - Thành công → `✅ Published as version 1` + link dạng
