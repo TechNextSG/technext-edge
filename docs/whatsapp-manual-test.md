@@ -276,6 +276,13 @@ enquiry rồi hiển thị **tên của khách ở enquiry sau** bên cạnh con
    - Chưa tick mà gọi thẳng route → **409 `sample_not_acknowledged`** (đúng thiết kế: một con số sample
      không được tới tay khách mà không có người xác nhận đã nhìn nó).
    - Thành công → link dạng `https://tn-casa-estimator-fixture.vercel.app/quote/<token>`.
+   - **Link được kiểm trước khi báo thành công**: server gọi `GET /api/share/<token>` (đúng request mà
+     trang khách gọi) và từ chối bằng **502 `link_unverified`** nếu không mở được — record **không** bị
+     đánh dấu published, nên thử lại là an toàn. Nút gửi cũng kiểm lại lần nữa trước khi nhắn khách.
+   - ⚠️ **Deployment fixture của khách giữ token trong bộ nhớ một instance**: cùng một token, mở 24 lần
+     song song cho **200 × 17, 404 × 7**, nên link có thể 404 ngẫu nhiên dù vừa publish xong (số đo và
+     cách xử lý: `docs/upstream-note-bff-vercel-deploy.md`). `GET /quote/<token>` trả 200 cho **mọi**
+     token (shell SPA 893 byte) — đừng lấy đó làm bằng chứng link sống; `GET /api/share/<token>` mới là.
    - Đã publish rồi thì **không sửa chuyến được nữa** (Trip review chuyển sang chỉ-đọc) → gọi route sẽ
      nhận **409 `already_shared`** (khách đang giữ link; sửa dưới chân khách là tự động đổi giá — Q-005).
 6. Mở link đó → mở được app báo giá của khách (SPA của họ), số tiền **trùng** số trong studio, có nhãn

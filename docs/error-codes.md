@@ -31,6 +31,7 @@ Tài liệu này tồn tại vì hai lý do, và cả hai đều đo được:
 | `phone_missing` | 400 | `/send-whatsapp` | Thiếu số | Nhập số kèm mã quốc gia |
 | `phone_invalid` | 400 | `/send-whatsapp` | Số không hợp lệ (bắt đầu `0`, quá ngắn/dài) | Sửa số |
 | `send_failed` | 502 | `/send-whatsapp` | Meta từ chối; câu đã được dịch từ mã của Meta | Đọc câu, xử lý theo nó (vd 131030 = số chưa có trong danh sách test) |
+| `link_unverified` | 502 / 409 | `/publish`, `/send-whatsapp` | Link đã mint nhưng **không mở được** (`GET /api/share/<token>` không trả 200) | Bấm tạo link lại. Đây là lỗi phía app báo giá của khách (xem `docs/upstream-note-bff-vercel-deploy.md`: deployment fixture giữ token trong bộ nhớ **một instance**, nên link có thể 404 ngẫu nhiên) |
 | `unauthorized` | 401 | mọi route ghi | Thiếu/hết phiên staff | Đăng nhập lại |
 | `not_found` | 404 | mọi route theo `:id` | Không có báo giá đó | Bấm về `/quotes` |
 

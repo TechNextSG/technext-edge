@@ -5,7 +5,42 @@ concrete, reproducible blocker, and this note is what to hand them.
 
 **Repo:** `TechNextSG/tn-casa-quotation-estimator` · `main` @ `4c48918`
 
-## What breaks
+## ⚠️ The fixture deployment loses data — a guest link can 404 at random
+
+**Measured 2026-09-28** on `tn-casa-estimator-fixture.vercel.app` (the bundled demo deployment of
+their code, below). A guest reported "This quote link is not valid or has expired" for a link that
+our studio had published minutes earlier **and reported as successful**.
+
+The measurement, so nobody has to take this on trust:
+
+| What was asked | Answer |
+|---|---|
+| `GET /api/share/<token>` for the token we minted and sent | **404** |
+| `GET /api/estimates/<scenario id>` for the scenario that minted it (with its own cookie) | **404** |
+| The SAME token, 24 requests in parallel | **200 × 17, 404 × 7** |
+| A token minted a minute earlier by hand, same deployment | **200** |
+
+Read together: the deployment keeps scenarios and share tokens in the **memory of one serverless
+instance**, so a token is known only to the instance that minted it. Any later request that lands
+elsewhere — a different lambda, a cold start, a redeploy — answers 404, and the guest's page shows
+the "not valid or has expired" message. Two related facts worth knowing when reading a result here:
+
+* `GET /quote/<token>` returns **200 with an 893-byte SPA shell for ANY token**, valid or not. It is
+  not evidence that a link works; `GET /api/share/<token>` is.
+* `expiresAt` is `null`, so this is **not** expiry — it is data loss.
+
+**What this means for a demo:** a link published against this deployment may or may not open for the
+guest, at random. Our side now refuses to call a link published (or to send it) until a check of
+`GET /api/share/<token>` answers 200 — see `verifyGuestLink` in `apps/casa-bff/src/estimatorClient.ts`
+— so the studio fails loudly instead of messaging a dead link, but a coin-flip link is still a
+coin-flip link.
+
+**What to ask them for:** a durable store for the fixture deployment (their `DraftStore` on a real
+database or KV instead of process memory), or a demo pointed at their real deployment with Odoo. It
+is one line in their deployment config, and it is the difference between a link that works and a
+link that works *sometimes*.
+
+## What breaks (the deployment itself)
 
 `bff/vercel.json` exists and looks ready (`build:app`, function `api/index.ts`, rewrites), but
 pushing it to Vercel produces a function that 500s. Two independent causes:
