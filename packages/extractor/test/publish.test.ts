@@ -247,6 +247,12 @@ describe("publishing a guest link", () => {
     const withTotal = await (await app.request(`/q/${draft.slug}`, { headers: { accept: "text/html" } })).text();
     expect(withTotal).toContain("₱31,200");
     expect(withTotal).toContain("Total, from the resort's booking engine");
+    // The engine's figure is the ONLY money on the page. This assertion is the one this test was
+    // missing: it used to stop at "₱31,200" while the page also printed a ₱15,600 deposit and a
+    // ₱15,600 balance that this service had computed by halving the total.
+    expect(withTotal).not.toContain("15,600");
+    expect(withTotal).not.toContain("Deposit Due");
+    expect(withTotal).not.toContain("Balance Remaining");
   });
 
   it("keeps their link, and no copy, when their app opens what it issued", async () => {

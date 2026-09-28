@@ -192,13 +192,30 @@ describe("an unknown quotation is a miss, not somebody's booking", () => {
   // used to be `https://wa.me/?text=…` — no number — which opens WhatsApp on an empty "choose a chat"
   // screen. A guest-facing button that goes nowhere is worse than no button.
   describe("our copy of a published quotation", () => {
-    async function mirroredCopy() {
+    /** The engine's answer, as `sync-estimate` would have stored it. Revenue is a real figure here. */
+    const engineAnswer = (revenue: number, sample = false) => ({
+      source: "remote" as const,
+      sample,
+      mode: "fixture",
+      role: "guest",
+      computedAt: "2026-09-28T00:00:00.000Z",
+      guests: [],
+      catRev: { room: revenue },
+      kpis: { revenue, guests: 2, nights: 2, discounts: null, rpgn: revenue / 4 },
+      warnings: [],
+      retail: null,
+      ops: null,
+    });
+
+    async function mirroredCopy(overrides: Partial<HonoQuotationDraft> = {}) {
       return saveQuotationDraft({
         ...buildHonoQuotationDraft(makeTrip()),
         quoteId: "QT-0000-MIRROR-AAA",
         slug: randomUUID(),
         status: "confirmed_by_hono",
         phone: "639171234567",
+        pricing: engineAnswer(31200),
+        sentToGuestAt: "2026-09-28T00:00:00.000Z",
         estimator: {
           id: "sim-9",
           cookie: "ubg_sid=sim-9",
@@ -208,6 +225,7 @@ describe("an unknown quotation is a miss, not somebody's booking", () => {
           mirrorUrl: "http://localhost/q/QT-0000-MIRROR-AAA",
           mirrorReason: "the booking app did not recognise the link it had just issued",
         },
+        ...overrides,
       });
     }
 
@@ -244,8 +262,88 @@ describe("an unknown quotation is a miss, not somebody's booking", () => {
       expect(html).toContain("Booking &amp; Deposit Policy");
       expect(html).toContain("50% non-refundable down payment confirms your reservation");
       expect(html).toContain("The balance is due at least 1 month before your travel date");
-      expect(html.toLowerCase()).not.toContain("room hold");
       expect(html.toLowerCase()).not.toContain("first-come");
+    });
+
+    /**
+     * The page's own promise, from the top of `guestQuotationCopy.ts`: *"renders `draft.pricing` — the
+     * ENGINE's own answer… No arithmetic of ours, no rounding: if a number is on this page, the engine
+     * said it."*
+     *
+     * These are the tests that hold it to that. The previous version of this file checked for the
+     * words "room hold" and "first-come" while the page said **"Provisional 72-Hour Hold Active"** with
+     * a live countdown, printed a **deposit it computed by halving the total**, and offered a currency
+     * dropdown that converted the total at a rate typed into the source file. Every one of those
+     * passed the old assertions, because a test that looks for one string cannot notice a page that
+     * invents a different one.
+     */
+    it("prints no money the engine did not say", async () => {
+      const saved = await mirroredCopy();
+      const app = createApp();
+
+      const html = await (await app.request(`/q/${saved.slug}`)).text();
+      // The engine's figure is there…
+      expect(html).toContain("₱31,200");
+      // …and the halved deposit / balance are not, in any form.
+      expect(html).not.toContain("15,600");
+      expect(html).not.toContain("15.600");
+      expect(html).not.toContain("Deposit Due");
+      expect(html).not.toContain("Balance Remaining");
+      expect(html).not.toContain("Payment Schedule");
+      expect(html).not.toContain("Secures room");
+    });
+
+    it("promises no hold on a room, in any wording", async () => {
+      const saved = await mirroredCopy();
+      const app = createApp();
+
+      const html = await (await app.request(`/q/${saved.slug}`)).text();
+      // Not "room hold", not "72-Hour Hold", not a countdown — the word, wherever it appears.
+      expect(html.toLowerCase()).not.toContain("hold");
+      expect(html.toLowerCase()).not.toContain("countdown");
+      expect(html).not.toContain("id=\"countdown-val\"");
+      expect(html).not.toContain("id=\"hold-active-box\"");
+    });
+
+    it("converts nothing: the currency the engine priced in is the currency printed", async () => {
+      // A quotation the engine priced in USD was rendered with a peso sign (the symbol map only knew
+      // USD), and choosing EUR multiplied those dollars by 0.016. There is no converter left to get
+      // this wrong: no rate table, no dropdown, and the symbol follows `draft.currency`.
+      const usd = await mirroredCopy({
+        quoteId: "QT-0000-USD-AAA",
+        currency: "USD",
+        pricing: engineAnswer(1000),
+      });
+      const app = createApp();
+
+      const html = await (await app.request(`/q/${usd.slug}`)).text();
+      expect(html).toContain("$1,000");
+      expect(html).not.toContain("₱");
+      expect(html).not.toContain("convertCurrency");
+      expect(html).not.toContain("currency-toggle");
+      expect(html).not.toContain("0.018");
+    });
+
+    it("says nothing about payment on a sample price", async () => {
+      // Every price on a simulated deployment is a sample. Asking a guest to pay against an example
+      // figure is the failure this page exists to make impossible.
+      const sample = await mirroredCopy({
+        quoteId: "QT-0000-SAMPLE-AAA",
+        pricing: engineAnswer(31200, true),
+      });
+      const app = createApp();
+
+      const html = await (await app.request(`/q/${sample.slug}`)).text();
+      expect(html).toContain("Sample data");
+      expect(html).not.toContain("Payment is arranged by our reservations team");
+      expect(html).not.toContain("Deposit Due");
+
+      // The same page with a real figure does tell the guest how payment happens — and that it does
+      // not happen here.
+      const real = await mirroredCopy({ quoteId: "QT-0000-REAL-AAA" });
+      const realHtml = await (await createApp().request(`/q/${real.slug}`)).text();
+      expect(realHtml).toContain("Payment is arranged by our reservations team");
+      expect(realHtml).toContain("This page does not take payment");
     });
   });
 });
