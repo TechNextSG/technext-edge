@@ -236,6 +236,26 @@ function statedMoneyValues(trip: Trip): Record<string, string | number | boolean
 }
 
 /**
+ * What a deletion may never touch, whoever asks for it.
+ *
+ * The duplicate rule decided this before (`duplicateQuotationIds`), but an explicit list of ids —
+ * which is what clearing leftovers from manual tests needs — is a second way in, and the more
+ * dangerous one: whoever holds the staff key can name any record at all. So the protections are
+ * enforced here, on the way to `removeQuotation`, rather than being a property of how the list was
+ * built. Three things are never removable:
+ *
+ *   * a **published** record, because a guest may be holding its link;
+ *   * a **corrected** record, because somebody's work is in it;
+ *   * the **seeded** fixture, because that is what a cold start shows.
+ */
+function deletableByCleanup(q: HonoQuotationDraft): boolean {
+  if (q.estimator?.sharedAt) return false;
+  if ((q.staffEdits ?? []).length > 0) return false;
+  if (q.seedVersion !== undefined) return false;
+  return true;
+}
+
+/**
  * Close the quotation an enquiry left open, because the enquiry is over.
  *
  * A reset is the guest saying "forget that, start again" — and on a shared office phone the next
@@ -1685,13 +1705,22 @@ export function createApp(options: AppOptions = {}) {
    * in the product that deletes a business record. What may go is decided in
    * `duplicateQuotationIds()`, so the dry run and the delete share one code path, and the response
    * names every record it touched — a cleanup nobody can audit is a cleanup nobody should run.
+   *
+   * It also takes `{ ids: [...] }`, for leftovers that are not duplicates of anything (probes, and
+   * the drafts a manual test leaves for a phone nobody will text from again). Naming records
+   * explicitly is the more dangerous form, so the same three protections apply — see
+   * `deletableByCleanup` — and the answer says which names were refused and why.
    */
   app.post("/v1/quotes/cleanup-duplicates", async (c) => {
     if (!staffSession(c).ok) return c.json({ error: "unauthorized" }, 401);
 
-    const body = (await c.req.json().catch(() => ({}))) as { confirm?: unknown };
+    const body = (await c.req.json().catch(() => ({}))) as { confirm?: unknown; ids?: unknown };
     const all = await listQuotations();
-    const doomed = duplicateQuotationIds(all);
+    const named = Array.isArray(body.ids) ? new Set(body.ids.map(String)) : null;
+    const considered = named ? all.filter((q) => named.has(q.quoteId)) : all;
+    const doomed = named ? considered.filter(deletableByCleanup) : duplicateQuotationIds(all);
+    const refused = named ? considered.filter((q) => !deletableByCleanup(q)) : [];
+    const notFound = named ? [...named].filter((id) => !all.some((q) => q.quoteId === id)) : [];
 
     if (body.confirm !== true) {
       return c.json({
@@ -1704,6 +1733,8 @@ export function createApp(options: AppOptions = {}) {
           guestName: q.guestName,
           createdAt: q.createdAt,
         })),
+        refused: refused.map((q) => q.quoteId),
+        notFound,
         detail: "nothing was removed — POST {confirm: true} to apply",
       });
     }
@@ -1712,7 +1743,15 @@ export function createApp(options: AppOptions = {}) {
     for (const q of doomed) {
       if (await removeQuotation(q.quoteId)) removed.push(q.quoteId);
     }
-    return c.json({ ok: true, dryRun: false, total: all.length, removed, kept: all.length - removed.length });
+    return c.json({
+      ok: true,
+      dryRun: false,
+      total: all.length,
+      removed,
+      refused: refused.map((q) => q.quoteId),
+      notFound,
+      kept: all.length - removed.length,
+    });
   });
 
   /**

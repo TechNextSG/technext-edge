@@ -149,8 +149,51 @@ describe("cleaning up duplicate quotations", () => {
     }
   });
 
-  it("cancelling a quotation archives it and serves a polite 410 on its guest link", async () => {
-    const draft = await stored("QT-CANCEL-1", "639170000099", "2026-09-28T04:00:00Z");
+  it("removes the records it was named, and still refuses the protected ones", async () => {
+    // Leftovers that are not duplicates of anything: probes, and drafts a manual test leaves for a
+    // phone nobody will text from again. Naming them explicitly is the more dangerous form of the
+    // one route that deletes business records, so the three protections have to hold here too.
+    await stored("QT-LEFT-PLAIN", "639170000021", "2026-09-27T03:00:00Z");
+    await stored("QT-LEFT-PUBLISHED", "639170000022", "2026-09-27T03:01:00Z", {
+      estimator: { id: "sim-pub2", cookie: "ubg_sid=sim-pub2", seq: 1, guestUrl: "https://their.app/quote/tok2", sharedAt: "2026-09-27T03:02:00Z" },
+    });
+    await stored("QT-LEFT-CORRECTED", "639170000023", "2026-09-27T03:03:00Z", {
+      staffEdits: [{ at: "2026-09-27T03:04:00Z", fields: ["rooms[0].type"] }],
+    });
+    const app = createApp();
+    const ids = ["QT-LEFT-PLAIN", "QT-LEFT-PUBLISHED", "QT-LEFT-CORRECTED", "QT-LEFT-MISSING"];
+
+    const preview = await (await cleanup(app, { ids })).json();
+    expect(preview.dryRun).toBe(true);
+    expect(preview.wouldRemove.map((q: { quoteId: string }) => q.quoteId)).toEqual(["QT-LEFT-PLAIN"]);
+    expect(preview.refused.sort()).toEqual(["QT-LEFT-CORRECTED", "QT-LEFT-PUBLISHED"]);
+    expect(preview.notFound).toEqual(["QT-LEFT-MISSING"]);
+    // A dry run that deletes is not a dry run.
+    expect((await app.request(`/v1/quotes/QT-LEFT-PLAIN?token=${VERIFY_TOKEN}`)).status).toBe(200);
+
+    const applied = await (await cleanup(app, { ids, confirm: true })).json();
+    expect(applied.removed).toEqual(["QT-LEFT-PLAIN"]);
+    expect(applied.refused.sort()).toEqual(["QT-LEFT-CORRECTED", "QT-LEFT-PUBLISHED"]);
+    expect((await app.request(`/v1/quotes/QT-LEFT-PLAIN?token=${VERIFY_TOKEN}`)).status).toBe(404);
+    // The published link and the corrected record are exactly what the rule exists to keep.
+    expect((await app.request(`/v1/quotes/QT-LEFT-PUBLISHED?token=${VERIFY_TOKEN}`)).status).toBe(200);
+    const corrected = await (await app.request(`/v1/quotes/QT-LEFT-CORRECTED?token=${VERIFY_TOKEN}`)).json();
+    expect(corrected.quotation.staffEdits).toHaveLength(1);
+  });
+
+  it("refuses the seeded fixture even when it is named explicitly", async () => {
+    const app = createApp();
+    const before = await (await app.request(`/v1/quotes?token=${VERIFY_TOKEN}`)).json();
+    const seed = before.quotations.find((q: { seedVersion?: number }) => q.seedVersion !== undefined);
+    expect(seed, "the fixture seeds itself on first read").toBeTruthy();
+
+    const applied = await (await cleanup(app, { ids: [seed.quoteId], confirm: true })).json();
+    expect(applied.removed).toEqual([]);
+    expect(applied.refused).toContain(seed.quoteId);
+    expect((await app.request(`/v1/quotes/${seed.quoteId}?token=${VERIFY_TOKEN}`)).status).toBe(200);
+  });
+
+  it("cancelling a quotation archives it and serves a polite 410 on its guest link", async () => {    const draft = await stored("QT-CANCEL-1", "639170000099", "2026-09-28T04:00:00Z");
     const app = createApp();
 
     // Cancel requires staff session
