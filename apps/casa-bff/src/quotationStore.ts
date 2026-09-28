@@ -290,6 +290,14 @@ export function renderHonoQuotationEditorHtml(
   // quotation that is already approved must not read as unapproved because a script did not run.
   const published = Boolean(draft.estimator?.sharedAt && draft.estimator?.guestUrl);
   const priced = Boolean(draft.pricing);
+  /**
+   * A price is only usable for a guest link when the ENGINE has a scenario behind it: publishing
+   * freezes a revision of that scenario, and a figure from the built-in sample engine (which is what
+   * the seeded fixture carries) has nothing to freeze. Measured on production: the studio offered
+   * Approve → Send for the fixture, and `Create link` answered "price the quotation before publishing
+   * it" — true of the scenario, misleading about the price.
+   */
+  const enginePriced = Boolean(draft.estimator?.id);
   const approved = draft.status === "confirmed_by_hono";
   const archived = draft.status === "cancelled";
 
@@ -301,17 +309,20 @@ export function renderHonoQuotationEditorHtml(
         ? "Sent to guest"
         : approved
           ? "Approved — not sent yet"
-          : priced
-            ? "Priced — needs approval"
-            : "Needs review";
-  const statusTone = archived ? "rose" : published || approved ? "emerald" : priced ? "amber" : "amber";
+          : priced && !enginePriced
+            ? "Needs a price from the engine"
+            : priced
+              ? "Priced — needs approval"
+              : "Needs review";
+  const statusTone = archived ? "rose" : published || approved ? "emerald" : "amber";
 
   // A step is `done` when it is behind us, `current` when it is the next thing to do. "Get price"
-  // counts as done when the record holds a price; "Send" only when the guest link exists.
+  // counts as done only when the ENGINE priced it: a figure with no scenario behind it cannot become
+  // a guest link, so calling that step finished would send the person to a button that refuses.
   const steps: Array<{ label: string; state: "done" | "current" | "todo" }> = [
     { label: "Review trip", state: draft.bffTrip ? "done" : "current" },
-    { label: "Get price", state: priced ? "done" : draft.bffTrip ? "current" : "todo" },
-    { label: "Approve", state: approved || published ? "done" : priced ? "current" : "todo" },
+    { label: "Get price", state: enginePriced ? "done" : draft.bffTrip ? "current" : "todo" },
+    { label: "Approve", state: approved || published ? "done" : enginePriced ? "current" : "todo" },
     { label: "Send", state: published ? "done" : approved ? "current" : "todo" },
   ];
   // Which screen opens. Server-rendered, like the status: the right step must be in front of the
@@ -320,8 +331,8 @@ export function renderHonoQuotationEditorHtml(
   // The script may move it afterwards (`goStep`), and remembers the choice in `sessionStorage`
   // because the actions that finish a step RELOAD the page (the record is the source of truth for
   // every figure on it).
-  const maxStep = published ? 4 : approved ? 4 : priced ? 3 : draft.bffTrip ? 2 : 1;
-  const initialStep = role === "guest" ? 2 : approved || published ? 4 : priced ? 3 : 1;
+  const maxStep = published || approved ? 4 : enginePriced ? 3 : draft.bffTrip ? 2 : 1;
+  const initialStep = role === "guest" ? 2 : published || approved ? 4 : enginePriced ? 3 : 1;
 
   /**
    * What the wizard's button says before any script runs — and it has to be TRUE, not just present.
@@ -336,7 +347,7 @@ export function renderHonoQuotationEditorHtml(
     initialStep === 1
       ? "Save &amp; get price"
       : initialStep === 2
-        ? priced
+        ? enginePriced
           ? "Continue to approve &rarr;"
           : "Get price"
         : initialStep === 3
@@ -1322,6 +1333,7 @@ ${themeCss()}
      */
     const ERROR_HELP = {
       not_priced: 'Get the price first, then approve.',
+      no_scenario: 'This price did not come from the booking engine. Go to step 2 and press Get price, then try again.',
       trip_changed: 'The trip changed after it was priced. Save the trip again to get a new price, then approve.',
       not_approved: 'Approve the quotation first.',
       not_published: 'The guest link does not exist yet — sending creates it.',
@@ -1396,8 +1408,11 @@ ${themeCss()}
     function maxStep() {
       const published = Boolean(state.estimator && state.estimator.sharedAt);
       const approved = state.status === 'confirmed_by_hono';
+      // The engine must own the quotation before there is anything to approve or publish: a price
+      // from the built-in sample engine has no scenario to freeze (see the server-side note).
+      const enginePriced = Boolean(state.estimator && state.estimator.id);
       if (published || approved) return 4;
-      if (state.pricing) return 3;
+      if (enginePriced) return 3;
       if (state.bffTrip) return 2;
       return 1;
     }
@@ -1436,7 +1451,9 @@ ${themeCss()}
       if (next) {
         const published = Boolean(state.estimator && state.estimator.sharedAt);
         const approved = state.status === 'confirmed_by_hono';
-        const priced = Boolean(state.pricing);
+        // 'Priced' means the ENGINE priced it: a figure with no scenario behind it cannot become a
+        // guest link, so screen 2 is where that quotation still is.
+        const enginePriced = Boolean(state.estimator && state.estimator.id);
         // The label is the ACTION, not "next" — but it must also be TRUE: on screen 2 with a price in
         // hand the button only walks to the approval screen, so it says so rather than claiming to
         // approve. Verified in a browser, where 'Approve quotation' on screen 2 read as if pressing it
@@ -1446,7 +1463,7 @@ ${themeCss()}
           : step === 1
             ? 'Save & get price'
             : step === 2
-              ? (priced ? 'Continue to approve →' : 'Get price')
+              ? (enginePriced ? 'Continue to approve →' : 'Get price')
               : step === 3
                 ? (approved ? 'Continue to send →' : 'Approve quotation')
                 : (published ? 'Send the message again' : 'Create link & send');
@@ -1856,6 +1873,7 @@ ${themeCss()}
       const approved = state.status === 'confirmed_by_hono';
       const archived = state.status === 'cancelled';
       const priced = Boolean(state.pricing);
+      const enginePriced = Boolean(state.estimator && state.estimator.id);
       if (badge) {
         badge.className = 'status-pill ' + (
           archived ? 'status-rose' : (published || approved) ? 'status-emerald' : 'status-amber'
@@ -1868,15 +1886,17 @@ ${themeCss()}
               ? 'Sent to guest'
               : approved
                 ? 'Approved — not sent yet'
-                : priced
-                  ? 'Priced — needs approval'
-                  : 'Needs review';
+                : priced && !enginePriced
+                  ? 'Needs a price from the engine'
+                  : priced
+                    ? 'Priced — needs approval'
+                    : 'Needs review';
       }
 
       const steps = [
         { label: 'Review trip', state: state.bffTrip ? 'done' : 'current' },
-        { label: 'Get price', state: priced ? 'done' : (state.bffTrip ? 'current' : 'todo') },
-        { label: 'Approve', state: (approved || published) ? 'done' : (priced ? 'current' : 'todo') },
+        { label: 'Get price', state: enginePriced ? 'done' : (state.bffTrip ? 'current' : 'todo') },
+        { label: 'Approve', state: (approved || published) ? 'done' : (enginePriced ? 'current' : 'todo') },
         { label: 'Send', state: published ? 'done' : (approved ? 'current' : 'todo') }
       ];
       // The bar itself is NOT re-drawn here: it is server-rendered as buttons that can be clicked to

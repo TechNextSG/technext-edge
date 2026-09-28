@@ -230,11 +230,17 @@ describe("the studio has one price, and it is the engine's", () => {
     // asserting on the whole document would prove nothing about the server-rendered state.
     const markupOnly = (html: string) => html.slice(0, html.indexOf("<script>"));
 
-    const pending = await (await app.request(`/quotes/${id}?token=${STAFF_TOKEN}`)).text();
-    // The seeded fixture is priced and unapproved, which is the state staff actually meet.
+    // A quotation the ENGINE has priced and nobody has approved — the state staff meet between steps
+    // 2 and 3. (`estimator.id` is what says the engine owns it; a figure from the built-in sample
+    // engine has no scenario to freeze, and the page says so instead — see `studioWorkflow`.)
+    const pricedByEngine = await saveQuotationDraft({
+      ...quotations[0]!,
+      estimator: { id: "sim-render", cookie: "ubg_sid=sim-render", seq: null, guestUrl: null, sharedAt: null },
+    });
+    const pending = await (await app.request(`/quotes/${pricedByEngine.quoteId}?token=${STAFF_TOKEN}`)).text();
     expect(markupOnly(pending)).toContain("Priced — needs approval");
 
-    const confirmed = await saveQuotationDraft({ ...quotations[0]!, status: "confirmed_by_hono" });
+    const confirmed = await saveQuotationDraft({ ...pricedByEngine, status: "confirmed_by_hono" });
     const html = await (await app.request(`/quotes/${confirmed.quoteId}?token=${STAFF_TOKEN}`)).text();
     expect(markupOnly(html)).toContain("Approved — not sent yet");
     expect(markupOnly(html)).not.toContain("Priced — needs approval");

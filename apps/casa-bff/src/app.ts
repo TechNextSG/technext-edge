@@ -2077,8 +2077,26 @@ export function createApp(options: AppOptions = {}) {
     }
 
     const session = { id: existing.estimator?.id ?? null, cookie: existing.estimator?.cookie ?? null };
+    // A price on the record is not the same thing as a scenario on the engine, and this is where the
+    // difference bit: the seeded fixture carries a price from the built-in sample engine, so it has
+    // `pricing` and no `estimator.id`. Publishing needs the engine to own the quotation before it can
+    // freeze a revision of it, so the two cases say different things — 'not_priced' for a quotation
+    // nobody has priced, 'no_scenario' for one whose price did not come from the engine.
+    if (!existing.pricing) {
+      return c.json(
+        { ok: false, reason: "not_priced", detail: "this quotation has no price yet — get the price, then publish" },
+        409,
+      );
+    }
     if (!session.id) {
-      return c.json({ ok: false, reason: "not_priced", detail: "price the quotation before publishing it" }, 409);
+      return c.json(
+        {
+          ok: false,
+          reason: "no_scenario",
+          detail: "this price did not come from the booking engine, which has no scenario to freeze — get the price from step 2 first",
+        },
+        409,
+      );
     }
 
     const committed = await estimator.commit(session, existing.bffTrip);

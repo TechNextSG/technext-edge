@@ -12,7 +12,7 @@
 import { describe, it, expect } from "vitest";
 import { createContext, runInContext } from "node:vm";
 import { createApp } from "../../../apps/casa-bff/src/app.js";
-import { listQuotations } from "../../../apps/casa-bff/src/quotationStore.js";
+import { listQuotations, saveQuotationDraft } from "../../../apps/casa-bff/src/quotationStore.js";
 
 const STAFF_TOKEN = "studio-script-token";
 
@@ -69,7 +69,16 @@ async function loadStudio(): Promise<Studio> {
   const app = createApp();
   const all = await listQuotations();
   const seed = all.find((q) => q.quoteId === "QT-1010-SKY")!;
-  const html = await (await app.request(`/quotes/${seed.quoteId}?token=${STAFF_TOKEN}`)).text();
+  // A quotation the ENGINE has priced: the seeded fixture's own figure comes from the built-in sample
+  // engine, so it has no scenario on theirs and the wizard (correctly) stops at step 2 for it.
+  const priced = await saveQuotationDraft({
+    ...seed,
+    seedVersion: undefined,
+    quoteId: "QT-SCRIPT-PRICED",
+    slug: "slug-script-priced",
+    estimator: { id: "sim-script", cookie: "ubg_sid=sim-script", seq: null, guestUrl: null, sharedAt: null },
+  });
+  const html = await (await app.request(`/quotes/${priced.quoteId}?token=${STAFF_TOKEN}`)).text();
 
   const scripts = [...html.matchAll(/<script>([\s\S]*?)<\/script>/g)];
   const code = scripts[scripts.length - 1]![1]!;
@@ -324,15 +333,15 @@ describe("the studio's own script", () => {
 
   it("saves the details and prices the trip, in that order, with one button", async () => {
     const studio = await loadStudio();
-    expect((studio.state.estimator as { id?: string } | null)?.id ?? null).toBeNull();
-    // Something about the trip changed, so the save has to reach the engine.
+    // No scenario on their side yet (a quotation only the built-in sample engine has priced), so the
+    // save has to ASK for a price rather than re-price an existing scenario.
+    studio.state.estimator = null;
     studio.addRoom();
 
     await studio.saveStudio();
 
-    // The details go to the record first, and the trip only through the route that prices it. No
-    // scenario exists on their side yet, so `/trip` (which re-prices an existing scenario) would
-    // have been a 409 — the button asks for a price instead.
+    // The details go to the record first, and the trip only through the route that prices it. `/trip`
+    // (which re-prices an existing scenario) would have been a 409 here.
     const putAt = studio.fetchCalls.findIndex((c) => c.startsWith("PUT "));
     const priceAt = studio.fetchCalls.findIndex((c) => c.includes("/sync-estimate"));
     expect(studio.fetchCalls[putAt]).toContain("PUT ");
@@ -342,6 +351,7 @@ describe("the studio's own script", () => {
 
   it("re-prices on the existing scenario when the trip is edited and one already exists", async () => {
     const studio = await loadStudio();
+    expect((studio.state.estimator as { id?: string } | null)?.id).toBe("sim-script");
     studio.state.estimator = { id: "sim-1", cookie: "ubg_sid=1", seq: null, guestUrl: null, sharedAt: null };
     studio.setRoomType(0, "suite");
 

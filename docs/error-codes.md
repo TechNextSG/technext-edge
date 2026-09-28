@@ -17,7 +17,8 @@ Tài liệu này tồn tại vì hai lý do, và cả hai đều đo được:
 
 | `reason` | HTTP | Route | Nghĩa | Việc phải làm |
 |---|---|---|---|---|
-| `not_priced` | 409 | `/confirm`, `/publish` | Báo giá chưa có giá từ engine | Bấm **Price with the Estimator BFF** trước |
+| `not_priced` | 409 | `/confirm`, `/publish` | Báo giá chưa có giá | Bấm **Get price** (màn 2) trước |
+| `no_scenario` | 409 | `/publish` | **Có** giá nhưng giá đó không đến từ engine (không có scenario để đóng băng) — đúng trạng thái của record seed | Vào màn 2 bấm **Get price** để engine nhận báo giá này, rồi publish lại |
 | `trip_changed` | 409 | `/confirm` | Trip trong trang khác trip **đã được định giá** (`fields` = đường dẫn trường) | Price lại rồi mới Approve |
 | `no_trip` | 409 | `/trip`, `/publish`, `/submit` | Record chưa có `bffTrip` (nháp từ `lineItems`) | Không sửa/gửi được; tạo báo giá từ hội thoại |
 | `invalid_trip` | 422 | `/trip` | Payload không khớp `BffTrip` (`fields`) | Lỗi lập trình ở trang — không phải lỗi nhân viên |

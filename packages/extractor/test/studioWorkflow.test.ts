@@ -54,6 +54,13 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 
+/** A quotation the ENGINE has priced — the state a quotation is in after step 2. */
+function enginePriced(base: HonoQuotationDraft): HonoQuotationDraft {
+  return copyOf(base, "QT-STUDIO-ENGINE-PRICED", {
+    estimator: { id: "sim-1", cookie: "ubg_sid=1", seq: null, guestUrl: null, sharedAt: null },
+  });
+}
+
 describe("one status, and it is the record's", () => {
   it("says each state once, in the sequence the work happens in", async () => {
     const base = await seed();
@@ -62,20 +69,26 @@ describe("one status, and it is the record's", () => {
     const variant = (id: string, patch: Partial<HonoQuotationDraft>) =>
       saveQuotationDraft(copyOf(base, id, patch));
 
-    const priced = markupOnly(await studioFor(base.quoteId));
-    expect(priced).toContain("Priced — needs approval");
+    // The seeded fixture carries a price from the built-in sample engine and no scenario on theirs,
+    // so its status is about the ENGINE's price, not about the figure on the page. Measured on
+    // production: it said "Priced — needs approval" and publishing answered "price the quotation
+    // before publishing it", which was true of the scenario and misleading about the price.
+    expect(markupOnly(await studioFor(base.quoteId))).toContain("Needs a price from the engine");
 
-    const unpriced = await variant("QT-STUDIO-UNPRICED", { pricing: null, status: "pending_hono_review" });
+    const priced = await saveQuotationDraft(enginePriced(base));
+    expect(markupOnly(await studioFor(priced.quoteId))).toContain("Priced — needs approval");
+
+    const unpriced = await variant("QT-STUDIO-UNPRICED", { pricing: null, status: "pending_hono_review", estimator: null });
     expect(markupOnly(await studioFor(unpriced.quoteId))).toContain("Needs review");
 
-    const approved = await variant("QT-STUDIO-APPROVED", { status: "confirmed_by_hono" });
+    const approved = await saveQuotationDraft(copyOf(priced, "QT-STUDIO-APPROVED", { status: "confirmed_by_hono" }));
     expect(markupOnly(await studioFor(approved.quoteId))).toContain("Approved — not sent yet");
 
     // Sent: approved AND published, which is the only state a guest has a link in.
-    const sent = await variant("QT-STUDIO-SENT", {
+    const sent = await saveQuotationDraft(copyOf(priced, "QT-STUDIO-SENT", {
       status: "confirmed_by_hono",
       estimator: { id: "sim-seed", cookie: "ubg_sid=seed", seq: 1, guestUrl: "https://their-app.test/quote/tok", sharedAt: "2026-09-28T00:00:00.000Z" },
-    });
+    }));
     expect(markupOnly(await studioFor(sent.quoteId))).toContain("Sent to guest");
 
     const archived = await variant("QT-STUDIO-ARCHIVED", { status: "cancelled" });
@@ -188,22 +201,25 @@ describe("the trip controls a group booking needs", () => {
 
 describe("the four screens", () => {
   it("puts one screen in front at a time, chosen server-side", async () => {
-    const base = await seed();
-    const markup = markupOnly(await studioFor(base.quoteId));
+    const seeded = await seed();
+    const priced = await saveQuotationDraft(enginePriced(seeded));
+    const markup = markupOnly(await studioFor(priced.quoteId));
 
     // Every screen is in the page; CSS shows the one `data-step` names. The attribute is rendered by
     // the server, so the right screen is in front before any script runs.
     for (const n of [1, 2, 3, 4]) {
       expect(markup, `screen ${n} is missing`).toContain(`data-step-card="${n}"`);
     }
-    // The fixture is priced and unapproved: the next thing to do is approve it.
+    // The engine has priced it and nobody has approved it: the next thing to do is approve.
     expect(markup).toMatch(/<main data-step="3">/);
     expect(markup).toContain("Step 3 · Approve");
   });
 
   it("carries a Back and a Next, and the Next is named after what it does", async () => {
-    const base = await seed();
-    const markup = markupOnly(await studioFor(base.quoteId));
+    const seeded = await seed();
+    const priced = await saveQuotationDraft(enginePriced(seeded));
+    const html = await studioFor(priced.quoteId);
+    const markup = markupOnly(html);
 
     expect(markup).toContain('id="btn-back"');
     expect(markup).toContain('id="btn-next"');
@@ -214,18 +230,22 @@ describe("the four screens", () => {
     expect(markup).toContain("Step <strong id=\"wizard-step-num\">3</strong> of 4");
     // On screen 2 the same button only walks forward. That label is set by the script after load
     // (`updateWizard`), so it is asserted on the whole document rather than on the markup.
-    expect(await studioFor(base.quoteId)).toContain("Continue to approve");
+    expect(html).toContain("Continue to approve");
   });
 
-  it("opens on step 1 for a quotation nobody has priced yet", async () => {
+  it("opens on step 1 for a quotation the engine has not priced", async () => {
+    // Two cases, same answer: nobody has priced it, and the seeded fixture's figure came from the
+    // built-in sample engine so there is no scenario on theirs to freeze. Both begin at the review.
     const base = await seed();
-    const unpriced = await saveQuotationDraft(copyOf(base, "QT-WIZ-UNPRICED", { pricing: null, status: "pending_hono_review" }));
-    const markup = markupOnly(await studioFor(unpriced.quoteId));
+    const unpriced = await saveQuotationDraft(copyOf(base, "QT-WIZ-UNPRICED", { pricing: null, status: "pending_hono_review", estimator: null }));
 
-    expect(markup).toMatch(/<main data-step="1">/);
-    // Nothing priced yet means steps 2+ have not been earned: the bar offers only what is possible.
-    expect(markup).toContain("Save &amp; get price");
-    expect(markup).toContain("Finish the earlier steps first");
+    for (const id of [base.quoteId, unpriced.quoteId]) {
+      const markup = markupOnly(await studioFor(id));
+      expect(markup, `${id} should open on step 1`).toMatch(/<main data-step="1">/);
+      expect(markup).toContain("Save &amp; get price");
+      // The steps after the one the record has earned are not offered.
+      expect(markup).toContain("Finish the earlier steps first");
+    }
   });
 
   it("gives a guest session the price and no wizard", async () => {
