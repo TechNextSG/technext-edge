@@ -5,7 +5,7 @@
 // `Authorization: Bearer <GAIS_API_KEY>` so the real thing is a one-file swap. These tests pin
 // exactly that shape: the cookie works, a forged or expired one does not, the role rides along,
 // and the old header/query paths still work so nothing that used them breaks.
-import { describe, it, expect, beforeAll, afterAll } from "vitest";
+import { describe, it, expect, beforeAll, afterAll, vi } from "vitest";
 import { createApp } from "../../../apps/casa-bff/src/app.js";
 import { issueSession, verifySession, isDemoRole } from "../../../apps/casa-bff/src/demoAuth.js";
 
@@ -220,6 +220,41 @@ describe("the studio behind the demo sign-in", () => {
     const res = await signIn("staff");
     const cookie = sessionCookie(res);
     expect((await app.request("/v1/quotes", { headers: { cookie } })).status).toBe(200);
+  });
+
+  it("answers to STAFF_ACCESS_KEY and stops answering to the WhatsApp token", async () => {
+    // One key for the whole staff surface. Before this, `/login` compared against
+    // `STAFF_ACCESS_KEY || WHATSAPP_VERIFY_TOKEN` while the header/query/Bearer paths compared against
+    // the WhatsApp verify token outright — so setting `STAFF_ACCESS_KEY` did not actually take the
+    // leaked WhatsApp token out of the studio's reach, and rotating the WhatsApp token signed every
+    // staff member out.
+    const staffKey = "studio-key-set-by-the-resort";
+    vi.stubEnv("STAFF_ACCESS_KEY", staffKey);
+    const app = createApp();
+
+    // The new key works, through every door staff use.
+    expect((await app.request(`/quotes?token=${staffKey}`)).status).toBe(200);
+    expect((await app.request("/quotes", { headers: { authorization: `Bearer ${staffKey}` } })).status).toBe(200);
+    const signedIn = await app.request("/login", {
+      method: "POST",
+      headers: { "content-type": "application/x-www-form-urlencoded" },
+      body: new URLSearchParams({ password: staffKey, role: "staff" }).toString(),
+    });
+    const cookie = sessionCookie(signedIn);
+    expect(cookie).not.toBe("");
+    expect((await app.request("/v1/quotes", { headers: { cookie } })).status).toBe(200);
+
+    // The WhatsApp webhook token does not.
+    expect((await app.request(`/quotes?token=${STAFF_TOKEN}`)).status).not.toBe(200);
+    expect((await app.request("/quotes", { headers: { authorization: `Bearer ${STAFF_TOKEN}` } })).status).not.toBe(200);
+    expect((await app.request("/quotes", { headers: { "x-verify-token": STAFF_TOKEN } })).status).not.toBe(200);
+    // …and neither does a cookie that was signed with it (minted with the old secret on purpose: a
+    // cookie signed with the *new* key would be valid, which is the point of the split).
+    const oldSecretEnv = { ...process.env, STAFF_ACCESS_KEY: undefined, WHATSAPP_VERIFY_TOKEN: STAFF_TOKEN };
+    const oldCookie = issueSession("staff", oldSecretEnv as NodeJS.ProcessEnv);
+    expect((await app.request("/quotes", { headers: { cookie: `casa_gais_session=${oldCookie}` } })).status).not.toBe(200);
+
+    vi.unstubAllEnvs();
   });
 });
 

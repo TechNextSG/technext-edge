@@ -7,7 +7,12 @@
 // current.
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { createApp } from "../../../apps/casa-bff/src/app.js";
-import { duplicateQuotationIds, saveQuotationDraft } from "../../../apps/casa-bff/src/quotationStore.js";
+import {
+  duplicateQuotationIds,
+  findOpenQuotationForPhone,
+  saveQuotationDraft,
+} from "../../../apps/casa-bff/src/quotationStore.js";
+import { issueSession } from "../../../apps/casa-bff/src/demoAuth.js";
 import { buildHonoQuotationDraft } from "../../../packages/extractor/src/quotationTool.js";
 import { buildBffTrip } from "../../../packages/extractor/src/odooHandoff.js";
 import type { HonoQuotationDraft } from "../../../packages/extractor/src/index.js";
@@ -191,6 +196,93 @@ describe("cleaning up duplicate quotations", () => {
     expect(applied.removed).toEqual([]);
     expect(applied.refused).toContain(seed.quoteId);
     expect((await app.request(`/v1/quotes/${seed.quoteId}?token=${VERIFY_TOKEN}`)).status).toBe(200);
+  });
+
+  it("never lets a closed record decide that a live one was the duplicate", async () => {
+    // A cancelled quotation is closed last, so it is the newest record for its phone. Under the old
+    // rule it "won" the newest-per-phone comparison and the live enquiry it replaced was deleted as
+    // the duplicate — the exact record staff were working on.
+    const all = [
+      { quoteId: "LIVE", phone: "639170000031", status: "pending_hono_review", updatedAt: "2026-09-27T01:00:00Z" },
+      { quoteId: "CLOSED", phone: "639170000031", status: "cancelled", updatedAt: "2026-09-27T02:00:00Z" },
+    ] as unknown as HonoQuotationDraft[];
+
+    expect(duplicateQuotationIds(all)).toEqual([]);
+  });
+
+  it("removes plain drafts left behind, and keeps an approved or booked one", async () => {
+    const all = [
+      // Two plain drafts for one phone: the older one goes, the newest stays.
+      { quoteId: "OLD-DRAFT", phone: "639170000041", status: "pending_hono_review", updatedAt: "2026-09-27T01:00:00Z" },
+      { quoteId: "NEW-DRAFT", phone: "639170000041", status: "pending_hono_review", updatedAt: "2026-09-27T02:00:00Z" },
+      // An approval somebody gave, with no staff edit and nothing published: a decision, not a draft.
+      { quoteId: "APPROVED", phone: "639170000042", status: "confirmed_by_hono", confirmedAt: "2026-09-27T01:00:00Z", updatedAt: "2026-09-27T01:00:00Z" },
+      { quoteId: "AFTER-APPROVED", phone: "639170000042", status: "pending_hono_review", updatedAt: "2026-09-27T02:00:00Z" },
+      // A folio exists on the customer's side; this record is the only local trace of it.
+      { quoteId: "BOOKED", phone: "639170000043", submission: { folio: "F-1" }, updatedAt: "2026-09-27T01:00:00Z" },
+      { quoteId: "AFTER-BOOKED", phone: "639170000043", status: "pending_hono_review", updatedAt: "2026-09-27T02:00:00Z" },
+    ] as unknown as HonoQuotationDraft[];
+
+    expect(duplicateQuotationIds(all).map((q) => q.quoteId)).toEqual(["OLD-DRAFT"]);
+  });
+
+  it("refuses a named approval or booked record, and still allows a named draft", async () => {
+    await stored("QT-KEEP-APPROVED", "639170000051", "2026-09-27T03:00:00Z", {
+      status: "confirmed_by_hono",
+      confirmedAt: "2026-09-27T03:00:00Z",
+    });
+    await stored("QT-KEEP-BOOKED", "639170000052", "2026-09-27T03:01:00Z", {
+      submission: { folio: "F-2" },
+    });
+    await stored("QT-GOES-DRAFT", "639170000053", "2026-09-27T03:02:00Z");
+    const app = createApp();
+
+    const preview = await (
+      await cleanup(app, { ids: ["QT-KEEP-APPROVED", "QT-KEEP-BOOKED", "QT-GOES-DRAFT"] })
+    ).json();
+    expect(preview.wouldRemove.map((q: { quoteId: string }) => q.quoteId)).toEqual(["QT-GOES-DRAFT"]);
+    expect(preview.refused.sort()).toEqual(["QT-KEEP-APPROVED", "QT-KEEP-BOOKED"]);
+  });
+
+  it("refuses a session that is signed in as anything but staff", async () => {
+    await stored("QT-ROLE-DRAFT", "639170000061", "2026-09-27T03:00:00Z");
+    const app = createApp();
+    // A valid session, minted by signing in with the staff key — but not the staff role. The sign-in
+    // form's role field is client-controlled, so "whoever can sign in" is not the same question as
+    // "who may delete a record".
+    const guestSession = issueSession("guest");
+    vi.stubEnv("WHATSAPP_VERIFY_TOKEN", VERIFY_TOKEN);
+
+    const denied = await app.request("/v1/quotes/cleanup-duplicates", {
+      method: "POST",
+      headers: { "content-type": "application/json", cookie: `casa_gais_session=${guestSession}` },
+      body: JSON.stringify({ ids: ["QT-ROLE-DRAFT"], confirm: true }),
+    });
+    expect(denied.status).toBe(401);
+
+    const cancel = await app.request(`/v1/quotes/QT-ROLE-DRAFT/cancel`, {
+      method: "POST",
+      headers: { cookie: `casa_gais_session=${guestSession}` },
+    });
+    expect(cancel.status).toBe(401);
+    // Still there, and still live.
+    const stillThere = await (await app.request(`/v1/quotes/QT-ROLE-DRAFT?token=${VERIFY_TOKEN}`)).json();
+    expect(stillThere.quotation.status).not.toBe("cancelled");
+  });
+
+  it("a closed record is not the open quotation for that phone", async () => {
+    // `findOpenQuotationForPhone` answers "the quotation this enquiry already has". A cancelled one is
+    // a finished enquiry, and returning it is how the next guest's enquiry inherits the previous
+    // one's approval and price — so the filter belongs in the lookup, not only at its call sites.
+    const closed = await stored("QT-CLOSED-OPEN", "639170000071", "2026-09-27T03:00:00Z", {
+      status: "cancelled",
+    });
+    expect(await findOpenQuotationForPhone("639170000071")).toBeUndefined();
+
+    // And a live one for the same phone is found, whichever order the store lists them in.
+    const live = await stored("QT-LIVE-OPEN", "639170000071", "2026-09-27T04:00:00Z");
+    expect((await findOpenQuotationForPhone("639170000071"))?.quoteId).toBe(live.quoteId);
+    expect(closed.quoteId).not.toBe(live.quoteId);
   });
 
   it("cancelling a quotation archives it and serves a polite 410 on its guest link", async () => {    const draft = await stored("QT-CANCEL-1", "639170000099", "2026-09-28T04:00:00Z");

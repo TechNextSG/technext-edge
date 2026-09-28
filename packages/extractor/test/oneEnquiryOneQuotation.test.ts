@@ -339,6 +339,81 @@ describe("inside one enquiry, the money boundary holds", () => {
   });
 });
 
+describe("a correction is not something the next message may undo", () => {
+  /**
+   * The production shape of this bug (2026-09-28): staff moved one dive day from the first guest to
+   * the second, the guest then wrote something harmless, and the record went back to the extractor's
+   * own reading — approval and price dropped with it, under an alert blaming the guest.
+   */
+  function correctedTrip(draft: HonoQuotationDraft): { trip: NonNullable<HonoQuotationDraft["bffTrip"]>; date: string } {
+    const trip = structuredClone(draft.bffTrip!);
+    const date = Object.keys(trip.guests[0]!.days)[0] ?? "2026-11-21";
+    trip.guests[0]!.days = {};
+    trip.guests[1]!.days = { [date]: { dive: true, third: false, night: false, boatId: null } };
+    return { trip, date };
+  }
+
+  it("keeps the corrected trip, its price and its approval when the newest message does not restate it", async () => {
+    const phone = phoneFor("9");
+    const { say } = harness(providerSequence([completeRaw(), completeRaw()]));
+    await say(BOOKING, phone);
+
+    const first = await liveQuotation(phone);
+    const { trip, date } = correctedTrip(first);
+    await saveQuotationDraft({
+      ...first,
+      bffTrip: trip,
+      staffEdits: [{ at: "2026-09-15T00:00:00.000Z", fields: [`guests[1].days.${date}`], source: "trip" }],
+    });
+    const approved = await approve(await liveQuotation(phone));
+
+    await say("Can we also get a late checkout?", phone);
+
+    const after = await liveQuotation(phone);
+    // What staff saved is still what the record holds — the extractor's re-reading of the transcript
+    // did not overwrite it, because the guest's own words this turn do not support the difference.
+    expect(after.bffTrip).toEqual(trip);
+    // And the approval still describes the trip it was given for, so it survives.
+    expect(after.status).toBe("confirmed_by_hono");
+    expect(after.confirmedAt).toBe(approved.confirmedAt);
+    expect(after.pricing?.kpis.revenue).toBe(31_200);
+    expect(after.staffAlerts.join(" ")).toContain("would change priced facts you corrected");
+    expect(after.staffAlerts.join(" ")).not.toContain("The guest changed the trip");
+  });
+
+  it("still lets the guest change land when they say it themselves", async () => {
+    const phone = phoneFor("10");
+    const { say } = harness(
+      providerSequence([
+        completeRaw(),
+        // The same enquiry, a priced fact restated by the guest: evidence "4 of us" is in THIS text.
+        completeRaw({ guests: f(4, "stated", "4 of us") }),
+      ]),
+    );
+    await say(BOOKING, phone);
+
+    const first = await liveQuotation(phone);
+    const { trip, date } = correctedTrip(first);
+    await saveQuotationDraft({
+      ...first,
+      bffTrip: trip,
+      staffEdits: [{ at: "2026-09-15T00:00:00.000Z", fields: [`guests[1].days.${date}`], source: "trip" }],
+    });
+    await approve(await liveQuotation(phone));
+
+    await say("Sorry, there are 4 of us", phone);
+
+    // The money boundary still holds: the guest moved a priced fact, so the price and the approval
+    // go and staff look again. (The record's trip is replaced wholesale here, so a correction to
+    // another field has to be re-applied — which is why this case is loud rather than silent.)
+    const after = await liveQuotation(phone);
+    expect(after.status).toBe("pending_hono_review");
+    expect(after.pricing ?? null).toBeNull();
+    expect(after.bffTrip?.guests).toHaveLength(4);
+    expect(after.staffAlerts.join(" ")).toContain("The guest changed the trip after it was priced");
+  });
+});
+
 describe("approving a quotation with no price", () => {
   it("is refused, with a reason rather than a 500", async () => {
     const phone = phoneFor("6");

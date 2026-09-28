@@ -103,4 +103,21 @@ describe("buildHonoQuotationDraft prices with the real model", () => {
     expect(draft.lineItems.filter((i) => i.category === "diving")).toHaveLength(0);
     expect(draft.lineItems.filter((i) => i.category === "room")).toHaveLength(1);
   });
+
+  it("names the room type it actually charged for, instead of always saying Standard", () => {
+    // The description was the fixed string "Standard Room (Twin / Double Occupancy)" beside whatever
+    // rate the booked rooms produced, so a deluxe booking read as a standard room at 11,200 a night.
+    const deluxe = buildHonoQuotationDraft(anaTrip({ roomType: f("deluxe") }));
+    const deluxeRoom = deluxe.lineItems.find((i) => i.category === "room")!;
+    expect(deluxeRoom.description).toContain("Deluxe Room");
+    expect(deluxeRoom.description).not.toContain("Standard");
+    expect(deluxeRoom.unitPrice).toBe(11200);
+
+    const suite = buildHonoQuotationDraft(anaTrip({ roomType: f("suite") }));
+    const suiteRoom = suite.lineItems.find((i) => i.category === "room")!;
+    expect(suiteRoom.description).toContain("Suite");
+
+    const standard = buildHonoQuotationDraft(anaTrip());
+    expect(standard.lineItems.find((i) => i.category === "room")!.description).toContain("Standard Room");
+  });
 });

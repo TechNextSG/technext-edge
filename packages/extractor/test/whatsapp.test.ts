@@ -1,7 +1,14 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { createHmac } from "node:crypto";
 import { createApp } from "../../../apps/casa-bff/src/app.js";
-import { createWhatsAppSender, parseInboundTexts, verifySignature, whatsAppConfig } from "../../../apps/casa-bff/src/whatsapp.js";
+import {
+  checkRecipient,
+  createWhatsAppSender,
+  explainMetaError,
+  parseInboundTexts,
+  verifySignature,
+  whatsAppConfig,
+} from "../../../apps/casa-bff/src/whatsapp.js";
 import { createInMemoryConversationStore, type ConversationStore } from "../../../apps/casa-bff/src/conversationStore.js";
 import { ASK_LIMIT, STALL_LIMIT } from "../src/questions.js";
 import type { ExtractProvider } from "../src/provider.js";
@@ -835,6 +842,164 @@ describe("handoff view", () => {  it("refuses to list or resume threads without 
   });
 });
 
+describe("a partner enquiry, and the answer that ends the invitation", () => {
+  // The loop this closes was reproduced on production on 2026-09-28: an agency enquiry was invited to
+  // sign in, the guest replied "actually we're booking for ourselves", and the bot invited them
+  // again — because `guestType` is read from the whole transcript and the earlier agency phrasing
+  // never stopped being there. The invitation's own last sentence ("just tell me and I'll carry on")
+  // is the promise the loop broke.
+  const f = <T,>(value: T | null, state = "stated", evidence: string | null = null) => ({ value, state, evidence });
+
+  const AGENCY_RAW = {
+    language: f("en", "default"),
+    checkIn: f("2026-12-10", "stated", "10 Dec 2026"),
+    checkOut: f(null, "missing"),
+    nights: f(3, "stated", "3 nights"),
+    guests: f(4, "stated", "4 guests"),
+    rooms: f(2, "stated", "2 rooms"),
+    roomType: f("deluxe", "stated", "deluxe"),
+    meals: f("full_board", "stated", "full board"),
+    transport: f(false, "stated", "no transport"),
+    transportType: f("none", "stated", "no transport"),
+    guestType: f("agent", "stated", "our agency"),
+    diver: f(false, "stated", "no diving"),
+    divers: f(null, "missing"),
+    diveFrom: f(null, "missing"),
+    diveTo: f(null, "missing"),
+    diveNotes: f(null, "missing"),
+    contactName: f("Mia", "stated", "Mia"),
+  };
+
+  const AGENCY_ENQUIRY =
+    "Hi, this is Blue Fin Dive Shop. For our agency: 4 guests, 2 rooms, deluxe, 3 nights from 10 Dec 2026, full board, no transport, no diving. Name: Mia";
+
+  let wamid = 0;
+  const say = (app: App, text: string, from: string) => post(app, textEvent(`wamid.partner.${++wamid}`, text, from));
+
+  /**
+   * One phone per test: the quotation store is one in-memory instance for the whole file (and it seeds
+   * itself with the fixture), so counting records only means anything per phone.
+   */
+  async function agencyTurn(phone: string) {
+    vi.stubEnv("ENABLE_HONO_QUOTATION_TOOL", "true");
+    // The invitation needs a host the guest can actually open, and only the customer's app is that.
+    vi.stubEnv("ESTIMATOR_MODE", "remote");
+    vi.stubEnv("ESTIMATOR_BASE_URL", "https://their-app.test");
+    const h = harness(providerReturning(AGENCY_RAW));
+    await say(h.app, AGENCY_ENQUIRY, phone);
+    await flush();
+    return h;
+  }
+
+  const forPhone = async (phone: string) => (await listQuotations()).filter((q) => q.phone === phone);
+
+  it("invites the agency to sign in, once, with an absolute link", async () => {
+    const phone = "639170000901";
+    const { sent, store } = await agencyTurn(phone);
+
+    expect(sent).toHaveLength(1);
+    expect(sent[0]!.body).toContain("https://their-app.test/signin");
+    expect(sent[0]!.body).toContain("for yourselves");
+    // Parked so a person sees the thread, and no quotation is priced at the retail rate.
+    expect((await store.paused(phone))?.reason).toBe("partner_self_serve");
+    expect(await forPhone(phone)).toHaveLength(0);
+  });
+
+  it("carries on as a retail enquiry when the guest says they are booking for themselves", async () => {
+    const phone = "639170000902";
+    const { app, sent, store } = await agencyTurn(phone);
+    sent.length = 0;
+
+    await say(app, "Actually we're booking for ourselves, not an agency. Same dates please.", phone);
+    await flush();
+
+    // One reply, and it is not the invitation again.
+    expect(sent).toHaveLength(1);
+    expect(sent[0]!.body).not.toContain("/signin");
+    expect(sent[0]!.body).not.toContain("for yourselves");
+    // The enquiry took the ordinary path: a quotation is waiting for staff.
+    expect(await forPhone(phone)).toHaveLength(1);
+    expect((await store.paused(phone)) ?? null).toBeNull();
+  });
+
+  it("does not send an invitation it has nowhere to send, rather than a bare path", async () => {
+    // No customer app configured — the simulated engine's case, and what `ESTIMATOR_BASE_URL` unset
+    // means in production. The old code built `${base ?? ""}/signin`, i.e. the relative "/signin",
+    // which is not a link anybody can open in WhatsApp.
+    const phone = "639170000903";
+    vi.stubEnv("ENABLE_HONO_QUOTATION_TOOL", "true");
+    const { app, sent, store } = harness(providerReturning(AGENCY_RAW));
+
+    await say(app, AGENCY_ENQUIRY, phone);
+    await flush();
+
+    expect(sent).toHaveLength(1);
+    expect(sent[0]!.body).not.toContain("/signin");
+    expect((await store.paused(phone)) ?? null).toBeNull();
+    // The enquiry is a quotation for staff instead, which is the honest fallback.
+    expect(await forPhone(phone)).toHaveLength(1);
+  });
+});
+
+describe("what staff are told when Meta refuses a send", () => {
+  // The studio prints this sentence beside the send button, so it is read by whoever is taking the
+  // booking. Meta's body is JSON — and it quotes the guest's number back — which is why the
+  // unrecognised case must not paste it. Measured: the default branch sliced 120 characters of that
+  // body into the sentence a receptionist reads.
+  const RAW = '{"error":{"message":"(#131030) Recipient phone number not in allowed list: 84359386414","code":999999,"fbtrace_id":"AbCd"}}';
+
+  it("names the code for a refusal it does not recognise, and never quotes the body", () => {
+    const said = explainMetaError(999999, RAW);
+    expect(said).toContain("999999");
+    expect(said).not.toContain("131030");
+    expect(said).not.toContain("84359386414");
+    expect(said).not.toContain("{");
+    expect(said).toContain("deployment log");
+  });
+
+  it("still says something when Meta gave no code at all", () => {
+    const said = explainMetaError(undefined, "<html><body>SSO sign-in required</body></html>");
+    expect(said).toContain("did not say why");
+    expect(said).not.toContain("<html>");
+    expect(said).not.toContain("SSO");
+    // The length is enough of a reference to find the line in the log, and it cannot carry anything.
+    expect(said).toContain("characters");
+  });
+
+  it("keeps the sentences for the codes staff can act on", () => {
+    expect(explainMetaError(131030, RAW)).toContain("test list");
+    expect(explainMetaError(131047, RAW)).toContain("24 hours");
+    expect(explainMetaError(190, RAW)).toContain("token has expired");
+    expect(explainMetaError(133010, RAW)).toContain("not registered");
+  });
+});
+
+describe("a phone number staff typed", () => {
+  it("accepts the 00 international prefix instead of refusing the country code it already has", () => {
+    // The 00 branch sat below the leading-zero refusal, so it was dead code: a number written
+    // `0063917…` was told to "add the country code" while being refused.
+    expect(checkRecipient("00639171234567")).toEqual({ ok: true, phone: "639171234567" });
+    expect(checkRecipient("+63 917 123 4567")).toEqual({ ok: true, phone: "639171234567" });
+  });
+
+  it("still refuses a local number that really has no country code", () => {
+    const refused = checkRecipient("09171234567");
+    expect(refused.ok).toBe(false);
+    if (!refused.ok) {
+      expect(refused.code).toBe("phone_invalid");
+      expect(refused.message).toContain("country code");
+    }
+  });
+
+  it("asks for a number rather than sending to nothing", () => {
+    expect(checkRecipient("  ")).toEqual({
+      ok: false,
+      code: "phone_missing",
+      message: "Enter the guest's WhatsApp number, including the country code.",
+    });
+  });
+});
+
 describe("createWhatsAppSender", () => {
   const config = {
     accessToken: "EAAG-token",
@@ -1120,3 +1285,4 @@ describe("messages that are not booking enquiries", () => {  it("routes a cancel
     expect(sent[0]!.body).toContain("Welcome to Casa Escondida");
   });
 });
+

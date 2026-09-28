@@ -410,6 +410,16 @@ async function sendChatTurn() {
         '<a href="/quotes/' + encodeURIComponent(q.quoteId) + '" target="_blank" style="background:#0ea5e9;color:#090d16;padding:7px 14px;border-radius:7px;font-weight:700;text-decoration:none;font-size:13px;">✏️ Edit Quotation Table &amp; Link on Hono (' + escapeHtml(q.quoteId) + ')</a>' +
         '<a href="' + escapeHtml(q.quotationUrl) + '" target="_blank" style="background:#1e293b;color:#38bdf8;border:1px solid #38bdf8;padding:7px 14px;border-radius:7px;font-weight:700;text-decoration:none;font-size:13px;">🔗 Open Shareable Quote Link</a>' +
         '</div></div>';
+    } else if (data.done && data.quotationSaved === false) {
+      // The enquiry is complete but this caller is not signed in, so no quotation was created (see
+      // the note on POST /v1/converse). Saying so is the difference between "nothing happened" and
+      // "the tool is broken".
+      doneBanner.innerHTML =
+        '<div style="display:flex;flex-direction:column;gap:6px;">' +
+        '<div><strong>✅ Enquiry Complete — extraction done</strong></div>' +
+        '<div style="color:var(--muted);font-size:13px;">' + escapeHtml(data.quotationNote || 'No quotation was created for this enquiry.') + '</div>' +
+        '<div><a href="/login" style="color:#38bdf8;">Sign in to the staff studio</a> to open the quotation and price it with the estimator.</div>' +
+        '</div>';
     }
     chatMeta.textContent = data.meta.provider + ' · ' + data.meta.tokensIn + ' in / ' + data.meta.tokensOut + ' out tokens · ' +
       data.meta.ms + 'ms server-side (' + elapsed + 'ms round trip)' + (data.meta.retried ? ' · retried once' : '');

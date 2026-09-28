@@ -187,6 +187,51 @@ describe("an unknown quotation is a miss, not somebody's booking", () => {
     expect(res.status).toBe(302);
     expect(res.headers.get("location")).toBe("https://quotes.customer.test/quote/tok123");
   });
+
+  // The copy we serve when their link does not open (see `mirrorUrl`). Its "reply on WhatsApp" button
+  // used to be `https://wa.me/?text=…` — no number — which opens WhatsApp on an empty "choose a chat"
+  // screen. A guest-facing button that goes nowhere is worse than no button.
+  describe("our copy of a published quotation", () => {
+    async function mirroredCopy() {
+      return saveQuotationDraft({
+        ...buildHonoQuotationDraft(makeTrip()),
+        quoteId: "QT-0000-MIRROR-AAA",
+        slug: randomUUID(),
+        status: "confirmed_by_hono",
+        phone: "639171234567",
+        estimator: {
+          id: "sim-9",
+          cookie: "ubg_sid=sim-9",
+          seq: 1,
+          guestUrl: "https://quotes.customer.test/quote/tok999",
+          sharedAt: new Date().toISOString(),
+          mirrorUrl: "http://localhost/q/QT-0000-MIRROR-AAA",
+          mirrorReason: "the booking app did not recognise the link it had just issued",
+        },
+      });
+    }
+
+    it("offers no reply button when this deployment has no resort number", async () => {
+      const saved = await mirroredCopy();
+      const app = createApp();
+
+      const html = await (await app.request(`/q/${saved.slug}`)).text();
+      expect(html).not.toContain("wa.me/?text=");
+      expect(html).not.toContain("wa.me/");
+      // …and says what to do instead, rather than leaving a dead end.
+      expect(html).toContain("Reply in the WhatsApp conversation");
+    });
+
+    it("links straight to the resort's number when one is configured", async () => {
+      vi.stubEnv("RESORT_WHATSAPP_NUMBER", "+1 (555) 150-6595");
+      const saved = await mirroredCopy();
+      const app = createApp();
+
+      const html = await (await app.request(`/q/${saved.slug}`)).text();
+      expect(html).toContain("https://wa.me/15551506595?text=");
+      vi.unstubAllEnvs();
+    });
+  });
 });
 
 describe("staff quotation routes require the staff token", () => {
@@ -232,6 +277,63 @@ describe("staff quotation routes require the staff token", () => {
     const app = createApp();
     const res = await app.request("/v1/quotes", { headers: { "x-verify-token": "not-it" } });
     expect(res.status).toBe(401);
+  });
+
+  // The queue carried every record it had, always, and the studio filtered the array in the browser:
+  // fine for the ten rows a demo has, wrong for a list that only grows and carries guest names and
+  // phone numbers. The filter and the cap now live on the server.
+  describe("the queue is filtered where the data is", () => {
+    async function threeRecords() {
+      const make = (quoteId: string, extra: Partial<HonoQuotationDraft>) =>
+        saveQuotationDraft({
+          ...buildHonoQuotationDraft(makeTrip()),
+          quoteId,
+          slug: randomUUID(),
+          ...extra,
+        });
+      await make("QT-QUEUE-ANA", { guestName: "Ana Reyes", status: "pending_hono_review", phone: "639170000001" });
+      await make("QT-QUEUE-BEN", { guestName: "Ben Cruz", status: "confirmed_by_hono", phone: "639170000002" });
+      await make("QT-QUEUE-CAT", { guestName: "Cat Lim", status: "cancelled", phone: "639170000003" });
+    }
+
+    const ids = async (query: string) => {
+      const app = createApp();
+      const body = await (await app.request(`/v1/quotes${query}`)).json();
+      return body.quotations.map((q: { quoteId: string }) => q.quoteId);
+    };
+
+    it("filters by the studio's own filter names", async () => {
+      await threeRecords();
+      // Containment plus exclusion rather than equality: the store is one instance for this file, so
+      // other cases' records are in the queue too — which is exactly the situation the cap is for.
+      const needsReview = await ids(`?status=needs-review&token=${STAFF_TOKEN}`);
+      expect(needsReview).toContain("QT-QUEUE-ANA");
+      expect(needsReview).not.toContain("QT-QUEUE-BEN");
+      expect(needsReview).not.toContain("QT-QUEUE-CAT");
+
+      expect(await ids(`?status=cancelled&token=${STAFF_TOKEN}`)).toEqual(["QT-QUEUE-CAT"]);
+
+      const approved = await ids(`?status=approved&token=${STAFF_TOKEN}`);
+      expect(approved).toContain("QT-QUEUE-BEN");
+      expect(approved).not.toContain("QT-QUEUE-ANA");
+      expect(approved).not.toContain("QT-QUEUE-CAT");
+    });
+
+    it("searches the fields staff actually search by", async () => {
+      await threeRecords();
+      expect(await ids(`?q=ana&token=${STAFF_TOKEN}`)).toEqual(["QT-QUEUE-ANA"]);
+      expect(await ids(`?q=639170000003&token=${STAFF_TOKEN}`)).toEqual(["QT-QUEUE-CAT"]);
+      expect(await ids(`?q=QT-QUEUE-BEN&token=${STAFF_TOKEN}`)).toEqual(["QT-QUEUE-BEN"]);
+    });
+
+    it("caps what it returns and says how much it did not return", async () => {
+      await threeRecords();
+      const app = createApp();
+      const res = await (await app.request(`/v1/quotes?limit=2&token=${STAFF_TOKEN}`)).json();
+      expect(res.quotations).toHaveLength(2);
+      expect(res.returned).toBe(2);
+      expect(res.total).toBeGreaterThan(2);
+    });
   });
 
   // The pre-flight the studio reads when it opens, so staff learn the state before clicking a

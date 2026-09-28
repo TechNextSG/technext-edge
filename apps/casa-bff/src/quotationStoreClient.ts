@@ -130,10 +130,20 @@ export function createRedisQuotationStore(config: RedisConfig): QuotationStore {
     },
     async list(): Promise<HonoQuotationDraft[]> {
       const ids = (await command<string[]>(["SMEMBERS", "quotes:all"])) ?? [];
+      if (ids.length === 0) return [];
+      // One `MGET`, not one `GET` per quotation. This was a sequential loop, so the studio's queue
+      // cost one Redis round trip per record on every page load — and the list only grows, because
+      // nothing here ever removes a row. `MGET` needs at least one key, hence the early return.
+      const raws = (await command<(string | null)[]>(["MGET", ...ids.map((id) => `quote:${id}`)])) ?? [];
       const drafts: HonoQuotationDraft[] = [];
-      for (const id of ids) {
-        const draft = await read(id);
-        if (draft) drafts.push(draft);
+      for (const raw of raws) {
+        if (!raw) continue;
+        try {
+          drafts.push(JSON.parse(raw) as HonoQuotationDraft);
+        } catch {
+          // A record that cannot be parsed is skipped rather than thrown: one corrupt value must not
+          // take the whole studio down with it.
+        }
       }
       return drafts.sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
     },

@@ -88,6 +88,21 @@ function refusalDetail(parsed: Record<string, unknown>, text: string, status: nu
   return `their engine answered HTTP ${status} without saying why`;
 }
 
+/**
+ * A transport failure, as one sentence for the studio, with the raw cause left in the log.
+ *
+ * The counterpart of `refusalDetail` for the case where nothing answered at all. `err.message` from a
+ * failed `fetch` is the runtime's own text — "fetch failed", "getaddrinfo ENOTFOUND their-host" — which
+ * is occasionally useful to us, never a sentence for the person selling the room, and it can carry the
+ * hostname of a deployment. So it goes to the log and the caller gets what to check instead.
+ */
+function transportDetail(err: unknown, what: string): string {
+  const raw = err instanceof Error ? err.message : String(err);
+  // eslint-disable-next-line no-console
+  console.error(`estimator ${what} failed`, raw);
+  return `could not reach the booking engine to ${what} — check the estimator address in the deployment settings`;
+}
+
 /** The headers for one call about one quotation: JSON, plus their session cookie when we hold one. */
 function sessionHeaders(session?: EstimatorSession | null): Record<string, string> {
   const headers: Record<string, string> = { "content-type": "application/json" };
@@ -232,9 +247,7 @@ export function createEstimatorClient(options: EstimatorClientOptions = {}) {
         status: null,
         detail: aborted
           ? `estimator BFF did not answer within ${timeoutMs}ms`
-          : err instanceof Error
-            ? err.message
-            : String(err),
+          : transportDetail(err, "price this trip"),
         fields: [],
       };
     }
@@ -344,9 +357,7 @@ export function createEstimatorClient(options: EstimatorClientOptions = {}) {
         status: null,
         detail: aborted
           ? `estimator BFF did not answer within ${timeoutMs}ms`
-          : err instanceof Error
-            ? err.message
-            : String(err),
+          : transportDetail(err, "re-price the edited trip"),
         fields: [],
       };
     }
@@ -391,9 +402,7 @@ export function createEstimatorClient(options: EstimatorClientOptions = {}) {
         reason: aborted ? "timeout" : "unreachable",
         detail: aborted
           ? `their BFF did not answer within ${timeoutMs}ms`
-          : err instanceof Error
-            ? err.message
-            : String(err),
+          : transportDetail(err, "freeze the quotation on their side"),
       };
     }
 
@@ -495,7 +504,7 @@ export function createEstimatorClient(options: EstimatorClientOptions = {}) {
       return {
         ok: false,
         reason: "unreachable",
-        detail: aborted ? "their app did not answer while checking the link" : err instanceof Error ? err.message : String(err),
+        detail: aborted ? "their app did not answer while checking the link" : transportDetail(err, "check the guest's link"),
       };
     }
   }
@@ -544,7 +553,7 @@ export function createEstimatorClient(options: EstimatorClientOptions = {}) {
       return {
         ok: false,
         reason: "unknown",
-        detail: aborted ? "the booking engine did not answer in time" : err instanceof Error ? err.message : String(err),
+        detail: aborted ? "the booking engine did not answer in time" : transportDetail(err, "create the booking"),
       };
     }
 

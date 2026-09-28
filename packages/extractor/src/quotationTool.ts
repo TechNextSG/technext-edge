@@ -12,6 +12,7 @@ import {
   MEAL_RATE,
   TRANSPORT_RATE,
   PARTNER_DISCOUNT_PCT,
+  ROOM_TYPE_LABELS,
   type RoomType,
 } from "./rates.js";
 
@@ -335,17 +336,32 @@ export function buildHonoQuotationDraft(
   }
   let roomPerNight = 0;
   let chargedRooms = 0;
+  // Which room types this line actually charges for, in the order they were booked. The description
+  // used to be the fixed string "Standard Room (Twin / Double Occupancy)" beside whatever rate the
+  // booked rooms produced, so a deluxe booking showed a standard room carrying a deluxe unit price —
+  // caught on production, on a reference quotation used to argue that the arithmetic was trustworthy.
+  const chargedRoomTypes: RoomType[] = [];
   for (const room of bffTrip.rooms) {
     const occupancy = occupancyByRoom.get(room.id ?? "") ?? 0;
     if (occupancy > 0) {
       roomPerNight += roomNightlyRate(room.type as RoomType, occupancy);
       chargedRooms += 1;
+      chargedRoomTypes.push(room.type as RoomType);
     }
   }
+  const distinctRoomTypes = [...new Set(chargedRoomTypes)];
+  const roomDescription =
+    distinctRoomTypes.length === 0
+      ? "Room (Twin / Double Occupancy)"
+      : distinctRoomTypes.length === 1
+        ? `${ROOM_TYPE_LABELS[distinctRoomTypes[0]!]} (Twin / Double Occupancy)`
+        : // More than one type booked: the unit price below is an average of them, and saying so is
+          // the difference between a summary and a wrong statement about the rate.
+          `${distinctRoomTypes.map((type) => ROOM_TYPE_LABELS[type]).join(" + ")} (average rate)`;
   lineItems.push({
     id: "item-rooms",
     category: "room",
-    description: "Standard Room (Twin / Double Occupancy)",
+    description: roomDescription,
     quantity: chargedRooms || rooms,
     unitLabel: "rooms",
     multiplier: nights,

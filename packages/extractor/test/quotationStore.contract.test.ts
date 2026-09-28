@@ -61,6 +61,10 @@ function makeFakeKv() {
 
   const handlers: Record<string, (args: (string | number)[]) => unknown> = {
     GET: (a) => strings.get(String(a[1])) ?? null,
+    // The list reads every record in one round trip (see `list()` in quotationStoreClient.ts), so the
+    // fake speaks MGET as well as GET: the point of the fake is to be the protocol, and a command it
+    // refuses is a command the real store would have received.
+    MGET: (a) => a.slice(1).map((key) => strings.get(String(key)) ?? null),
     SET: (a) => {
       strings.set(String(a[1]), String(a[2]));
       return "OK";

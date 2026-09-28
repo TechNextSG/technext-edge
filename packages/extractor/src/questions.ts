@@ -976,9 +976,41 @@ const HUMAN_RE = new RegExp(
   "i",
 );
 
-/** True when the guest is asking for a person rather than for an answer. */
+/**
+ * True when the guest is asking for a person rather than for an answer.
+ */
 export function wantsHuman(text: string): boolean {
   return HUMAN_RE.test(text);
+}
+
+// The answer to the partner invitation: "actually, we're booking for ourselves".
+//
+// Why this needs its own detector rather than trusting the extraction: `guestType` is read from
+// phrasing from the transcript, so once a message has sounded like an agency the reading tends to
+// keep saying "agent" — the guest's correction does not remove the earlier sentence. Measured on
+// production: the bot invited the same guest to sign in as a partner again, and again, because the
+// invitation branch fired on every turn from a reading that the guest's own words had already
+// contradicted. The invitation itself promises "just tell me and I'll carry on", so this is the
+// phrase it promised to hear. A false positive is cheap here — it means a partner is treated as a
+// retail guest — and the wording is explicit for the same reason HUMAN_RE is.
+const DECLINES_PARTNER_RE = new RegExp(
+  [
+    "\\b(?:for|by)\\s+(?:our|my)sel(?:f|ves)\\b",
+    "\\bnot\\s+(?:an?\\s+)?(?:agency|agent|partner|travel\\s+agent|dive\\s+shop|instructor)\\b",
+    "\\bwe(?:'re| are)\\s+not\\s+(?:an?\\s+)?(?:agency|agent|partner)\\b",
+    "\\b(?:personal|private)\\s+(?:booking|trip|holiday|stay)\\b",
+    "\\bjust\\s+(?:us|me|two\\s+of\\s+us)\\b",
+    "\\bno\\s+agency\\b",
+    // Chinese: "we are booking for ourselves" / "not an agency".
+    "我们自己(?:订|预订|订房|去|玩)",
+    "不是(?:旅行社|代理)",
+  ].join("|"),
+  "i",
+);
+
+/** True when the guest is telling the bot they are not booking as a partner after all. */
+export function declinesPartner(text: string): boolean {
+  return DECLINES_PARTNER_RE.test(text);
 }
 
 const FALLBACKS: Record<FallbackKind, Record<GuestLanguage, string>> = {

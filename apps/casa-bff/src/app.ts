@@ -18,6 +18,7 @@ import {
   partnerInvitationReply,
   changedValueNotice,
   wantsHuman,
+  declinesPartner,
   classifyEnquiry,
   ASK_LIMIT,
   STALL_LIMIT,
@@ -32,6 +33,7 @@ import {
   normalizePricing,
   diffBffTrip,
   pricedFactsChanged,
+  pathsRestatedByGuest,
   guestLinkFor,
   synthesizeConfirmedQuotationReply,
   type ConversationTurn,
@@ -68,6 +70,8 @@ import {
   listQuotations,
   findOpenQuotationForPhone,
   duplicateQuotationIds,
+  filterQuotations,
+  protectedFromCleanup,
   removeQuotation,
   renderHonoQuotationEditorHtml,
 } from "./quotationStore.js";
@@ -240,21 +244,89 @@ function statedMoneyValues(trip: Trip): Record<string, string | number | boolean
 /**
  * What a deletion may never touch, whoever asks for it.
  *
- * The duplicate rule decided this before (`duplicateQuotationIds`), but an explicit list of ids —
- * which is what clearing leftovers from manual tests needs — is a second way in, and the more
- * dangerous one: whoever holds the staff key can name any record at all. So the protections are
- * enforced here, on the way to `removeQuotation`, rather than being a property of how the list was
- * built. Three things are never removable:
- *
- *   * a **published** record, because a guest may be holding its link;
- *   * a **corrected** record, because somebody's work is in it;
- *   * the **seeded** fixture, because that is what a cold start shows.
+ * The rule itself lives in `protectedFromCleanup` (quotationStore.ts) so that the automatic
+ * duplicate rule and an explicit list of ids cannot drift apart about which records are safe to
+ * remove; this keeps the name the route reads by.
  */
 function deletableByCleanup(q: HonoQuotationDraft): boolean {
-  if (q.estimator?.sharedAt) return false;
-  if ((q.staffEdits ?? []).length > 0) return false;
-  if (q.seedVersion !== undefined) return false;
-  return true;
+  return !protectedFromCleanup(q);
+}
+
+/**
+ * The WhatsApp number a guest should reply to, or null when this deployment has not been told one.
+ *
+ * The copy page used to link `https://wa.me/?text=…` — no number at all — which opens WhatsApp on an
+ * empty "choose a chat" screen rather than a reply to the resort. The number is configuration, not a
+ * constant, because it differs per deployment (the Meta test number here, the resort's own number in
+ * production) and a wrong hard-coded number sends a guest's question to a stranger.
+ */
+function resortWhatsAppNumber(env: NodeJS.ProcessEnv = process.env): string | null {
+  const raw = (env.RESORT_WHATSAPP_NUMBER ?? "").replace(/[^\d]/g, "");
+  return raw.length >= 8 && raw.length <= 15 ? raw : null;
+}
+
+/**
+ * What a plain save — and an approval — may change on a quotation, and nothing else.
+ *
+ * Why the list is short. These routes used to spread whatever body they were given over the record,
+ * so one request could set `pricing`, `status: "confirmed_by_hono"` or `estimator.guestUrl` — i.e.
+ * approve a quotation, or hand a guest a link, without going through `/confirm` or `/publish`. The
+ * trip is excluded for the same reason from the other side: it is the *input* to a price, so it may
+ * only arrive through `/trip`, which re-prices it.
+ *
+ * These five are exactly what the studio's own save and approve buttons post (`gatherDetails()` in
+ * quotationStore.ts), so the whitelist is the client's real payload rather than a guess at it. Every
+ * other key is ignored and reported back in `ignored`, so a caller is never left believing a write
+ * happened.
+ */
+const EDITABLE_QUOTATION_FIELDS = ["guestName", "checkIn", "checkOut", "staffNotes", "phone"] as const;
+
+/**
+ * The editable subset of a request body, plus the keys that were refused.
+ *
+ * `claimedTrip` is the body's own `bffTrip` if it sent one. It is never written from a request — the
+ * stored trip wins — but `/confirm` reads it to catch a tab that has been open since the trip was
+ * priced, so it is returned rather than dropped. `/v1/quotes/:id` still reports it as refused, which
+ * is what it is on a plain save.
+ */
+function editableQuotationFields(body: unknown): {
+  edits: Partial<HonoQuotationDraft>;
+  ignored: string[];
+  /** The body's own trip, if it sent one — never written, only used to catch a stale approver. */
+  claimedTrip: unknown;
+} {
+  const seen = (body ?? {}) as Record<string, unknown>;
+  const edits: Partial<HonoQuotationDraft> = {};
+  for (const key of EDITABLE_QUOTATION_FIELDS) {
+    if (seen[key] !== undefined) (edits as Record<string, unknown>)[key] = seen[key];
+  }
+  const ignored = Object.keys(seen).filter(
+    (key) => !(EDITABLE_QUOTATION_FIELDS as readonly string[]).includes(key),
+  );
+  return { edits, ignored, claimedTrip: seen.bffTrip };
+}
+
+/**
+ * A published quotation is frozen, whoever asks.
+ *
+ * Their Q-005: the guest is holding a link that resolves to the newest saved revision, so a write to
+ * a record that has been shared is a silent change to what somebody was sent. `/trip`,
+ * `/sync-estimate` and `/publish` all refuse this already; `PUT /v1/quotes/:id` and `/confirm` did
+ * not, and it was measured on production (2026-09-28) that a PUT to a published record changed the
+ * guest's name and check-in date underneath a link a guest was already holding.
+ */
+function alreadySharedRefusal(existing: HonoQuotationDraft): Response | null {
+  if (!existing.estimator?.sharedAt) return null;
+  return Response.json(
+    {
+      ok: false,
+      reason: "already_shared",
+      detail:
+        "this quotation is already published, so what the guest is holding must not change — start a new quotation instead",
+      guestUrl: existing.estimator.guestUrl,
+    },
+    { status: 409 },
+  );
 }
 
 /**
@@ -414,7 +486,30 @@ export function createApp(options: AppOptions = {}) {
         )
         : await converse(parsed.data.history as ConversationTurn[], provider);
       if (outcome.quotationDraft) {
-        await saveQuotationDraft(outcome.quotationDraft);
+        // Creating a quotation is a staff action.
+        //
+        // This route is reachable without a credential — the public test console and the HTTP smoke
+        // script both call it — and it used to take the draft the tool built and write it straight
+        // into the studio's queue, then hand the caller the record back: `slug`, `quoteId`,
+        // `lineItems` and `totalAmount`, i.e. an internal id, a guest-facing link and a price, for an
+        // anonymous POST (measured on production, 2026-09-28: one unsigned request created
+        // QT-1121-ANAR-… and answered 200 with its price).
+        //
+        // The extraction itself stays open, because that is the model reading text and is what the
+        // console exists to show. What an anonymous caller does not get is a record, or the fields
+        // that identify and price one — a quotation is something staff make, and the guest's own
+        // price comes from the customer's app, never from here.
+        if (staffSession(c).ok) {
+          await saveQuotationDraft(outcome.quotationDraft);
+          return c.json({ ...outcome, quotationSaved: true });
+        }
+        const { quotationDraft: _withheld, ...rest } = outcome;
+        return c.json({
+          ...rest,
+          quotationSaved: false,
+          quotationNote:
+            "this enquiry is complete, but a quotation was not created: sign in to the staff studio to open one",
+        });
       }
       return c.json(outcome);
     } catch (err) {
@@ -696,19 +791,42 @@ export function createApp(options: AppOptions = {}) {
             // be a retail price for an agency — wrong on the number, and it would fill the review
             // queue with work that belongs on their own sign-in page. The guest is invited there
             // instead (see `partnerInvitationReply`), and the thread is parked so staff see it.
+            //
+            // The invitation is sent ONCE per conversation, and the guest's own words are what end
+            // it: `declinesPartner` reads the transcript, so "actually, we're booking for ourselves"
+            // moves the enquiry to the ordinary retail path for every later turn as well. Without
+            // that, the branch re-fired on each message from an extraction that still read the
+            // earlier agency phrasing — the loop the invitation's own last sentence promised not to
+            // happen, reproduced live on production on 2026-09-28.
+            //
+            // And only when there is somewhere real to send them: `absoluteUrl` answers null for a
+            // relative `/signin`, which is what an unconfigured deployment produced — a relative path
+            // in a WhatsApp message is not a link anybody can open, so the invitation is not sent at
+            // all and the enquiry takes the ordinary path (staff still see the guest's own words).
             const partnerType = outcome.trip.guestType?.value;
-            if (outcome.quotationDraft && (partnerType === "agent" || partnerType === "instructor")) {
-              const signInUrl = `${estimator.appBaseUrl ?? estimator.baseUrl ?? ""}/signin`;
-              const text = partnerInvitationReply(outcome.trip.language?.value ?? null, signInUrl);
-              await store.pause(phone, "partner_self_serve", { context: combinedText.slice(0, 200) });
-              await store.append(phone, { role: "assistant", text });
-              sending = true;
-              await send({ to: phone, body: text });
-              await store.markTold(phone);
-              replied++;
-              handoffs++;
-              await markAllDone();
-              return;
+            const partnerDeclined = history.some((turn) => turn.role === "guest" && declinesPartner(turn.text));
+            if (
+              outcome.quotationDraft &&
+              !partnerDeclined &&
+              (partnerType === "agent" || partnerType === "instructor")
+            ) {
+              const signInUrl = absoluteUrl("/signin", estimator.appBaseUrl ?? estimator.baseUrl);
+              if (signInUrl) {
+                const text = partnerInvitationReply(outcome.trip.language?.value ?? null, signInUrl);
+                await store.pause(phone, "partner_self_serve", { context: combinedText.slice(0, 200) });
+                await store.append(phone, { role: "assistant", text });
+                sending = true;
+                await send({ to: phone, body: text });
+                await store.markTold(phone);
+                replied++;
+                handoffs++;
+                await markAllDone();
+                return;
+              }
+              // eslint-disable-next-line no-console
+              console.warn(
+                "[casa-bff] partner enquiry invited nowhere: no absolute app base URL is configured (ESTIMATOR_APP_BASE_URL / ESTIMATOR_BASE_URL)",
+              );
             }
             if (outcome.quotationDraft) {
               // ONE quotation per enquiry. The tool mints a fresh id and slug on every call, so a
@@ -723,13 +841,45 @@ export function createApp(options: AppOptions = {}) {
               // approval and price. The next enquiry mints its own quotation instead.
               const carried = candidate && candidate.status !== "cancelled" ? candidate : undefined;
 
-              // The other half of the same rule: within an enquiry, a change to anything the price
-              // is computed from invalidates the price and the approval given for it. The record
-              // keeps its id — one enquiry, one quotation, so staff see a correction rather than a
-              // second row — but "approved at ₱48,600" cannot survive the guest adding a night.
-              const pricedFactsMoved = Boolean(
-                carried && pricedFactsChanged(carried.bffTrip, outcome.quotationDraft.bffTrip),
-              );
+              // The bot may not overwrite work a person did.
+              //
+              // The extractor re-reads the WHOLE transcript on every turn, so its answer is a
+              // reading of everything the guest ever said — it cannot contain a correction staff made
+              // in the studio, because the guest never said it. Spreading that answer over the record
+              // therefore reverted the correction, and then the comparison below saw two different
+              // trips and dropped the price and the approval with it: measured on production,
+              // 2026-09-28, where a staff edit moving one dive day from Ana to Ben was undone by the
+              // guest's next message ("everything else is as we said"), the record went back to
+              // `pending_hono_review`, and the alert it wrote blamed the guest for a change the guest
+              // never made.
+              //
+              // So the bot's reading may only move a field the guest's own words in THIS turn
+              // support — the same verbatim-evidence gate `extract.ts` applies to a `stated` field,
+              // asked of the newest message instead of the whole conversation (see
+              // `pathsRestatedByGuest`). A real change still lands ("sorry, there are 4 of us") and
+              // still drops the price; a re-reading of old text does not.
+              const botTrip = outcome.quotationDraft.bffTrip;
+              const correctedTrip = carried?.bffTrip;
+              const changedPaths = correctedTrip && botTrip ? diffBffTrip(correctedTrip, botTrip) : [];
+              const humanCorrected = (carried?.staffEdits ?? []).length > 0;
+              const restated = humanCorrected
+                ? pathsRestatedByGuest(changedPaths, outcome.trip, combinedText)
+                : changedPaths;
+              const keepCorrectedTrip = Boolean(carried && correctedTrip && humanCorrected && changedPaths.length > 0 && restated.length === 0);
+              // Worth a line in the studio only when money is what the two readings disagree about:
+              // a difference in a name or a comment is not something staff can act on, and an alert
+              // on every chatty guest message is how a real one gets ignored.
+              const keptPricedDifference = keepCorrectedTrip && pricedFactsChanged(correctedTrip, botTrip);
+
+              // The other half of the same rule: within an enquiry, a change to anything the price is
+              // computed from invalidates the price and the approval given for it. The record keeps
+              // its id — one enquiry, one quotation, so staff see a correction rather than a second
+              // row — but "approved at ₱48,600" cannot survive the guest adding a night.
+              //
+              // Only when the trip actually moves: what was kept above still describes the price, so
+              // dropping it there would throw away a valid approval for a change that did not happen.
+              const pricedFactsMoved =
+                !keepCorrectedTrip && Boolean(carried && pricedFactsChanged(correctedTrip, botTrip));
 
               const draft: HonoQuotationDraft = carried
                 ? {
@@ -739,6 +889,10 @@ export function createApp(options: AppOptions = {}) {
                     quotationUrl: carried.quotationUrl,
                     honoEditorUrl: carried.honoEditorUrl,
                     createdAt: carried.createdAt,
+                    // The trip the record already holds when staff corrected it (see above), and the
+                    // bot's own reading otherwise. Named explicitly because this is exactly the line
+                    // whose absence undid a correction.
+                    bffTrip: keepCorrectedTrip ? correctedTrip : botTrip,
                     status: pricedFactsMoved ? "pending_hono_review" : carried.status,
                     confirmedAt: pricedFactsMoved ? undefined : carried.confirmedAt,
                     confirmedBy: pricedFactsMoved ? undefined : carried.confirmedBy,
@@ -755,16 +909,31 @@ export function createApp(options: AppOptions = {}) {
                     // fact about the world, and hiding it would be the dangerous kind of tidy.
                     submission: carried.submission ?? null,
                     estimator: carried.estimator ?? null,
-                    staffAlerts: pricedFactsMoved
-                      ? [
-                          ...outcome.quotationDraft.staffAlerts,
-                          "The guest changed the trip after it was priced, so the price and the approval were dropped — review it again.",
-                        ]
-                      : outcome.quotationDraft.staffAlerts,
+                    staffAlerts: keepCorrectedTrip
+                      ? keptPricedDifference
+                        ? [
+                            ...outcome.quotationDraft.staffAlerts,
+                            `The guest's latest message would change priced facts you corrected (${changedPaths.join(", ")}). The corrected trip and its price were kept — edit the trip if the guest is right.`,
+                          ]
+                        : outcome.quotationDraft.staffAlerts
+                      : pricedFactsMoved
+                        ? [
+                            ...outcome.quotationDraft.staffAlerts,
+                            "The guest changed the trip after it was priced, so the price and the approval were dropped — review it again.",
+                          ]
+                        : outcome.quotationDraft.staffAlerts,
                   }
                 : outcome.quotationDraft;
               draft.phone = phone;
               await saveQuotationDraft(draft);
+              if (keepCorrectedTrip) {
+                // Logged for the same reason the dropped approval is: a correction the bot keeps
+                // trying to undo is a backlog item, and the studio screen is not where anybody counts
+                // them. The extraction itself is not wrong — it is re-reading text that is already on
+                // the record.
+                // eslint-disable-next-line no-console
+                console.log("quotation kept a staff correction", draft.quoteId, changedPaths.join(","));
+              }
               if (pricedFactsMoved) {
                 // Nothing to say to the guest about this; the studio is where it matters. Logged so
                 // a dropped approval is auditable from a deployment log, not only from the record.
@@ -991,11 +1160,20 @@ export function createApp(options: AppOptions = {}) {
   //                   guestName and phone; `/v1/quotes/:id` also carries the Odoo/GAIS
   //                   envelope. These were open too.
   //
-  // The token is the same shared secret the WhatsApp handoff routes already use, so there
-  // is no new env var to forget. It fails closed: with no token configured, staff routes
-  // are unreachable rather than open.
+  // The token is the staff key (`STAFF_ACCESS_KEY`, falling back to `WHATSAPP_VERIFY_TOKEN`);
+  // the WhatsApp handoff JSON routes keep using the webhook token, because Meta is their other
+  // caller. It fails closed: with no key configured, staff routes are unreachable rather than open.
+  /**
+   * Staff auth by shared secret, in the header.
+   *
+   * The secret is `staffAccessKey()` — `STAFF_ACCESS_KEY`, falling back to `WHATSAPP_VERIFY_TOKEN` for
+   * a deployment that predates the split (see demoAuth.ts). It used to read the WhatsApp verify token
+   * outright, which meant the staff key was a string Meta already knew and rotating one broke the
+   * other. The two are separate jobs and now separate values; the fallback is what keeps an already
+   * running deployment working until the env var is set.
+   */
   function staffAuthorized(header: string | undefined): boolean {
-    return sameSecret(header, whatsAppConfig().verifyToken);
+    return sameSecret(header, staffAccessKey());
   }
 
   /**
@@ -1015,7 +1193,7 @@ export function createApp(options: AppOptions = {}) {
    */
   function staffAuthorizedWithQuery(header: string | undefined, token: string | undefined): boolean {
     if (staffAuthorized(header)) return true;
-    return sameSecret(token, whatsAppConfig().verifyToken);
+    return sameSecret(token, staffAccessKey());
   }
 
   /**
@@ -1028,7 +1206,7 @@ export function createApp(options: AppOptions = {}) {
    */
   function staffSession(c: Context): { ok: boolean; role: DemoRole | null } {
     const bearer = c.req.header("authorization");
-    if (bearer?.startsWith("Bearer ") && sameSecret(bearer.slice(7).trim(), whatsAppConfig().verifyToken)) {
+    if (bearer?.startsWith("Bearer ") && sameSecret(bearer.slice(7).trim(), staffAccessKey())) {
       return { ok: true, role: "staff" };
     }
     if (staffAuthorizedWithQuery(c.req.header("x-verify-token"), c.req.query("token"))) {
@@ -1036,6 +1214,19 @@ export function createApp(options: AppOptions = {}) {
     }
     const role = verifySession(getCookie(c, DEMO_SESSION_COOKIE));
     return role ? { ok: true, role } : { ok: false, role: null };
+  }
+
+  /**
+   * A session that may do damage: signed in *as staff*, not merely signed in.
+   *
+   * `staffSession` answers "is this a valid session", and the demo has three roles (`guest`, `agent`,
+   * `staff` — see DEMO_ROLES). Cancelling a quotation and deleting records are not things an agent or
+   * a guest session may do, and the sign-in form's `role` field is client-controlled, so the check
+   * has to name the role rather than assume that anyone who signed in is staff.
+   */
+  function staffWriter(c: Context): boolean {
+    const auth = staffSession(c);
+    return auth.ok && auth.role === "staff";
   }
 
   function setDemoSession(c: Context, role: DemoRole): void {
@@ -1150,11 +1341,16 @@ export function createApp(options: AppOptions = {}) {
     // publish, only after their link failed a check, and only for a record staff have approved.
     const guestUrl = found.estimator?.guestUrl;
     if (found.estimator?.mirrorUrl && found.status !== "cancelled") {
+      // The number the guest replies to, or no button at all — see `resortWhatsAppNumber` for why a
+      // numberless `wa.me/?text=` link is worse than no link.
+      const resortNumber = resortWhatsAppNumber();
       return c.html(
         renderGuestQuotationCopyHtml(found, {
-          replyUrl: `https://wa.me/?text=${encodeURIComponent(
-            "Hello Casa Escondida, I am looking at my quotation and have a question.",
-          )}`,
+          replyUrl: resortNumber
+            ? `https://wa.me/${resortNumber}?text=${encodeURIComponent(
+                "Hello Casa Escondida, I am looking at my quotation and have a question.",
+              )}`
+            : null,
         }),
       );
     }
@@ -1410,7 +1606,17 @@ export function createApp(options: AppOptions = {}) {
     if (!staffSession(c).ok) {
       return c.json({ error: "unauthorized" }, 401);
     }
-    return c.json({ quotations: await listQuotations() });
+    // Filtered and capped where the data is — see `filterQuotations`. `limit` defaults to 200: a
+    // queue larger than that is a queue nobody scrolls, and the caller that wants all of it can say
+    // so explicitly.
+    const limitRaw = Number(c.req.query("limit") ?? "");
+    const all = await listQuotations();
+    const quotations = filterQuotations(all, {
+      status: c.req.query("status"),
+      q: c.req.query("q"),
+      limit: Number.isFinite(limitRaw) && limitRaw > 0 ? Math.min(limitRaw, 500) : 200,
+    });
+    return c.json({ quotations, total: all.length, returned: quotations.length });
   });
 
   /**
@@ -1596,31 +1802,19 @@ export function createApp(options: AppOptions = {}) {
     const id = c.req.param("id");
     const existing = await getQuotationByIdOrSlug(id);
     if (!existing) return c.json({ error: "not_found" }, 404);
-    const body = (await c.req.json().catch(() => ({}))) as Partial<HonoQuotationDraft>;
+    const frozen = alreadySharedRefusal(existing);
+    if (frozen) return frozen;
+    const rawBody = (await c.req.json().catch(() => ({}))) as Partial<HonoQuotationDraft>;
 
-    // What a plain save may change, and why the list is short.
-    //
-    // This route used to spread whatever body it was given over the record, so one PUT could set
-    // `pricing`, `status: "confirmed_by_hono"` or `estimator.guestUrl` — i.e. approve a quotation,
-    // or hand a guest a link, without going through `/confirm` or `/publish`. The trip is excluded
-    // for the same reason from the other side: it is the *input* to a price, so it may only arrive
-    // through `/trip`, which re-prices it. (The studio's own Save used to post its whole state here,
-    // which wrote an unpriced trip — exactly the disagreement `/confirm` now refuses.)
-    const EDITABLE_FIELDS = ["guestName", "checkIn", "checkOut", "staffNotes", "phone"] as const;
-    const edits: Partial<HonoQuotationDraft> = {};
-    const seen = body as Record<string, unknown>;
-    const ignored = Object.keys(seen).filter((key) => !(EDITABLE_FIELDS as readonly string[]).includes(key));
-    for (const key of EDITABLE_FIELDS) {
-      const value = seen[key];
-      if (value !== undefined) (edits as Record<string, unknown>)[key] = value;
-    }
+    // What a plain save may change, and why the list is short — see `EDITABLE_QUOTATION_FIELDS`. The
+    // studio's own Save used to post its whole state here, which wrote an unpriced trip; the trip now
+    // only arrives through `/trip`, which re-prices it.
+    const { edits, ignored } = editableQuotationFields(rawBody);
 
     const merged: HonoQuotationDraft = {
       ...existing,
       ...edits,
       quoteId: existing.quoteId,
-      lineItems: Array.isArray(body.lineItems) ? body.lineItems : existing.lineItems,
-      quotationUrl: body.quotationUrl || existing.quotationUrl,
     };
     const saved = await saveQuotationDraft(merged);
     return c.json({
@@ -1639,6 +1833,8 @@ export function createApp(options: AppOptions = {}) {
     const id = c.req.param("id");
     const existing = await getQuotationByIdOrSlug(id);
     if (!existing) return c.json({ error: "not_found" }, 404);
+    const frozen = alreadySharedRefusal(existing);
+    if (frozen) return frozen;
     // Approving is approving a *price*. A quotation with no engine pricing on it has no number to
     // approve, and letting the click through is how a record ends up marked "approved" while the
     // studio shows "not priced yet" beside it — measured on production, on a record whose approval
@@ -1654,14 +1850,20 @@ export function createApp(options: AppOptions = {}) {
         409,
       );
     }
-    const body = (await c.req.json().catch(() => ({}))) as Partial<HonoQuotationDraft>;
+    const rawBody = (await c.req.json().catch(() => ({}))) as Partial<HonoQuotationDraft>;
+    // The same five contact fields a plain save may change, and nothing else. An approval used to be
+    // spread over the record from the request body, so it could also set `pricing`, `status`,
+    // `estimator` or `submission` — the money and the link, through the route that is supposed to
+    // only say yes to them.
+    const { edits, ignored, claimedTrip } = editableQuotationFields(rawBody);
 
-    // The page posts back the whole draft it rendered, `bffTrip` included. So approving is also a
-    // claim about a *trip* — and a tab that has been open while an edit was saved elsewhere would
-    // otherwise approve one trip against another trip's price. The rule is the same one the channel
-    // applies when a guest changes a figure mid-enquiry (`pricedFactsChanged`): a price describes
-    // the facts it was computed from, and nothing else.
-    const posted = BffTrip.safeParse((body as { bffTrip?: unknown }).bffTrip);
+    // Approving is also a claim about a *trip*. A caller that sends the draft it rendered (the
+    // walkthrough script does; the studio's own button sends only the contact fields) can be a tab
+    // that has been open while an edit was saved elsewhere, and it would otherwise approve one trip
+    // against another trip's price. The rule is the same one the channel applies when a guest changes
+    // a figure mid-enquiry (`pricedFactsChanged`): a price describes the facts it was computed from,
+    // and nothing else. The body's trip is only ever *read* here — the stored one wins below.
+    const posted = BffTrip.safeParse(claimedTrip);
     const correctedFields =
       posted.success && existing.bffTrip ? diffBffTrip(existing.bffTrip, posted.data) : [];
     if (posted.success && existing.bffTrip && pricedFactsChanged(existing.bffTrip, posted.data)) {
@@ -1679,13 +1881,11 @@ export function createApp(options: AppOptions = {}) {
 
     const merged: HonoQuotationDraft = {
       ...existing,
-      ...body,
+      ...edits,
       quoteId: existing.quoteId,
       status: "confirmed_by_hono",
       confirmedAt: new Date().toISOString(),
       confirmedBy: "Hono Reservation Studio",
-      lineItems: Array.isArray(body.lineItems) ? body.lineItems : existing.lineItems,
-      quotationUrl: body.quotationUrl || existing.quotationUrl,
       // The stored trip wins: this route decides *whether* the quotation is approved, not what the
       // trip is. `/trip` is the editing path, and it re-prices.
       bffTrip: existing.bffTrip,
@@ -1708,14 +1908,26 @@ export function createApp(options: AppOptions = {}) {
     const aiReply = await synthesizeConfirmedQuotationReply(saved, provider);
     saved.aiConfirmedReply = aiReply;
     await saveQuotationDraft(saved);
-    return c.json({ ok: true, quotation: saved, aiReply, estimatePreview: buildEstimatePreview(saved) });
+    return c.json({
+      ok: true,
+      quotation: saved,
+      aiReply,
+      estimatePreview: buildEstimatePreview(saved),
+      // `bffTrip` is read here (see above), so it is not reported as a field that was refused.
+      ...(ignored.filter((key) => key !== "bffTrip").length > 0
+        ? { ignored: ignored.filter((key) => key !== "bffTrip") }
+        : {}),
+    });
   });
 
   /**
-   * Cancel / Archive a quotation. Staff only.
+   * Cancel / Archive a quotation. Staff only — the role, not merely a session.
+   *
+   * A cancelled record leaves the working queue and its guest link answers 410, which is a decision
+   * about what a guest is being offered; an agent or guest session must not be able to make it.
    */
   app.post("/v1/quotes/:id/cancel", async (c) => {
-    if (!staffSession(c).ok) {
+    if (!staffWriter(c)) {
       return c.json({ error: "unauthorized" }, 401);
     }
     const id = c.req.param("id");
@@ -1742,11 +1954,12 @@ export function createApp(options: AppOptions = {}) {
    *
    * It also takes `{ ids: [...] }`, for leftovers that are not duplicates of anything (probes, and
    * the drafts a manual test leaves for a phone nobody will text from again). Naming records
-   * explicitly is the more dangerous form, so the same three protections apply — see
-   * `deletableByCleanup` — and the answer says which names were refused and why.
+   * explicitly is the more dangerous form, so the same protections apply — see
+   * `protectedFromCleanup` — and the answer says which names were refused and why.
    */
   app.post("/v1/quotes/cleanup-duplicates", async (c) => {
-    if (!staffSession(c).ok) return c.json({ error: "unauthorized" }, 401);
+    // Deleting business records, so the staff role is required, not just any valid session.
+    if (!staffWriter(c)) return c.json({ error: "unauthorized" }, 401);
 
     const body = (await c.req.json().catch(() => ({}))) as { confirm?: unknown; ids?: unknown };
     const all = await listQuotations();
@@ -2168,9 +2381,14 @@ export function createApp(options: AppOptions = {}) {
           ? "this deployment is set to send our own copy of the quotation (GUEST_LINK_MODE=copy)"
           : check.reason === "not_found"
             ? "the booking app did not recognise the link it had just issued, so the guest gets a copy of the same revision on our own page"
-            : `the booking app could not be asked for the link (${check.reason}: ${check.detail}), so the guest gets a copy of the same revision on our own page`;
+            : // The reason only. `check.detail` is a transport message ("fetch failed", a DNS name,
+              // a vendor body) and this sentence is drawn in the studio, in front of staff; the detail
+              // goes to the log line below, where somebody debugging can find it.
+              `the booking app could not be asked whether the link opens (${check.reason}), so the guest gets a copy of the same revision on our own page`;
         // eslint-disable-next-line no-console
-        console.warn(`[casa-bff] publish ${existing.quoteId}: using our copy of the quotation (${forceCopy ? "configured" : check.reason})`);
+        console.warn(
+          `[casa-bff] publish ${existing.quoteId}: using our copy of the quotation (${forceCopy ? "configured" : check.reason}: ${check.detail})`,
+        );
       }
     }
 

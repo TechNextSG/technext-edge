@@ -8,6 +8,8 @@ import {
   isReadyForHandoff,
   renderReply,
   wantsHuman,
+  declinesPartner,
+  partnerInvitationReply,
   HANDOFF_REQUIRED_FIELDS,
   NEVER_ASKED_FIELDS,
 } from "../src/questions.js";
@@ -522,6 +524,39 @@ describe("fallbacks", () => {
     expect(wantsHuman("Can I talk to a human please?")).toBe(true);
     expect(wantsHuman("please put me through to the manager")).toBe(true);
     expect(wantsHuman("我想找人工客服")).toBe(true);
+  });
+
+  it("recognises the answer the partner invitation asks for", () => {
+    // The invitation's last sentence is "If you're booking for yourselves, just tell me and I'll
+    // carry on." These are the ways a guest actually says it, and the bot has to hear all of them or
+    // it repeats the invitation — measured on production on 2026-09-28.
+    for (const said of [
+      "Actually we're booking for ourselves, not an agency.",
+      "This is a personal booking for me and my wife.",
+      "We are not a travel agent, just booking for myself.",
+      "It's just us, no agency involved.",
+      "我们自己预订，不是旅行社",
+    ]) {
+      expect(declinesPartner(said), said).toBe(true);
+    }
+  });
+
+  it("does not read an ordinary message as a decline, so a real partner is still invited", () => {
+    for (const said of [
+      "Hi, this is Blue Fin Dive Shop. Do you offer agent rates for 6 guests?",
+      "Our agency would like to book 4 rooms in December.",
+      "Can you send our partner rates?",
+    ]) {
+      expect(declinesPartner(said), said).toBe(false);
+    }
+  });
+
+  it("never prints a bare path as the place to sign in", () => {
+    const invitation = partnerInvitationReply("en", "https://their-app.test/signin");
+    expect(invitation).toContain("https://their-app.test/signin");
+    expect(invitation).toContain("tell me and I'll carry on");
+    // Chinese gets the same promise, or the loop comes back in the other language.
+    expect(partnerInvitationReply("zh", "https://their-app.test/signin")).toContain("我就照常继续");
   });
 
   it("includes PADI/DAN No-Fly safety advisory when diving on check-out day", async () => {

@@ -44,10 +44,13 @@ function money(currency: string, amount: number): string {
  *
  * `replyUrl` is where the "reply on WhatsApp" button goes. It is passed in rather than built here so
  * the page cannot invent a number: the caller knows which WhatsApp the guest already reached us on.
+ * It is `null` when this deployment has no resort number configured — in which case the button is
+ * left out entirely, because `https://wa.me/?text=…` with no number opens WhatsApp on an empty
+ * "choose a chat" screen, which is not a reply to anybody.
  */
 export function renderGuestQuotationCopyHtml(
   draft: HonoQuotationDraft,
-  options: { replyUrl: string },
+  options: { replyUrl: string | null },
 ): string {
   const pricing = draft.pricing ?? null;
   const currency = draft.currency;
@@ -168,7 +171,11 @@ export function renderGuestQuotationCopyHtml(
           : ""
       }
       <div class="actions">
-        <a class="btn btn-primary" href="${esc(options.replyUrl)}" target="_blank" rel="noopener">Reply on WhatsApp</a>
+        ${
+          options.replyUrl
+            ? `<a class="btn btn-primary" href="${esc(options.replyUrl)}" target="_blank" rel="noopener">Reply on WhatsApp</a>`
+            : `<span class="muted">Reply in the WhatsApp conversation this quotation came from and a member of the team will pick it up.</span>`
+        }
       </div>
       <div class="note">
         This is the quotation the resort sent you, kept here so the link always opens. Your booking is taken by

@@ -30,6 +30,7 @@ export {
   partnerInvitationReply,
   stalledHandoffReply,
   changedValueNotice,
+  declinesPartner,
   wantsHuman,
   getStaffAlerts,
   ASK_LIMIT,
@@ -67,6 +68,7 @@ export { converse } from "./converse.js";
 export type { ConversationChannel, ConversationInput, ConversationTurn, ConverseOutcome } from "./converse.js";
 export { diffBffTrip, pricedFactsChanged, pricedFactsKey } from "./tripDiff.js";
 export type { StaffTripEdit } from "./tripDiff.js";
+export { extractorFieldsForTripPath, pathsRestatedByGuest } from "./tripCorrections.js";
 export {
   SUBMIT_QUOTATION_TO_HONO_DECLARATION,
   buildHonoQuotationDraft,

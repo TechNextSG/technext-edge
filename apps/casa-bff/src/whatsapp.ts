@@ -196,16 +196,20 @@ export function checkRecipient(raw: string | undefined | null): RecipientCheck {
   if (bare === "") {
     return { ok: false, code: "phone_missing", message: "Enter the guest's WhatsApp number, including the country code." };
   }
+  if (bare.startsWith("00")) {
+    // 00 is the international prefix in most of the world; drop it and keep the country code.
+    //
+    // Checked BEFORE the leading-zero refusal below, which used to swallow it: `0063917…` does have a
+    // country code, and telling a receptionist to add one — while refusing a number Meta can route —
+    // was the wrong answer twice over. The branch was dead code until this order changed.
+    return checkRecipient(bare.replace(/^00/, ""));
+  }
   if (bare.startsWith("0")) {
     return {
       ok: false,
       code: "phone_invalid",
       message: `That number starts with 0. Add the country code — 63 for the Philippines, 84 for Vietnam — so it reads 63… or 84…`,
     };
-  }
-  if (bare.startsWith("00")) {
-    // 00 is the international prefix in most of the world; drop it and keep the country code.
-    return checkRecipient(bare.replace(/^00/, ""));
   }
   if (bare.length < 8 || bare.length > 15) {
     return {
@@ -222,7 +226,12 @@ export function checkRecipient(raw: string | undefined | null): RecipientCheck {
  *
  * The raw body is `{"error":{"message":"...","code":131030,...}}` — useful to us, meaningless to the
  * person at the front desk, and it can quote the number back. Recognised codes become one English
- * sentence; anything unrecognised becomes a generic sentence, and the detail goes to the log.
+ * sentence; anything unrecognised becomes a generic sentence that carries only Meta's **numeric**
+ * code, and the body itself goes to the log.
+ *
+ * The default branch used to paste 120 characters of that body into the sentence instead, which
+ * contradicted this paragraph and put vendor JSON — sometimes with the guest's own number in it — in
+ * front of the receptionist. A number is a fact they can quote to us; the blob is not.
  */
 export function explainMetaError(code: number | undefined, fallbackDetail: string): string {
   switch (code) {
@@ -234,8 +243,12 @@ export function explainMetaError(code: number | undefined, fallbackDetail: strin
       return "WhatsApp only allows a free-form reply within 24 hours of the guest's last message. Ask them to message us again, or reply from the WhatsApp app.";
     case 190:
       return "The WhatsApp access token has expired or been revoked. It needs replacing in the deployment settings.";
+    case 133010:
+      return "This WhatsApp number is not registered for the Cloud API yet, so it cannot send at all. It has to be registered from the Meta side.";
     default:
-      return `WhatsApp refused the message. Our team has the details: ${fallbackDetail.slice(0, 120)}`;
+      return code === undefined
+        ? `WhatsApp refused the message and did not say why. Our team has the details in the deployment log (their answer was ${fallbackDetail.trim().length} characters).`
+        : `WhatsApp refused the message (Meta code ${code}). Our team has the details in the deployment log.`;
   }
 }
 

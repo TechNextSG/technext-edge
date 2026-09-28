@@ -113,11 +113,17 @@ export function createLoginAttemptLimiter(
 }
 
 /**
- * The demo's signing key. Prefers a real `GAIS_API_KEY` if one is ever configured, so pointing
- * the demo at the real gateway is a config change rather than a code change.
+ * The demo's signing key: the same `staffAccessKey` the sign-in form checks.
+ *
+ * One key for the whole staff surface. It used to be `GAIS_API_KEY || WHATSAPP_VERIFY_TOKEN` while
+ * `/login` compared against `STAFF_ACCESS_KEY || WHATSAPP_VERIFY_TOKEN` and the header/query paths
+ * compared against the WhatsApp token outright — three different answers to "what is the staff key",
+ * which meant setting `STAFF_ACCESS_KEY` did *not* stop the WhatsApp token from opening the studio,
+ * and rotating the WhatsApp token logged every staff member out. A deployment that has not set
+ * `STAFF_ACCESS_KEY` still falls back to the WhatsApp token, so this changes nothing until it is set.
  */
 function sessionSecret(env: NodeJS.ProcessEnv = process.env): string {
-  return env.GAIS_API_KEY || env.WHATSAPP_VERIFY_TOKEN || "";
+  return staffAccessKey(env);
 }
 
 function sign(payload: string, key: string): string {

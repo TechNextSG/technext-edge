@@ -29,6 +29,20 @@
 // giá thật đưa sau" — run this local estimate, swap in Odoo's lines later.
 export type RoomType = "standard" | "deluxe" | "suite";
 
+/**
+ * How each room type is named on a quotation line.
+ *
+ * Exists because the room line's description was a fixed "Standard Room (Twin / Double Occupancy)"
+ * while its unit price came from whatever rooms were booked, so a deluxe booking showed a standard
+ * room carrying a deluxe rate. Caught on production on 2026-09-28, on a quotation used to argue that
+ * the arithmetic was trustworthy.
+ */
+export const ROOM_TYPE_LABELS: Record<RoomType, string> = {
+  standard: "Standard Room",
+  deluxe: "Deluxe Room",
+  suite: "Suite",
+};
+
 interface RoomBand {
   maxPax: number;
   nightly: number;

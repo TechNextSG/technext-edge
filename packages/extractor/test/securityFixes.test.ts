@@ -308,6 +308,205 @@ describe("a plain save edits the contact fields and nothing else", () => {
   });
 });
 
+describe("a published quotation is frozen", () => {
+  // Measured on production, 2026-09-28: `PUT /v1/quotes/QT-1205-BEN-…` on a record whose link had
+  // already been verified answered 200 and changed the guest's name and check-in date — underneath a
+  // link the guest was holding. `/trip`, `/sync-estimate` and `/publish` all refused that write; the
+  // contact-field route and `/confirm` did not.
+  async function published(id: string) {
+    const draft = await storedNasty(id);
+    return saveQuotationDraft({
+      ...draft,
+      status: "confirmed_by_hono",
+      confirmedAt: "2026-09-28T00:00:00.000Z",
+      confirmedBy: "Hono Reservation Studio",
+      phone: "639171234567",
+      pricing: {
+        source: "remote",
+        sample: true,
+        mode: "fixture",
+        role: "guest",
+        computedAt: "2026-09-28T00:00:00.000Z",
+        guests: [],
+        catRev: {},
+        kpis: { revenue: 31_200, guests: 2, nights: 2, discounts: null, rpgn: 15_600 },
+        warnings: [],
+        retail: null,
+        ops: null,
+      },
+      estimator: {
+        id: "scenario-1",
+        cookie: "ubg_sid=1",
+        seq: 1,
+        guestUrl: "https://their-app.test/quote/token",
+        sharedAt: "2026-09-28T00:01:00.000Z",
+      },
+    });
+  }
+
+  it("refuses a contact-field save, and writes nothing", async () => {
+    const draft = await published("QT-FROZEN-PUT");
+    const app = createApp();
+
+    const res = await app.request(`/v1/quotes/${draft.quoteId}${STAFF}`, {
+      method: "PUT",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ guestName: "Somebody Else", checkIn: "2027-01-01" }),
+    });
+
+    expect(res.status).toBe(409);
+    const body = await res.json();
+    expect(body.reason).toBe("already_shared");
+    expect(body.detail).toContain("already published");
+    expect(body.guestUrl).toBe("https://their-app.test/quote/token");
+    const stored = (await listQuotations()).find((q) => q.quoteId === draft.quoteId)!;
+    expect(stored.guestName).toBe(draft.guestName);
+    expect(stored.checkIn).toBe(draft.checkIn);
+  });
+
+  it("refuses an approval that would re-approve it against a different trip", async () => {
+    const draft = await published("QT-FROZEN-CONFIRM");
+    const app = createApp();
+
+    const res = await app.request(`/v1/quotes/${draft.quoteId}/confirm${STAFF}`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ guestName: "Somebody Else" }),
+    });
+
+    expect(res.status).toBe(409);
+    expect((await res.json()).reason).toBe("already_shared");
+  });
+});
+
+describe("an approval cannot be forged through /confirm", () => {
+  // `/confirm` spread the request body over the record, so the route that is supposed to *say yes* to
+  // a price could also set one — plus `status`, `estimator` (the guest's link) and `submission`.
+  it("writes the contact fields and refuses money, status and the link", async () => {
+    const base = await storedNasty("QT-CONFIRM-1");
+    const draft = await saveQuotationDraft({
+      ...base,
+      pricing: {
+        source: "remote",
+        sample: true,
+        mode: "fixture",
+        role: "guest",
+        computedAt: "2026-09-28T00:00:00.000Z",
+        guests: [],
+        catRev: {},
+        kpis: { revenue: 31_200, guests: 2, nights: 2, discounts: null, rpgn: 15_600 },
+        warnings: [],
+        retail: null,
+        ops: null,
+      },
+      lineItems: [],
+    });
+    const app = createApp();
+
+    const res = await app.request(`/v1/quotes/${draft.quoteId}/confirm${STAFF}`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        guestName: "Ana Reyes",
+        pricing: { source: "forged", sample: false, kpis: { revenue: 99_999 } },
+        estimator: { id: "forged", cookie: null, seq: 9, guestUrl: "https://evil.test/quote/stolen", sharedAt: "2026-01-01T00:00:00.000Z" },
+        submission: { folio: "forged" },
+        staffAlerts: ["forged"],
+      }),
+    });
+
+    const body = await res.json();
+    expect(res.status).toBe(200);
+    // The field it does own…
+    expect(body.quotation.guestName).toBe("Ana Reyes");
+    // …and none of the ones it does not.
+    expect(body.quotation.pricing?.kpis.revenue).toBe(31_200);
+    expect(body.quotation.estimator?.guestUrl ?? null).toBeNull();
+    expect(body.quotation.submission ?? null).toBeNull();
+    expect(body.quotation.staffAlerts ?? []).not.toContain("forged");
+    for (const refused of ["pricing", "estimator", "submission", "staffAlerts"]) {
+      expect(body.ignored, `${refused} was not reported as ignored`).toContain(refused);
+    }
+  });
+});
+
+describe("an anonymous caller cannot open a quotation", () => {
+  // Measured on production, 2026-09-28: `POST /v1/converse` with no credential created
+  // QT-1121-ANAR-7151DD9E and answered 200 with its `slug`, `quoteId`, `lineItems` and
+  // `totalAmount` — an internal id, a guest-facing link and a price, for an unsigned request.
+  function chatter() {
+    return {
+      id: "fake:converse",
+      call: async () => ({
+        raw: {
+          language: { value: "en", state: "default", evidence: null },
+          checkIn: { value: "2026-11-21", state: "stated", evidence: "21 Nov 2026" },
+          checkOut: { value: "2026-11-23", state: "stated", evidence: "23 Nov 2026" },
+          nights: { value: 2, state: "stated", evidence: "2 nights" },
+          guests: { value: 2, state: "stated", evidence: "2 guests" },
+          rooms: { value: 1, state: "stated", evidence: "1 room" },
+          roomType: { value: "deluxe", state: "stated", evidence: "deluxe" },
+          meals: { value: "full_board", state: "stated", evidence: "full board" },
+          transport: { value: false, state: "stated", evidence: "no transport" },
+          transportType: { value: "none", state: "stated", evidence: "no transport" },
+          guestType: { value: "retail", state: "default", evidence: null },
+          diver: { value: false, state: "stated", evidence: "no diving" },
+          divers: { value: null, state: "missing", evidence: null },
+          diveFrom: { value: null, state: "missing", evidence: null },
+          diveTo: { value: null, state: "missing", evidence: null },
+          diveNotes: { value: null, state: "missing", evidence: null },
+          contactName: { value: "Ana", state: "stated", evidence: "Ana" },
+        },
+        tokensIn: 1,
+        tokensOut: 1,
+        cacheReadTokens: 0,
+        ms: 1,
+      }),
+    };
+  }
+
+  const ENQUIRY =
+    "Hi, we are Ana and Ben, 2 guests, 1 room, deluxe, 2 nights from 21 Nov 2026 to 23 Nov 2026, full board, no transport, no diving";
+
+  it("creates no record and returns no id, link or price", async () => {
+    vi.stubEnv("ENABLE_HONO_QUOTATION_TOOL", "true");
+    const before = (await listQuotations()).length;
+    const app = createApp({ provider: chatter() });
+
+    const res = await app.request("/v1/converse", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ message: ENQUIRY }),
+    });
+    const body = await res.json();
+
+    expect(res.status).toBe(200);
+    expect(body.quotationDraft ?? null).toBeNull();
+    expect(body.slug ?? null).toBeNull();
+    expect(body.quotationSaved).toBe(false);
+    expect(String(body.quotationNote)).toContain("not created");
+    // Nothing was written: the studio's queue is exactly as long as it was.
+    expect((await listQuotations()).length).toBe(before);
+  });
+
+  it("still lets staff open one, which is what the console does when signed in", async () => {
+    vi.stubEnv("ENABLE_HONO_QUOTATION_TOOL", "true");
+    const app = createApp({ provider: chatter() });
+
+    const res = await app.request(`/v1/converse${STAFF}`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ message: ENQUIRY }),
+    });
+    const body = await res.json();
+
+    expect(body.quotationSaved).toBe(true);
+    expect(body.quotationDraft?.quoteId).toMatch(/^QT-/);
+    const stored = (await listQuotations()).find((q) => q.quoteId === body.quotationDraft.quoteId);
+    expect(stored, "the staff request really did create the record").toBeTruthy();
+  });
+});
+
 describe("a link that stopped opening is replaced, not sent", () => {
   // The last moment before a guest holds the link. Measured on the customer's fixture deployment:
   // 200 six times, then 404 twelve times in a row for the same token minutes later.
