@@ -160,7 +160,12 @@ export function verifySession(token: string | undefined, env: NodeJS.ProcessEnv 
   }
 }
 
-/** The demo sign-in page. One password field and a role picker — no accounts, by design. */
+/**
+ * The demo sign-in page. One password field, and a `role` field the form fills with `staff` — the
+ * studio is a staff tool, and a session's role only changes what a view is *called*. (This comment
+ * used to say the page had a role picker; it never did, and the picker that existed lived in the
+ * studio header and has been removed.)
+ */
 export function renderLoginHtml(error = false, nextPath = "/quotes"): string {
   // An allow-list of prefixes, never a passthrough: `next` arrives from the query string, so
   // echoing it back unchecked is an open redirect. `/handoff` is here because the handoff inbox

@@ -10,7 +10,7 @@ import {
 } from "../../../packages/extractor/src/index.js";
 import { buildSimulatedModel } from "./simulatedEstimator.js";
 import { createQuotationStoreFromEnv, type QuotationStore } from "./quotationStoreClient.js";
-import { DEMO_ROLES, type DemoRole } from "./demoAuth.js";
+import { type DemoRole } from "./demoAuth.js";
 import { escapeHtml } from "./html.js";
 
 /**
@@ -413,16 +413,6 @@ export function renderHonoQuotationEditorHtml(
     // Most-corrected first, then alphabetically, so equal counts cannot reorder between renders.
     fieldCounts: [...fieldCounts.entries()].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0])),
   };
-
-  // What each demo role is allowed to see, per the field guide's "vai người gọi" table. Only
-  // `guest` is real today (Odoo decides the role from the API key); the other two describe what
-  // the view becomes once those keys exist. Nothing here fakes cost or profit data.
-  const roleNote =
-    role === "agent"
-      ? "Agent view — partner rate: 30% off rooms (meals and diving are never discounted)."
-      : role === "staff"
-        ? "Staff view — quotations, prices and guest messages."
-        : "Guest view — retail pricing only.";
 
   // ---- The engine's own answer, drawn -------------------------------------
   // Everything below is read from `draft.pricing`, which is the pricing engine's response as it was
@@ -983,7 +973,7 @@ ${themeCss()}
 </head>
 <body data-role="${role}">
   <div style="background:var(--accent-soft);border-bottom:1px solid var(--border);color:var(--text);font-size:13.5px;padding:8px 20px;text-align:center;font-weight:600;">
-    Casa Escondida Anilao · Staff Operations Desk <span style="color:var(--muted);">· ${roleNote}</span>
+    Casa Escondida Anilao · Staff Operations Desk
   </div>
   <header class="topbar">
     <div class="brand">
@@ -995,10 +985,6 @@ ${themeCss()}
       <button type="button" class="theme-btn" id="theme-toggle-btn" onclick="toggleTheme()">
         <span id="theme-label">Dark Mode</span>
       </button>
-      <span style="font-size:14px;color:var(--text);background:var(--surface-2);border:2px solid var(--border);border-radius:999px;padding:6px 14px;font-weight:700;">Staff Role: <strong>${role}</strong></span>
-      <select id="role-select" onchange="switchRole(this.value)" title="Switch staff view role" style="background:var(--input-bg);border:2px solid var(--border);color:var(--text);border-radius:10px;padding:8px 12px;font-size:14px;font-weight:700;">
-        ${DEMO_ROLES.map((r) => `<option value="${r}"${r === role ? " selected" : ""}>${r}</option>`).join("")}
-      </select>
     </div>
   </header>
 
@@ -2167,15 +2153,6 @@ ${themeCss()}
      * Switch the DEMO role. Cosmetic only: the cookie it re-issues changes what this page says
      * it is viewing as, not what it is allowed to read. Real roles come from the GAIS key.
      */
-    async function switchRole(role) {
-      await fetch('/login/role', {
-        method: 'POST',
-        headers: { 'content-type': 'application/x-www-form-urlencoded' },
-        body: new URLSearchParams({ role })
-      });
-      window.location.reload();
-    }
-
     /**
      * One action for "the guest should get this": create the link if it does not exist, then send.
      *

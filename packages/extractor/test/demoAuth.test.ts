@@ -163,7 +163,23 @@ describe("the studio behind the demo sign-in", () => {
     expect(studio.status).toBe(200);
     const html = await studio.text();
     expect(html).toContain("DEMO AUTH");
-    expect(html).toContain("Staff Role: <strong>staff</strong>");
+  });
+
+  it("offers no role switch, because only staff can open the studio", async () => {
+    // Asked while looking at the header: the picker said "Staff Role: guest" on a page a guest can
+    // never reach, and hiding the staff controls with CSS left them in the markup — so "Guest view"
+    // was untrue in the page source. The role is chosen at sign-in; the guest's own view is the
+    // customer's `/quote/:token` page, not a mode of the studio.
+    const res = await signIn("staff");
+    const app = createApp();
+    const html = await (await app.request("/quotes", { headers: { cookie: sessionCookie(res) } })).text();
+
+    expect(html).not.toContain('id="role-select"');
+    expect(html).not.toContain("switchRole");
+    expect(html).not.toContain("Staff Role");
+    // …and the route the picker called went with it, so nothing inside the studio can re-issue a role.
+    const role = await app.request("/login/role", { method: "POST" });
+    expect(role.status).toBe(404);
   });
 
   it("carries the demo role into the page", async () => {
@@ -173,8 +189,9 @@ describe("the studio behind the demo sign-in", () => {
     const app = createApp();
     const studio = await app.request("/quotes", { headers: { cookie } });
     const html = await studio.text();
-    expect(html).toContain("Staff Role: <strong>agent</strong>");
-    expect(html).toContain("Agent view");
+    // A role no longer labels the page — but it still decides what the page OFFERS, and a session
+    // that is not staff must not be handed the approval and send controls.
+    expect(html).toContain('body[data-role="guest"] .staff-only');
   });
 
   it("refuses a forged cookie as firmly as no cookie", async () => {
@@ -206,33 +223,28 @@ describe("the studio behind the demo sign-in", () => {
   });
 });
 
-describe("switching the demo role", () => {
-  it("refuses to mint a session for a caller who has none", async () => {
+describe("the role a session carries", () => {
+  it("is chosen at sign-in, and a caller with no session cannot pick one", async () => {
+    // `/login/role` used to re-issue the cookie from inside the studio; it is gone with the picker.
     const app = createApp();
     const res = await app.request("/login/role", {
       method: "POST",
       headers: { "content-type": "application/x-www-form-urlencoded" },
       body: new URLSearchParams({ role: "agent" }).toString(),
     });
-    // Otherwise this endpoint would hand out an "agent" session to anyone who found it.
-    expect(res.status).toBe(401);
+    expect(res.status).toBe(404);
     expect(sessionCookie(res)).toBe("");
   });
 
-  it("re-issues the cookie with the new role for a signed-in viewer", async () => {
-    const signInRes = await signIn("staff");
-    const cookie = sessionCookie(signInRes);
+  it("comes from the sign-in form, which fills in staff", async () => {
+    // The form carries the role, so a signed-in session is staff unless a script says otherwise —
+    // and the sign-in response is where any other role has to be asked for.
+    const res = await signIn("agent");
+    const cookie = sessionCookie(res);
+    expect(cookie).not.toBe("");
 
     const app = createApp();
-    const switched = await app.request("/login/role", {
-      method: "POST",
-      headers: { cookie, "content-type": "application/x-www-form-urlencoded" },
-      body: new URLSearchParams({ role: "agent" }).toString(),
-    });
-    const newCookie = sessionCookie(switched);
-    expect(newCookie).not.toBe("");
-
-    const studio = await app.request("/quotes", { headers: { cookie: newCookie } });
-    expect(await studio.text()).toContain("Staff Role: <strong>agent</strong>");
+    const studio = await app.request("/quotes", { headers: { cookie } });
+    expect(studio.status).toBe(200);
   });
 });

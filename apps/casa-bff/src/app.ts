@@ -1106,16 +1106,11 @@ export function createApp(options: AppOptions = {}) {
     return c.redirect("/login");
   });
 
-  // Only a signed-in viewer may change their own demo role — otherwise this endpoint would mint
-  // a valid session for anyone who found it, which is the entire login bypassed.
-  app.post("/login/role", async (c) => {
-    if (!verifySession(getCookie(c, DEMO_SESSION_COOKIE))) {
-      return c.json({ error: "unauthorized" }, 401);
-    }
-    const body = await c.req.parseBody().catch(() => ({}) as Record<string, unknown>);
-    setDemoSession(c, isDemoRole(body.role) ? body.role : "staff");
-    return c.redirect("/quotes");
-  });
+  // `/login/role` used to live here: it re-issued the demo cookie with another role, and its only
+  // caller was the role picker in the studio header. The picker is gone — the studio is a staff
+  // tool, the guest's own view is the customer's `/quote/:token` page, and a "guest view" of the
+  // studio is a screen no guest can ever reach — so the route went with it. The role is chosen at
+  // sign-in (`POST /login` reads `role`), which is the one place it means anything.
 
   app.get("/quotes", async (c) => {
     const auth = staffSession(c);
