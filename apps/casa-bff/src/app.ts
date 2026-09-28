@@ -1601,6 +1601,28 @@ export function createApp(options: AppOptions = {}) {
       );
     }
     const body = (await c.req.json().catch(() => ({}))) as Partial<HonoQuotationDraft>;
+
+    // The page posts back the whole draft it rendered, `bffTrip` included. So approving is also a
+    // claim about a *trip* — and a tab that has been open while an edit was saved elsewhere would
+    // otherwise approve one trip against another trip's price. The rule is the same one the channel
+    // applies when a guest changes a figure mid-enquiry (`pricedFactsChanged`): a price describes
+    // the facts it was computed from, and nothing else.
+    const posted = BffTrip.safeParse((body as { bffTrip?: unknown }).bffTrip);
+    const correctedFields =
+      posted.success && existing.bffTrip ? diffBffTrip(existing.bffTrip, posted.data) : [];
+    if (posted.success && existing.bffTrip && pricedFactsChanged(existing.bffTrip, posted.data)) {
+      return c.json(
+        {
+          ok: false,
+          reason: "trip_changed",
+          detail:
+            "the trip changed after it was priced — price it again on the customer's estimator, then approve",
+          fields: correctedFields,
+        },
+        409,
+      );
+    }
+
     const merged: HonoQuotationDraft = {
       ...existing,
       ...body,
@@ -1610,7 +1632,20 @@ export function createApp(options: AppOptions = {}) {
       confirmedBy: "Hono Reservation Studio",
       lineItems: Array.isArray(body.lineItems) ? body.lineItems : existing.lineItems,
       quotationUrl: body.quotationUrl || existing.quotationUrl,
+      // The stored trip wins: this route decides *whether* the quotation is approved, not what the
+      // trip is. `/trip` is the editing path, and it re-prices.
+      bffTrip: existing.bffTrip,
     };
+    // What the approver's copy said differently, as field paths — the same measurement `/trip`
+    // records, so a correction is counted even when it arrives with the approval rather than with a
+    // save. Only reached when the priced facts agree, so this is a note (a name, a comment) and not
+    // a price-affecting change.
+    if (correctedFields.length > 0) {
+      merged.staffEdits = [
+        ...(existing.staffEdits ?? []),
+        { at: new Date().toISOString(), fields: correctedFields },
+      ];
+    }
     const saved = await saveQuotationDraft(merged);
     let provider: ExtractProvider | undefined;
     try {

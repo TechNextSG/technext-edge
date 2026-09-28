@@ -358,3 +358,62 @@ describe("approving a quotation with no price", () => {
     expect((await liveQuotation(phone)).status).toBe("pending_hono_review");
   });
 });
+
+describe("approving is a claim about a trip as well as a price", () => {
+  /** The studio posts back the whole draft it rendered, so `bffTrip` is part of an approval. */
+  function confirmWith(
+    app: ReturnType<typeof createApp>,
+    quoteId: string,
+    body: Record<string, unknown>,
+  ) {
+    return app.request(`/v1/quotes/${quoteId}/confirm?token=${VERIFY_TOKEN}`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(body),
+    });
+  }
+
+  it("refuses a trip the stored price does not describe, rather than approving one trip on another's price", async () => {
+    const phone = phoneFor("7");
+    const { app, say } = harness(providerSequence([completeRaw()]));
+    await say(BOOKING, phone);
+    const draft = await approve(await liveQuotation(phone));
+
+    // The tab's copy, stale: an edit was saved elsewhere and this page still holds the old trip
+    // with a guest moved off the meal plan. Meals are priced, so the stored price is not this trip's.
+    const stale = structuredClone(draft.bffTrip!);
+    stale.guests[0]!.meals = false;
+
+    const res = await confirmWith(app, draft.quoteId, { bffTrip: stale });
+    expect(res.status).toBe(409);
+    const body = await res.json();
+    expect(body.reason).toBe("trip_changed");
+    expect(body.detail).toContain("price it again");
+    expect(body.fields).toContain("guests[0].meals");
+    // The stored trip was not overwritten with the stale one, and the approval still describes the
+    // trip the price came from.
+    const stored = await liveQuotation(phone);
+    expect(stored.bffTrip?.guests[0]?.meals).toBe(true);
+    expect(stored.pricing?.kpis.revenue).toBe(31_200);
+  });
+
+  it("approves a difference that costs nothing, and counts it as a correction", async () => {
+    const phone = phoneFor("8");
+    const { app, say } = harness(providerSequence([completeRaw()]));
+    await say(BOOKING, phone);
+    const draft = await approve(await liveQuotation(phone));
+
+    // A spelling fixed on the name: not a priced fact, so it cannot invalidate the price.
+    const corrected = structuredClone(draft.bffTrip!);
+    corrected.guests[0]!.name = "Minh N.";
+
+    const res = await confirmWith(app, draft.quoteId, { bffTrip: corrected });
+    expect(res.status).toBe(200);
+
+    // Recorded on the same counter `/trip` uses, so the extractor's scorecard counts a correction
+    // however it arrived — and the trip itself stays what the price was computed from.
+    const stored = await liveQuotation(phone);
+    expect(stored.staffEdits?.at(-1)?.fields).toContain("guests[0].name");
+    expect(stored.bffTrip?.guests[0]?.name).toBe(draft.bffTrip?.guests[0]?.name);
+  });
+});
