@@ -10,7 +10,8 @@
 > node apps/casa-bff/scripts/whatsapp-manual-run.mjs --port 8799 --capture 8899 --delay 4000 --verbose
 > ```
 >
-> Kết quả lần chạy 27/09: **22/22 check xanh** (KB1–KB10). Hai điều cần biết khi đọc kết quả: `--delay` để tránh
+> Kết quả lần chạy 27/09: **22/22 check xanh** (KB1–KB10); 28/09 thêm **KB11** (reset là hết một
+> enquiry — 5/5 xanh, chạy riêng bằng `--only KB11`) thành **27/27**. Hai điều cần biết khi đọc kết quả: `--delay` để tránh
 > quota Gemini free tier (15 request/phút, mỗi lượt tốn vài request); và nếu lượt nào provider chết thì
 > script ghi **`⊘ skipped`** chứ không tính là lỗi sản phẩm — một lượt không tới được model thì không
 > nói gì về bot cả.
@@ -203,6 +204,25 @@ Bot phải nói "nothing is booked yet" và "someone from our team will follow u
 
 ---
 
+## KB11 — Reset là hết một enquiry, và báo giá đi theo
+
+**Gửi:** một enquiry hoàn chỉnh (Ana, 2 khách, deluxe, 20–22/11, có lặn) → studio có **đúng 1** báo giá sống.
+**Gửi:** `reset`.
+**Gửi:** enquiry thứ hai từ **cùng số điện thoại** (Miguel, không lặn).
+
+Mong đợi:
+- Báo giá của enquiry thứ nhất **đã đóng** (`status: cancelled`, có ghi chú lý do trong `staffAlerts`)
+  — không bị xoá, vì khách có thể vẫn giữ link và nhân viên vẫn cần đọc lại.
+- Enquiry thứ hai có **báo giá riêng**: id khác, `guestName` là Miguel, `status: pending_hono_review`,
+  **không** `pricing`, **không** `aiConfirmedReply`.
+
+Đây là assert cho lỗi đo được trên production: `QT-1120-MIGU-2E430478` được duyệt và định giá cho một
+enquiry rồi hiển thị **tên của khách ở enquiry sau** bên cạnh con số duyệt cũ — vì
+`findOpenQuotationForPhone` đưa cùng một record cho bất kỳ ai nhắn từ số đó. Chạy riêng:
+`node apps/casa-bff/scripts/whatsapp-manual-run.mjs --port 8799 --capture 8899 --only KB11`.
+
+---
+
 ## Sau khi chat: Publish trong studio — ✅ chạy được end-to-end (27/09)
 
 > **Cập nhật 27/09:** bản fixture của BFF khách (`tn-casa-estimator-fixture.vercel.app`) đã được
@@ -235,6 +255,13 @@ Bot phải nói "nothing is booked yet" và "someone from our team will follow u
      nên phải Approve lại. Đây là điều cố ý: duyệt là duyệt cho **một chuyến cụ thể**.
    - Bấm **Save trip & re-price** khi không sửa gì → không ghi nhận "sửa" (scorecard không bị lệch).
 4. Bấm **Approve Quotation & Prepare Guest Message** (bắt buộc — publish từ chối báo giá chưa duyệt).
+   - Server từ chối **409 `not_priced`** nếu báo giá **chưa có giá**: duyệt là duyệt *một con số*, không
+     duyệt một trạng thái. (Trước đây một record có thể mang "đã duyệt" mà chưa từng được định giá —
+     đúng thứ đã nằm trong queue production.)
+   - Server từ chối **409 `trip_changed`** nếu trip trong trang khác với trip **đã được định giá** (ví
+     dụ tab này mở trong khi tab khác đã lưu một sửa đổi) — bấm **Price with the Estimator BFF** lại rồi
+     mới duyệt. Khác biệt **không ảnh hưởng giá** (sửa tên, ghi chú) vẫn duyệt được, và được ghi vào
+     scorecard như một lần sửa.
 5. Khung **Publish guest link**: tick **"I have checked this SAMPLE price"** rồi bấm **Publish guest link**.
    - Chưa tick → **409 `sample_not_acknowledged`** (đúng thiết kế).
    - Thành công → `✅ Published as version 1` + link dạng
@@ -290,7 +317,7 @@ nguồn: engine. Nếu thấy chỗ nào vẫn cho nhập giá bằng tay, **bá
 | `/v1/converse` đủ thông tin | `done=true`, reply **không có** `/q/` lẫn `/quote/` |
 | BFF khách `/api/health` | `{"ok":true,"mode":"fixture"}` — build từ Stage1 `dac70e6` |
 
-**Test được ngay:** tất cả — bot (KB1–KB10) **và** mục Publish → link khách, vì BFF của khách đã được
+**Test được ngay:** tất cả — bot (KB1–KB11) **và** mục Publish → link khách, vì BFF của khách đã được
 build lại từ Stage1 hiện tại nên có `id`, cookie `ubg_sid`, `PATCH`, `commit`, `share`. Xem bảng
 "Đã kiểm live" ở mục Publish.
 

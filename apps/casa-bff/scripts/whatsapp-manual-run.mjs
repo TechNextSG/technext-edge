@@ -264,6 +264,50 @@ await scenario("KB10", "reset starts a clean thread", async () => {
   check("greets again", /welcome to casa escondida/i.test(reply), reply);
 });
 
+/**
+ * The half of a reset the guest cannot see.
+ *
+ * A reset closes the quotation the abandoned enquiry left open, and the next enquiry mints its own
+ * record. This is the assertion for the bug found on production: `QT-1120-MIGU-2E430478` was approved
+ * and priced for one enquiry and then showed the *next* guest's name beside that approval, because
+ * `findOpenQuotationForPhone` handed the same record to whoever texted from that phone next.
+ */
+async function quotationsForPhone(phone) {
+  const res = await fetch(`${base}/v1/quotes?token=${encodeURIComponent(verifyToken)}`, {
+    headers: { "x-verify-token": verifyToken },
+  });
+  const json = await res.json().catch(() => ({}));
+  return (json.quotations ?? []).filter((q) => q.phone === phone);
+}
+
+await scenario("KB11", "a restarted enquiry gets its own quotation", async () => {
+  await send(
+    "Hi, I'm Ana. 2 guests, 1 deluxe room, 2026-11-20 to 2026-11-22, 2 nights, full board, no transfer, one of us dives on 2026-11-21.",
+  );
+  const liveFirst = (await quotationsForPhone(from)).filter((q) => q.status !== "cancelled");
+  check("the first enquiry left one live quotation", liveFirst.length === 1, JSON.stringify(liveFirst.map((q) => q.quoteId)));
+  const firstId = liveFirst[0]?.quoteId;
+
+  await send("reset");
+  const closed = (await quotationsForPhone(from)).filter((q) => q.status === "cancelled");
+  check("the abandoned quotation is closed, not left live", closed.some((q) => q.quoteId === firstId), JSON.stringify(closed.map((q) => q.quoteId)));
+
+  await send(
+    "Hi, I'm Miguel. 2 guests, 1 deluxe room, 2026-11-20 to 2026-11-22, 2 nights, full board, no transfer, no diving.",
+  );
+  const liveAfter = (await quotationsForPhone(from)).filter((q) => q.status !== "cancelled");
+  check("the new enquiry has exactly one live quotation", liveAfter.length === 1, JSON.stringify(liveAfter.map((q) => q.quoteId)));
+  check("and it is a different record from the one the reset closed", liveAfter[0]?.quoteId !== firstId, `${firstId} -> ${liveAfter[0]?.quoteId}`);
+  // Nothing of the previous enquiry travelled: not its name, not its approval, and above all not a
+  // price for its trip (the channel never prices; the studio does that from the record).
+  const fresh = liveAfter[0] ?? {};
+  check(
+    "no name, approval or price crossed the boundary",
+    fresh.guestName !== liveFirst[0]?.guestName && !fresh.pricing && fresh.status === "pending_hono_review",
+    JSON.stringify({ name: fresh.guestName, status: fresh.status, priced: Boolean(fresh.pricing) }),
+  );
+});
+
 console.log(`\n${pass} passed, ${fail} failed, ${skipped} skipped (provider unavailable).`);
 if (failures.length) {
   console.log("\nFailures:");
