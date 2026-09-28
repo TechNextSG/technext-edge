@@ -65,7 +65,7 @@ export {
 export type { OdooHandoffMode, OdooEstimateDraft, OdooHandoffEnvelope } from "./odooHandoff.js";
 export { converse } from "./converse.js";
 export type { ConversationChannel, ConversationInput, ConversationTurn, ConverseOutcome } from "./converse.js";
-export { diffBffTrip } from "./tripDiff.js";
+export { diffBffTrip, pricedFactsChanged, pricedFactsKey } from "./tripDiff.js";
 export type { StaffTripEdit } from "./tripDiff.js";
 export {
   SUBMIT_QUOTATION_TO_HONO_DECLARATION,

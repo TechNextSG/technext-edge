@@ -214,7 +214,10 @@ describe("sendEstimate", () => {
     }
   });
 
-  it("survives a non-JSON error body rather than throwing on it", async () => {
+  it("turns a non-JSON error body into a sentence instead of showing staff a web page", async () => {
+    // What an SSO-protected preview or a proxy actually answers with. The body used to travel to
+    // the studio verbatim, where it was read by whoever was taking the booking.
+    const logged = vi.spyOn(console, "error").mockImplementation(() => {});
     const fetchImpl = vi.fn(async () => new Response("<html>gateway exploded</html>", { status: 502 }));
     const client = createEstimatorClient({ baseUrl: "http://bff.test", fetchImpl: fetchImpl as never });
 
@@ -222,7 +225,27 @@ describe("sendEstimate", () => {
     if (res.ok) throw new Error("unreachable");
     expect(res.reason).toBe("unexpected");
     expect(res.status).toBe(502);
-    expect(res.detail).toContain("gateway exploded");
+    // The body is still kept, where an engineer debugging the integration will find it…
+    expect(logged).toHaveBeenCalled();
+    expect(String(logged.mock.calls[0]?.[2])).toContain("gateway exploded");
+    // …but what reaches the studio is a sentence, and it names the likely cause rather than the
+    // symptom: an HTML answer on the estimation API is almost always a sign-in page.
+    expect(res.detail).toContain("web page");
+    expect(res.detail).toContain("sign-in");
+    expect(res.detail).not.toContain("<html>");
+    expect(res.detail).not.toContain("gateway exploded");
+  });
+
+  it("still carries their own error sentence through, because that is the useful part", async () => {
+    const fetchImpl = vi.fn(
+      async () => new Response(JSON.stringify({ error: "checkIn must be a Monday" }), { status: 422 }),
+    );
+    const client = createEstimatorClient({ baseUrl: "http://bff.test", fetchImpl: fetchImpl as never });
+
+    const res = await client.sendEstimate(sampleTrip());
+    if (res.ok) throw new Error("unreachable");
+    expect(res.reason).toBe("rejected");
+    expect(res.detail).toBe("checkIn must be a Monday");
   });
 });
 

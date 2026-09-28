@@ -31,6 +31,7 @@ import {
   validateBffTripPrecheck,
   normalizePricing,
   diffBffTrip,
+  pricedFactsChanged,
   synthesizeConfirmedQuotationReply,
   type ConversationTurn,
   type ExtractProvider,
@@ -234,7 +235,39 @@ function statedMoneyValues(trip: Trip): Record<string, string | number | boolean
   return out;
 }
 
-function isResetCommand(text: string): boolean {  const trimmed = text.trim().toLowerCase();
+/**
+ * Close the quotation an enquiry left open, because the enquiry is over.
+ *
+ * A reset is the guest saying "forget that, start again" — and on a shared office phone the next
+ * message is often a different guest entirely. Leaving the open quotation live is how a new enquiry
+ * inherited an old one's approval, price, customer-app session and name: found on production, where
+ * `QT-1120-MIGU-…` carried one enquiry's approval and price while showing the *next* guest's name
+ * beside them. So the record is closed at the boundary, and the next enquiry mints its own.
+ *
+ * Closed, not deleted: if it was published the guest is still holding that link, and staff may
+ * still need to read what was offered. `cancelled` is the state the studio already draws as dead,
+ * so a reset quotation leaves the working queue without inventing a state for a page to learn.
+ */
+async function closeEnquiryQuotation(phone: string): Promise<string | null> {
+  if (!phone) return null;
+  const open = await findOpenQuotationForPhone(phone);
+  // `findOpenQuotationForPhone` never returns a shared record, so this only ever closes something
+  // no guest is holding. Idempotent: a record already closed needs nothing.
+  if (!open || open.status === "cancelled") return null;
+  const closed = await saveQuotationDraft({
+    ...open,
+    status: "cancelled",
+    updatedAt: new Date().toISOString(),
+    staffAlerts: [
+      ...open.staffAlerts,
+      "Closed when the guest restarted the conversation. The next enquiry gets its own quotation.",
+    ],
+  });
+  return closed.quoteId;
+}
+
+function isResetCommand(text: string): boolean {
+  const trimmed = text.trim().toLowerCase();
   // English only now — Vietnamese was removed from the product on 2026-09-24 (see
   // packages/extractor/src/normalize.ts), so a Vietnamese "reset" phrase is no longer a
   // command this bot recognises.
@@ -511,6 +544,10 @@ export function createApp(options: AppOptions = {}) {
         try {
           const turn = (async () => {
             if (isResetCommand(combinedText)) {
+              // The enquiry is over, so its quotation is closed with it — see
+              // `closeEnquiryQuotation`. Done before the thread is cleared, because the phone is
+              // the only thing that ties the two together.
+              await closeEnquiryQuotation(phone);
               await store.clear(phone);
               const language = detectLanguage(combinedText);
               const text = RESET_REPLY[language] ?? RESET_REPLY.en;
@@ -658,7 +695,20 @@ export function createApp(options: AppOptions = {}) {
               // quotations for one guest. So the thread's own open quotation is reused, and the
               // state that belongs to it (its price, its customer-app session, its approval, its
               // notes) is carried over rather than reset.
-              const carried = await findOpenQuotationForPhone(phone);
+              const candidate = await findOpenQuotationForPhone(phone);
+              // A closed record is a *finished* enquiry — the guest restarted, or staff cancelled
+              // it — and reusing it is how the next guest's enquiry inherited the previous one's
+              // approval and price. The next enquiry mints its own quotation instead.
+              const carried = candidate && candidate.status !== "cancelled" ? candidate : undefined;
+
+              // The other half of the same rule: within an enquiry, a change to anything the price
+              // is computed from invalidates the price and the approval given for it. The record
+              // keeps its id — one enquiry, one quotation, so staff see a correction rather than a
+              // second row — but "approved at ₱48,600" cannot survive the guest adding a night.
+              const pricedFactsMoved = Boolean(
+                carried && pricedFactsChanged(carried.bffTrip, outcome.quotationDraft.bffTrip),
+              );
+
               const draft: HonoQuotationDraft = carried
                 ? {
                     ...outcome.quotationDraft,
@@ -667,16 +717,38 @@ export function createApp(options: AppOptions = {}) {
                     quotationUrl: carried.quotationUrl,
                     honoEditorUrl: carried.honoEditorUrl,
                     createdAt: carried.createdAt,
-                    status: carried.status,
+                    status: pricedFactsMoved ? "pending_hono_review" : carried.status,
+                    confirmedAt: pricedFactsMoved ? undefined : carried.confirmedAt,
+                    confirmedBy: pricedFactsMoved ? undefined : carried.confirmedBy,
                     staffNotes: carried.staffNotes,
-                    aiConfirmedReply: carried.aiConfirmedReply,
-                    pricing: carried.pricing ?? null,
-                    estimator: carried.estimator ?? null,
+                    aiConfirmedReply: pricedFactsMoved ? undefined : carried.aiConfirmedReply,
+                    // Nulled, not left stale: a price for the previous numbers is worse than no
+                    // price, because the studio would show it as this quotation's answer.
+                    pricing: pricedFactsMoved ? null : (carried.pricing ?? null),
+                    // Corrections accumulate across the enquiry. They are the measure of the
+                    // extractor, and a correction does not stop counting because the guest
+                    // mentioned one more night afterwards.
+                    staffEdits: carried.staffEdits,
+                    // The reservation is kept even when the trip moved: a folio that exists is a
+                    // fact about the world, and hiding it would be the dangerous kind of tidy.
                     submission: carried.submission ?? null,
+                    estimator: carried.estimator ?? null,
+                    staffAlerts: pricedFactsMoved
+                      ? [
+                          ...outcome.quotationDraft.staffAlerts,
+                          "The guest changed the trip after it was priced, so the price and the approval were dropped — review it again.",
+                        ]
+                      : outcome.quotationDraft.staffAlerts,
                   }
                 : outcome.quotationDraft;
               draft.phone = phone;
               await saveQuotationDraft(draft);
+              if (pricedFactsMoved) {
+                // Nothing to say to the guest about this; the studio is where it matters. Logged so
+                // a dropped approval is auditable from a deployment log, not only from the record.
+                // eslint-disable-next-line no-console
+                console.log("quotation reopened: priced facts changed", draft.quoteId);
+              }
               // The enquiry is complete, so it becomes a quotation for staff to review — and the
               // guest is told that, not sent a price. See guestPendingQuotationNote.
               finalReplyText = `${outcome.reply}${changeNotice ? `\n\n${changeNotice}` : ""}${guestPendingQuotationNote()}`;
@@ -772,6 +844,7 @@ export function createApp(options: AppOptions = {}) {
       return c.json({ error: "unauthorized" }, 401);
     }
     const phone = c.req.param("phone");
+    await closeEnquiryQuotation(phone);
     await store.clear(phone);
     return c.json({ ok: true, phone, reset: true });
   });
@@ -824,6 +897,7 @@ export function createApp(options: AppOptions = {}) {
     const auth = staffSession(c);
     if (!auth.ok) return c.json({ error: "unauthorized" }, 401);
     if (auth.role !== "staff") return c.json({ error: "forbidden", detail: "only staff may clear a thread" }, 403);
+    await closeEnquiryQuotation(c.req.param("phone"));
     await store.clear(c.req.param("phone"));
     return c.redirect("/handoff");
   });
@@ -1511,6 +1585,21 @@ export function createApp(options: AppOptions = {}) {
     const id = c.req.param("id");
     const existing = await getQuotationByIdOrSlug(id);
     if (!existing) return c.json({ error: "not_found" }, 404);
+    // Approving is approving a *price*. A quotation with no engine pricing on it has no number to
+    // approve, and letting the click through is how a record ends up marked "approved" while the
+    // studio shows "not priced yet" beside it — measured on production, on a record whose approval
+    // had been inherited from a different enquiry (`QT-1120-MIGU-…`). Refused with a reason the
+    // studio can print, not a 500.
+    if (!existing.pricing) {
+      return c.json(
+        {
+          ok: false,
+          reason: "not_priced",
+          detail: "this quotation has no price yet — price the trip on the customer's estimator, then approve it",
+        },
+        409,
+      );
+    }
     const body = (await c.req.json().catch(() => ({}))) as Partial<HonoQuotationDraft>;
     const merged: HonoQuotationDraft = {
       ...existing,

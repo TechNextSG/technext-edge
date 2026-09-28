@@ -57,6 +57,36 @@ export const DEFAULT_ESTIMATOR_BASE_URL = "http://127.0.0.1:8787";
 /** One compute is synchronous on their side; fixture mode answers in ~1ms, Odoo in ~8s. */
 const DEFAULT_TIMEOUT_MS = Number(process.env.ESTIMATOR_TIMEOUT_MS ?? 12_000);
 
+/**
+ * What to tell a person when their engine refuses.
+ *
+ * Their BFF is only one of the things that can answer on that hostname. A Vercel preview behind
+ * SSO answers with an HTML sign-in page, a proxy answers with its own error document, and a wrong
+ * path answers with a 404 page. Pasting 300 characters of any of those into the studio puts markup
+ * and vendor jargon in front of a receptionist who is taking a booking — and it was measured, not
+ * imagined: a preview deployment answering its SSO page made the studio look like the *quotation*
+ * was broken.
+ *
+ * So the rule is: **a sentence they wrote travels; a document they did not, does not.** The raw body
+ * is still logged, because whoever debugs the integration needs it — just not on the screen of the
+ * person selling the room. A refusal without an explanation is still a refusal, so it never throws.
+ */
+function refusalDetail(parsed: Record<string, unknown>, text: string, status: number): string {
+  const said = typeof parsed.error === "string" ? parsed.error.trim() : "";
+  // Their own error sentence, as long as it is a sentence: no markup, no JSON, nothing huge.
+  if (said && said.length <= 300 && !/[<>{}]/.test(said)) return said;
+
+  const fields = Array.isArray(parsed.fields) ? parsed.fields.map(String).filter(Boolean) : [];
+  if (fields.length > 0) return `their engine refused this trip — check: ${fields.join(", ")}`;
+
+  // eslint-disable-next-line no-console
+  console.error("estimator refused", status, text.slice(0, 300));
+  if (/<!doctype|<html|<\?xml/i.test(text)) {
+    return `their engine answered HTTP ${status} with a web page instead of a price — the address is likely behind a sign-in, or is not the estimation API`;
+  }
+  return `their engine answered HTTP ${status} without saying why`;
+}
+
 /** The headers for one call about one quotation: JSON, plus their session cookie when we hold one. */
 function sessionHeaders(session?: EstimatorSession | null): Record<string, string> {
   const headers: Record<string, string> = { "content-type": "application/json" };
@@ -251,8 +281,7 @@ export function createEstimatorClient(options: EstimatorClientOptions = {}) {
     }
 
     const fields = Array.isArray(parsed.fields) ? parsed.fields.map(String) : [];
-    const detail =
-      typeof parsed.error === "string" ? parsed.error : text.slice(0, 300) || `HTTP ${res.status}`;
+    const detail = refusalDetail(parsed, text, res.status);
 
     return {
       ok: false,
@@ -366,9 +395,9 @@ export function createEstimatorClient(options: EstimatorClientOptions = {}) {
     try {
       parsed = JSON.parse(text) as Record<string, unknown>;
     } catch {
-      // Leave `parsed` empty; the raw text becomes the detail below.
+      // Leave `parsed` empty; `refusalDetail` decides what a person is told about the body.
     }
-    const detail = typeof parsed.error === "string" ? parsed.error : text.slice(0, 300) || `HTTP ${res.status}`;
+    const detail = refusalDetail(parsed, text, res.status);
 
     if (res.status === 200 || res.status === 201) return { ok: true, parsed };
     if (res.status === 409) return { ok: false, reason: "no_snapshot", detail };
@@ -489,7 +518,7 @@ export function createEstimatorClient(options: EstimatorClientOptions = {}) {
     }
 
     const reason = typeof parsed.reason === "string" ? parsed.reason : "";
-    const detail = typeof parsed.error === "string" ? parsed.error : text.slice(0, 300) || `HTTP ${res.status}`;
+    const detail = refusalDetail(parsed, text, res.status);
     if (res.status === 503) {
       return { ok: false, reason: reason === "busy" ? "busy" : "closed", detail };
     }
