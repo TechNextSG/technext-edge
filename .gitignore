@@ -27,3 +27,5 @@ tmp-*.log
 # log is not committed. The pattern is deliberately loose: the files carry a viewport and a theme in
 # their names (`x.visual-check.1440x900.dark.png`), so a per-extension rule would miss them.
 *.visual-check.*
+
+cookies.txt

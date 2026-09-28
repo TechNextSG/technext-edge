@@ -15,6 +15,7 @@ import {
   detectLanguage,
   fallbackReply,
   stalledHandoffReply,
+  partnerInvitationReply,
   changedValueNotice,
   wantsHuman,
   classifyEnquiry,
@@ -539,7 +540,14 @@ export function createApp(options: AppOptions = {}) {
             const askedForHuman = wantsHuman(combinedText);
             const escalate = askedForHuman || intent === "escalate_now";
             const notBooking = !escalate && intent === "not_booking";
-            if (parked || escalate || notBooking) {
+            // A partner enquiry is parked with an invitation rather than a holding reply, and the
+            // guest can answer it: "for ourselves" has to reach the ordinary path. So this one
+            // reason resumes instead of staying quiet — the invitation said "just tell me and I'll
+            // carry on", and a bot that then says nothing has broken its own promise.
+            if (parked?.reason === "partner_self_serve") {
+              await store.resume(phone);
+            }
+            if ((parked && parked.reason !== "partner_self_serve") || escalate || notBooking) {
               // Parked and told a moment ago (HOLD_REPEAT_MS): nothing is repeated
               // at every "ok" the guest types. Not silence either — they were told
               // a person is on it, and that is still true.
@@ -624,6 +632,25 @@ export function createApp(options: AppOptions = {}) {
             const changeNotice = changedValueNotice(valueChanges, language);
 
             let finalReplyText = outcome.reply;
+            // A partner enquiry is not priced here. Their app takes `guestType` from the SESSION,
+            // and a bot session is an anonymous guest, so any quotation built from this turn would
+            // be a retail price for an agency — wrong on the number, and it would fill the review
+            // queue with work that belongs on their own sign-in page. The guest is invited there
+            // instead (see `partnerInvitationReply`), and the thread is parked so staff see it.
+            const partnerType = outcome.trip.guestType?.value;
+            if (outcome.quotationDraft && (partnerType === "agent" || partnerType === "instructor")) {
+              const signInUrl = `${estimator.appBaseUrl ?? estimator.baseUrl ?? ""}/signin`;
+              const text = partnerInvitationReply(outcome.trip.language?.value ?? null, signInUrl);
+              await store.pause(phone, "partner_self_serve", { context: combinedText.slice(0, 200) });
+              await store.append(phone, { role: "assistant", text });
+              sending = true;
+              await send({ to: phone, body: text });
+              await store.markTold(phone);
+              replied++;
+              handoffs++;
+              await markAllDone();
+              return;
+            }
             if (outcome.quotationDraft) {
               // ONE quotation per enquiry. The tool mints a fresh id and slug on every call, so a
               // thread that kept talking after its enquiry was complete left a new draft in the

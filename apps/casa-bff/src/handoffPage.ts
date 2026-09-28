@@ -26,6 +26,11 @@ const REASON_LABELS: Record<string, string> = {
   stalled: "Stuck — same questions open",
   asking_limit: "Turn limit reached",
   turn_failed: "Our side failed on their message",
+  // Parked on purpose, and the only reason where the bot is still listening: an agency enquiry is
+  // priced on their own sign-in page rather than by us, and the guest can send it back here by
+  // saying they are booking for themselves. The row has to say that, because "nothing for you to
+  // do" and "invited to self-serve" otherwise look identical in a list of parked threads.
+  partner_self_serve: "Partner — invited to self-serve",
 };
 
 /** The pipeline's field names, in words a person can read off a phone call. */

@@ -1011,6 +1011,37 @@ export function fallbackReply(kind: FallbackKind, language: GuestLanguage | null
 }
 
 /**
+ * What a partner/agency enquiry is told instead of being priced.
+ *
+ * Their app derives `guestType` from the *session*, not from the message, and a bot session is an
+ * anonymous guest — so every quotation the bot builds is priced at the retail rate
+ * (`bff/src/trip/derive.ts` overrides `guestType`). An agency asking for their partner rate would
+ * therefore be quoted retail, and the studio's Agent View — which exists to show the two side by
+ * side — would never have a retail model to compare against, because there was never a partner
+ * session behind it.
+ *
+ * The manual flow already answers this: an agent signs in on the customer's own app, sees their own
+ * rate, and books directly. So the bot's job is to say that, and to stay soft about it — the agent
+ * signal is read from phrasing ("our agency", "partner rate") and a guest who happens to write like
+ * an agency can simply say so. That is why this is an invitation rather than a redirect: the last
+ * sentence tells them how to send the conversation back to the ordinary path.
+ */
+export function partnerInvitationReply(language: GuestLanguage | null, signInUrl: string): string {
+  if (language === "zh") {
+    return [
+      "如果您是以合作旅行社／代理身份预订，请在我们的报价 App 登录，即可看到您的合作价并直接预订：",
+      signInUrl,
+      "新的合作账号由前台审核开通。如果您只是为自己预订，回复我一声，我就照常继续。",
+    ].join("\n");
+  }
+  return [
+    "If you're booking as a partner agency, sign in on our quotation app to see your partner rate and book directly:",
+    signInUrl,
+    "New partner accounts are verified by our front desk. If you're booking for yourselves, just tell me and I'll carry on.",
+  ].join("\n");
+}
+
+/**
  * The holding message for a thread that has stopped making progress, naming what is still missing.
  *
  * This is the one handoff where the guest is told *why*, because they did not ask for a person and

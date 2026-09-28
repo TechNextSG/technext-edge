@@ -27,6 +27,7 @@ export {
   generateQuestions,
   renderReply,
   fallbackReply,
+  partnerInvitationReply,
   stalledHandoffReply,
   changedValueNotice,
   wantsHuman,
