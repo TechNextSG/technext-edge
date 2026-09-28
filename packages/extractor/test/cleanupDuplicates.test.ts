@@ -212,10 +212,10 @@ describe("cleaning up duplicate quotations", () => {
     expect(guestHtml).toContain("Quotation Cancelled");
     expect(guestHtml).toContain("expired or was cancelled");
 
-    // Studio shows cancelled banner and badge
+    // Studio shows the archived banner and the one status pill (both server-rendered).
     const studioHtml = await (await app.request(`/quotes/${draft.quoteId}?token=${VERIFY_TOKEN}`)).text();
-    expect(studioHtml).toContain("This quotation has been CANCELLED / ARCHIVED");
-    expect(studioHtml).toContain("Cancelled / Archived");
+    expect(studioHtml).toContain("This quotation is archived.");
+    expect(studioHtml).toContain(">Archived<");
   });
 });
 

@@ -84,14 +84,16 @@ describe("the JavaScript on every rendered page parses", () => {
 
   // The specific shape that broke: a template literal that should emit `\n` inside a JS string.
   // A single backslash becomes a real newline and terminates the string early.
-  it("keeps escaped newlines inside the studio's estimator output", async () => {
+  it("keeps escaped newlines inside the studio's own messages", async () => {
     const app = createApp();
     const quotations = await listQuotations();
     const html = await (await app.request(`/quotes/${quotations[0]!.quoteId}?token=${STAFF_TOKEN}`)).text();
 
     // The emitted page must carry the two characters `\` `n`, never a raw line break mid-string.
-    expect(html).toContain("'\\n⚠️ SAMPLE DATA");
-    expect(html).not.toContain("'\n⚠️ SAMPLE DATA");
+    // The anchor is the shared notice box: every failure message is assembled with `join('\n')`, so
+    // if the escaping regresses, the whole studio's error reporting does too.
+    expect(html).toContain("lines.join('\\n')");
+    expect(html).not.toContain("lines.join('\n')");
   });
 });
 
@@ -190,7 +192,7 @@ describe("the studio has one price, and it is the engine's", () => {
     const html = await (await app.request(`/quotes/${quotations[0]!.quoteId}?token=${STAFF_TOKEN}`)).text();
 
     expect(html).toContain("Engine total");
-    expect(html).toContain("There is no discount field here on purpose");
+    expect(html).toContain("No discount field");
   });
 
   it("counts how often staff had to correct the bot, without naming a guest", async () => {
@@ -199,27 +201,39 @@ describe("the studio has one price, and it is the engine's", () => {
     const html = await (await app.request(`/quotes/${quotations[0]!.quoteId}?token=${STAFF_TOKEN}`)).text();
 
     // The scorecard is the extractor's only real measure: a quotation that flowed end to end says
-    // the flow worked, not that the bot's payload was already right.
-    expect(html).toContain("Extractor scorecard");
-    expect(html).toContain("unchanged");
-    expect(html).toContain("Field names only");
+    // the flow worked, not that the bot's payload was already right. It is now one plain sentence in
+    // the sidebar rather than a card hidden behind `display:none` — a number nobody can see measures
+    // nothing, and the previous version rendered it into the HTML while hiding it.
+    expect(html).toContain("AI reading check");
+    expect(html).toContain("needed no correction after the bot read them");
+    expect(html).toContain("Field names only, never guest details");
+    expect(html).not.toContain('aria-hidden="true"');
   });
 
   // Found on a real quotation in production: the page hard-coded "Waiting for Staff Approval" and
   // let its own script correct it, so a quotation staff had already approved read as unapproved
   // until the JavaScript ran — and said that forever if the script failed or was blocked.
+  //
+  // It also carried the state twice, in two cards that disagreed ("Ready to Send" beside a link box
+  // saying no link existed). One status now, derived once, still rendered server-side.
   it("states the approval in the server-rendered page, not only after the script runs", async () => {
     const app = createApp();
     const quotations = await listQuotations();
     const id = quotations[0]!.quoteId;
 
+    // The markup BEFORE the script, which is what a browser shows if the script never runs. The
+    // script necessarily contains the same words (it re-draws the status after an action), so
+    // asserting on the whole document would prove nothing about the server-rendered state.
+    const markupOnly = (html: string) => html.slice(0, html.indexOf("<script>"));
+
     const pending = await (await app.request(`/quotes/${id}?token=${STAFF_TOKEN}`)).text();
-    expect(pending).toContain("Waiting for Staff Approval");
+    // The seeded fixture is priced and unapproved, which is the state staff actually meet.
+    expect(markupOnly(pending)).toContain("Priced — needs approval");
 
     const confirmed = await saveQuotationDraft({ ...quotations[0]!, status: "confirmed_by_hono" });
     const html = await (await app.request(`/quotes/${confirmed.quoteId}?token=${STAFF_TOKEN}`)).text();
-    expect(html).toContain("Confirmed by Hono");
-    expect(html).not.toContain("Waiting for Staff Approval");
+    expect(markupOnly(html)).toContain("Approved — not sent yet");
+    expect(markupOnly(html)).not.toContain("Priced — needs approval");
   });
 
   // The queue's price must be the engine's or nothing. `totalAmount` is the draft builder's own

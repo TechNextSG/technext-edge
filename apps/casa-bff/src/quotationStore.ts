@@ -67,7 +67,10 @@ function randomSlug(): string {
 // v2: the studio prices from the engine and nothing else, so the fixture carries a real `bffTrip`
 // and the engine's own answer for it. Before this it carried a hand-typed line-item table that the
 // page no longer renders — a cold-start studio showed "not priced yet" and no trip to review.
-const SEED_VERSION = 2;
+//
+// v3: the seed's staff alert was markdown (`**Custom Dive Schedule:**`), and staff alerts render as
+// text, so the first quotation anyone opens showed literal asterisks.
+const SEED_VERSION = 3;
 
 /**
  * The fixture's trip, as the extractor would have produced it: a split-day diving group, which is
@@ -150,7 +153,10 @@ function ensureSeeded(): Promise<void> {
     staffNotes:
       "Split-day diving arrangement: 6 people total (4 staying overnight in 2 rooms; 1 diver on Day 1 only, 5 divers on both days).",
     staffAlerts: [
-      "📋 **Custom Dive Schedule:** We have noted your specific diving arrangement (1 person dives day 1; 5 people dive both days) for our reservation team to prepare an accurate quote.",
+      // Plain text, no `**`: this string is rendered as text in the studio, so markdown emphasis
+      // reaches staff as literal asterisks. (Found on the seeded fixture, which is the first thing
+      // anyone opens.)
+      "Custom dive schedule noted — 1 person dives day 1, 5 people dive both days. Our reservation team will prepare the quotation.",
     ],
   });
     await store.save(seeded);
@@ -264,7 +270,54 @@ export function renderHonoQuotationEditorHtml(
    * offering it, because a receptionist reads the refusal as a fault in the quotation.
    */
   estimatorKind: "simulated" | "remote" = "simulated",
-): string {  const initialJson = JSON.stringify(draft).replace(/</g, "\\u003c");
+): string {  // ---- The one status, and the four steps ---------------------------------
+  //
+  // The page used to carry three different statements of where a quotation was: a pill on the guest
+  // card ("Waiting for Staff Approval"), a second pill on the send card ("Ready to Send" /
+  // "Awaiting Approval"), and a section headed "Customer Quotation Link (Official Invoice)" that
+  // looked like a state of its own. Staff had to reconcile them, and they disagreed: an approved but
+  // unpublished quotation read "Ready to Send" beside a link box that said no link existed.
+  //
+  // One status now, derived from the record in one place, and a four-step bar that says what is left
+  // to do. Everything is SERVER-rendered first: the script can move the bar after an action, but a
+  // quotation that is already approved must not read as unapproved because a script did not run.
+  const published = Boolean(draft.estimator?.sharedAt && draft.estimator?.guestUrl);
+  const priced = Boolean(draft.pricing);
+  const approved = draft.status === "confirmed_by_hono";
+  const archived = draft.status === "cancelled";
+
+  const statusLabel = archived
+    ? "Archived"
+    : draft.status !== "confirmed_by_hono" && published
+      ? "Published — needs approval"
+      : published
+        ? "Sent to guest"
+        : approved
+          ? "Approved — not sent yet"
+          : priced
+            ? "Priced — needs approval"
+            : "Needs review";
+  const statusTone = archived ? "rose" : published || approved ? "emerald" : priced ? "amber" : "amber";
+
+  // A step is `done` when it is behind us, `current` when it is the next thing to do. "Get price"
+  // counts as done when the record holds a price; "Send" only when the guest link exists.
+  const steps: Array<{ label: string; state: "done" | "current" | "todo" }> = [
+    { label: "Review trip", state: draft.bffTrip ? "done" : "current" },
+    { label: "Get price", state: priced ? "done" : draft.bffTrip ? "current" : "todo" },
+    { label: "Approve", state: approved || published ? "done" : priced ? "current" : "todo" },
+    { label: "Send", state: published ? "done" : approved ? "current" : "todo" },
+  ];
+  // Archived is not a step in a workflow, so the bar says so rather than showing a frozen sequence.
+  const progressHtml = archived
+    ? `<div class="progress-note">This quotation is archived. Nothing is sent to the guest from here.</div>`
+    : `<div class="progress">${steps
+        .map(
+          (s, i) =>
+            `<div class="pstep ${s.state}"><span class="pnum">${s.state === "done" ? "✓" : i + 1}</span>${s.label}</div>`,
+        )
+        .join('<div class="psep"></div>')}</div>`;
+
+  const initialJson = JSON.stringify(draft).replace(/</g, "\\u003c");
   const allQuotesJson = JSON.stringify(
     allQuotes.map((q) => ({
       quoteId: q.quoteId,
@@ -306,7 +359,7 @@ export function renderHonoQuotationEditorHtml(
     role === "agent"
       ? "Agent view — partner rate: 30% off rooms (meals and diving are never discounted)."
       : role === "staff"
-        ? "Staff view — cost, profit and assumptions appear here once Odoo is connected (estimator is in fixture mode today)."
+        ? "Staff view — quotations, prices and guest messages."
         : "Guest view — retail pricing only.";
 
   // ---- The engine's own answer, drawn -------------------------------------
@@ -521,6 +574,93 @@ ${themeCss()}
       background: var(--emerald-soft);
       color: var(--emerald);
       border: 2px solid var(--emerald);
+    }
+    .status-amber {
+      background: var(--amber-soft);
+      color: var(--amber);
+      border: 2px solid var(--amber);
+    }
+    .status-emerald {
+      background: var(--emerald-soft);
+      color: var(--emerald);
+      border: 2px solid var(--emerald);
+    }
+    .status-rose {
+      background: rgba(244,63,94,0.12);
+      color: #e11d48;
+      border: 2px solid #f43f5e;
+    }
+    /* The four steps, and the one place a failure is shown. Both are about the same thing: what is
+       left to do before a guest hears from us. */
+    .progress {
+      display: flex;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+    .pstep {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 7px 14px;
+      border-radius: 999px;
+      border: 2px solid var(--border);
+      background: var(--surface-2);
+      color: var(--muted);
+      font-size: 13.5px;
+      font-weight: 800;
+    }
+    .pstep .pnum {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 20px;
+      height: 20px;
+      border-radius: 50%;
+      background: var(--border);
+      color: var(--text);
+      font-size: 12px;
+    }
+    .pstep.done {
+      border-color: var(--emerald);
+      color: var(--emerald);
+      background: var(--emerald-soft);
+    }
+    .pstep.done .pnum { background: var(--emerald); color: #fff; }
+    .pstep.current {
+      border-color: var(--accent);
+      color: var(--accent);
+      background: var(--accent-soft);
+    }
+    .pstep.current .pnum { background: var(--accent); color: #fff; }
+    .psep {
+      width: 18px;
+      height: 2px;
+      background: var(--border);
+    }
+    .progress-note {
+      font-size: 13.5px;
+      font-weight: 700;
+      color: var(--muted);
+    }
+    .notice {
+      margin-top: 12px;
+      padding: 12px 14px;
+      border-radius: 10px;
+      font-size: 14px;
+      font-weight: 700;
+      line-height: 1.6;
+      white-space: pre-wrap;
+    }
+    .notice-error {
+      background: rgba(244,63,94,0.1);
+      border-left: 5px solid #f43f5e;
+      color: #e11d48;
+    }
+    .notice-info {
+      background: var(--emerald-soft);
+      border-left: 5px solid var(--emerald);
+      color: var(--emerald);
     }
     .link-editor-bar {
       display: flex;
@@ -763,10 +903,15 @@ ${themeCss()}
     <aside>
       ${
         quotationsNeedingNoEdit.all > 0
-          ? `<div style="display:none;" aria-hidden="true">
-        <span>Extractor scorecard</span>
-        <span>${quotationsNeedingNoEdit.unchanged}/${quotationsNeedingNoEdit.all} unchanged</span>
-        <p>Field names only</p>
+          ? `<div class="card" style="padding:12px 14px;margin-bottom:14px;">
+        <div style="font-size:13.5px;font-weight:800;">AI reading check</div>
+        <div style="font-size:12.5px;color:var(--muted);line-height:1.55;margin-top:2px;">
+          ${quotationsNeedingNoEdit.unchanged} of ${quotationsNeedingNoEdit.all} quotations needed no correction after the bot read them${
+            quotationsNeedingNoEdit.fieldCounts[0]
+              ? ` — most corrected: <strong>${esc(quotationsNeedingNoEdit.fieldCounts[0][0])}</strong>`
+              : ""
+          }.<br><span style="font-size:11.5px;">Field names only, never guest details.</span>
+        </div>
       </div>`
           : ""
       }
@@ -794,30 +939,38 @@ ${themeCss()}
     <!-- Main Studio -->
     <main>
       ${
-        draft.status === "cancelled"
+        archived
           ? `<div style="margin-bottom:18px;padding:14px 18px;border-radius:12px;background:rgba(244,63,94,0.1);border:2px solid #f43f5e;color:#e11d48;font-weight:700;display:flex;justify-content:space-between;align-items:center;">
-        <span>This quotation has been CANCELLED / ARCHIVED.</span>
-        <span style="font-size:13px;font-weight:600;color:var(--muted);">Excluded from active review queue</span>
+        <span>This quotation is archived.</span>
+        <span style="font-size:13px;font-weight:600;color:var(--muted);">Excluded from the working queue</span>
       </div>`
           : ""
       }
-      <!-- STEP 1: Guest Information -->
+
+      <!-- Where the quotation is, and what is left to do. One status, one bar. -->
+      <div class="card staff-only" id="workflow-card">
+        <div style="display:flex;justify-content:space-between;align-items:center;gap:14px;flex-wrap:wrap;margin-bottom:12px;">
+          <div style="font-size:15px;font-weight:800;">This quotation</div>
+          <span id="quote-status-badge" class="status-pill status-${statusTone}">${statusLabel}</span>
+        </div>
+        ${progressHtml}
+        <!-- One place for anything that goes wrong. Every action writes here instead of into its own
+             corner of the page, so a refusal is never missed because it appeared somewhere the eye
+             was not. -->
+        <div id="studio-notice" class="notice" style="display:none;" role="status" aria-live="polite"></div>
+      </div>
+
+      <!-- Guest & stay details -->
       <div class="card">
         <div class="card-title">
-          <span>01 · Guest &amp; Stay Details</span>
-          ${
-            draft.status === "confirmed_by_hono"
-              ? `<span id="quote-status-badge" class="status-pill status-confirmed">Confirmed by Hono</span>`
-              : draft.status === "cancelled"
-              ? `<span id="quote-status-badge" class="status-pill" style="background:rgba(244,63,94,0.15);color:#e11d48;border:1px solid #f43f5e;">Cancelled / Archived</span>`
-              : `<span id="quote-status-badge" class="status-pill status-pending">Waiting for Staff Approval</span>`
-          }
+          <span>Guest &amp; stay details</span>
+          <span style="font-size:13px;font-weight:700;color:var(--muted);">From the guest's message — correct anything that is wrong</span>
         </div>
 
         ${
           Array.isArray(draft.staffAlerts) && draft.staffAlerts.length > 0
             ? `<div style="margin-bottom:18px;padding:14px 16px;border-left:5px solid var(--amber);background:var(--amber-soft);border-radius:10px;">
-          <div style="font-size:15px;font-weight:800;color:var(--amber);margin-bottom:6px;">IMPORTANT STAFF ALERT — Please check before approving:</div>
+          <div style="font-size:15px;font-weight:800;color:var(--amber);margin-bottom:6px;">Check before approving</div>
           <ul style="margin:0;padding-left:22px;font-size:15px;line-height:1.65;font-weight:600;">
             ${draft.staffAlerts.map((a) => `<li>${String(a).replace(/</g, "&lt;")}</li>`).join("")}
           </ul>
@@ -853,44 +1006,58 @@ ${themeCss()}
           </div>
           <a class="btn btn-outline staff-only" id="btn-open-ops-sheet" href="/quotes/${encodeURIComponent(draft.quoteId)}/ops" target="_blank" style="padding:6px 14px;font-size:13px;font-weight:700;">Ops Sheet</a>
         </div>
+
+        <!-- The save for THIS card: the guest's name, the dates and the note travel as contact
+             details, not as a priced trip — so they have their own button beside them rather than a
+             shared one that would also re-price. -->
+        <div class="staff-only" style="margin-top:16px;padding-top:16px;border-top:2px solid var(--border);display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
+          <button class="btn btn-outline" onclick="saveEditsOnly()" id="btn-save-draft">Save details</button>
+          <span style="font-size:13px;color:var(--muted);font-weight:600;">Name, dates and the guest note.</span>
+          <span id="save-toast" style="font-size:14px;font-weight:700;color:var(--emerald);"></span>
+        </div>
       </div>
 
-      <!-- STEP 2: the trip the engine prices, and the trip staff can correct -->
+      <!-- Rooms & diving: the trip the engine prices, and the trip staff can correct -->
       <div class="card">
         <div class="card-title">
-          <span>02 · Rooms &amp; Diving Schedule</span>
-          <span style="font-size:13.5px;font-weight:700;color:var(--muted);">Official Resort Pricing Engine</span>
+          <span>Rooms &amp; diving</span>
+          <span style="font-size:13px;font-weight:700;color:var(--muted);">What the resort's engine prices</span>
         </div>
 
         <!-- The trip review block FIRST: verify rooms & divers before calculating price -->
         <div class="staff-only" style="margin-bottom:18px;">
           <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;margin-bottom:10px;">
             <div>
-              <div style="font-size:15px;font-weight:800;color:var(--text);">Trip Review — Check Details &amp; Reprice</div>
-              <div style="font-size:13.5px;color:var(--muted);">Rooms, room type, who is in which room, who dives which day, and who needs a course.</div>
+              <div style="font-size:15px;font-weight:800;color:var(--text);">Trip review</div>
+              <div style="font-size:13.5px;color:var(--muted);">Add or remove rooms, set each room's type, move guests between rooms, and tick the dives and courses.</div>
             </div>
-            <button class="btn btn-primary" onclick="saveTripAndReprice()" id="btn-save-trip">Reprice</button>
+            <button class="btn btn-primary" onclick="saveTripAndReprice()" id="btn-save-trip">Save trip &amp; get price</button>
           </div>
-          <pre id="trip-edit-out" style="width:100%;margin:0 0 12px;white-space:pre-wrap;font-size:13.5px;color:var(--muted);display:none;"></pre>
           <div id="trip-review"></div>
         </div>
 
-        <!-- Official Estimator BFF Bar -->
+        <!-- The engine bar. One button that always works: it re-prices an existing scenario, and
+             prices a new one the first time (see 'saveTripAndReprice'). -->
         <div class="staff-only" style="margin-bottom:18px;padding:14px 16px;background:var(--surface-2);border:2px solid var(--border);border-radius:12px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;">
           <div>
-            <div style="font-size:15px;font-weight:800;color:var(--text);">Estimator BFF Pricing Engine</div>
-            <div style="font-size:13.5px;color:var(--muted);">Calculates rates from the resort engine.</div>
+            <div style="font-size:15px;font-weight:800;color:var(--text);">Price</div>
+            <div style="font-size:13.5px;color:var(--muted);">
+              ${
+                priced
+                  ? `Priced ${esc(String(draft.pricing?.computedAt ?? "").slice(0, 16).replace("T", " "))} — saving the trip again replaces this figure.`
+                  : "Not priced yet. The resort's booking engine calculates every figure on this page."
+              }
+            </div>
           </div>
           <div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap;">
-            <button class="btn btn-outline" onclick="syncEstimate()" id="btn-sync-estimate">Price with the Estimator BFF</button>
-            <span id="estimator-status-badge" style="font-size:14px;font-weight:700;color:var(--muted);">Checking estimator connection…</span>
+            <button class="btn ${priced ? "btn-outline" : "btn-primary"}" onclick="syncEstimate()" id="btn-sync-estimate">Get price</button>
+            <span id="estimator-status-badge" style="font-size:13.5px;font-weight:700;color:var(--muted);">Checking the booking engine…</span>
           </div>
-          <pre id="sync-estimate-out" style="width:100%;margin-top:4px;white-space:pre-wrap;font-size:13.5px;color:var(--muted);display:none;"></pre>
         </div>
 
-        <!-- Advanced Operations (Direct Publish & Booking Engine Folio) -->
+        <!-- Advanced: reservation (simulated engine only) and publishing without sending. -->
         <details class="staff-only" style="margin-bottom:18px;padding:12px 16px;background:var(--surface-2);border:1px solid var(--border);border-radius:12px;">
-          <summary style="font-size:14px;font-weight:700;color:var(--muted);cursor:pointer;user-select:none;">Advanced: Reservation &amp; Publish</summary>
+          <summary style="font-size:14px;font-weight:700;color:var(--muted);cursor:pointer;user-select:none;">More actions</summary>
           <div style="margin-top:14px;display:flex;flex-direction:column;gap:14px;">
             ${
               // Hidden when the customer's app owns the booking (see `estimatorKind`).
@@ -898,36 +1065,27 @@ ${themeCss()}
                 ? `<!-- Reservation bar -->
             <div style="padding:12px 14px;background:var(--card);border:1px solid var(--border);border-radius:10px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;">
               <div>
-                <div style="font-size:14px;font-weight:800;color:var(--text);">Send Reservation</div>
-                <div style="font-size:12.5px;color:var(--muted);">Books this quotation with the resort's booking engine.</div>
+                <div style="font-size:14px;font-weight:800;color:var(--text);">Book the reservation</div>
+                <div style="font-size:12.5px;color:var(--muted);">Creates the booking in the resort's engine. Only available with the built-in sample engine.</div>
               </div>
               <div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap;">
-                <button class="btn btn-outline" onclick="submitReservation()" id="btn-submit-reservation">Send Reservation</button>
+                <button class="btn btn-outline" onclick="submitReservation()" id="btn-submit-reservation">Create booking</button>
                 <span id="reservation-status-badge" style="font-size:13px;font-weight:700;color:var(--muted);"></span>
               </div>
-              <pre id="reservation-out" style="width:100%;margin-top:4px;white-space:pre-wrap;font-size:12.5px;color:var(--muted);display:none;"></pre>
             </div>`
                 : ""
             }
 
-            <!-- Publish bar -->
+            <!-- Publish without sending: the guest's link exists, no WhatsApp message goes out. -->
             <div style="padding:12px 14px;background:var(--card);border:1px solid var(--border);border-radius:10px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;">
               <div>
-                <div style="font-size:14px;font-weight:800;color:var(--text);">Publish Guest Link</div>
-                <div style="font-size:12.5px;color:var(--muted);">Freezes this quotation on the resort's quotation app.</div>
+                <div style="font-size:14px;font-weight:800;color:var(--text);">Create the guest link only</div>
+                <div style="font-size:12.5px;color:var(--muted);">Freezes this quotation on the guest's own page without messaging them.</div>
               </div>
               <div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap;">
-                ${
-                  pricing?.sample
-                    ? `<label style="font-size:13px;font-weight:700;color:var(--accent);display:flex;align-items:center;gap:6px;">
-                         <input type="checkbox" id="ack-sample" /> I have checked this SAMPLE price
-                       </label>`
-                    : ""
-                }
-                <button class="btn btn-outline" onclick="publishQuote()" id="btn-publish-quote">Publish Link</button>
+                <button class="btn btn-outline" onclick="publishQuote()" id="btn-publish-quote">Create link</button>
                 <span id="publish-status-badge" style="font-size:13px;font-weight:700;color:var(--muted);"></span>
               </div>
-              <pre id="publish-out" style="width:100%;margin-top:4px;white-space:pre-wrap;font-size:12.5px;color:var(--muted);display:none;"></pre>
             </div>
           </div>
         </details>
@@ -947,7 +1105,7 @@ ${themeCss()}
               <span>${pricing?.kpis.rpgn != null ? money(pricing.kpis.rpgn) : "—"}</span>
             </div>
             <div class="totals-row" style="color:var(--muted);font-size:13.5px;font-weight:600;">
-              <span>The guest's link shows the engine's figure. There is no discount field here on purpose: the only discount in the resort's model is the partner rate, which the engine applies to rooms by itself.</span>
+              <span>No discount field: the only discount this resort has is the partner rate, and the engine applies it by itself.</span>
             </div>
           </div>
         </div>
@@ -955,63 +1113,88 @@ ${themeCss()}
         ${guestCardsHtml}
         ${agentCompareHtml}
 
-        <div style="margin-top:18px;">
-          <label style="display:block;font-size:15px;font-weight:800;color:var(--text);margin-bottom:8px;">Note for Guest (Printed on Customer Quotation Page):</label>
-          <input type="text" id="input-staff-notes" class="cell-input" value="${esc(draft.staffNotes)}" />
-        </div>
+        ${
+          // The honest note about a sample engine, which is the one thing that confuses a demo:
+          // editing the trip changes the payload and the frozen revision, while a captured price
+          // does not move. Better said here than discovered by whoever is being shown.
+          pricing?.sample
+            ? `<div style="margin-top:16px;padding:12px 14px;border-radius:10px;background:var(--amber-soft);border-left:5px solid var(--amber);font-size:13.5px;font-weight:600;">
+          <strong>Sample price.</strong> This figure is not from the resort's live books — this deployment is pointed at a sample engine. A correction still changes what the engine is asked to price and what the guest's frozen page shows; the figure here may not move until the live engine is connected.
+        </div>`
+            : ""
+        }
 
-        <div class="staff-only" style="margin-top:24px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:14px;padding-top:18px;border-top:2px solid var(--border);">
-          <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
-            <button class="btn btn-outline" onclick="saveEditsOnly()" id="btn-save-draft">Save Draft</button>
-            <button class="btn btn-outline" onclick="cancelQuotationAction()" id="btn-cancel-quote" style="color:var(--rose, #f43f5e);border-color:var(--rose, #f43f5e);">Cancel Quote</button>
-            <span id="save-toast" style="font-size:15px;font-weight:700;color:var(--emerald);"></span>
-          </div>
-          <button class="btn btn-emerald" onclick="confirmAndSendToAI()" id="btn-confirm-hono" style="padding:12px 24px;font-size:15px;">
-            Approve &amp; Quote
-          </button>
+        <div style="margin-top:18px;">
+          <label style="display:block;font-size:15px;font-weight:800;color:var(--text);margin-bottom:8px;">Note for the guest (printed on their quotation page)</label>
+          <input type="text" id="input-staff-notes" class="cell-input" value="${esc(draft.staffNotes)}" />
         </div>
       </div>
 
-      <!-- STEP 3: Final Guest Message & Send to WhatsApp -->
-      <div class="card staff-only" id="ai-response-card">
+      <!-- Approve: one decision, and the message it prepares -->
+      <div class="card staff-only">
         <div class="card-title">
-          <span>03 · WhatsApp Dispatch &amp; Guest Link</span>
-          <span id="step3-status-badge" style="font-size:14px;font-weight:800;color:${draft.status === 'confirmed_by_hono' ? 'var(--emerald)' : 'var(--amber)'};">
-            ${draft.status === 'confirmed_by_hono' ? 'Ready to Send' : 'Awaiting Approval'}
+          <span>Approve</span>
+          <span style="font-size:13px;font-weight:700;color:var(--muted);">
+            ${approved ? "Approved" : priced ? "Waiting for your approval" : "Get the price first"}
           </span>
         </div>
 
-        <!-- The guest's link -->
-        <div style="margin-bottom:18px;padding:14px 16px;background:var(--surface-2);border:2px solid var(--border);border-radius:12px;">
-          <div style="font-size:14px;font-weight:800;color:var(--text);margin-bottom:4px;">Customer Quotation Link (Official Invoice):</div>
-          <div style="font-size:13px;color:var(--muted);margin-bottom:10px;">
-            ${
-              draft.estimator?.guestUrl
-                ? `Guest quotation link (published ${draft.estimator.sharedAt ? esc(String(draft.estimator.sharedAt).slice(0, 16).replace("T", " ")) : "—"})`
-                : `Guest quotation link: not published yet (generated upon rate approval).`
-            }
-          </div>
-          <div class="link-editor-bar">
-            <input type="text" id="input-quotation-url" value="${esc(draft.estimator?.guestUrl || '')}" placeholder="Customer link generated upon quote approval..." readonly title="The guest's quotation link" />
-            <button class="btn btn-outline" onclick="copyQuoteLink()">Copy Link</button>
-            <a class="btn btn-primary" id="btn-open-public-quote" href="${esc(draft.estimator?.guestUrl || '#')}" target="_blank" rel="noopener" style="${draft.estimator?.guestUrl ? '' : 'display:none;'}">Guest View &rarr;</a>
-          </div>
+        <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:14px;">
+          <button class="btn btn-outline" onclick="cancelQuotationAction()" id="btn-cancel-quote" style="color:var(--rose, #f43f5e);border-color:var(--rose, #f43f5e);">Archive quotation</button>
+          <button class="btn btn-emerald" onclick="confirmAndSendToAI()" id="btn-confirm-hono" style="padding:12px 24px;font-size:15px;">
+            Approve quotation
+          </button>
         </div>
 
-        <p style="font-size:15px;color:var(--muted);font-weight:500;">
-          The WhatsApp message below is prepared with the final price and quotation link. Click Send WhatsApp to dispatch:
+        <p style="font-size:13.5px;color:var(--muted);font-weight:600;margin:14px 0 0;">
+          Approving locks in the price for this trip. The guest's link is created when you send — one action, below.
         </p>
-        <div class="ai-reply-box" id="ai-confirmed-reply-box" style="${draft.status === 'confirmed_by_hono' ? '' : 'color:var(--muted);font-style:italic;'}">${
-          draft.status === 'confirmed_by_hono' && draft.aiConfirmedReply
+
+        <div class="ai-reply-box" id="ai-confirmed-reply-box" style="${draft.status === "confirmed_by_hono" ? "" : "color:var(--muted);font-style:italic;"}">${
+          draft.status === "confirmed_by_hono" && draft.aiConfirmedReply
             ? draft.aiConfirmedReply
-            : "Review details in Step 2 above and click [Approve & Quote] to generate the guest link and prepare this WhatsApp message."
+            : "The message to the guest is prepared once the quotation is approved."
         }</div>
-        <div style="margin-top:16px;display:flex;gap:12px;align-items:center;flex-wrap:wrap;">
-          <label style="font-size:15px;font-weight:800;">Guest WhatsApp Number:</label>
-          <input type="text" id="whatsapp-phone-input" class="cell-input" style="width:240px;" placeholder="e.g. 639171234567" value="${draft.phone ?? ""}" />
-          <button class="btn btn-primary" onclick="pushConfirmedQuoteToWhatsApp()" id="btn-push-wa" ${draft.status === 'confirmed_by_hono' ? '' : 'disabled style="opacity:0.5;cursor:not-allowed;"'}>Send WhatsApp</button>
-          <span id="wa-toast" style="font-size:15px;font-weight:700;color:var(--accent);"></span>
+      </div>
+
+      <!-- Send: the link, the number, and one button that does both -->
+      <div class="card staff-only" id="ai-response-card">
+        <div class="card-title">
+          <span>Send to the guest</span>
+          <span style="font-size:13px;font-weight:700;color:var(--muted);">
+            ${
+              published
+                ? `Link created ${esc(String(draft.estimator?.sharedAt ?? "").slice(0, 16).replace("T", " "))}`
+                : "The link is created when you send"
+            }
+          </span>
         </div>
+
+        <div class="link-editor-bar">
+          <input type="text" id="input-quotation-url" value="${esc(draft.estimator?.guestUrl || "")}" placeholder="No link yet — it appears here when you send" readonly title="The guest's quotation link" />
+          <button class="btn btn-outline" onclick="copyQuoteLink()" ${published ? "" : "disabled"}>Copy link</button>
+          <a class="btn btn-outline" id="btn-open-public-quote" href="${esc(draft.estimator?.guestUrl || "#")}" target="_blank" rel="noopener" style="${published ? "" : "display:none;"}">Open guest page &rarr;</a>
+        </div>
+
+        <div style="margin-top:16px;display:flex;gap:12px;align-items:center;flex-wrap:wrap;">
+          <label style="font-size:14px;font-weight:800;">Guest's WhatsApp number</label>
+          <input type="text" id="whatsapp-phone-input" class="cell-input" style="width:220px;" placeholder="e.g. 639171234567" value="${draft.phone ?? ""}" />
+          ${
+            pricing?.sample
+              ? `<label style="font-size:13px;font-weight:700;color:var(--accent);display:flex;align-items:center;gap:6px;">
+                   <input type="checkbox" id="ack-sample" /> I have checked this sample price
+                 </label>`
+              : ""
+          }
+          <button class="btn btn-primary" onclick="sendToGuest()" id="btn-send-guest" ${approved ? "" : 'disabled style="opacity:0.5;cursor:not-allowed;"'}>
+            ${published ? "Send the message again" : "Create link &amp; send"}
+          </button>
+          <span id="wa-toast" style="font-size:14px;font-weight:700;color:var(--accent);"></span>
+        </div>
+        <p style="font-size:13px;color:var(--muted);font-weight:600;margin-top:10px;">
+          The message carries the guest's own quotation link and no price of ours: the figures they read are the engine's, on their page.
+          ${published ? "" : "Sending creates the link first."}
+        </p>
       </div>
     </main>
   </div>
@@ -1029,6 +1212,72 @@ ${themeCss()}
         .replace(/</g, '&lt;')
         .replace(/>/g, '&gt;')
         .replace(/"/g, '&quot;');
+    }
+
+    /**
+     * One place for anything that goes wrong, and one for anything that went right.
+     *
+     * Every action used to write into its own corner of the page — four separate <pre> blocks, two
+     * toasts and two window.alert()s — so a refusal could appear somewhere the person was not
+     * looking, and a refusal from Meta arrived as a sentence in one place and as raw JSON in
+     * another. Now: failures go to the box at the top of the page, successes to a short green line.
+     *
+     * The server sends '{ok:false, reason, detail}'. The reason is the stable part; 'help' turns the
+     * ones a receptionist will actually meet into the next thing to do, and whatever sentence the
+     * server wrote is printed underneath. Nothing raw is ever rendered.
+     */
+    const ERROR_HELP = {
+      not_priced: 'Get the price first, then approve.',
+      trip_changed: 'The trip changed after it was priced. Save the trip again to get a new price, then approve.',
+      not_approved: 'Approve the quotation first.',
+      not_published: 'The guest link does not exist yet — sending creates it.',
+      already_shared: 'This quotation is already published, and a published link cannot change. Start a new quotation instead.',
+      sample_not_acknowledged: 'Tick the sample-price box before sending.',
+      no_trip: 'This quotation has no trip to price.',
+      trip_not_priceable: 'The engine cannot price this trip yet — check the fields it named.',
+      invalid_trip: 'The trip is not in the shape the engine accepts.',
+      phone_missing: "Enter the guest's WhatsApp number, including the country code.",
+      phone_invalid: "That number does not look right. Include the country code, for example 639171234567.",
+      send_failed: 'WhatsApp refused the message. The sentence below says what to fix.',
+      not_configured: 'The pricing engine is not configured on this deployment.',
+      unauthorized: 'Your session expired. Sign in again.',
+      not_found: 'That quotation no longer exists.'
+    };
+
+    function showError(source, data) {
+      const box = document.getElementById('studio-notice');
+      const d = data || {};
+      const reason = d.reason || d.error || 'failed';
+      const help = ERROR_HELP[reason] || '';
+      const lines = [source + ': ' + (help || reason)];
+      if (typeof d.detail === 'string' && d.detail && d.detail !== help) lines.push(d.detail);
+      else if (typeof d.error === 'string' && d.error && d.error !== help) lines.push(d.error);
+      if (Array.isArray(d.fields) && d.fields.length) lines.push('Fields: ' + d.fields.join(', '));
+      if (Array.isArray(d.issues) && d.issues.length) {
+        lines.push('Notes: ' + d.issues.map(function (i) { return (i && (i.code || i.detail)) || String(i); }).join(', '));
+      }
+      if (!box) return lines.join('\\n');
+      box.className = 'notice notice-error';
+      box.textContent = lines.join('\\n');
+      box.style.display = 'block';
+      if (box.scrollIntoView) box.scrollIntoView({ block: 'nearest' });
+      return box.textContent;
+    }
+
+    function showInfo(message) {
+      const box = document.getElementById('studio-notice');
+      if (!box) return;
+      box.className = 'notice notice-info';
+      box.textContent = message;
+      box.style.display = 'block';
+    }
+
+    function clearNotice() {
+      const box = document.getElementById('studio-notice');
+      if (box) {
+        box.style.display = 'none';
+        box.textContent = '';
+      }
     }
 
     function applyTheme(theme) {
@@ -1210,6 +1459,9 @@ ${themeCss()}
             </select>
           </td>
           <td>\${escHtml(trip.guests.filter(g => g.roomId === room.id).map(g => g.name).join(', ') || '— nobody —')}</td>
+          <td style="white-space:nowrap;">
+            <button class="btn btn-outline" style="padding:4px 10px;font-size:12.5px;" onclick="removeRoom(\${i})">Remove</button>
+          </td>
         </tr>\`).join('');
 
       const guestRows = trip.guests.map((guest) => \`
@@ -1237,11 +1489,14 @@ ${themeCss()}
         </tr>\`).join('');
 
       el.innerHTML = \`
-        <div style="overflow-x:auto;margin-bottom:16px;">
+        <div style="overflow-x:auto;margin-bottom:10px;">
           <table class="quote-table">
-            <thead><tr><th style="width:90px;">Room</th><th style="width:150px;">Type</th><th>Guests in this room</th></tr></thead>
+            <thead><tr><th style="width:90px;">Room</th><th style="width:150px;">Type</th><th>Guests in this room</th><th style="width:110px;"></th></tr></thead>
             <tbody>\${roomRows}</tbody>
           </table>
+        </div>
+        <div style="margin-bottom:18px;">
+          <button class="btn btn-outline" style="padding:6px 14px;font-size:13px;" onclick="addRoom()">+ Add a room</button>
         </div>
         <div style="overflow-x:auto;">
           <table class="quote-table">
@@ -1252,10 +1507,19 @@ ${themeCss()}
               \${stayDates.map(d => \`<th style="text-align:center;">\${escHtml(dayLabel(d))}<br><span style="font-weight:600;color:var(--muted);">D · 3rd · Night</span></th>\`).join('')}
             </tr></thead>
             <tbody>\${guestRows}</tbody>
+            \${stayDates.length ? \`<tfoot><tr>
+              <td colspan="3" style="font-weight:800;">Everyone on this day</td>
+              \${stayDates.map(d => \`<td style="white-space:nowrap;font-size:12.5px;">
+                <button class="btn btn-outline" style="padding:2px 8px;font-size:12px;" onclick="setDayForAll('\${d}','dive',true)">D all</button>
+                <button class="btn btn-outline" style="padding:2px 8px;font-size:12px;" onclick="setDayForAll('\${d}','third',true)">3 all</button>
+                <button class="btn btn-outline" style="padding:2px 8px;font-size:12px;" onclick="setDayForAll('\${d}','night',true)">N all</button>
+                <button class="btn btn-outline" style="padding:2px 8px;font-size:12px;" onclick="setDayForAll('\${d}','dive',false);setDayForAll('\${d}','third',false);setDayForAll('\${d}','night',false)">clear</button>
+              </td>\`).join('')}
+            </tr></tfoot>\` : ''}
           </table>
         </div>
         <p style="font-size:13px;color:var(--muted);font-weight:600;margin-top:10px;">
-          D = boat dive, 3 = third dive, N = night dive. Anything changed here reaches the engine only after <strong>Save trip &amp; re-price</strong>.
+          D = boat dive, 3 = third dive, N = night dive. Nothing here reaches the engine until you press <strong>Save trip &amp; get price</strong>.
         </p>\`;
     }
 
@@ -1280,18 +1544,21 @@ ${themeCss()}
     function setRoomType(index, type) {
       state.bffTrip.rooms[index].type = type;
       renderTripReview();
+      markTripDirty();
     }
 
     function setGuestRoom(guestId, roomId) {
       const guest = state.bffTrip.guests.find((g) => g.id === guestId);
       if (guest) guest.roomId = roomId || null;
       renderTripReview();
+      markTripDirty();
     }
 
     function setGuestCourse(guestId, course) {
       const guest = state.bffTrip.guests.find((g) => g.id === guestId);
       if (guest) guest.courses = course ? [course] : [];
       renderTripReview();
+      markTripDirty();
     }
 
     function setGuestDay(guestId, date, kind, on) {
@@ -1301,38 +1568,102 @@ ${themeCss()}
       const day = Object.assign({ dive: false, third: false, night: false, boatId: null }, guest.days[date] || {});
       day[kind] = Boolean(on);
       guest.days[date] = day;
+      renderTripReview();
+      markTripDirty();
+    }
+
+    /** A whole day at once, for a group where everyone dives the same schedule. */
+    function setDayForAll(date, kind, on) {
+      state.bffTrip.guests.forEach(function (guest) {
+        guest.days = guest.days || {};
+        const day = Object.assign({ dive: false, third: false, night: false, boatId: null }, guest.days[date] || {});
+        day[kind] = Boolean(on);
+        guest.days[date] = day;
+      });
+      renderTripReview();
+      markTripDirty();
+    }
+
+    /**
+     * Add a room. The id has to be unique and has to keep the rN shape, because the engine refers
+     * to rooms by id: a duplicate id would silently move a guest into the wrong room, and an id the
+     * contract does not accept is a 422 from their fillTrip.
+     */
+    function addRoom() {
+      const rooms = state.bffTrip.rooms;
+      let n = rooms.length + 1;
+      const taken = {};
+      rooms.forEach(function (r) { taken[r.id] = true; });
+      while (taken['r' + n]) n += 1;
+      rooms.push({ id: 'r' + n, type: 'standard', name: null });
+      renderTripReview();
+      markTripDirty();
+    }
+
+    /**
+     * Remove a room — refused while somebody is still in it.
+     *
+     * The alternative (unassign the guests and let staff notice later) produces a trip the engine
+     * rejects, which reads as "the engine is broken" rather than "move these two people first". One
+     * clear sentence is better than a silent half-edit.
+     */
+    function removeRoom(index) {
+      const rooms = state.bffTrip.rooms;
+      if (rooms.length <= 1) {
+        showError('Trip review', { reason: 'room_in_use', detail: 'A booking needs at least one room. Change its type instead of removing it.' });
+        return;
+      }
+      const room = rooms[index];
+      const occupants = state.bffTrip.guests.filter(function (g) { return g.roomId === room.id; });
+      if (occupants.length > 0) {
+        showError('Trip review', {
+          reason: 'room_in_use',
+          detail: 'Move ' + occupants.map(function (g) { return g.name; }).join(', ') + ' out of room ' + room.id + ' first, then remove it.'
+        });
+        return;
+      }
+      rooms.splice(index, 1);
+      renderTripReview();
+      markTripDirty();
     }
 
     async function saveTripAndReprice() {
       const btn = document.getElementById('btn-save-trip');
-      const out = document.getElementById('trip-edit-out');
-      if (!btn || !out) return;
+      if (!btn) return; // a guest session has no review panel
+      clearNotice();
       btn.disabled = true;
-      out.style.display = 'block';
-      out.textContent = '⏳ Sending the corrected trip to the pricing engine…';
+      const label = btn.textContent;
+      btn.textContent = 'Saving…';
       try {
-        const res = await fetch('/v1/quotes/' + encodeURIComponent(state.quoteId) + '/trip?token=' + encodeURIComponent(staffToken()), {
+        // A quotation that was never priced has no scenario on their side yet, and the trip endpoint re-prices
+        // the trip the scenario already holds — so the first save is a 'sync-estimate'. One button,
+        // in the order the workflow needs, instead of two buttons staff have to choose between.
+        const hasScenario = Boolean(state.estimator && state.estimator.id);
+        const path = hasScenario ? '/trip' : '/sync-estimate';
+        const body = hasScenario ? JSON.stringify({ trip: state.bffTrip }) : undefined;
+        const res = await fetch('/v1/quotes/' + encodeURIComponent(state.quoteId) + path + '?token=' + encodeURIComponent(staffToken()), {
           method: 'POST',
           headers: { 'content-type': 'application/json' },
-          body: JSON.stringify({ trip: state.bffTrip })
+          body: body
         });
         const data = await res.json();
-        if (data.ok) {
-          const issues = Array.isArray(data.issues) ? data.issues : [];
-          out.textContent = '✅ Re-priced'
-            + (data.sample ? ' — SAMPLE DATA, not a real quote.' : '.')
-            + (issues.length ? '\\n⚠️ ' + issues.length + ' note(s): ' + issues.map(function (i) { return i.code || i.detail || i; }).join(', ') : '')
-            + '\\nThe approval was dropped with the old trip, so approve again before publishing. Reloading…';
-          window.location.reload();
+        if (!data.ok) {
+          showError('Could not save the trip', data);
           return;
         }
-        out.textContent = '⚠️ ' + (data.reason || 'failed') + ': ' + (data.detail || data.error || '')
-          + (Array.isArray(data.fields) && data.fields.length ? '\\nfields: ' + data.fields.join(', ') : '')
-          + (Array.isArray(data.issues) ? '\\n' + data.issues.map(function (i) { return (i.code || '') + ' ' + (i.fields || []).join(', '); }).join('\\n') : '');
+        const issues = Array.isArray(data.issues) ? data.issues : [];
+        showInfo('Trip saved and priced'
+          + (data.sample ? ' — sample prices, not a real quote.' : '.')
+          + (issues.length ? ' ' + issues.length + ' note(s) from the engine.' : '')
+          + ' Reloading…');
+        // The record is the truth: the per-guest cards, the totals and the guest's page are all
+        // rendered from it, so the page is rebuilt rather than patched.
+        window.location.reload();
       } catch (err) {
-        out.textContent = '⚠️ ' + (err && err.message ? err.message : String(err));
+        showError('Could not save the trip', { detail: err && err.message ? err.message : String(err) });
       } finally {
         btn.disabled = false;
+        btn.textContent = label === 'Saving…' ? 'Save trip & get price' : label;
       }
     }
 
@@ -1344,27 +1675,80 @@ ${themeCss()}
       document.getElementById('save-toast').textContent = '📋 Link copied';
     }
 
-    /** The status pill. The price itself is the engine's and is drawn server-side, not here. */
-    function renderStatusBadge() {
+    /**
+     * The status, and the four steps — both read from 'state', both re-drawn after any action.
+     *
+     * One status for the whole page (see the note above 'statusLabel' on the server side): what
+     * changed here is only how the same record is described once the page has acted on it.
+     */
+    function renderStatus() {
       const badge = document.getElementById('quote-status-badge');
-      if (!badge) return;
-      if (state.status === 'confirmed_by_hono') {
-        badge.className = 'status-pill status-confirmed';
-        badge.style = '';
-        badge.textContent = 'Confirmed by Hono';
-      } else if (state.status === 'cancelled') {
-        badge.className = 'status-pill';
-        badge.style = 'background:rgba(244,63,94,0.15);color:#e11d48;border:1px solid #f43f5e;';
-        badge.textContent = 'Cancelled / Archived';
-      } else {
-        badge.className = 'status-pill status-pending';
-        badge.style = '';
-        badge.textContent = 'Pending Hono Confirmation';
+      const published = Boolean(state.estimator && state.estimator.sharedAt && state.estimator.guestUrl);
+      const approved = state.status === 'confirmed_by_hono';
+      const archived = state.status === 'cancelled';
+      const priced = Boolean(state.pricing);
+      if (badge) {
+        badge.className = 'status-pill ' + (
+          archived ? 'status-rose' : (published || approved) ? 'status-emerald' : 'status-amber'
+        );
+        badge.textContent = archived
+          ? 'Archived'
+          : state.status !== 'confirmed_by_hono' && published
+            ? 'Published — needs approval'
+            : published
+              ? 'Sent to guest'
+              : approved
+                ? 'Approved — not sent yet'
+                : priced
+                  ? 'Priced — needs approval'
+                  : 'Needs review';
       }
+
+      const steps = [
+        { label: 'Review trip', state: state.bffTrip ? 'done' : 'current' },
+        { label: 'Get price', state: priced ? 'done' : (state.bffTrip ? 'current' : 'todo') },
+        { label: 'Approve', state: (approved || published) ? 'done' : (priced ? 'current' : 'todo') },
+        { label: 'Send', state: published ? 'done' : (approved ? 'current' : 'todo') }
+      ];
+      const bar = document.querySelector('.progress');
+      if (!bar) return;
+      bar.innerHTML = steps.map(function (s, i) {
+        return '<div class="pstep ' + s.state + '"><span class="pnum">' + (s.state === 'done' ? '✓' : (i + 1)) + '</span>' + s.label + '</div>';
+      }).join('<div class="psep"></div>');
+
+      const sendBtn = document.getElementById('btn-send-guest');
+      if (sendBtn) {
+        sendBtn.disabled = !approved;
+        sendBtn.style.opacity = approved ? '1' : '0.5';
+        sendBtn.style.cursor = approved ? 'pointer' : 'not-allowed';
+        sendBtn.textContent = published ? 'Send the message again' : 'Create link & send';
+      }
+      const approveBtn = document.getElementById('btn-confirm-hono');
+      if (approveBtn && approved) approveBtn.textContent = 'Approved';
+    }
+
+    /**
+     * Unsaved trip corrections. Editing a room type or a dive day changes what the ENGINE would be
+     * asked to price, so the price on screen is no longer this trip's — the bar says so until the
+     * trip is saved. Without it, a receptionist edits a room type, reads the old total as the new
+     * one, and approves; that is the bug this page exists to prevent.
+     */
+    function markTripDirty() {
+      renderStatus();
+      const btn = document.getElementById('btn-save-trip');
+      if (btn) btn.textContent = 'Save trip & get price •';
+      showInfo('Unsaved changes to the trip. The price below still belongs to the previous trip — save to get the new one.');
+    }
+
+    function copyQuoteLink() {
+      const input = document.getElementById('input-quotation-url');
+      if (!input || !input.value) return;
+      navigator.clipboard.writeText(input.value);
+      showInfo('Guest link copied.');
     }
 
     async function cancelQuotationAction() {
-      if (!confirm('Are you sure you want to cancel quotation ' + state.quoteId + '? It will be moved to Archived and removed from Needs Review.')) {
+      if (!confirm('Archive quotation ' + state.quoteId + '? It leaves the working queue; the record and any published link stay readable.')) {
         return;
       }
       const btn = document.getElementById('btn-cancel-quote');
@@ -1375,13 +1759,12 @@ ${themeCss()}
         });
         const data = await res.json();
         if (data.ok) {
-          alert('Quotation ' + state.quoteId + ' has been cancelled.');
           window.location.reload();
-        } else {
-          alert('Failed to cancel: ' + (data.error || 'unknown'));
+          return;
         }
+        showError('Could not archive', data);
       } catch (err) {
-        alert('Error: ' + (err && err.message ? err.message : String(err)));
+        showError('Could not archive', { detail: err && err.message ? err.message : String(err) });
       } finally {
         if (btn) btn.disabled = false;
       }
@@ -1401,8 +1784,8 @@ ${themeCss()}
 
     async function saveEditsOnly() {
       const toast = document.getElementById('save-toast');
-      toast.textContent = 'Saving to Hono...';
       const payload = gatherPayload();
+      clearNotice();
       const res = await fetch('/v1/quotes/' + encodeURIComponent(state.quoteId) + '?token=' + encodeURIComponent(staffToken()), {
         method: 'PUT',
         headers: { 'content-type': 'application/json' },
@@ -1411,16 +1794,21 @@ ${themeCss()}
       const data = await res.json();
       if (data.quotation) {
         state = data.quotation;
-        toast.textContent = '✓ Saved on Hono!';
-        setTimeout(() => { toast.textContent = ''; }, 3500);
+        renderStatus();
+        if (toast) {
+          toast.textContent = 'Saved';
+          setTimeout(function () { toast.textContent = ''; }, 3000);
+        }
+        return;
       }
+      showError('Could not save the guest details', data);
     }
 
     async function confirmAndSendToAI() {
       const btn = document.getElementById('btn-confirm-hono');
       const replyBox = document.getElementById('ai-confirmed-reply-box');
-      btn.disabled = true;
-      replyBox.textContent = '🔄 Hono is confirming the trip & link and sending the Tool Result back to the model...';
+      clearNotice();
+      if (btn) btn.disabled = true;
       const payload = gatherPayload();
       try {
         const res = await fetch('/v1/quotes/' + encodeURIComponent(state.quoteId) + '/confirm?token=' + encodeURIComponent(staffToken()), {
@@ -1429,31 +1817,24 @@ ${themeCss()}
           body: JSON.stringify(payload)
         });
         const data = await res.json();
-        if (data.quotation) {
-          state = data.quotation;
-          renderStatusBadge();
-          const step3Badge = document.getElementById('step3-status-badge');
-          if (step3Badge) {
-            step3Badge.textContent = 'Ready to Send';
-            step3Badge.style.color = 'var(--emerald)';
-          }
-          const btnWa = document.getElementById('btn-push-wa');
-          if (btnWa) {
-            btnWa.disabled = false;
-            btnWa.style.opacity = '1';
-            btnWa.style.cursor = 'pointer';
-          }
-          if (replyBox) {
-            replyBox.style.color = 'var(--text)';
-            replyBox.style.fontStyle = 'normal';
-            replyBox.textContent = data.aiReply || state.aiConfirmedReply;
-          }
-          renderSidebar();
+        if (!data.quotation) {
+          // A refusal leaves the quotation exactly as it was, so the page keeps showing the truth.
+          showError('Could not approve', data);
+          return;
         }
+        state = data.quotation;
+        renderStatus();
+        renderSidebar();
+        if (replyBox) {
+          replyBox.style.color = 'var(--text)';
+          replyBox.style.fontStyle = 'normal';
+          replyBox.textContent = data.aiReply || state.aiConfirmedReply || '';
+        }
+        showInfo('Approved. The guest link is created when you send.');
       } catch (err) {
-        replyBox.textContent = 'Error confirming quotation: ' + err.message;
+        showError('Could not approve', { detail: err && err.message ? err.message : String(err) });
       } finally {
-        btn.disabled = false;
+        if (btn) btn.disabled = false;
       }
     }
 
@@ -1491,17 +1872,50 @@ ${themeCss()}
       window.location.reload();
     }
 
-    async function pushConfirmedQuoteToWhatsApp() {
+    /**
+     * One action for "the guest should get this": create the link if it does not exist, then send.
+     *
+     * These were two buttons (Publish Link, then Send WhatsApp) with a rule between them that the
+     * page did not explain: the message carries the link, so sending before publishing is refused.
+     * A receptionist had to know the order. Now the order is the button's job.
+     */
+    async function sendToGuest() {
       const phone = document.getElementById('whatsapp-phone-input').value.trim();
       const toast = document.getElementById('wa-toast');
-      toast.textContent = 'Sending to WhatsApp ' + phone + '...';
-      const res = await fetch('/v1/quotes/' + encodeURIComponent(state.quoteId) + '/send-whatsapp?token=' + encodeURIComponent(staffToken()), {
-        method: 'POST',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ phone })
-      });
-      const data = await res.json();
-      toast.textContent = data.ok ? '✅ Sent confirmed quote + link to WhatsApp (' + phone + ')!' : ('⚠️ ' + (data.error || 'Could not send'));
+      const sendBtn = document.getElementById('btn-send-guest');
+      clearNotice();
+      if (!state.estimator || !state.estimator.sharedAt) {
+        const published = await publishQuote();
+        if (!published) return; // publishQuote() has already said why
+      }
+      if (sendBtn) sendBtn.disabled = true;
+      if (toast) toast.textContent = 'Sending…';
+      try {
+        const res = await fetch('/v1/quotes/' + encodeURIComponent(state.quoteId) + '/send-whatsapp?token=' + encodeURIComponent(staffToken()), {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({ phone })
+        });
+        const data = await res.json();
+        if (!data.ok) {
+          showError('Could not send to the guest', data);
+          if (toast) toast.textContent = '';
+          return;
+        }
+        if (toast) toast.textContent = 'Sent to ' + phone;
+        showInfo('Sent to ' + phone + '. The message carries the guest link and no price of ours.');
+      } catch (err) {
+        showError('Could not send to the guest', { detail: err && err.message ? err.message : String(err) });
+        if (toast) toast.textContent = '';
+      } finally {
+        if (sendBtn) sendBtn.disabled = false;
+      }
+    }
+
+    async function pushConfirmedQuoteToWhatsApp() {
+      // Kept as the name that used to be on the button, so an old bookmarklet or a copied snippet
+      // that calls it still does the right thing. The button itself now calls sendToGuest().
+      return sendToGuest();
     }
 
     async function checkEstimatorStatus() {
@@ -1513,57 +1927,49 @@ ${themeCss()}
         const res = await fetch('/v1/quotes/estimator-status?token=' + encodeURIComponent(staffToken()));
         const data = await res.json();
         if (!data.configured) {
-          badge.textContent = '⚪ not configured — prices unavailable';
+          badge.textContent = 'Not configured — no prices available';
           badge.style.color = 'var(--muted)';
         } else if (!data.reachable) {
-          badge.textContent = '🔴 pricing engine not answering';
+          badge.textContent = 'Not answering';
           badge.style.color = 'var(--accent)';
         } else if (data.mode === 'fixture') {
           badge.textContent = data.kind === 'simulated'
-            ? '🟡 SIMULATED — sample prices, not a real quote'
-            : '🟡 FIXTURE — prices are captured samples';
+            ? 'Sample engine (built in) — not a real quote'
+            : 'Sample engine (captured prices) — not a real quote';
           badge.style.color = 'var(--accent)';
         } else {
-          badge.textContent = '🟢 connected';
+          badge.textContent = 'Connected — live prices';
           badge.style.color = 'var(--emerald)';
         }
       } catch (err) {
-        badge.textContent = '⚪ status unknown';
+        badge.textContent = 'Status unknown';
         badge.style.color = 'var(--muted)';
       }
     }
 
     async function syncEstimate() {
       const btn = document.getElementById('btn-sync-estimate');
-      const out = document.getElementById('sync-estimate-out');
-      if (!btn || !out) return; // a guest session has no pricing bar
+      if (!btn) return; // a guest session has no pricing bar
+      clearNotice();
       btn.disabled = true;
-      out.style.display = 'block';
-      out.textContent = '⏳ Asking the pricing engine to price this trip...';
       try {
         const res = await fetch('/v1/quotes/' + encodeURIComponent(state.quoteId) + '/sync-estimate?token=' + encodeURIComponent(staffToken()), {
           method: 'POST',
           headers: { 'content-type': 'application/json' }
         });
         const data = await res.json();
-        if (data.ok) {
-          const issues = Array.isArray(data.issues) ? data.issues : [];
-          out.textContent =
-            '✅ Priced by the ' + (data.endpoint || 'pricing engine') + ' (role=' + (data.role || '?') + ', mode=' + (data.mode || 'unknown') + ')' +
-            (data.sample ? '\\n⚠️ SAMPLE DATA — these are NOT real quotes. Do not send to a guest.' : '') +
-            (issues.length ? '\\n⚠️ ' + issues.length + ' pricing warning(s): ' + issues.map(function (i) { return i.code || i; }).join(', ') : '') +
-            '\\nReloading so the per-guest breakdown and the ops sheet come from the saved price…';
-          // The answer is now part of the quotation, so the per-guest cards, the agent comparison
-          // and the ops sheet are all rendered from the record. Reloading is what guarantees this
-          // page and the record cannot disagree.
-          window.location.reload();
+        if (!data.ok) {
+          showError('Could not get a price', data);
           return;
         }
-        out.textContent =
-          '⚠️ ' + (data.reason || 'failed') + ': ' + (data.detail || '') +
-          (Array.isArray(data.fields) && data.fields.length ? '\\nfields: ' + data.fields.join(', ') : '');
+        const issues = Array.isArray(data.issues) ? data.issues : [];
+        showInfo('Priced by the booking engine'
+          + (data.sample ? ' — sample data, not a real quote.' : '.')
+          + (issues.length ? ' ' + issues.length + ' note(s) from the engine.' : '')
+          + ' Reloading…');
+        window.location.reload();
       } catch (err) {
-        out.textContent = '⚠️ ' + (err && err.message ? err.message : String(err));
+        showError('Could not get a price', { detail: err && err.message ? err.message : String(err) });
       } finally {
         btn.disabled = false;
         checkEstimatorStatus();
@@ -1590,10 +1996,10 @@ ${themeCss()}
         return;
       }
       const LABELS = {
-        pending: '⏳ Sending… do not press again',
-        confirmed: '✅ Reservation sent',
-        failed: '⚠️ Not accepted — you may try again',
-        unknown: '⚠️ Not confirmed — check with the resort before sending again'
+        pending: 'Sending — do not press again',
+        confirmed: 'Booking created',
+        failed: 'Not accepted — you may try again',
+        unknown: 'Not confirmed — check with the resort before trying again'
       };
       badge.textContent = LABELS[s.state] || s.state;
       // Only a refusal is retryable. "pending" is in flight; "confirmed" and "unknown" must not
@@ -1603,8 +2009,8 @@ ${themeCss()}
 
     async function submitReservation() {
       const btn = document.getElementById('btn-submit-reservation');
-      const out = document.getElementById('reservation-out');
-      if (!btn || !out) return; // a guest session has no reservation bar
+      if (!btn) return; // a guest session has no reservation bar
+      clearNotice();
       // Contact details are asked for rather than assumed: they are what the front desk confirms
       // to, and quietly booking under the studio's own account is how a guest never hears back.
       const name = window.prompt('Name for the reservation:', state.guestName || '');
@@ -1613,8 +2019,6 @@ ${themeCss()}
       if (!email) return;
       const phone = window.prompt('Phone (optional):', state.phone || '') || '';
       btn.disabled = true;
-      out.style.display = 'block';
-      out.textContent = '⏳ Sending the reservation...';
       try {
         const res = await fetch('/v1/quotes/' + encodeURIComponent(state.quoteId) + '/submit?token=' + encodeURIComponent(staffToken()), {
           method: 'POST',
@@ -1623,17 +2027,16 @@ ${themeCss()}
         });
         const data = await res.json();
         if (data.submission) state.submission = data.submission;
-        if (data.ok) {
-          const s = data.submission || {};
-          out.textContent = '✅ Reservation sent'
-            + (s.sample ? '\\n⚠️ SAMPLE DATA — no folio was created. This is the simulated booking engine.' : '')
-            + (s.folioId ? '\\nFolio #' + s.folioId : '');
-        } else {
-          out.textContent = '⚠️ ' + (data.reason || 'failed') + ': ' + (data.detail || data.error || '')
-            + (data.reason === 'unknown' ? '\\nDo not send again — a person has to check whether the folio exists.' : '');
+        if (!data.ok) {
+          showError('Could not create the booking', data);
+          return;
         }
+        const s = data.submission || {};
+        showInfo('Booking created'
+          + (s.sample ? ' — sample data, no folio was created.' : '.')
+          + (s.folioId ? ' Folio #' + s.folioId : ''));
       } catch (err) {
-        out.textContent = '⚠️ ' + (err && err.message ? err.message : String(err));
+        showError('Could not create the booking', { detail: err && err.message ? err.message : String(err) });
       } finally {
         renderReservationStatus();
       }
@@ -1649,7 +2052,7 @@ ${themeCss()}
       const btn = document.getElementById('btn-publish-quote');
       if (!badge || !btn) return;
       if (state.estimator && state.estimator.guestUrl) {
-        badge.textContent = '✅ Published';
+        badge.textContent = 'Link created';
         btn.disabled = true;
       } else {
         badge.textContent = '';
@@ -1657,20 +2060,21 @@ ${themeCss()}
       }
     }
 
+    /** Create the guest link. Returns true when there is a link afterwards. */
     async function publishQuote() {
       const btn = document.getElementById('btn-publish-quote');
-      const out = document.getElementById('publish-out');
-      if (!btn || !out) return;
+      clearNotice();
       const ack = document.getElementById('ack-sample');
-      out.style.display = 'block';
       // The acknowledgement is a deliberate act, not a speed bump: these are captured prices, and a
       // guest who receives one has been quoted a number nobody has agreed to.
       if (ack && !ack.checked) {
-        out.textContent = '⚠️ Tick "I have checked this SAMPLE price" first — these are not real prices.';
-        return;
+        showError('Could not create the guest link', {
+          reason: 'sample_not_acknowledged',
+          detail: 'These are sample prices, so they have to be seen and ticked off first.'
+        });
+        return false;
       }
-      btn.disabled = true;
-      out.textContent = '⏳ Publishing…';
+      if (btn) btn.disabled = true;
       try {
         const res = await fetch('/v1/quotes/' + encodeURIComponent(state.quoteId) + '/publish?token=' + encodeURIComponent(staffToken()), {
           method: 'POST',
@@ -1679,28 +2083,25 @@ ${themeCss()}
         });
         const data = await res.json();
         if (data.quotation) state = data.quotation;
-        if (data.ok) {
-          out.textContent = '✅ Published as version ' + data.seq + '\\n'
-            + (data.guestUrl || '(their app is not hosted anywhere we can link to — set ESTIMATOR_BASE_URL)');
-        } else {
-          out.textContent = '⚠️ ' + (data.reason || 'failed') + ': ' + (data.detail || data.error || '');
+        renderStatus();
+        if (!data.ok) {
+          showError('Could not create the guest link', data);
+          return false;
         }
+        showInfo('Guest link created (version ' + data.seq + ').'
+          + (data.guestUrl ? '' : ' Their app is not hosted anywhere we can link to — set ESTIMATOR_BASE_URL.'));
+        return true;
       } catch (err) {
-        out.textContent = '⚠️ ' + (err && err.message ? err.message : String(err));
+        showError('Could not create the guest link', { detail: err && err.message ? err.message : String(err) });
+        return false;
       } finally {
         renderPublishStatus();
       }
     }
 
-    function copyQuoteLink() {
-      const input = document.getElementById('input-quotation-url');
-      navigator.clipboard.writeText(input.value);
-      document.getElementById('save-toast').textContent = 'Copied Link!';
-    }
-
     renderSidebar();
     renderTripReview();
-    renderStatusBadge();
+    renderStatus();
   </script>
 </body>
 </html>`;

@@ -154,7 +154,9 @@ describe("the studio draws the engine's answer", () => {
     // on a button from a field of data, and passed or failed on whether the state was embedded.
     const offered = (html: string) => [...html.matchAll(/(?:href|value)="([^"]*)"/g)].map((m) => m[1]!);
     expect(offered(studio).some((u) => u.includes("/q/"))).toBe(false);
-    expect(studio).toContain("not published yet");
+    // Before anything is published the page says so in words a receptionist reads, and it does not
+    // pretend the link is merely "generated upon rate approval" — creating it is the Send action.
+    expect(studio).toContain("No link yet — it appears here when you send");
     expect(studio).not.toContain("live working copy");
     expect((await app.request(`/q/${draft.slug}`)).status).toBe(410);
 
