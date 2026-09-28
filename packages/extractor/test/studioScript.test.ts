@@ -361,6 +361,19 @@ describe("the studio's own script", () => {
     expect(studio.fetchCalls.some((c) => c.includes("/sync-estimate"))).toBe(false);
   });
 
+  it("asks the engine for a price when the record carries one the engine never gave", async () => {
+    // Production, walking step 1: the fixture had 52,400 on it from the built-in sample engine and no
+    // scenario anywhere, and Save said "Saved." and walked on without asking for a price. "Priced"
+    // means `estimator.id`, not "a figure is on the record".
+    const studio = await loadStudio();
+    studio.state.estimator = null;                 // no scenario, but the figure is still on the record
+    expect((studio.state.pricing as unknown) ?? null).not.toBeNull();
+
+    await studio.saveStudio();
+
+    expect(studio.fetchCalls.some((c) => c.includes("/sync-estimate"))).toBe(true);
+  });
+
   it("does not disturb a price when only the guest's details changed", async () => {
     const studio = await loadStudio();
     // The fixture is priced; nothing about the trip was touched.

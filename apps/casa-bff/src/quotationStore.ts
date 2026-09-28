@@ -2014,10 +2014,15 @@ ${themeCss()}
         state = detailsData.quotation;
 
         const published = Boolean(state.estimator && state.estimator.sharedAt);
-        const needsPrice = tripDirty || !state.pricing;
+        // "Priced" means the ENGINE priced it (estimator.id), not that a figure is on the record: a
+        // quotation carrying only the sample engine's number still has to be sent to the real engine.
+        // Found by walking step 1 on production, where Save said "Saved." and walked to step 2 without
+        // ever asking for a price — the record had 52,400 on it and no scenario anywhere.
+        const hasScenario = Boolean(state.estimator && state.estimator.id);
+        const needsPrice = tripDirty || !hasScenario;
         if (published || !needsPrice) {
           // Nothing about the trip is pending: a published quotation must not change its trip at
-          // all, and an unchanged unpriced one has nothing new to send.
+          // all, and an unchanged quotation the engine has already priced has nothing new to send.
           showInfo(published
             ? 'Saved. This quotation is published, so its trip and price are frozen — start a new quotation for a different trip.'
             : 'Saved.');
@@ -2026,7 +2031,6 @@ ${themeCss()}
           return;
         }
 
-        const hasScenario = Boolean(state.estimator && state.estimator.id);
         const res = await fetch('/v1/quotes/' + encodeURIComponent(state.quoteId) + (hasScenario ? '/trip' : '/sync-estimate') + '?token=' + encodeURIComponent(staffToken()), {
           method: 'POST',
           headers: { 'content-type': 'application/json' },
