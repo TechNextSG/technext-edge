@@ -9,7 +9,7 @@ import {
 } from "../../../packages/extractor/src/index.js";
 import { buildSimulatedModel } from "./simulatedEstimator.js";
 import { createQuotationStoreFromEnv, type QuotationStore } from "./quotationStoreClient.js";
-import { DEMO_GAIS_BANNER, DEMO_ROLES, type DemoRole } from "./demoAuth.js";
+import { DEMO_ROLES, type DemoRole } from "./demoAuth.js";
 import { escapeHtml } from "./html.js";
 
 /**
