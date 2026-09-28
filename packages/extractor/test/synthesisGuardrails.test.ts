@@ -6,7 +6,7 @@
 // NOT be — a gate that rejects correct replies is worse than no gate, because it silently replaces
 // every answer with the deterministic fallback.
 import { describe, it, expect, vi } from "vitest";
-import { synthesizeHospitalityReply, verifySynthesizedReply } from "../src/synthesis.js";
+import { synthesizeHospitalityReply, verifySynthesizedReply, verifyGuestFacingText } from "../src/synthesis.js";
 import { renderReply, generateQuestions, getStaffAlerts } from "../src/questions.js";
 import type { Trip } from "../src/schema.js";
 import type { ExtractProvider } from "../src/provider.js";
@@ -165,6 +165,42 @@ describe("the fact gate catches what a model must not say", () => {
     // keeps this rule from rejecting ordinary prose.
     const text = "We hold the room for 14 days, and the boat leaves within 24 hours of your arrival.";
     expect(verifySynthesizedReply(text, trip).ok).toBe(true);
+  });
+
+  // The gate has a second caller now: the message a staff member sends once a quotation is
+  // published, whose greeting a model writes. A copy of these checks for that path is how the two
+  // would drift, so both call `verifyGuestFacingText` — and this is what it is for.
+  describe("the same gate, for the studio's message to the guest", () => {
+    it("rejects a confirmation claim about a stay, which the narrower patterns missed", () => {
+      // Verbatim from a real message on production, about a booking that did not exist and a room
+      // that had since been changed to a suite.
+      const text =
+        "Wonderful news, Ana — your customized stay here at Casa Escondida is all confirmed, with your Standard Room, and our team looks forward to welcoming you and Ben.";
+      expect(verifyGuestFacingText(text, { roomTypes: new Set(["suite"]) })).toEqual({
+        ok: false,
+        reason: "false_booking_confirmation",
+      });
+    });
+
+    it("rejects prose that names a room type the booking does not have", () => {
+      const text = "Hi Ana! Your deluxe room is ready to look at, and the link below shows the full breakdown for your stay.";
+      expect(verifyGuestFacingText(text, { roomTypes: new Set(["suite"]) })).toEqual({
+        ok: false,
+        reason: "mismatched_room_type",
+      });
+      // The same sentence about the right room passes.
+      expect(verifyGuestFacingText(text, { roomTypes: new Set(["deluxe"]) }).ok).toBe(true);
+    });
+
+    it("rejects a price in a message whose whole job is to hand over the link", () => {
+      const text = "Hi Ana! Your quotation comes to ₱31,200 for the two nights — open the link below to see the full breakdown.";
+      expect(verifyGuestFacingText(text, {}).ok).toBe(false);
+    });
+
+    it("checks only the facts it is given, so a draft with few of them still passes", () => {
+      const text = "Hi Ana! Your quotation is ready to look at — open the link below for the full breakdown of your stay.";
+      expect(verifyGuestFacingText(text, { roomTypes: new Set(["suite"]) }).ok).toBe(true);
+    });
   });
 });
 

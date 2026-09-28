@@ -155,6 +155,90 @@ export interface InboundTextMessage {
   text: string;
 }
 
+/**
+ * A send Meta refused, with its own numeric code kept separate from the raw body.
+ *
+ * `detail` is for the log. Nothing puts it in front of a staff member: `explainMetaError` turns the
+ * code into one sentence in English, and an unrecognised code into a generic one.
+ */
+export class WhatsAppSendError extends Error {
+  constructor(
+    readonly status: number,
+    readonly detail: string,
+    readonly code?: number,
+  ) {
+    super(`WhatsApp send failed: ${status} ${detail}`);
+    this.name = "WhatsAppSendError";
+  }
+}
+
+/** What a staff member's typed number turned into, or why it could not be used. */
+export type RecipientCheck =  | { ok: true; phone: string }
+  | { ok: false; code: "phone_missing" | "phone_invalid"; message: string };
+
+/**
+ * Clean up a phone number a staff member typed, or refuse it with something they can act on.
+ *
+ * Why this is not simply "strip non-digits": the studio used to send whatever was in the box
+ * straight to Meta, and Meta's answer for a number it cannot route is a JSON blob with a numeric
+ * code in it — which is what the studio then showed the receptionist. A number with no country code
+ * is the common case, and it has exactly one honest answer.
+ *
+ * Deliberately does NOT guess the country for a leading zero. The plan was to read `0359…` as a
+ * Vietnamese number and send `84359…`, and that is right for this team's own test numbers — but the
+ * resort is in the Philippines, where a receptionist typing a guest's local `0917…` would have that
+ * message sent to a stranger in Vietnam. Two countries are in play and the number itself does not
+ * say which, so the caller is told to add the code. No country code is a question, not a default.
+ */
+export function checkRecipient(raw: string | undefined | null): RecipientCheck {
+  const digits = String(raw ?? "").replace(/[^\d+]/g, "").replace(/(?!^)\+/g, "");
+  const bare = digits.replace(/^\+/, "");
+  if (bare === "") {
+    return { ok: false, code: "phone_missing", message: "Enter the guest's WhatsApp number, including the country code." };
+  }
+  if (bare.startsWith("0")) {
+    return {
+      ok: false,
+      code: "phone_invalid",
+      message: `That number starts with 0. Add the country code — 63 for the Philippines, 84 for Vietnam — so it reads 63… or 84…`,
+    };
+  }
+  if (bare.startsWith("00")) {
+    // 00 is the international prefix in most of the world; drop it and keep the country code.
+    return checkRecipient(bare.replace(/^00/, ""));
+  }
+  if (bare.length < 8 || bare.length > 15) {
+    return {
+      ok: false,
+      code: "phone_invalid",
+      message: `That number is ${bare.length} digits. A WhatsApp number with its country code is 8 to 15.`,
+    };
+  }
+  return { ok: true, phone: bare };
+}
+
+/**
+ * Meta's error codes, in words a receptionist can act on.
+ *
+ * The raw body is `{"error":{"message":"...","code":131030,...}}` — useful to us, meaningless to the
+ * person at the front desk, and it can quote the number back. Recognised codes become one English
+ * sentence; anything unrecognised becomes a generic sentence, and the detail goes to the log.
+ */
+export function explainMetaError(code: number | undefined, fallbackDetail: string): string {
+  switch (code) {
+    case 131030:
+      return "This number isn't on the WhatsApp test list yet — add it in Meta, or send to a number that is on the list.";
+    case 131026:
+      return "WhatsApp could not deliver to that number. Check it includes the country code (e.g. 63… or 84…).";
+    case 131047:
+      return "WhatsApp only allows a free-form reply within 24 hours of the guest's last message. Ask them to message us again, or reply from the WhatsApp app.";
+    case 190:
+      return "The WhatsApp access token has expired or been revoked. It needs replacing in the deployment settings.";
+    default:
+      return `WhatsApp refused the message. Our team has the details: ${fallbackDetail.slice(0, 120)}`;
+  }
+}
+
 function asRecord(value: unknown): Record<string, unknown> | undefined {
   return typeof value === "object" && value !== null ? (value as Record<string, unknown>) : undefined;
 }
@@ -230,10 +314,19 @@ export function createWhatsAppSender(config: WhatsAppConfig): WhatsAppSendText {
       });
 
       if (!res.ok) {
-        // Body included on purpose: Meta puts the actionable part there
-        // (expired token, unapproved recipient, 24h window passed), and a bare
-        // status code turns every one of those into the same support thread.
-        throw new Error(`WhatsApp send failed: ${res.status} ${await res.text()}`);
+        // The body is parsed, not stringified into the message: Meta puts the actionable part there
+        // (expired token, unapproved recipient, 24h window passed) as a numeric `code`, and the
+        // caller turns that into one English sentence. The raw text still travels on the error for
+        // the log, where it belongs.
+        const text = await res.text();
+        let code: number | undefined;
+        try {
+          const parsed = JSON.parse(text) as { error?: { code?: unknown } };
+          if (typeof parsed.error?.code === "number") code = parsed.error.code;
+        } catch {
+          // Non-JSON body: no code to map, the caller falls back to a generic sentence.
+        }
+        throw new WhatsAppSendError(res.status, text.slice(0, 300), code);
       }
     } catch (err) {
       if (err instanceof Error && err.name === "AbortError") {

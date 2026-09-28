@@ -4,6 +4,7 @@ import type { StaffTripEdit } from "./tripDiff.js";
 import type { ExtractProvider } from "./provider.js";
 import { getStaffAlerts, diveWindowIsGuessed } from "./questions.js";
 import { buildBffTrip, datesBetweenInclusive } from "./odooHandoff.js";
+import { verifyGuestFacingText, withBudget, type GuestFacingFacts } from "./synthesis.js";
 import type { QuotationPricing } from "./pricing.js";
 import {
   roomNightlyRate,
@@ -459,43 +460,58 @@ export function buildHonoQuotationDraft(
 }
 
 /**
- * Generates the AI's response AFTER Hono staff edits & confirms the quotation table and link!
- * Because Hono has explicitly confirmed the quotation (`status === "confirmed_by_hono"`),
- * the AI is now authorized to present the confirmed quotation table and edited quotation link.
+ * How long the greeting may take before the deterministic message goes without it.
+ *
+ * Shorter than the chat turn's budget on purpose: a staff member is watching this button, and they
+ * already know what the message says. Losing the polish costs nothing; making somebody wait does.
+ */
+const CONFIRMED_GREETING_BUDGET_MS = 3_500;
+
+/**
+ * The message a staff member sends to the guest once the quotation is published.
+ *
+ * Rewritten after reading what this actually produced on production. It used to list
+ * `draft.lineItems` — our own hand-computed price table — under the heading "Confirmed Quotation
+ * Breakdown … Total Confirmed Quote", and to fall back to our retired `/q/<slug>` link when nothing
+ * had been published. On one real quotation that meant a guest would have been sent ₱38,400 (our
+ * arithmetic) beside a line labelled "Standard Room" carrying a deluxe unit price, a link that now
+ * answers 410, and the word "Confirmed" for a booking nobody had made. The send was refused by Meta
+ * for an unrelated reason (#131030, number not on the test list), which is the only thing that
+ * stopped it.
+ *
+ * Three rules now, and they are the whole point of the rewrite:
+ *
+ *   1. **No money in this message at all.** The engine's price lives on the customer's own
+ *      quotation page, which is what the link opens; a figure repeated in chat is a second source
+ *      of the number, and in fixture mode it is a sample figure a guest would read as real.
+ *   2. **The link is the published one, or there is no message.** `estimator.guestUrl` is minted by
+ *      the customer's app at Publish; our own `/q/<slug>` page is retired and answers 410. The
+ *      caller refuses to send without it (route `send-whatsapp`), and this builder never falls back.
+ *   3. **"Confirmed" is not a word this message may use.** Approving a quotation is a staff decision
+ *      about a price, not a booking; Q-015 is that this system sends no confirmation of anything.
+ *      The model's greeting is put through the same fact gate as a chat reply, so a sentence like
+ *      "your stay is all confirmed" rolls back to the deterministic text instead of reaching the
+ *      guest.
  */
 export async function synthesizeConfirmedQuotationReply(
   draft: HonoQuotationDraft,
   provider?: ExtractProvider
 ): Promise<string> {
-  const symbol = draft.currency === "USD" ? "$" : "₱";
-  const fmt = (n: number) => `${symbol}${n.toLocaleString("en-US")}`;
-
-  // Which link a guest is given. The customer's app mints the real one, and it is the only link a
-  // guest is ever sent; `quotationUrl` is our own internal page, kept for the simulated engine
-  // where there is no customer app to point at.
-  const guestLink = draft.estimator?.guestUrl ?? draft.quotationUrl;
-
-  // Bold is ONE asterisk. WhatsApp does not render `**`, so the double form used to arrive in the
-  // guest's chat as literal asterisks around every line — the same mistake app.ts's
-  // `guestQuotationLinks` had already been fixed for.
-  const tableLines = draft.lineItems.map(
-    (item, idx) =>
-      `${idx + 1}. *${item.description}*\n   • ${item.quantity} ${item.unitLabel} × ${item.multiplier} ${item.multiplierLabel} @ ${fmt(item.unitPrice)} = *${fmt(item.subtotal)}*`
-  );
+  const guestLink = draft.estimator?.guestUrl ?? null;
+  const sample = Boolean(draft.pricing?.sample);
+  const note = guestSafeStaffNotes(draft.staffNotes);
+  const rooms = draft.bffTrip?.rooms ?? [];
 
   const deterministicMessage = [
-    `Hi ${draft.guestName}! Great news — our reservation team at Casa Escondida has reviewed and confirmed your customized quotation (#${draft.quoteId}).`,
+    `Hi ${draft.guestName}! Your quotation for ${draft.checkIn} to ${draft.checkOut} (${draft.nights} nights) is ready to look at here:`,
     ``,
-    `📋 *Confirmed Quotation Breakdown (${draft.checkIn} to ${draft.checkOut} · ${draft.nights} nights):*`,
-    ...tableLines,
+    guestLink ?? "(no link — this quotation has not been published yet)",
+    sample
+      ? `\n⚠️ Sample prices — these are example figures from our booking engine while it is being set up, not a final quote.`
+      : ``,
+    note ? `\n📝 ${note}` : ``,
     ``,
-    draft.discountPercent > 0
-      ? `• *Subtotal:* ${fmt(draft.subtotalAmount)}\n• *Partner / Special Discount (${draft.discountPercent}%):* -${fmt(draft.discountAmount)}\n• *Total Confirmed Quote:* *${fmt(draft.totalAmount)} ${draft.currency}*`
-      : `• *Total Confirmed Quote:* *${fmt(draft.totalAmount)} ${draft.currency}*`,
-    guestSafeStaffNotes(draft.staffNotes) ? `\n📝 *Resort Note:* ${guestSafeStaffNotes(draft.staffNotes)}` : ``,
-    ``,
-    `🔗 *View & Download Your Interactive Quotation:*`,
-    `${guestLink}`,
+    `Open the link to see the full breakdown. If anything looks wrong, just reply here and a member of our team will fix it — nothing is booked yet.`,
   ]
     .filter(Boolean)
     .join("\n");
@@ -504,24 +520,37 @@ export async function synthesizeConfirmedQuotationReply(
     return deterministicMessage;
   }
 
+  // What this message may not contradict. `rooms` comes from the trip the engine was actually
+  // given, so a greeting that names a different room type is rejected rather than sent.
+  const facts: GuestFacingFacts = {
+    nights: draft.nights,
+    rooms: draft.rooms,
+    guests: draft.stayingGuests,
+    ...(typeof draft.divers === "number" ? { divers: draft.divers } : {}),
+    roomTypes: new Set(rooms.map((r) => r.type)),
+    knownDates: new Set([draft.checkIn, draft.checkOut].filter((d) => typeof d === "string" && d !== "")),
+  };
+
   try {
     const sys = [
       `You are the Senior Concierge at Casa Escondida Resort & Dive Center in Anilao, Batangas.`,
-      `The Hono Reservation Backend has just CONFIRMED an edited quotation for the guest via tool response.`,
-      `Write a warm, natural 2-sentence opening greeting acknowledging their confirmed setup (including any split-day diving or room setup), and then include the EXACT confirmed breakdown and quotation link provided below without changing any numbers or URLs.`,
+      `A member of our reservations team has just finished preparing a guest's quotation and it is ready to look at.`,
+      `Write a warm, natural TWO-sentence opening ONLY. Do not list prices, totals or line items — the guest's own quotation page shows those.`,
+      `Never say a booking, a stay, a room or a quotation is confirmed: nothing is booked yet and only our front desk takes bookings.`,
+      `Then include the link and the closing line provided below, verbatim, and nothing else.`,
     ].join(" ");
 
-    const user = `Guest: ${draft.guestName}\nConfirmed Breakdown & Link (include verbatim after your greeting):\n${deterministicMessage}`;
-    const llmReply = await Promise.race([
-      provider.generateText(sys, user),
-      new Promise<string>((_, reject) => setTimeout(() => reject(new Error("timeout")), 3500)),
-    ]);
+    const user = `Guest: ${draft.guestName}\nWrite the greeting, then reproduce this block verbatim:\n${deterministicMessage}`;
+    const llmReply = await withBudget(provider.generateText(sys, user), CONFIRMED_GREETING_BUDGET_MS);
 
-    if (llmReply && llmReply.includes(guestLink)) {
-      return llmReply.trim();
+    if (llmReply && llmReply.includes(guestLink ?? "\u0000")) {
+      const check = verifyGuestFacingText(llmReply, facts);
+      if (check.ok) return llmReply.trim();
+      // eslint-disable-next-line no-console
+      console.warn(`[quotation] guest message greeting rejected (${check.reason}); using the deterministic text`);
     }
   } catch {
-    // Fall back to deterministic message
+    // Fall back to the deterministic message: a slow or failed greeting must not delay the link.
   }
 
   return deterministicMessage;

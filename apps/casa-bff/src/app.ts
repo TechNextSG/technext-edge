@@ -91,6 +91,9 @@ import {
 import {
   checkSenderCredentials,
   createWhatsAppSender,
+  checkRecipient,
+  explainMetaError,
+  WhatsAppSendError,
   parseInboundTexts,
   sameSecret,
   verifySignature,
@@ -998,7 +1001,7 @@ export function createApp(options: AppOptions = {}) {
     if (!auth.ok) return c.redirect("/login");
     const all = await listQuotations();
     const latest = all[0]!;
-    return c.html(renderHonoQuotationEditorHtml(latest, all, auth.role ?? "staff"));
+    return c.html(renderHonoQuotationEditorHtml(latest, all, auth.role ?? "staff", estimator.kind));
   });
 
   app.get("/quotes/:id", async (c) => {
@@ -1007,7 +1010,7 @@ export function createApp(options: AppOptions = {}) {
     if (!auth.ok) return c.redirect(`/login?next=${encodeURIComponent(`/quotes/${id}`)}`);
     const found = await getQuotationByIdOrSlug(id);
     if (!found) return c.json({ error: "not_found" }, 404);
-    return c.html(renderHonoQuotationEditorHtml(found, await listQuotations(), auth.role ?? "staff"));
+    return c.html(renderHonoQuotationEditorHtml(found, await listQuotations(), auth.role ?? "staff", estimator.kind));
   });
 
   app.get("/q/:slug", async (c) => {
@@ -1944,32 +1947,77 @@ export function createApp(options: AppOptions = {}) {
     return c.json({ ok: true, submission: found.submission ?? null });
   });
 
-  app.post("/v1/quotes/:id/send-whatsapp", async (c) => {    if (!staffSession(c).ok) {
+  /**
+   * Send the prepared quotation to the guest's WhatsApp.
+   *
+   * Two gates, in this order, because each one is a different mistake:
+   *
+   *   1. **Approved** — the price a guest receives is a staff decision, not the bot's draft.
+   *   2. **Published** — the message carries the link to the guest's own quotation page, and that
+   *      link only exists once staff have published. Without this gate the message fell back to our
+   *      retired `/q/<slug>` page, which answers 410: a guest would have received a dead link.
+   *      Measured on a real quotation (2026-09-28) — the send was only stopped by Meta refusing an
+   *      unlisted test number.
+   *
+   * The number is checked before it is sent (`checkRecipient`), and Meta's refusal is translated
+   * (`explainMetaError`) rather than pasted into the studio: a receptionist can act on "this number
+   * isn't on the test list" and cannot act on `{"error":{"code":131030,...}}`.
+   */
+  app.post("/v1/quotes/:id/send-whatsapp", async (c) => {
+    if (!staffSession(c).ok) {
       return c.json({ error: "unauthorized" }, 401);
     }
     const id = c.req.param("id");
     const existing = await getQuotationByIdOrSlug(id);
     if (!existing) return c.json({ error: "not_found" }, 404);
-    // Approval is the whole point of the studio: only a quotation staff have actually confirmed may
-    // leave as a price to a guest. Without this, the button sends the draft the bot generated —
-    // numbers nobody checked, and in fixture mode a sample price presented as a real one.
+
     if (existing.status !== "confirmed_by_hono") {
       return c.json(
-        { ok: false, error: "Approve the quotation first — this one has not been confirmed by staff", reason: "not_approved" },
+        { ok: false, reason: "not_approved", error: "Approve the quotation before sending it to the guest." },
         409,
       );
     }
+    const guestUrl = existing.estimator?.guestUrl ?? null;
+    if (!existing.estimator?.sharedAt || !guestUrl) {
+      return c.json(
+        {
+          ok: false,
+          reason: "not_published",
+          error:
+            "Publish the quotation first — the message carries the link to the guest's own quotation page, and that link does not exist yet.",
+        },
+        409,
+      );
+    }
+
     const body = (await c.req.json().catch(() => ({}))) as { phone?: string };
-    const toPhone = (body.phone || existing.phone || "").replace(/\D/g, "");
-    if (!toPhone) return c.json({ ok: false, error: "Phone number is required" }, 400);
-    const text = existing.aiConfirmedReply || (await synthesizeConfirmedQuotationReply(existing));
-    const config = whatsAppConfig();
-    const send = options.sendWhatsApp ?? createWhatsAppSender(config);
+    const recipient = checkRecipient(body.phone || existing.phone || "");
+    if (!recipient.ok) {
+      return c.json({ ok: false, reason: recipient.code, error: recipient.message }, 400);
+    }
+
+    // The message is rebuilt from the record every time rather than reusing `aiConfirmedReply`:
+    // that field was prepared at Approve time, before Publish, so it still contains the old
+    // self-computed table and no link.
+    let provider: ExtractProvider | undefined;
     try {
-      await send({ to: toPhone, body: text });
-      return c.json({ ok: true, phone: toPhone });
+      provider = options.provider ?? createProviderFromEnv();
+    } catch {
+      // No provider configured: the deterministic message is complete on its own.
+    }
+    const text = await synthesizeConfirmedQuotationReply(existing, provider);
+    const send = options.sendWhatsApp ?? createWhatsAppSender(whatsAppConfig());
+    try {
+      await send({ to: recipient.phone, body: text });
+      return c.json({ ok: true, phone: recipient.phone, body: text });
     } catch (err) {
-      return c.json({ ok: false, error: err instanceof Error ? err.message : String(err) }, 502);
+      const meta = err instanceof WhatsAppSendError ? err : null;
+      // eslint-disable-next-line no-console
+      console.error(`[casa-bff] whatsapp send failed for ${id}: ${meta?.detail ?? String(err)}`);
+      return c.json(
+        { ok: false, reason: "send_failed", error: explainMetaError(meta?.code, meta?.detail ?? String(err)) },
+        502,
+      );
     }
   });
 

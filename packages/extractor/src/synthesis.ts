@@ -32,8 +32,12 @@ const DEFAULT_SYNTHESIS_BUDGET_MS = 4_000;
  * literal as "possibly undefined" on `Promise` itself on every deploy. The behaviour is identical
  * and the construct is one the build is happy with; the emitted JavaScript was correct either way,
  * but a build that prints errors on every deploy is a build nobody reads.
+ *
+ * Exported because the studio's own guest message needs the same guard: it writes a greeting with a
+ * model, and a slow model must not hold a staff member's click open when the deterministic text is
+ * already sitting there.
  */
-function withBudget<T>(promise: Promise<T>, ms: number): Promise<T> {
+export function withBudget<T>(promise: Promise<T>, ms: number): Promise<T> {
   return new Promise<T>((resolve, reject) => {
     const timer = setTimeout(() => reject(new Error(`synthesis budget of ${ms}ms elapsed`)), ms);
     promise.then(
@@ -95,6 +99,13 @@ const PRICE_QUOTE_RE =
  * a model that writes "you're all set" or "we'll email you a confirmation" has made a promise the
  * resort does not keep: their Q-015 is that this app sends no confirmation at all, and the front
  * desk contacts the guest from the folio. Both read to a guest as done, so both roll back.
+ *
+ * The third group was added after reading a real studio message on production: the message that
+ * carries a published quotation to a guest opened with *"your customized stay … is all confirmed,
+ * with your Standard Room"* — a confirmation claim about a booking nobody made, in a sentence the
+ * narrower patterns above did not match. "is/are/has been confirmed" about a stay, a room or a
+ * quotation is never true before the front desk has taken the booking, so it belongs in the same
+ * class as "your booking is confirmed".
  */
 const FALSE_CONFIRMATION_RE = new RegExp(
   [
@@ -104,6 +115,9 @@ const FALSE_CONFIRMATION_RE = new RegExp(
     "\\bbooking is (?:complete|completed|finali[sz]ed|done|set)\\b",
     "\\b(?:we|i)(?:'ll| will) (?:send|email|whatsapp) (?:you )?(?:a |your )?(?:confirmation|confirm|booking confirmation)\\b",
     "\\bwe(?:'ll| will) (?:hold|reserve) (?:the |your )?(?:room|rooms|booking)\\b",
+    // "is all confirmed", "are now confirmed", "has been confirmed" — with the subject left open on
+    // purpose: a guest reading it cannot tell a booking from a quotation, and neither can we.
+    "\\b(?:is|are|was|were|has been|have been)\\s+(?:all\\s+|now\\s+|fully\\s+)?confirmed\\b",
     "预订已确认|已为您预订成功|已为您预留",
   ].join("|"),
   "i",
@@ -142,6 +156,49 @@ function isoDatesIn(text: string): string[] {
  * 3. The LLM contradicts the guest's stated night count or room count.
  */
 export function verifySynthesizedReply(text: string, trip: Trip): FactGateResult {
+  const roomTypes = new Set<string>();
+  if (trip.roomType?.state === "stated" && typeof trip.roomType.value === "string") {
+    roomTypes.add(trip.roomType.value);
+  }
+  return verifyGuestFacingText(text, {
+    ...(trip.nights?.state === "stated" && typeof trip.nights.value === "number" ? { nights: trip.nights.value } : {}),
+    ...(trip.rooms?.state === "stated" && typeof trip.rooms.value === "number" ? { rooms: trip.rooms.value } : {}),
+    ...(trip.guests?.state === "stated" && typeof trip.guests.value === "number" ? { guests: trip.guests.value } : {}),
+    ...(trip.divers?.state === "stated" && typeof trip.divers.value === "number" ? { divers: trip.divers.value } : {}),
+    roomTypes,
+    knownDates: new Set(
+      [trip.checkIn?.value, trip.checkOut?.value, trip.diveFrom?.value, trip.diveTo?.value].filter(
+        (d): d is string => typeof d === "string" && d !== "",
+      ),
+    ),
+  });
+}
+
+/**
+ * The facts a guest-facing sentence may be checked against, from whatever source has them.
+ *
+ * Split out of `verifySynthesizedReply` when a second caller appeared: the message that carries a
+ * published quotation to a guest (`synthesizeConfirmedQuotationReply`) writes its own greeting with
+ * a model, and that text reached the guest **without passing this gate at all** — measured on
+ * production, where a guest was told *"your customized stay … is all confirmed, with your Standard
+ * Room"* while the booking was a suite and nothing had been confirmed. A second copy of these checks
+ * for that path is how the two would drift; one function with two callers is how they cannot.
+ *
+ * Every field is optional, and an absent fact is simply not checked: the draft a studio message is
+ * built from has rooms and guests but not a `Trip`'s field states, and a gate that refused to run
+ * without them would be a gate that gets bypassed.
+ */
+export interface GuestFacingFacts {
+  nights?: number;
+  rooms?: number;
+  guests?: number;
+  divers?: number;
+  /** Every room type on this booking. A sentence naming another one is describing a different trip. */
+  roomTypes?: ReadonlySet<string>;
+  knownDates?: ReadonlySet<string>;
+}
+
+export function verifyGuestFacingText(text: string, facts: GuestFacingFacts): FactGateResult {
   if (!text || text.trim().length < 20) {
     return { ok: false, reason: "empty_or_too_short" };
   }
@@ -154,64 +211,57 @@ export function verifySynthesizedReply(text: string, trip: Trip): FactGateResult
     return { ok: false, reason: "false_booking_confirmation" };
   }
 
-  if (trip.nights?.state === "stated" && typeof trip.nights.value === "number") {
-    const expectedNights = trip.nights.value;
+  if (typeof facts.nights === "number") {
+    const expectedNights = facts.nights;
     for (const count of countsFor(text, "nights?|晚")) {
       if (count !== expectedNights) return { ok: false, reason: "mismatched_nights_count" };
     }
   }
 
-  if (trip.rooms?.state === "stated" && typeof trip.rooms.value === "number") {
-    const expectedRooms = trip.rooms.value;
+  if (typeof facts.rooms === "number") {
+    const expectedRooms = facts.rooms;
     for (const count of countsFor(text, "rooms?|间房")) {
       if (count !== expectedRooms) return { ok: false, reason: "mismatched_rooms_count" };
     }
   }
 
   // The party size, which the first version of this gate did not check at all — the largest line of
-  // a quotation was the one number a model could contradict freely. Only checked when the guest
-  // STATED it: a house-norm count is not something they said, so the model restating it is not a
-  // contradiction. "people" is included because that is how a guest's own count is echoed back.
-  if (trip.guests?.state === "stated" && typeof trip.guests.value === "number") {
+  // a quotation was the one number a model could contradict freely. "people" is included because
+  // that is how a guest's own count is echoed back.
+  if (typeof facts.guests === "number") {
     for (const count of countsFor(text, "guests?|people|pax|adults?|客人", { excludeDiveClause: true })) {
-      if (count !== trip.guests.value) return { ok: false, reason: "mismatched_guests_count" };
+      if (count !== facts.guests) return { ok: false, reason: "mismatched_guests_count" };
     }
   }
 
-  if (trip.divers?.state === "stated" && typeof trip.divers.value === "number") {
+  if (typeof facts.divers === "number") {
     for (const count of countsFor(text, "divers?|潜水员")) {
-      if (count !== trip.divers.value) return { ok: false, reason: "mismatched_divers_count" };
+      if (count !== facts.divers) return { ok: false, reason: "mismatched_divers_count" };
     }
   }
 
   // The room type, which is the single largest per-night lever in the rate card and therefore the
-  // worst thing to get wrong in prose. Only a STATED type is checked, for the same reason as the
-  // counts above: a house norm nobody chose cannot be contradicted by the model restating
-  // something else. The pattern deliberately requires the noun to sit against the type
-  // ("a deluxe room", "room type: deluxe") rather than matching the bare word — "en suite" and
+  // worst thing to get wrong in prose. The pattern deliberately requires the noun to sit against the
+  // type ("a deluxe room", "room type: deluxe") rather than matching the bare word — "en suite" and
   // "our standard check-in time" are ordinary hospitality English and must not trip the gate.
-  if (trip.roomType?.state === "stated" && typeof trip.roomType.value === "string") {
-    const stated = trip.roomType.value;
+  if (facts.roomTypes && facts.roomTypes.size > 0) {
     const named = [
       ...text.matchAll(/\b(standard|deluxe|suite)\s+(?:rooms?|suites?)\b/gi),
       ...text.matchAll(/\broom\s+type\s*:?\s*(standard|deluxe|suite)\b/gi),
     ].map((m) => m[1]!.toLowerCase());
-    if (named.some((type) => type !== stated)) return { ok: false, reason: "mismatched_room_type" };
+    if (named.some((type) => !facts.roomTypes!.has(type))) {
+      return { ok: false, reason: "mismatched_room_type" };
+    }
   }
 
-  // Any ISO date the reply names has to be one of the trip's own. Written this way round on
-  // purpose: the trip is a closed set of four dates, so a fifth one is fabricated by definition,
-  // and the check needs no understanding of the sentence it sits in. Deliberately ISO only — a
-  // model writing "Oct 17" is normal prose, and matching month names is how this rule would start
-  // rejecting correct replies ("14 days' notice" and similar).
-  const knownDates = new Set(
-    [trip.checkIn?.value, trip.checkOut?.value, trip.diveFrom?.value, trip.diveTo?.value].filter(
-      (d): d is string => typeof d === "string" && d !== "",
-    ),
-  );
-  if (knownDates.size > 0) {
+  // Any ISO date the reply names has to be one of the booking's own. Written this way round on
+  // purpose: the dates are a closed set, so a fifth one is fabricated by definition, and the check
+  // needs no understanding of the sentence it sits in. Deliberately ISO only — a model writing
+  // "Oct 17" is normal prose, and matching month names is how this rule would start rejecting
+  // correct replies ("14 days' notice" and similar).
+  if (facts.knownDates && facts.knownDates.size > 0) {
     for (const date of isoDatesIn(text)) {
-      if (!knownDates.has(date)) return { ok: false, reason: "fabricated_date" };
+      if (!facts.knownDates.has(date)) return { ok: false, reason: "fabricated_date" };
     }
   }
 

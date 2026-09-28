@@ -357,7 +357,7 @@ describe("staff quotation routes require the staff token", () => {
     });
 
     // `staffNotes` reaches the customer twice: on their quotation page in the customer's app, and
-    // in the confirmed WhatsApp message this service sends. The message is the half we still own,
+    // in the message this service sends once staff publish. The message is the half we still own,
     // so that is where the wording is pinned — the studio's own editable field is staff-facing and
     // legitimately shows the raw value, so someone can fix it.
     it("ships no internal workflow wording by default", async () => {
@@ -367,7 +367,12 @@ describe("staff quotation routes require the staff token", () => {
       const message = await synthesizeConfirmedQuotationReply(built);
       expect(message).not.toContain("ready for Hono confirmation");
       expect(message).not.toContain("Verify boat manifest");
-      expect(message).toContain(built.quotationUrl);
+      // No published link yet, and the message says so rather than falling back to our own retired
+      // `/q/<slug>` page — which answers 410. The route refuses to send in this state; the builder
+      // never invents a link.
+      expect(built.estimator?.guestUrl ?? null).toBeNull();
+      expect(message).not.toContain(built.quotationUrl);
+      expect(message).toContain("has not been published yet");
     });
 
     // Fixing the default is not enough on its own: a draft saved before the fix keeps whatever note

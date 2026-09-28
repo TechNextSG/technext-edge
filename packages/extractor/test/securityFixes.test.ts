@@ -150,9 +150,40 @@ describe("only an approved quotation can be sent to a guest", () => {
     expect(sent).toHaveLength(0);
   });
 
-  it("sends once staff have approved it", async () => {
-    const draft = await storedNasty("QT-SEC-5");
+  it("refuses an approved but unpublished one too, because the link would be dead", async () => {
+    // Approval says "the price is right". Publish is what mints the guest's link, and the message
+    // carries that link — so sending before Publish is how a guest receives a dead URL. Measured on
+    // production: the message fell back to our retired `/q/<slug>` page, which answers 410.
+    const draft = await storedNasty("QT-SEC-6");
     await saveQuotationDraft({ ...draft, status: "confirmed_by_hono" });
+
+    const sent: unknown[] = [];
+    const app = createApp({ sendWhatsApp: async (m) => void sent.push(m) });
+
+    const res = await app.request(`/v1/quotes/${draft.quoteId}/send-whatsapp${STAFF}`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ phone: "639171234567" }),
+    });
+
+    expect(res.status).toBe(409);
+    expect((await res.json()).reason).toBe("not_published");
+    expect(sent).toHaveLength(0);
+  });
+
+  it("sends once staff have approved AND published it, and the message carries no price of ours", async () => {
+    const draft = await storedNasty("QT-SEC-5");
+    await saveQuotationDraft({
+      ...draft,
+      status: "confirmed_by_hono",
+      estimator: {
+        id: "sim-1",
+        cookie: "ubg_sid=sim-1",
+        seq: 1,
+        guestUrl: "https://their-app.test/quote/tok-real",
+        sharedAt: new Date().toISOString(),
+      },
+    });
 
     const sent: Array<{ to: string; body: string }> = [];
     const app = createApp({ sendWhatsApp: async (m) => void sent.push(m) });
@@ -167,7 +198,46 @@ describe("only an approved quotation can be sent to a guest", () => {
     expect(sent).toHaveLength(1);
     // WhatsApp bold is a single asterisk; `**` arrives as literal asterisks in the guest's chat.
     expect(sent[0]!.body).not.toContain("**");
-    expect(sent[0]!.body).toContain("*Confirmed Quotation Breakdown");
+    // The published link, and only that: our own `/q/<slug>` page is retired.
+    expect(sent[0]!.body).toContain("https://their-app.test/quote/tok-real");
+    expect(sent[0]!.body).not.toMatch(/\/q\//);
+    // No money, and nothing that reads as a booking.
+    expect(sent[0]!.body).not.toMatch(/(?:₱|\$|PHP|USD)\s?\d/);
+    expect(sent[0]!.body.toLowerCase()).not.toContain("confirmed");
+    expect(sent[0]!.body).toContain("nothing is booked yet");
+  });
+
+  it("refuses a number with no country code, and says what to do about it", async () => {
+    const draft = await storedNasty("QT-SEC-7");
+    // Published, so the only thing wrong with this attempt is the number itself.
+    await saveQuotationDraft({
+      ...draft,
+      status: "confirmed_by_hono",
+      estimator: {
+        id: "sim-7",
+        cookie: "ubg_sid=sim-7",
+        seq: 1,
+        guestUrl: "https://their-app.test/quote/tok-seven",
+        sharedAt: new Date().toISOString(),
+      },
+    });
+
+    const sent: unknown[] = [];
+    const app = createApp({ sendWhatsApp: async (m) => void sent.push(m) });
+
+    const res = await app.request(`/v1/quotes/${draft.quoteId}/send-whatsapp${STAFF}`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ phone: "0359 123 456" }),
+    });
+
+    expect(res.status).toBe(400);
+    const body = (await res.json()) as { reason: string; error: string };
+    expect(body.reason).toBe("phone_invalid");
+    expect(body.error).toContain("country code");
+    // Never guessed: the resort is in the Philippines and the team's test numbers are Vietnamese, so
+    // "0…" does not say which country the message should go to.
+    expect(sent).toHaveLength(0);
   });
 });
 
