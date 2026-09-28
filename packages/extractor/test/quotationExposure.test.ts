@@ -372,7 +372,10 @@ describe("staff quotation routes require the staff token", () => {
       // never invents a link.
       expect(built.estimator?.guestUrl ?? null).toBeNull();
       expect(message).not.toContain(built.quotationUrl);
-      expect(message).toContain("has not been published yet");
+      // Worded for the screen it appears on: this text is the APPROVAL preview, so it says the link
+      // is added at send time rather than that the quotation "has not been published yet" — which
+      // reads as a fault to the person approving it.
+      expect(message).toContain("added when you send");
     });
 
     // Fixing the default is not enough on its own: a draft saved before the fix keeps whatever note

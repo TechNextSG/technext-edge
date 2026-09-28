@@ -505,7 +505,11 @@ export async function synthesizeConfirmedQuotationReply(
   const deterministicMessage = [
     `Hi ${draft.guestName}! Your quotation for ${draft.checkIn} to ${draft.checkOut} (${draft.nights} nights) is ready to look at here:`,
     ``,
-    guestLink ?? "(no link — this quotation has not been published yet)",
+    // No link yet means this text is being shown as the APPROVAL preview, not sent: the send rebuilds
+    // the message from the record once the link exists. Printing "(no link — this quotation has not
+    // been published yet)" put a placeholder in front of staff on the approval screen, where the
+    // question is not whether a link exists but whether the guest should get one.
+    guestLink ?? "(the guest's own link is added when you send this)",
     sample
       ? `\n⚠️ Sample prices — these are example figures from our booking engine while it is being set up, not a final quote.`
       : ``,
