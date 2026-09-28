@@ -48,6 +48,19 @@ không phải đọc `issues[]` của họ:
 | `unexpected` | 502 | Engine trả về thứ không nhận ra (kể cả trang HTML — thường là sau SSO) |
 | `closed` / `busy` / `unknown` | 409 / 503 / 502 | Chỉ ở `/submit`: engine đóng, đang bận, hoặc **có thể đã tạo folio** — `unknown` thì tuyệt đối không retry mù |
 
+## Xoá record — `POST /v1/quotes/cleanup-duplicates`
+
+Route duy nhất trong sản phẩm **xoá** một record nghiệp vụ, nên nó có luật riêng:
+
+- **Dry by default.** Không có `{ confirm: true }` thì không xoá gì; câu trả lời liệt kê
+  `wouldRemove`, `refused`, `notFound`.
+- **Hai cách chỉ định**: không tham số → luật trùng lặp (`duplicateQuotationIds`: giữ bản mới nhất
+  theo số điện thoại); hoặc `{ ids: ["QT-…"] }` → xoá đúng những record được nêu (dùng cho rác không
+  trùng với gì: record probe, nháp của lần test tay).
+- **Ba thứ không bao giờ bị xoá**, dù có nêu tên (`deletableByCleanup`): record **đã publish** (khách
+  có thể đang giữ link), record **đã được sửa** (`staffEdits` — công của một người), và **record seed**
+  (`seedVersion` — thứ màn hình lạnh hiển thị). Chúng xuất hiện trong `refused`, không im lặng bỏ qua.
+
 ## Ranh giới "enquiry" (không có mã, nhưng đổi trạng thái record)
 
 Không phải lỗi, nhưng trang cần biết vì nó đổi thứ đang hiển thị:
