@@ -180,7 +180,7 @@ export interface HonoToolCallTrace {
   };
   result: {
     quoteId: string;
-    status: "pending_hono_review" | "confirmed_by_hono";
+    status: "pending_hono_review" | "confirmed_by_hono" | "cancelled";
     quotationUrl: string;
     honoEditorUrl: string;
     totalAmount: number;
