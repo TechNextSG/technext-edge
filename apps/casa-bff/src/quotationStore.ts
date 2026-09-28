@@ -4,6 +4,7 @@ import {
   buildBffTrip,
   normalizePricing,
   recalculateQuotationTotals,
+  guestLinkFor,
   type HonoQuotationDraft,
   type Trip,
 } from "../../../packages/extractor/src/index.js";
@@ -300,6 +301,8 @@ export function renderHonoQuotationEditorHtml(
   const enginePriced = Boolean(draft.estimator?.id);
   const approved = draft.status === "confirmed_by_hono";
   const archived = draft.status === "cancelled";
+  /** The link the guest will actually be sent: our copy when their app lost theirs. */
+  const guestLink = guestLinkFor(draft);
 
   const statusLabel = archived
     ? "Archived"
@@ -1262,10 +1265,23 @@ ${themeCss()}
         </div>
 
         <div class="link-editor-bar">
-          <input type="text" id="input-quotation-url" value="${esc(draft.estimator?.guestUrl || "")}" placeholder="No link yet — it appears here when you send" readonly title="The guest's quotation link" />
+          <input type="text" id="input-quotation-url" value="${esc(guestLink ?? "")}" placeholder="No link yet — it appears here when you send" readonly title="The guest's quotation link" />
           <button class="btn btn-outline" onclick="copyQuoteLink()" ${published ? "" : "disabled"}>Copy link</button>
-          <a class="btn btn-outline" id="btn-open-public-quote" href="${esc(draft.estimator?.guestUrl || "#")}" target="_blank" rel="noopener" style="${published ? "" : "display:none;"}">Open guest page &rarr;</a>
+          <a class="btn btn-outline" id="btn-open-public-quote" href="${esc(guestLink ?? "#")}" target="_blank" rel="noopener" style="${published ? "" : "display:none;"}">Open guest page &rarr;</a>
         </div>
+
+        ${
+          // When their app could not hold the link it issued, the guest is sent OUR copy of the same
+          // frozen revision. Staff are told, because "why is the link not on the customer's domain"
+          // is a fair question to be asked in a demo — and because it is their deployment's fault,
+          // not this quotation's.
+          draft.estimator?.mirrorUrl
+            ? `<div style="margin-top:12px;padding:12px 14px;border-radius:10px;background:var(--amber-soft);border-left:5px solid var(--amber);font-size:13px;font-weight:600;">
+          <strong>The guest's link is a copy on our own page.</strong> ${esc(draft.estimator.mirrorReason ?? "")}
+          <br><span style="color:var(--muted);">Their app's link: ${esc(draft.estimator.guestUrl ?? "(none)")}</span>
+        </div>`
+            : ""
+        }
 
         <div style="margin-top:16px;display:flex;gap:12px;align-items:center;flex-wrap:wrap;">
           <label style="font-size:14px;font-weight:800;">Guest's WhatsApp number</label>

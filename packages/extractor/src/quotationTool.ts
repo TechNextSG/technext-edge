@@ -159,6 +159,27 @@ export interface QuotationEstimatorState {
   guestUrl: string | null;
   /** When the link was minted. After this the quotation is read-only: see Q-005. */
   sharedAt: string | null;
+  /**
+   * Our own copy of the same frozen revision, set ONLY when their link failed a check at publish.
+   *
+   * Their demo deployment keeps scenarios and share tokens in one serverless instance's memory
+   * (measured: a verified token answered 404 twelve times in a row a minute later), and a guest
+   * holding a dead link is worse than a guest reading a copy. `guestLinkFor()` prefers this when it
+   * is set, and `publish` never sets it while their link works — so this is a fallback, not a second
+   * guest page. What it may render is pinned in `apps/casa-bff/src/guestQuotationCopy.ts`.
+   */
+  mirrorUrl?: string | null;
+  /** Why the copy was needed, in one sentence, for the studio. Never shown to a guest. */
+  mirrorReason?: string | null;
+}
+
+/**
+ * The link to show the guest and to put in the message: our copy when their app lost the link,
+ * otherwise theirs. One place, so the studio, the message and the send guard cannot disagree about
+ * which link the guest is holding.
+ */
+export function guestLinkFor(draft: HonoQuotationDraft): string | null {
+  return draft.estimator?.mirrorUrl ?? draft.estimator?.guestUrl ?? null;
 }
 
 export interface HonoToolCallTrace {
@@ -497,7 +518,9 @@ export async function synthesizeConfirmedQuotationReply(
   draft: HonoQuotationDraft,
   provider?: ExtractProvider
 ): Promise<string> {
-  const guestLink = draft.estimator?.guestUrl ?? null;
+  // `guestLinkFor`, not `estimator.guestUrl`: when their app lost the link it issued, the guest is
+  // sent our copy of the same revision, and the message has to carry the link that opens.
+  const guestLink = guestLinkFor(draft);
   const sample = Boolean(draft.pricing?.sample);
   const note = guestSafeStaffNotes(draft.staffNotes);
   const rooms = draft.bffTrip?.rooms ?? [];

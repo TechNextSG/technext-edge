@@ -32,6 +32,7 @@ import {
   normalizePricing,
   diffBffTrip,
   pricedFactsChanged,
+  guestLinkFor,
   synthesizeConfirmedQuotationReply,
   type ConversationTurn,
   type ExtractProvider,
@@ -42,6 +43,7 @@ import {
 } from "../../../packages/extractor/src/index.js";
 import { BffTrip } from "../../../packages/extractor/src/schema.js";
 import { TEST_PAGE_HTML } from "./testPage.js";
+import { renderGuestQuotationCopyHtml } from "./guestQuotationCopy.js";
 import {
   getIndexHtml,
   getBenchmarkHtml,
@@ -1146,7 +1148,21 @@ export function createApp(options: AppOptions = {}) {
     // the thing the whole Đợt 1 change exists to retire. A published quotation now forwards to the
     // link the customer's own app minted, so there is exactly one place a guest reads a price, and
     // that price is Odoo's.
+    //
+    // The one exception is `mirrorUrl`: when their app could not hold the link it issued, the guest
+    // is sent THIS url instead, and it renders the engine's stored answer for that same revision —
+    // see `guestQuotationCopy.ts` for what that page may and may not contain. It is set only at
+    // publish, only after their link failed a check, and only for a record staff have approved.
     const guestUrl = found.estimator?.guestUrl;
+    if (found.estimator?.mirrorUrl && found.status !== "cancelled") {
+      return c.html(
+        renderGuestQuotationCopyHtml(found, {
+          replyUrl: `https://wa.me/?text=${encodeURIComponent(
+            "Hello Casa Escondida, I am looking at my quotation and have a question.",
+          )}`,
+        }),
+      );
+    }
     if (found.status === "cancelled") {
       if (c.req.header("accept")?.includes("text/html")) {
         return c.html(
@@ -2133,24 +2149,26 @@ export function createApp(options: AppOptions = {}) {
     // A 200 from their `share` is not evidence that the guest can read the quotation: measured on
     // their fixture deployment (2026-09-28), the same token answered 200 seventeen times and 404
     // seven times in one run of 24 parallel requests — that deployment keeps share tokens in the
-    // memory of a single serverless instance. Sending a guest a link that only some requests can
-    // resolve is the worst thing this product can hand out, so publishing refuses and the record
-    // stays unpublished (nothing is frozen on the guest's side, and trying again is safe).
+    // memory of a single serverless instance, and a later real test had a freshly verified link
+    // answer 404 twelve times in a row one minute after publishing it.
+    //
+    // So when their link does not open, the guest gets OUR copy of the same frozen revision instead
+    // of a dead link. Their link stays on the record (`guestUrl`) and the copy is recorded beside it
+    // (`mirrorUrl`) with the reason, so nothing is hidden — the studio says which link the guest
+    // holds and why. `guestLinkFor()` is the single place that decides.
+    let mirrorUrl: string | null = null;
+    let mirrorReason: string | null = null;
     if (guestUrl && estimator.kind === "remote") {
       const check = await estimator.verifyGuestLink(guestUrl);
       if (!check.ok) {
-        return c.json(
-          {
-            ok: false,
-            reason: "link_unverified",
-            detail:
-              check.reason === "not_found"
-                ? "the guest link was created but does not open — the booking app did not recognise it. Nothing is published; try again."
-                : `the guest link could not be checked: ${check.detail}`,
-            guestUrl,
-          },
-          502,
-        );
+        const origin = new URL(c.req.url).origin;
+        mirrorUrl = `${origin}/q/${encodeURIComponent(existing.slug)}`;
+        mirrorReason =
+          check.reason === "not_found"
+            ? "the booking app did not recognise the link it had just issued, so the guest gets a copy of the same revision on our own page"
+            : `the booking app could not be asked for the link (${check.reason}: ${check.detail}), so the guest gets a copy of the same revision on our own page`;
+        // eslint-disable-next-line no-console
+        console.warn(`[casa-bff] publish ${existing.quoteId}: their link failed verification (${check.reason}); using our copy`);
       }
     }
 
@@ -2161,12 +2179,18 @@ export function createApp(options: AppOptions = {}) {
         seq: committed.seq,
         guestUrl,
         sharedAt: new Date().toISOString(),
+        mirrorUrl,
+        mirrorReason,
       },
     });
 
     return c.json({
       ok: true,
       guestUrl,
+      // The link the guest will actually be sent: our copy when theirs does not open.
+      guestLink: guestLinkFor(saved),
+      mirrorUrl,
+      mirrorReason,
       seq: committed.seq,
       expiresAt: shared.expiresAt,
       sample: Boolean(existing.pricing?.sample),
@@ -2338,7 +2362,8 @@ export function createApp(options: AppOptions = {}) {
         409,
       );
     }
-    const guestUrl = existing.estimator?.guestUrl ?? null;
+    // The link the guest will actually hold: our copy when their app lost the one it issued.
+    const guestUrl = guestLinkFor(existing);
     if (!existing.estimator?.sharedAt || !guestUrl) {
       return c.json(
         {
@@ -2353,9 +2378,14 @@ export function createApp(options: AppOptions = {}) {
 
     // The message is the last chance to notice a dead link, and the only one that matters: after
     // this, a guest is holding it. See the note in `/publish` — their fixture deployment has
-    // answered 404 for a token it minted itself. A port with no guest app (the simulated one) cannot
-    // answer the question, so it is not asked.
-    if (estimator.kind === "remote") {
+    // answered 404 for a token it minted itself.
+    //
+    // The check is only asked about THEIR link. Our own copy is rendered from the record on every
+    // request (`/q/:slug`), so there is no stored token to lose; asking ourselves over HTTP would
+    // add a round trip and prove nothing. A port with no guest app (the simulated one) cannot answer
+    // the question at all, so it is not asked.
+    const isOurCopy = Boolean(existing.estimator?.mirrorUrl);
+    if (!isOurCopy && estimator.kind === "remote") {
       const linkCheck = await estimator.verifyGuestLink(guestUrl);
       if (!linkCheck.ok) {
         return c.json(

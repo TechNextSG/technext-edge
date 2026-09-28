@@ -171,8 +171,11 @@ describe("publishing a guest link", () => {
    * their app had just minted answered 200 seventeen times and 404 seven times in one run of 24
    * parallel requests. A guest who opens the link on a bad draw reads "this quote link is not valid
    * or has expired", and staff have no way to know that from the studio.
+   *
+   * So the guest does not get that link. They get OUR copy of the same frozen revision, and the
+   * record keeps both — their link, and the copy with the reason it was needed.
    */
-  it("refuses to call a link published when the guest's app does not open it", async () => {
+  it("falls back to our own copy when the guest's app does not open the link it just issued", async () => {
     const draft = await pricedQuote("QT-PUB-UNVERIFIED");
     const fetchImpl = vi.fn(async (url: string) => {
       if (String(url).endsWith("/commit")) {
@@ -194,17 +197,39 @@ describe("publishing a guest link", () => {
     const res = await publish(app, draft.quoteId, { acknowledgeSample: true });
     const body = await res.json();
 
-    expect(res.status).toBe(502);
-    expect(body.reason).toBe("link_unverified");
-    expect(body.detail).toContain("does not open");
-    // Nothing was frozen on the guest's side, and the record is not published — so trying again is
-    // safe rather than a second link for the same quotation.
+    expect(res.status).toBe(200);
+    // Their link is kept (it is what their app said), and the copy is what the guest is sent.
+    expect(body.guestUrl).toBe("https://quotes.customer.test/quote/tok-dead");
+    expect(body.mirrorUrl).toContain(`/q/${draft.slug}`);
+    expect(body.guestLink).toBe(body.mirrorUrl);
+    expect(body.mirrorReason).toContain("did not recognise the link");
+
     const stored = await (await app.request(`/v1/quotes/${draft.quoteId}${STAFF}`)).json();
-    expect(stored.quotation.estimator.sharedAt).toBeNull();
-    expect(stored.quotation.estimator.guestUrl).toBeNull();
+    expect(stored.quotation.estimator.mirrorUrl).toBe(body.mirrorUrl);
+    expect(stored.quotation.estimator.sharedAt).toEqual(expect.any(String));
+
+    // The copy is a page of ours and it opens: `/q/:slug` renders the engine's stored answer.
+    const copy = await app.request(`/q/${draft.slug}`, { headers: { accept: "text/html" } });
+    expect(copy.status).toBe(200);
+    const html = await copy.text();
+    expect(html).toContain("here is your quotation");
+    expect(html).toContain("Ana");
+    expect(html).toContain("2026-11-20");
+    // No revenue on this fixture's pricing: the page must show NO figure rather than invent one. A
+    // page that filled the gap with our own arithmetic is the page this whole flow retired.
+    expect(html).not.toContain("₱");
+
+    // With the engine's own figure on the record, the copy shows that figure and says where it is from.
+    await saveQuotationDraft({
+      ...stored.quotation,
+      pricing: { ...stored.quotation.pricing, kpis: { ...stored.quotation.pricing.kpis, revenue: 31_200 } },
+    });
+    const withTotal = await (await app.request(`/q/${draft.slug}`, { headers: { accept: "text/html" } })).text();
+    expect(withTotal).toContain("₱31,200");
+    expect(withTotal).toContain("Total, from the resort's booking engine");
   });
 
-  it("publishes when the link opens, and only then", async () => {
+  it("keeps their link, and no copy, when their app opens what it issued", async () => {
     const draft = await pricedQuote("QT-PUB-VERIFIED");
     const asked: string[] = [];
     const fetchImpl = vi.fn(async (url: string) => {
@@ -227,6 +252,8 @@ describe("publishing a guest link", () => {
     const body = await (await publish(app, draft.quoteId, { acknowledgeSample: true })).json();
 
     expect(body.guestUrl).toBe("https://quotes.customer.test/quote/tok-live");
+    expect(body.guestLink).toBe(body.guestUrl);
+    expect(body.mirrorUrl).toBeNull();
     // The check is the guest's own request: their `/api/share/<token>`, not their share endpoint.
     expect(asked.some((u) => u.endsWith("/api/share/tok-live"))).toBe(true);
   });

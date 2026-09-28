@@ -73,6 +73,7 @@ export {
   recalculateQuotationTotals,
   synthesizeConfirmedQuotationReply,
   guestSafeStaffNotes,
+  guestLinkFor,
 } from "./quotationTool.js";
 export type {
   QuotationLineItem,
@@ -81,6 +82,7 @@ export type {
   QuotationSubmission,
   QuotationSubmissionState,
   QuotationContact,
+  QuotationEstimatorState,
 } from "./quotationTool.js";
 
 
