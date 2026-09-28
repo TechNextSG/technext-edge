@@ -1663,7 +1663,7 @@ export function createApp(options: AppOptions = {}) {
     if (correctedFields.length > 0) {
       merged.staffEdits = [
         ...(existing.staffEdits ?? []),
-        { at: new Date().toISOString(), fields: correctedFields },
+        { at: new Date().toISOString(), fields: correctedFields, source: "approve" },
       ];
     }
     const saved = await saveQuotationDraft(merged);
@@ -1920,7 +1920,7 @@ export function createApp(options: AppOptions = {}) {
     const changedFields = diffBffTrip(existing.bffTrip, parsed.data);
     const staffEdits = [...(existing.staffEdits ?? [])];
     if (changedFields.length > 0) {
-      staffEdits.push({ at: new Date().toISOString(), fields: changedFields });
+      staffEdits.push({ at: new Date().toISOString(), fields: changedFields, source: "trip" });
     }
     // One save, and it is the edited trip that goes in: the price, the scenario id the engine just
     // answered with, and the corrected trip all have to move together, or the quotation ends up

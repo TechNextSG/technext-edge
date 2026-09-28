@@ -414,6 +414,8 @@ describe("approving is a claim about a trip as well as a price", () => {
     // however it arrived — and the trip itself stays what the price was computed from.
     const stored = await liveQuotation(phone);
     expect(stored.staffEdits?.at(-1)?.fields).toContain("guests[0].name");
+    // Marked, so a reader can tell a deliberate save from a correction that came with an approval.
+    expect(stored.staffEdits?.at(-1)?.source).toBe("approve");
     expect(stored.bffTrip?.guests[0]?.name).toBe(draft.bffTrip?.guests[0]?.name);
   });
 });

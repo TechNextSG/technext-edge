@@ -27,6 +27,13 @@ import type { BffGuest, BffTrip } from "./schema.js";
 export interface StaffTripEdit {
   at: string;
   fields: string[];
+  /**
+   * Which route recorded it. `/trip` is a save from the trip review panel; `/confirm` is an approval
+   * that arrived carrying a correction. Both count towards the extractor's scorecard — a correction
+   * is a correction — but a reader of the record can tell a deliberate save from something that came
+   * in with the approval. Absent on edits recorded before this field existed.
+   */
+  source?: "trip" | "approve";
 }
 
 /** Stable string/JSON form of a leaf value, so `undefined` and a missing key compare equal. */
