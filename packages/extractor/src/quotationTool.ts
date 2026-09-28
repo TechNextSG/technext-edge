@@ -63,7 +63,7 @@ export interface QuotationSubmission {
 
 export interface HonoQuotationDraft {  quoteId: string;
   slug: string;
-  status: "pending_hono_review" | "confirmed_by_hono";
+  status: "pending_hono_review" | "confirmed_by_hono" | "cancelled";
   createdAt: string;
   updatedAt: string;
   confirmedAt?: string;

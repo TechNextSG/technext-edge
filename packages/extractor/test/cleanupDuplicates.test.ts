@@ -148,4 +148,31 @@ describe("cleaning up duplicate quotations", () => {
       vi.useRealTimers();
     }
   });
+
+  it("cancelling a quotation archives it and serves a polite 410 on its guest link", async () => {
+    const draft = await stored("QT-CANCEL-1", "639170000099", "2026-09-28T04:00:00Z");
+    const app = createApp();
+
+    // Cancel requires staff session
+    const unauth = await app.request(`/v1/quotes/${draft.quoteId}/cancel`, { method: "POST" });
+    expect(unauth.status).toBe(401);
+
+    // Cancel successfully
+    const res = await app.request(`/v1/quotes/${draft.quoteId}/cancel?token=${VERIFY_TOKEN}`, { method: "POST" });
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body.ok).toBe(true);
+    expect(body.quotation.status).toBe("cancelled");
+
+    // Guest link serves cancelled notice
+    const guestHtml = await (await app.request(`/q/${draft.slug}`, { headers: { accept: "text/html" } })).text();
+    expect(guestHtml).toContain("Quotation Cancelled");
+    expect(guestHtml).toContain("expired or was cancelled");
+
+    // Studio shows cancelled banner and badge
+    const studioHtml = await (await app.request(`/quotes/${draft.quoteId}?token=${VERIFY_TOKEN}`)).text();
+    expect(studioHtml).toContain("This quotation has been CANCELLED / ARCHIVED");
+    expect(studioHtml).toContain("Cancelled / Archived");
+  });
 });
+

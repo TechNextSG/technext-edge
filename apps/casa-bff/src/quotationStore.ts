@@ -779,6 +779,7 @@ ${themeCss()}
         <div style="display:flex;gap:4px;margin-bottom:12px;background:var(--surface-2);padding:4px;border-radius:8px;">
           <button type="button" class="tab-btn active" id="tab-needs-review" onclick="setQuoteFilter('needs-review')">Needs Review</button>
           <button type="button" class="tab-btn" id="tab-approved" onclick="setQuoteFilter('approved')">Approved</button>
+          <button type="button" class="tab-btn" id="tab-cancelled" onclick="setQuoteFilter('cancelled')">Archived</button>
           <button type="button" class="tab-btn" id="tab-all" onclick="setQuoteFilter('all')">All</button>
         </div>
         <div id="quote-sidebar-list"></div>
@@ -787,6 +788,14 @@ ${themeCss()}
 
     <!-- Main Studio -->
     <main>
+      ${
+        draft.status === "cancelled"
+          ? `<div style="margin-bottom:18px;padding:14px 18px;border-radius:12px;background:rgba(244,63,94,0.1);border:2px solid #f43f5e;color:#e11d48;font-weight:700;display:flex;justify-content:space-between;align-items:center;">
+        <span>This quotation has been CANCELLED / ARCHIVED.</span>
+        <span style="font-size:13px;font-weight:600;color:var(--muted);">Excluded from active review queue</span>
+      </div>`
+          : ""
+      }
       <!-- STEP 1: Guest Information -->
       <div class="card">
         <div class="card-title">
@@ -794,6 +803,8 @@ ${themeCss()}
           ${
             draft.status === "confirmed_by_hono"
               ? `<span id="quote-status-badge" class="status-pill status-confirmed">Confirmed by Hono</span>`
+              : draft.status === "cancelled"
+              ? `<span id="quote-status-badge" class="status-pill" style="background:rgba(244,63,94,0.15);color:#e11d48;border:1px solid #f43f5e;">Cancelled / Archived</span>`
               : `<span id="quote-status-badge" class="status-pill status-pending">Waiting for Staff Approval</span>`
           }
         </div>
@@ -945,8 +956,9 @@ ${themeCss()}
         </div>
 
         <div class="staff-only" style="margin-top:24px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:14px;padding-top:18px;border-top:2px solid var(--border);">
-          <div style="display:flex;align-items:center;gap:12px;">
+          <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
             <button class="btn btn-outline" onclick="saveEditsOnly()" id="btn-save-draft">Save Draft</button>
+            <button class="btn btn-outline" onclick="cancelQuotationAction()" id="btn-cancel-quote" style="color:var(--rose, #f43f5e);border-color:var(--rose, #f43f5e);">Cancel Quote</button>
             <span id="save-toast" style="font-size:15px;font-weight:700;color:var(--emerald);"></span>
           </div>
           <button class="btn btn-emerald" onclick="confirmAndSendToAI()" id="btn-confirm-hono" style="padding:12px 24px;font-size:15px;">
@@ -959,7 +971,9 @@ ${themeCss()}
       <div class="card staff-only" id="ai-response-card">
         <div class="card-title">
           <span>03 · WhatsApp Dispatch &amp; Guest Link</span>
-          <span style="font-size:14px;font-weight:800;color:var(--emerald);">Ready to Send</span>
+          <span id="step3-status-badge" style="font-size:14px;font-weight:800;color:${draft.status === 'confirmed_by_hono' ? 'var(--emerald)' : 'var(--amber)'};">
+            ${draft.status === 'confirmed_by_hono' ? 'Ready to Send' : 'Awaiting Approval'}
+          </span>
         </div>
 
         <!-- The guest's link -->
@@ -982,15 +996,15 @@ ${themeCss()}
         <p style="font-size:15px;color:var(--muted);font-weight:500;">
           The WhatsApp message below is prepared with the final price and quotation link. Click Send WhatsApp to dispatch:
         </p>
-        <div class="ai-reply-box" id="ai-confirmed-reply-box">${
-          draft.aiConfirmedReply
+        <div class="ai-reply-box" id="ai-confirmed-reply-box" style="${draft.status === 'confirmed_by_hono' ? '' : 'color:var(--muted);font-style:italic;'}">${
+          draft.status === 'confirmed_by_hono' && draft.aiConfirmedReply
             ? draft.aiConfirmedReply
-            : "Waiting for approval... Please review the prices in Step 2 above and click [Approve & Quote]."
+            : "Review details in Step 2 above and click [Approve & Quote] to generate the guest link and prepare this WhatsApp message."
         }</div>
         <div style="margin-top:16px;display:flex;gap:12px;align-items:center;flex-wrap:wrap;">
           <label style="font-size:15px;font-weight:800;">Guest WhatsApp Number:</label>
           <input type="text" id="whatsapp-phone-input" class="cell-input" style="width:240px;" placeholder="e.g. 639171234567" value="${draft.phone ?? ""}" />
-          <button class="btn btn-primary" onclick="pushConfirmedQuoteToWhatsApp()" id="btn-push-wa">Send WhatsApp</button>
+          <button class="btn btn-primary" onclick="pushConfirmedQuoteToWhatsApp()" id="btn-push-wa" ${draft.status === 'confirmed_by_hono' ? '' : 'disabled style="opacity:0.5;cursor:not-allowed;"'}>Send WhatsApp</button>
           <span id="wa-toast" style="font-size:15px;font-weight:700;color:var(--accent);"></span>
         </div>
       </div>
@@ -1041,7 +1055,7 @@ ${themeCss()}
       return sym + Number(n || 0).toLocaleString('en-US');
     }
 
-    let quoteFilter = (state && state.status === 'confirmed_by_hono') ? 'approved' : 'needs-review';
+    let quoteFilter = (state && state.status === 'confirmed_by_hono') ? 'approved' : ((state && state.status === 'cancelled') ? 'cancelled' : 'needs-review');
     let quoteSearch = '';
 
     function setQuoteFilter(tab) {
@@ -1065,8 +1079,10 @@ ${themeCss()}
       
       const filtered = allQuotes.filter(q => {
         const isApproved = q.status === 'confirmed_by_hono';
-        if (quoteFilter === 'needs-review' && isApproved) return false;
-        if (quoteFilter === 'approved' && !isApproved) return false;
+        const isCancelled = q.status === 'cancelled';
+        if (quoteFilter === 'needs-review' && (isApproved || isCancelled)) return false;
+        if (quoteFilter === 'approved' && (!isApproved || isCancelled)) return false;
+        if (quoteFilter === 'cancelled' && !isCancelled) return false;
         if (quoteSearch) {
           const matchName = (q.guestName || '').toLowerCase().includes(quoteSearch);
           const matchId = (q.quoteId || '').toLowerCase().includes(quoteSearch);
@@ -1084,18 +1100,24 @@ ${themeCss()}
         return;
       }
 
-      el.innerHTML = filtered.map(q => \`
+      el.innerHTML = filtered.map(q => {
+        const isApproved = q.status === 'confirmed_by_hono';
+        const isCancelled = q.status === 'cancelled';
+        const statusLabel = isCancelled ? 'Archived' : (isApproved ? 'Approved' : 'Needs Review');
+        const statusColor = isCancelled ? 'var(--rose, #f43f5e)' : (isApproved ? 'var(--emerald)' : 'var(--amber)');
+        return \`
         <a class="quote-list-item \${q.quoteId === state.quoteId ? 'active' : ''}" href="/quotes/\${q.quoteId}\${qs}">
           <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
             <strong style="font-size:15px;color:var(--accent);">\${q.quoteId}</strong>
-            <span style="font-size:12.5px;font-weight:800;color:\${q.status === 'confirmed_by_hono' ? 'var(--emerald)' : 'var(--amber)'};">
-              \${q.status === 'confirmed_by_hono' ? 'Approved' : 'Needs Review'}
+            <span style="font-size:12.5px;font-weight:800;color:\${statusColor};">
+              \${statusLabel}
             </span>
           </div>
           <div style="font-size:15px;font-weight:700;">\${escHtml(q.guestName)}</div>
           <div style="font-size:14px;color:var(--muted);">\${q.checkIn} (\${q.nights} nights) · <strong>\${q.engineRevenue == null ? 'not priced yet' : fmtMoney(q.engineRevenue, q.currency)}</strong></div>
         </a>
-      \`).join('');
+      \`;
+      }).join('');
     }
 
     /**
@@ -1276,10 +1298,40 @@ ${themeCss()}
       if (!badge) return;
       if (state.status === 'confirmed_by_hono') {
         badge.className = 'status-pill status-confirmed';
-        badge.textContent = '✅ Confirmed by Hono & Sent to AI';
+        badge.style = '';
+        badge.textContent = 'Confirmed by Hono';
+      } else if (state.status === 'cancelled') {
+        badge.className = 'status-pill';
+        badge.style = 'background:rgba(244,63,94,0.15);color:#e11d48;border:1px solid #f43f5e;';
+        badge.textContent = 'Cancelled / Archived';
       } else {
         badge.className = 'status-pill status-pending';
-        badge.textContent = '⏳ Pending Hono Confirmation';
+        badge.style = '';
+        badge.textContent = 'Pending Hono Confirmation';
+      }
+    }
+
+    async function cancelQuotationAction() {
+      if (!confirm('Are you sure you want to cancel quotation ' + state.quoteId + '? It will be moved to Archived and removed from Needs Review.')) {
+        return;
+      }
+      const btn = document.getElementById('btn-cancel-quote');
+      if (btn) btn.disabled = true;
+      try {
+        const res = await fetch('/v1/quotes/' + encodeURIComponent(state.quoteId) + '/cancel?token=' + encodeURIComponent(staffToken()), {
+          method: 'POST'
+        });
+        const data = await res.json();
+        if (data.ok) {
+          alert('Quotation ' + state.quoteId + ' has been cancelled.');
+          window.location.reload();
+        } else {
+          alert('Failed to cancel: ' + (data.error || 'unknown'));
+        }
+      } catch (err) {
+        alert('Error: ' + (err && err.message ? err.message : String(err)));
+      } finally {
+        if (btn) btn.disabled = false;
       }
     }
 
@@ -1328,7 +1380,23 @@ ${themeCss()}
         if (data.quotation) {
           state = data.quotation;
           renderStatusBadge();
-          replyBox.textContent = data.aiReply || state.aiConfirmedReply;
+          const step3Badge = document.getElementById('step3-status-badge');
+          if (step3Badge) {
+            step3Badge.textContent = 'Ready to Send';
+            step3Badge.style.color = 'var(--emerald)';
+          }
+          const btnWa = document.getElementById('btn-push-wa');
+          if (btnWa) {
+            btnWa.disabled = false;
+            btnWa.style.opacity = '1';
+            btnWa.style.cursor = 'pointer';
+          }
+          if (replyBox) {
+            replyBox.style.color = 'var(--text)';
+            replyBox.style.fontStyle = 'normal';
+            replyBox.textContent = data.aiReply || state.aiConfirmedReply;
+          }
+          renderSidebar();
         }
       } catch (err) {
         replyBox.textContent = 'Error confirming quotation: ' + err.message;

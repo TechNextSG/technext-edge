@@ -1053,6 +1053,81 @@ export function createApp(options: AppOptions = {}) {
     // link the customer's own app minted, so there is exactly one place a guest reads a price, and
     // that price is Odoo's.
     const guestUrl = found.estimator?.guestUrl;
+    if (found.status === "cancelled") {
+      if (c.req.header("accept")?.includes("text/html")) {
+        return c.html(
+          `<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Quotation Cancelled — Casa Escondida Anilao</title>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    ${themeCss()}
+    body {
+      font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      margin: 0;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 24px 20px;
+    }
+    .card {
+      background: var(--card);
+      border: 2px solid var(--border);
+      border-radius: 20px;
+      padding: 44px 36px;
+      max-width: 520px;
+      width: 100%;
+      box-shadow: var(--shadow);
+      text-align: center;
+    }
+    .kicker {
+      font-size: 12px;
+      font-weight: 800;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: #f43f5e;
+      margin-bottom: 12px;
+    }
+    h1 {
+      font-size: 24px;
+      font-weight: 800;
+      margin: 0 0 14px;
+      color: var(--text);
+    }
+    p {
+      font-size: 15.5px;
+      line-height: 1.65;
+      color: var(--muted);
+      margin: 0 0 20px;
+    }
+    .footer {
+      font-size: 13px;
+      color: var(--muted);
+      font-weight: 500;
+      margin-top: 24px;
+    }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <div class="kicker">Casa Escondida Anilao</div>
+    <h1>Quotation Cancelled</h1>
+    <p>This quotation has expired or was cancelled by the resort reservation team. Please contact us on WhatsApp if you would like an updated quote.</p>
+    <div class="footer">Anilao, Batangas, Philippines · Thank you for your understanding</div>
+  </div>
+</body>
+</html>`,
+          410
+        );
+      }
+      return c.json({ error: "quotation_cancelled", detail: "this quotation was cancelled" }, 410);
+    }
     if (guestUrl) return c.redirect(guestUrl);
 
     // Not published yet. 410 rather than 404: the record is real, and "there is nothing to show
@@ -1457,6 +1532,23 @@ export function createApp(options: AppOptions = {}) {
     await saveQuotationDraft(saved);
     return c.json({ ok: true, quotation: saved, aiReply, estimatePreview: buildEstimatePreview(saved) });
   });
+
+  /**
+   * Cancel / Archive a quotation. Staff only.
+   */
+  app.post("/v1/quotes/:id/cancel", async (c) => {
+    if (!staffSession(c).ok) {
+      return c.json({ error: "unauthorized" }, 401);
+    }
+    const id = c.req.param("id");
+    const existing = await getQuotationByIdOrSlug(id);
+    if (!existing) return c.json({ error: "not_found" }, 404);
+    existing.status = "cancelled";
+    existing.updatedAt = new Date().toISOString();
+    const saved = await saveQuotationDraft(existing);
+    return c.json({ ok: true, quotation: saved });
+  });
+
 
   /**
    * Remove the duplicate drafts the pre-`findOpenQuotationForPhone` bug left in the store.
