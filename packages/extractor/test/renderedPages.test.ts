@@ -173,9 +173,11 @@ describe("the studio has one price, and it is the engine's", () => {
     const quotations = await listQuotations();
     const html = await (await app.request(`/quotes/${quotations[0]!.quoteId}?token=${STAFF_TOKEN}`)).text();
 
-    // The panel, its save action, and the per-day dive grid's own legend.
+    // The panel, its save action, and the per-day dive grid's own legend. ONE save for the whole
+    // review step: it stores the guest's details and sends the trip to the engine.
     expect(html).toContain('id="trip-review"');
-    expect(html).toContain("saveTripAndReprice()");
+    expect(html).toContain("saveStudio()");
+    expect(html).toContain('id="btn-save-all"');
     expect(html).toContain("D = boat dive, 3 = third dive, N = night dive");
 
     // The manual table and its arithmetic are gone, elements and handlers alike.

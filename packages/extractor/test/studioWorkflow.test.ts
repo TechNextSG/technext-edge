@@ -149,8 +149,38 @@ describe("the trip controls a group booking needs", () => {
     const base = await seed();
     const html = await studioFor(base.quoteId);
 
-    expect(html).toContain("Unsaved changes to the trip");
+    // The hint beside the single save button, and the marker the edit handlers raise.
+    expect(html).toContain("Unsaved changes. The price below still belongs to the previous trip.");
     expect(html).toContain("markTripDirty()");
+    expect(html).toContain("One save for the guest's details and the priced trip.");
+  });
+
+  it("offers exactly one save for the review step, and it prices the trip", async () => {
+    const base = await seed();
+    const html = await studioFor(base.quoteId);
+
+    // One button, wired to the one handler that stores the details AND sends the trip to the route
+    // that prices it. Two buttons asked a receptionist to know which of their edits belonged where.
+    expect(html).toContain('id="btn-save-all"');
+    expect(html).toContain("saveStudio()");
+    expect(html).not.toContain("saveEditsOnly()");
+    expect(html).not.toContain("saveTripAndReprice()");
+    expect(html).not.toContain('id="btn-save-draft"');
+    expect(html).not.toContain('id="btn-save-trip"');
+  });
+
+  it("draws the trip read-only once the guest holds the link", async () => {
+    const base = await seed();
+    const published = await saveQuotationDraft(copyOf(base, "QT-STUDIO-FROZEN", {
+      estimator: { id: "sim-seed", cookie: "ubg_sid=seed", seq: 1, guestUrl: "https://their-app.test/quote/tok-frozen", sharedAt: "2026-09-28T00:00:00.000Z" },
+    }));
+    const html = await studioFor(published.quoteId);
+
+    // Their link resolves to the newest saved revision, so a "correction" would silently change what
+    // the guest was sent. The controls are drawn disabled rather than left editable and refused.
+    expect(html).toContain("Published: this trip and its price are frozen on the guest's link.");
+    expect(html).toContain("Read-only while the guest holds the link.");
+    expect(html).toContain("const ro = frozen ? ' disabled' : ''");
   });
 });
 

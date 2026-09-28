@@ -41,10 +41,14 @@ interface Studio {
   setRoomType: (index: number, type: string) => void;
   setGuestDay: (guestId: string, date: string, kind: string, on: boolean) => void;
   setDayForAll: (date: string, kind: string, on: boolean) => void;
-  saveTripAndReprice: () => Promise<void>;
+  saveStudio: () => Promise<void>;
   confirmAndSendToAI: () => Promise<void>;
   sendToGuest: () => Promise<void>;
   syncEstimate: () => Promise<void>;
+  /** The bodies of the PUTs the page made, so a test can say what a save may contain. */
+  putBodies: string[];
+  /** What the page says next to its one save button. */
+  hint: () => string;
 }
 
 /** The page's last inline script — the studio's own — with a DOM stub around it. */
@@ -77,6 +81,7 @@ async function loadStudio(): Promise<Studio> {
   };
 
   const fetchCalls: string[] = [];
+  const putBodies: string[] = [];
   const context: Record<string, unknown> = {
     document: {
       getElementById: element,
@@ -92,12 +97,33 @@ async function loadStudio(): Promise<Studio> {
     localStorage: { getItem: () => null, setItem: () => {} },
     sessionStorage: { getItem: () => STAFF_TOKEN, setItem: () => {}, removeItem: () => {} },
     navigator: { clipboard: { writeText: () => {} } },
-    fetch: async (url: string, init?: { method?: string }) => {
-      fetchCalls.push(`${init?.method ?? "GET"} ${url}`);
-      return {
-        ok: true,
-        json: async () => ({ ok: true, quotation: {}, seq: 7, guestUrl: "https://their-app.test/quote/tok", aiReply: "ready" }),
-      };
+    fetch: async (url: string, init?: { method?: string; body?: string }) => {
+      const method = init?.method ?? "GET";
+      fetchCalls.push(`${method} ${url}`);
+      if (method === "PUT") putBodies.push(String(init?.body ?? ""));
+      // What each route answers, as the page expects it. A save and an approval echo the record,
+      // because the page re-reads its state from the answer; publishing answers with the link it
+      // minted; the two pricing routes answer with the engine's own `ok`.
+      const echo = () => runInContext("state", context) as Record<string, unknown>;
+      let body: Record<string, unknown> = {};
+      if (method === "PUT" || url.includes("/confirm")) {
+        body = { ok: true, quotation: echo(), aiReply: "ready" };
+      } else if (url.includes("/publish")) {
+        body = {
+          ok: true,
+          seq: 7,
+          guestUrl: "https://their-app.test/quote/tok",
+          quotation: {
+            ...echo(),
+            estimator: { id: "sim-1", cookie: "ubg_sid=1", seq: 7, guestUrl: "https://their-app.test/quote/tok", sharedAt: "2026-09-28T00:00:00.000Z" },
+          },
+        };
+      } else if (url.includes("/sync-estimate") || url.includes("/trip?")) {
+        body = { ok: true, sample: false, issues: [] };
+      } else if (url.includes("/send-whatsapp")) {
+        body = { ok: true, phone: "639171234567" };
+      }
+      return { ok: true, json: async () => body };
     },
     console: { log: () => {}, error: () => {}, warn: () => {} },
     setTimeout,
@@ -120,7 +146,9 @@ async function loadStudio(): Promise<Studio> {
     fetchCalls,
     element,
     notice: () => element("studio-notice").textContent,
-    ...(context as unknown as Omit<Studio, "state" | "fetchCalls" | "element" | "notice">),
+    hint: () => element("save-hint").textContent,
+    putBodies,
+    ...(context as unknown as Omit<Studio, "state" | "fetchCalls" | "element" | "notice" | "hint" | "putBodies">),
   };
 }
 
@@ -138,7 +166,7 @@ describe("the studio's own script", () => {
     expect(added.type).toBe("standard");
     // A new room changes what the engine would be asked to price, so the page says the price on
     // screen is stale rather than letting it be read as the new trip's.
-    expect(studio.notice()).toContain("Unsaved changes to the trip");
+    expect(studio.hint()).toContain("Unsaved changes. The price below still belongs to the previous trip.");
 
     studio.removeRoom(trip.rooms.length - 1);
     expect(trip.rooms).toHaveLength(before);
@@ -170,22 +198,63 @@ describe("the studio's own script", () => {
 
     studio.setDayForAll(date, "dive", true);
     expect(trip.guests.every((g) => g.days[date]?.dive === true)).toBe(true);
-    expect(studio.notice()).toContain("Unsaved changes to the trip");
+    expect(studio.hint()).toContain("Unsaved changes. The price below still belongs to the previous trip.");
 
     studio.setDayForAll(date, "dive", false);
     expect(trip.guests.every((g) => g.days[date]?.dive === false)).toBe(true);
   });
 
-  it("prices a trip nobody has priced yet by creating the scenario, not by editing one", async () => {
+  it("saves the details and prices the trip, in that order, with one button", async () => {
     const studio = await loadStudio();
     expect((studio.state.estimator as { id?: string } | null)?.id ?? null).toBeNull();
+    // Something about the trip changed, so the save has to reach the engine.
+    studio.addRoom();
 
-    await studio.saveTripAndReprice();
+    await studio.saveStudio();
 
-    // No scenario on their side yet, so `/trip` (which re-prices an existing scenario) would have
-    // been a 409. The button asks for a price instead.
-    expect(studio.fetchCalls.some((c) => c.includes("/sync-estimate"))).toBe(true);
+    // The details go to the record first, and the trip only through the route that prices it. No
+    // scenario exists on their side yet, so `/trip` (which re-prices an existing scenario) would
+    // have been a 409 — the button asks for a price instead.
+    const putAt = studio.fetchCalls.findIndex((c) => c.startsWith("PUT "));
+    const priceAt = studio.fetchCalls.findIndex((c) => c.includes("/sync-estimate"));
+    expect(studio.fetchCalls[putAt]).toContain("PUT ");
+    expect(priceAt).toBeGreaterThan(putAt);
     expect(studio.fetchCalls.some((c) => c.includes("/trip?"))).toBe(false);
+  });
+
+  it("re-prices on the existing scenario when the trip is edited and one already exists", async () => {
+    const studio = await loadStudio();
+    studio.state.estimator = { id: "sim-1", cookie: "ubg_sid=1", seq: null, guestUrl: null, sharedAt: null };
+    studio.setRoomType(0, "suite");
+
+    await studio.saveStudio();
+
+    expect(studio.fetchCalls.some((c) => c.includes("/trip?"))).toBe(true);
+    expect(studio.fetchCalls.some((c) => c.includes("/sync-estimate"))).toBe(false);
+  });
+
+  it("does not disturb a price when only the guest's details changed", async () => {
+    const studio = await loadStudio();
+    // The fixture is priced; nothing about the trip was touched.
+    expect((studio.state.pricing as unknown) ?? null).not.toBeNull();
+    studio.element("meta-guestName").value = "Ana Reyes";
+
+    await studio.saveStudio();
+
+    expect(studio.fetchCalls.some((c) => c.startsWith("PUT "))).toBe(true);
+    expect(studio.fetchCalls.some((c) => c.includes("/trip?"))).toBe(false);
+    expect(studio.fetchCalls.some((c) => c.includes("/sync-estimate"))).toBe(false);
+  });
+
+  it("never puts the trip through the plain save, because that route does not price it", async () => {
+    const studio = await loadStudio();
+    await studio.saveStudio();
+
+    // The body of the PUT is the contact fields only. Sending the trip there is what wrote an
+    // unpriced trip in the old page, and what `/confirm` refuses.
+    expect(studio.putBodies).toHaveLength(1);
+    const body = JSON.parse(studio.putBodies[0]!) as Record<string, unknown>;
+    expect(Object.keys(body).sort()).toEqual(["checkIn", "checkOut", "guestName", "phone", "staffNotes"]);
   });
 
   it("creates the guest link before it sends, because the message carries that link", async () => {

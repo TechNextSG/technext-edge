@@ -954,6 +954,15 @@ ${themeCss()}
           <span id="quote-status-badge" class="status-pill status-${statusTone}">${statusLabel}</span>
         </div>
         ${progressHtml}
+        <!-- One save for the whole review step: the guest's details AND the trip, in that order,
+             with the trip going through the route that prices it. Two buttons ("Save details",
+             "Reprice") asked a receptionist to know which of their edits belonged to which. -->
+        <div class="staff-only" style="margin-top:12px;display:flex;justify-content:space-between;align-items:center;gap:14px;flex-wrap:wrap;">
+          <div id="save-hint" style="font-size:13px;color:var(--muted);font-weight:600;">
+            ${published ? "Published: the trip and its price are frozen. Change them by starting a new quotation." : "One save for the guest's details and the priced trip."}
+          </div>
+          <button class="btn btn-primary" onclick="saveStudio()" id="btn-save-all" ${published ? "disabled" : ""}>Save &amp; get price</button>
+        </div>
         <!-- One place for anything that goes wrong. Every action writes here instead of into its own
              corner of the page, so a refusal is never missed because it appeared somewhere the eye
              was not. -->
@@ -1007,13 +1016,10 @@ ${themeCss()}
           <a class="btn btn-outline staff-only" id="btn-open-ops-sheet" href="/quotes/${encodeURIComponent(draft.quoteId)}/ops" target="_blank" style="padding:6px 14px;font-size:13px;font-weight:700;">Ops Sheet</a>
         </div>
 
-        <!-- The save for THIS card: the guest's name, the dates and the note travel as contact
-             details, not as a priced trip — so they have their own button beside them rather than a
-             shared one that would also re-price. -->
-        <div class="staff-only" style="margin-top:16px;padding-top:16px;border-top:2px solid var(--border);display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
-          <button class="btn btn-outline" onclick="saveEditsOnly()" id="btn-save-draft">Save details</button>
-          <span style="font-size:13px;color:var(--muted);font-weight:600;">Name, dates and the guest note.</span>
-          <span id="save-toast" style="font-size:14px;font-weight:700;color:var(--emerald);"></span>
+        <!-- The save for the whole review step lives at the top of this page (see the workflow
+             card): the guest's details and the trip go together. -->
+        <div class="staff-only" style="margin-top:16px;display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
+          <span style="font-size:13px;color:var(--muted);font-weight:600;">Saved with <strong>Save &amp; get price</strong>, above.</span>
         </div>
       </div>
 
@@ -1026,12 +1032,9 @@ ${themeCss()}
 
         <!-- The trip review block FIRST: verify rooms & divers before calculating price -->
         <div class="staff-only" style="margin-bottom:18px;">
-          <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;margin-bottom:10px;">
-            <div>
-              <div style="font-size:15px;font-weight:800;color:var(--text);">Trip review</div>
-              <div style="font-size:13.5px;color:var(--muted);">Add or remove rooms, set each room's type, move guests between rooms, and tick the dives and courses.</div>
-            </div>
-            <button class="btn btn-primary" onclick="saveTripAndReprice()" id="btn-save-trip">Save trip &amp; get price</button>
+          <div style="margin-bottom:10px;">
+            <div style="font-size:15px;font-weight:800;color:var(--text);">Trip review</div>
+            <div style="font-size:13.5px;color:var(--muted);">Add or remove rooms, set each room's type, move guests between rooms, and tick the dives and courses. <strong>Save &amp; get price</strong>, above, sends this to the engine.</div>
           </div>
           <div id="trip-review"></div>
         </div>
@@ -1449,18 +1452,23 @@ ${themeCss()}
       const COURSES = ['', 'dsd', 'ow', 'aow'];
       const COURSE_LABELS = { '': '— none —', dsd: 'DSD (Discover Scuba)', ow: 'Open Water', aow: 'Advanced Open Water' };
       const stayDates = datesInStay(trip.checkIn, trip.checkOut);
+      // Frozen once the guest is holding the link: their page resolves to the newest saved revision,
+      // so a "correction" here would silently change what they were sent (their Q-005). The controls
+      // are drawn read-only rather than left editable and refused later.
+      const frozen = Boolean(state.estimator && state.estimator.sharedAt);
+      const ro = frozen ? ' disabled' : '';
 
       const roomRows = trip.rooms.map((room, i) => \`
         <tr>
           <td><strong>\${escHtml(room.id || '—')}</strong></td>
           <td>
-            <select class="cell-input" onchange="setRoomType(\${i}, this.value)">
+            <select class="cell-input" onchange="setRoomType(\${i}, this.value)"\${ro}>
               \${ROOM_TYPES.map(t => \`<option value="\${t}" \${room.type === t ? 'selected' : ''}>\${t}</option>\`).join('')}
             </select>
           </td>
           <td>\${escHtml(trip.guests.filter(g => g.roomId === room.id).map(g => g.name).join(', ') || '— nobody —')}</td>
           <td style="white-space:nowrap;">
-            <button class="btn btn-outline" style="padding:4px 10px;font-size:12.5px;" onclick="removeRoom(\${i})">Remove</button>
+            \${frozen ? '' : \`<button class="btn btn-outline" style="padding:4px 10px;font-size:12.5px;" onclick="removeRoom(\${i})">Remove</button>\`}
           </td>
         </tr>\`).join('');
 
@@ -1468,36 +1476,39 @@ ${themeCss()}
         <tr>
           <td><strong>\${escHtml(guest.name)}</strong></td>
           <td>
-            <select class="cell-input" onchange="setGuestRoom('\${escHtml(guest.id)}', this.value)">
+            <select class="cell-input" onchange="setGuestRoom('\${escHtml(guest.id)}', this.value)"\${ro}>
               <option value="" \${guest.roomId ? '' : 'selected'}>— unassigned —</option>
               \${trip.rooms.map(r => \`<option value="\${escHtml(r.id)}" \${guest.roomId === r.id ? 'selected' : ''}>\${escHtml(r.id)} (\${escHtml(r.type)})\</option>\`).join('')}
             </select>
           </td>
           <td>
-            <select class="cell-input" onchange="setGuestCourse('\${escHtml(guest.id)}', this.value)">
+            <select class="cell-input" onchange="setGuestCourse('\${escHtml(guest.id)}', this.value)"\${ro}>
               \${COURSES.map(c => \`<option value="\${c}" \${((guest.courses && guest.courses[0]) || '') === c ? 'selected' : ''}>\${COURSE_LABELS[c]}</option>\`).join('')}
             </select>
           </td>
           \${stayDates.map(d => {
             const day = (guest.days && guest.days[d]) || {};
             return \`<td style="white-space:nowrap;">
-              <label title="Boat dives"><input type="checkbox" \${day.dive ? 'checked' : ''} onchange="setGuestDay('\${escHtml(guest.id)}', '\${d}', 'dive', this.checked)" /> D</label>
-              <label title="Third dive"><input type="checkbox" \${day.third ? 'checked' : ''} onchange="setGuestDay('\${escHtml(guest.id)}', '\${d}', 'third', this.checked)" /> 3</label>
-              <label title="Night dive"><input type="checkbox" \${day.night ? 'checked' : ''} onchange="setGuestDay('\${escHtml(guest.id)}', '\${d}', 'night', this.checked)" /> N</label>
+              <label title="Boat dives"><input type="checkbox" \${day.dive ? 'checked' : ''} onchange="setGuestDay('\${escHtml(guest.id)}', '\${d}', 'dive', this.checked)"\${ro} /> D</label>
+              <label title="Third dive"><input type="checkbox" \${day.third ? 'checked' : ''} onchange="setGuestDay('\${escHtml(guest.id)}', '\${d}', 'third', this.checked)"\${ro} /> 3</label>
+              <label title="Night dive"><input type="checkbox" \${day.night ? 'checked' : ''} onchange="setGuestDay('\${escHtml(guest.id)}', '\${d}', 'night', this.checked)"\${ro} /> N</label>
             </td>\`;
           }).join('')}
         </tr>\`).join('');
 
       el.innerHTML = \`
+        \${frozen ? \`<div style="margin-bottom:14px;padding:12px 14px;border-radius:10px;background:var(--amber-soft);border-left:5px solid var(--amber);font-size:13.5px;font-weight:600;">
+          Published: this trip and its price are frozen on the guest's link. Start a new quotation to change either.
+        </div>\` : ''}
         <div style="overflow-x:auto;margin-bottom:10px;">
           <table class="quote-table">
             <thead><tr><th style="width:90px;">Room</th><th style="width:150px;">Type</th><th>Guests in this room</th><th style="width:110px;"></th></tr></thead>
             <tbody>\${roomRows}</tbody>
           </table>
         </div>
-        <div style="margin-bottom:18px;">
+        \${frozen ? '' : \`<div style="margin-bottom:18px;">
           <button class="btn btn-outline" style="padding:6px 14px;font-size:13px;" onclick="addRoom()">+ Add a room</button>
-        </div>
+        </div>\`}
         <div style="overflow-x:auto;">
           <table class="quote-table">
             <thead><tr>
@@ -1507,7 +1518,7 @@ ${themeCss()}
               \${stayDates.map(d => \`<th style="text-align:center;">\${escHtml(dayLabel(d))}<br><span style="font-weight:600;color:var(--muted);">D · 3rd · Night</span></th>\`).join('')}
             </tr></thead>
             <tbody>\${guestRows}</tbody>
-            \${stayDates.length ? \`<tfoot><tr>
+            \${stayDates.length && !frozen ? \`<tfoot><tr>
               <td colspan="3" style="font-weight:800;">Everyone on this day</td>
               \${stayDates.map(d => \`<td style="white-space:nowrap;font-size:12.5px;">
                 <button class="btn btn-outline" style="padding:2px 8px;font-size:12px;" onclick="setDayForAll('\${d}','dive',true)">D all</button>
@@ -1519,7 +1530,7 @@ ${themeCss()}
           </table>
         </div>
         <p style="font-size:13px;color:var(--muted);font-weight:600;margin-top:10px;">
-          D = boat dive, 3 = third dive, N = night dive. Nothing here reaches the engine until you press <strong>Save trip &amp; get price</strong>.
+          D = boat dive, 3 = third dive, N = night dive. \${frozen ? 'Read-only while the guest holds the link.' : 'Nothing here reaches the engine until you press <strong>Save &amp; get price</strong>, at the top of the page.'}
         </p>\`;
     }
 
@@ -1627,52 +1638,13 @@ ${themeCss()}
       markTripDirty();
     }
 
-    async function saveTripAndReprice() {
-      const btn = document.getElementById('btn-save-trip');
-      if (!btn) return; // a guest session has no review panel
-      clearNotice();
-      btn.disabled = true;
-      const label = btn.textContent;
-      btn.textContent = 'Saving…';
-      try {
-        // A quotation that was never priced has no scenario on their side yet, and the trip endpoint re-prices
-        // the trip the scenario already holds — so the first save is a 'sync-estimate'. One button,
-        // in the order the workflow needs, instead of two buttons staff have to choose between.
-        const hasScenario = Boolean(state.estimator && state.estimator.id);
-        const path = hasScenario ? '/trip' : '/sync-estimate';
-        const body = hasScenario ? JSON.stringify({ trip: state.bffTrip }) : undefined;
-        const res = await fetch('/v1/quotes/' + encodeURIComponent(state.quoteId) + path + '?token=' + encodeURIComponent(staffToken()), {
-          method: 'POST',
-          headers: { 'content-type': 'application/json' },
-          body: body
-        });
-        const data = await res.json();
-        if (!data.ok) {
-          showError('Could not save the trip', data);
-          return;
-        }
-        const issues = Array.isArray(data.issues) ? data.issues : [];
-        showInfo('Trip saved and priced'
-          + (data.sample ? ' — sample prices, not a real quote.' : '.')
-          + (issues.length ? ' ' + issues.length + ' note(s) from the engine.' : '')
-          + ' Reloading…');
-        // The record is the truth: the per-guest cards, the totals and the guest's page are all
-        // rendered from it, so the page is rebuilt rather than patched.
-        window.location.reload();
-      } catch (err) {
-        showError('Could not save the trip', { detail: err && err.message ? err.message : String(err) });
-      } finally {
-        btn.disabled = false;
-        btn.textContent = label === 'Saving…' ? 'Save trip & get price' : label;
-      }
-    }
 
     /** Copy the guest's link. Only present once the quotation is published. */
     function copyQuoteLink() {
       const input = document.getElementById('input-quotation-url');
-      if (!input) return;
+      if (!input || !input.value) return;
       navigator.clipboard.writeText(input.value);
-      document.getElementById('save-toast').textContent = '📋 Link copied';
+      showInfo('Guest link copied.');
     }
 
     /**
@@ -1729,15 +1701,101 @@ ${themeCss()}
 
     /**
      * Unsaved trip corrections. Editing a room type or a dive day changes what the ENGINE would be
-     * asked to price, so the price on screen is no longer this trip's — the bar says so until the
+     * asked to price, so the price on screen is no longer this trip's — the page says so until the
      * trip is saved. Without it, a receptionist edits a room type, reads the old total as the new
      * one, and approves; that is the bug this page exists to prevent.
      */
+    let tripDirty = false;
+
     function markTripDirty() {
+      tripDirty = true;
       renderStatus();
-      const btn = document.getElementById('btn-save-trip');
-      if (btn) btn.textContent = 'Save trip & get price •';
-      showInfo('Unsaved changes to the trip. The price below still belongs to the previous trip — save to get the new one.');
+      const btn = document.getElementById('btn-save-all');
+      if (btn) btn.textContent = 'Save & get price';
+      const hint = document.getElementById('save-hint');
+      if (hint) {
+        hint.textContent = 'Unsaved changes. The price below still belongs to the previous trip.';
+        hint.style.color = 'var(--accent)';
+      }
+    }
+
+    /** The contact fields, and only those: the trip has its own route, the one that prices it. */
+    function gatherDetails() {
+      return {
+        guestName: (document.getElementById('meta-guestName').value || '').trim() || state.guestName,
+        checkIn: (document.getElementById('meta-checkIn').value || '').trim() || state.checkIn,
+        checkOut: (document.getElementById('meta-checkOut').value || '').trim() || state.checkOut,
+        staffNotes: (document.getElementById('input-staff-notes').value || '').trim(),
+        phone: (document.getElementById('whatsapp-phone-input').value || '').trim()
+      };
+    }
+
+    /**
+     * THE save. One button for the whole review step, in the order the data needs.
+     *
+     * 1. The guest's details go to the record (PUT). That route only accepts contact fields — it
+     *    will not take a trip, a price or an approval, because those arrive through the routes that
+     *    produce them (see EDITABLE_FIELDS in app.ts).
+     * 2. The trip goes to the trip route, which re-prices it, or to sync-estimate when the engine has no
+     *    scenario for this quotation yet. Both end with the price describing the trip on screen.
+     *
+     * It steps over the trip when nothing about the trip changed and a price already exists: the
+     * figure the guest reads should not move because somebody fixed a spelling.
+     */
+    async function saveStudio() {
+      const btn = document.getElementById('btn-save-all');
+      const hint = document.getElementById('save-hint');
+      clearNotice();
+      if (btn) btn.disabled = true;
+      try {
+        const details = await fetch('/v1/quotes/' + encodeURIComponent(state.quoteId) + '?token=' + encodeURIComponent(staffToken()), {
+          method: 'PUT',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify(gatherDetails())
+        });
+        const detailsData = await details.json();
+        if (!detailsData.quotation) {
+          showError('Could not save', detailsData);
+          return;
+        }
+        state = detailsData.quotation;
+
+        const published = Boolean(state.estimator && state.estimator.sharedAt);
+        const needsPrice = tripDirty || !state.pricing;
+        if (published || !needsPrice) {
+          // Nothing about the trip is pending: a published quotation must not change its trip at
+          // all, and an unchanged unpriced one has nothing new to send.
+          showInfo(published
+            ? 'Saved. This quotation is published, so its trip and price are frozen — start a new quotation for a different trip.'
+            : 'Saved.');
+          window.location.reload();
+          return;
+        }
+
+        const hasScenario = Boolean(state.estimator && state.estimator.id);
+        const res = await fetch('/v1/quotes/' + encodeURIComponent(state.quoteId) + (hasScenario ? '/trip' : '/sync-estimate') + '?token=' + encodeURIComponent(staffToken()), {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: hasScenario ? JSON.stringify({ trip: state.bffTrip }) : undefined
+        });
+        const data = await res.json();
+        if (!data.ok) {
+          // The details ARE saved at this point, and the page says which half failed.
+          showError('Saved the guest details, but not the trip', data);
+          return;
+        }
+        const issues = Array.isArray(data.issues) ? data.issues : [];
+        showInfo('Saved and priced'
+          + (data.sample ? ' — sample prices, not a real quote.' : '.')
+          + (issues.length ? ' ' + issues.length + ' note(s) from the engine.' : '')
+          + ' Reloading…');
+        window.location.reload();
+      } catch (err) {
+        showError('Could not save', { detail: err && err.message ? err.message : String(err) });
+      } finally {
+        if (btn) btn.disabled = false;
+        if (hint) hint.style.color = 'var(--muted)';
+      }
     }
 
     function copyQuoteLink() {
@@ -1770,46 +1828,12 @@ ${themeCss()}
       }
     }
 
-    function gatherPayload() {
-      state.guestName = document.getElementById('meta-guestName').value.trim() || state.guestName;
-      state.checkIn = document.getElementById('meta-checkIn').value.trim() || state.checkIn;
-      state.checkOut = document.getElementById('meta-checkOut').value.trim() || state.checkOut;
-      // quotationUrl is NOT read back from the page any more: it is the guest's published link,
-      // minted by the customer's app, and a staff member typing over it would be editing a
-      // credential. The field is read-only and only exists after Publish.
-      state.staffNotes = document.getElementById('input-staff-notes').value.trim();
-      state.phone = document.getElementById('whatsapp-phone-input').value.trim();
-      return state;
-    }
-
-    async function saveEditsOnly() {
-      const toast = document.getElementById('save-toast');
-      const payload = gatherPayload();
-      clearNotice();
-      const res = await fetch('/v1/quotes/' + encodeURIComponent(state.quoteId) + '?token=' + encodeURIComponent(staffToken()), {
-        method: 'PUT',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify(payload)
-      });
-      const data = await res.json();
-      if (data.quotation) {
-        state = data.quotation;
-        renderStatus();
-        if (toast) {
-          toast.textContent = 'Saved';
-          setTimeout(function () { toast.textContent = ''; }, 3000);
-        }
-        return;
-      }
-      showError('Could not save the guest details', data);
-    }
-
     async function confirmAndSendToAI() {
       const btn = document.getElementById('btn-confirm-hono');
       const replyBox = document.getElementById('ai-confirmed-reply-box');
       clearNotice();
       if (btn) btn.disabled = true;
-      const payload = gatherPayload();
+      const payload = gatherDetails();
       try {
         const res = await fetch('/v1/quotes/' + encodeURIComponent(state.quoteId) + '/confirm?token=' + encodeURIComponent(staffToken()), {
           method: 'POST',

@@ -1586,15 +1586,38 @@ export function createApp(options: AppOptions = {}) {
     const existing = await getQuotationByIdOrSlug(id);
     if (!existing) return c.json({ error: "not_found" }, 404);
     const body = (await c.req.json().catch(() => ({}))) as Partial<HonoQuotationDraft>;
+
+    // What a plain save may change, and why the list is short.
+    //
+    // This route used to spread whatever body it was given over the record, so one PUT could set
+    // `pricing`, `status: "confirmed_by_hono"` or `estimator.guestUrl` — i.e. approve a quotation,
+    // or hand a guest a link, without going through `/confirm` or `/publish`. The trip is excluded
+    // for the same reason from the other side: it is the *input* to a price, so it may only arrive
+    // through `/trip`, which re-prices it. (The studio's own Save used to post its whole state here,
+    // which wrote an unpriced trip — exactly the disagreement `/confirm` now refuses.)
+    const EDITABLE_FIELDS = ["guestName", "checkIn", "checkOut", "staffNotes", "phone"] as const;
+    const edits: Partial<HonoQuotationDraft> = {};
+    const seen = body as Record<string, unknown>;
+    const ignored = Object.keys(seen).filter((key) => !(EDITABLE_FIELDS as readonly string[]).includes(key));
+    for (const key of EDITABLE_FIELDS) {
+      const value = seen[key];
+      if (value !== undefined) (edits as Record<string, unknown>)[key] = value;
+    }
+
     const merged: HonoQuotationDraft = {
       ...existing,
-      ...body,
+      ...edits,
       quoteId: existing.quoteId,
       lineItems: Array.isArray(body.lineItems) ? body.lineItems : existing.lineItems,
       quotationUrl: body.quotationUrl || existing.quotationUrl,
     };
     const saved = await saveQuotationDraft(merged);
-    return c.json({ ok: true, quotation: saved, estimatePreview: buildEstimatePreview(saved) });
+    return c.json({
+      ok: true,
+      quotation: saved,
+      estimatePreview: buildEstimatePreview(saved),
+      ...(ignored.length > 0 ? { ignored } : {}),
+    });
   });
 
   app.post("/v1/quotes/:id/confirm", async (c) => {

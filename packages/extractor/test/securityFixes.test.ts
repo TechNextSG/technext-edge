@@ -270,6 +270,43 @@ describe("the sign-in page keeps the page you came from", () => {
   });
 });
 
+describe("a plain save edits the contact fields and nothing else", () => {
+  // This route used to spread whatever body it was given over the record, so one PUT could approve a
+  // quotation, set a price, or point a guest at a link — without `/confirm`, `/publish`, or the
+  // engine. The studio's one Save button posts here, so the hole was one fetch away from the UI.
+  it("cannot approve, price, publish or rewrite the trip through PUT", async () => {
+    const app = createApp();
+    const draft = await storedNasty("QT-PUT-1");
+
+    const res = await app.request(`/v1/quotes/${draft.quoteId}${STAFF}`, {
+      method: "PUT",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        guestName: "Ana Reyes",
+        status: "confirmed_by_hono",
+        confirmedBy: "Hono Reservation Studio",
+        pricing: { kpis: { revenue: 99_999 }, source: "forged", sample: false },
+        estimator: { id: "forged", cookie: null, seq: 9, guestUrl: "https://evil.test/quote/stolen", sharedAt: "2026-01-01T00:00:00.000Z" },
+        bffTrip: { rooms: [], guests: [], guestType: "agent" },
+      }),
+    });
+
+    const body = await res.json();
+    // The fields it owns are saved…
+    expect(body.quotation.guestName).toBe("Ana Reyes");
+    // …and every one it does not is ignored, with the names reported so a caller is never left
+    // believing a write happened.
+    expect(body.quotation.status).toBe("pending_hono_review");
+    expect(body.quotation.confirmedBy).toBeUndefined();
+    expect(body.quotation.pricing ?? null).toBe(draft.pricing ?? null);
+    expect(body.quotation.estimator?.guestUrl ?? null).toBeNull();
+    expect(body.quotation.bffTrip?.guestType).toBe(draft.bffTrip?.guestType);
+    for (const refused of ["status", "pricing", "estimator", "bffTrip", "confirmedBy"]) {
+      expect(body.ignored, `${refused} was not reported as ignored`).toContain(refused);
+    }
+  });
+});
+
 describe("the seeded store still works after the security changes", () => {
   it("lists quotations for staff", async () => {
     const app = createApp();
