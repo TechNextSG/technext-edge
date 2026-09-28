@@ -2173,7 +2173,8 @@ ${themeCss()}
       const sendBtn = document.getElementById('btn-next');
       clearNotice();
       if (!state.estimator || !state.estimator.sharedAt) {
-        const published = await publishQuote();
+        // false: this flow reloads once, at the end, after the message has gone out.
+        const published = await publishQuote(false);
         if (!published) return; // publishQuote() has already said why
       }
       if (sendBtn) sendBtn.disabled = true;
@@ -2350,8 +2351,15 @@ ${themeCss()}
       }
     }
 
-    /** Create the guest link. Returns true when there is a link afterwards. */
-    async function publishQuote() {
+    /**
+     * Create the guest link. Returns true when there is a link afterwards.
+     *
+     * reload is for the button that only creates the link: the link field, the "open guest page"
+     * link and the status all come from the record, and a page that said "Guest link created" while
+     * its link field stayed empty is the page arguing with itself. The send flow passes false,
+     * because it reloads once at the end of the whole action.
+     */
+    async function publishQuote(reload = true) {
       const btn = document.getElementById('btn-publish-quote');
       clearNotice();
       const ack = document.getElementById('ack-sample');
@@ -2380,6 +2388,12 @@ ${themeCss()}
         }
         showInfo('Guest link created (version ' + data.seq + ').'
           + (data.guestUrl ? '' : ' Their app is not hosted anywhere we can link to — set ESTIMATOR_BASE_URL.'));
+        if (reload) {
+          // The link field and the "open guest page" link are drawn from the record, so the page is
+          // rebuilt rather than patched — otherwise it says "created" above an empty field.
+          rememberStep(4);
+          window.location.reload();
+        }
         return true;
       } catch (err) {
         showError('Could not create the guest link', { detail: err && err.message ? err.message : String(err) });
