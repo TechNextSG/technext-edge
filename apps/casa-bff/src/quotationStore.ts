@@ -2063,7 +2063,8 @@ ${themeCss()}
           : state.status !== 'confirmed_by_hono' && published
             ? 'Published — needs approval'
             : published
-              ? 'Sent to guest'
+              // Same distinction the server-rendered pill makes: a link is not a delivery.
+              ? (state.sentToGuestAt ? 'Sent to guest' : 'Link ready — not sent')
               : priced && !enginePriced
                 ? 'Needs a price from the engine'
                 : approved
