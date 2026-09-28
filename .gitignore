@@ -16,7 +16,12 @@ packages/extractor/eval/dataset.real.json
 .vercel
 .env*
 ~$*.xlsx
-tmp-*.log
+
+# Scratch files from a one-off investigation: a probe script, a dump of a live response, a
+# measurement pass. `tmp-*.log` was the only shape covered, and a probe script is the shape that
+# actually gets written (`tmp-converse-probe.mts`, `tmp-a1-before.json`) — it has to be deleted by
+# hand before a commit, which is exactly the step somebody forgets at the end of a long session.
+tmp-*
 
 # One-off measurement scripts run by hand against a live provider key. Keeping them here
 # also keeps them out of the deployment bundle, because .vercelignore defaults to this file.

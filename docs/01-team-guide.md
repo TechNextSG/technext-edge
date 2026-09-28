@@ -140,7 +140,9 @@ repo's tsconfig and can be green while the deployment build is not.
 | `EXTRACTOR_PROVIDER` | optional | no | `gemini` (default) \| `deepseek-flash` \| `deepseek-pro`. Picks the server's default provider. |
 | `DEEPSEEK_GATEWAY_KEY` | optional | if `EXTRACTOR_PROVIDER` is a DeepSeek value | Your personal LiteLLM gateway key (Railway) — ask Anthony for one. $12 budget per person, shared across everything you use it for, not just this repo. |
 | `DEBUG_EXTRACT` | optional, dev only | no | `1` includes zod issues / stack traces in error responses. Remove after debugging — don't leave it on. |
-| `WHATSAPP_VERIFY_TOKEN` | Production + Preview | only for the WhatsApp channel | A string you invent, then paste into the Meta app dashboard *and* here. Meta never issues it — it just echoes it back on the one-time GET handshake. |
+| `WHATSAPP_VERIFY_TOKEN` | Production + Preview | only for the WhatsApp channel | A string you invent, then paste into the Meta app dashboard *and* here. Meta never issues it — it just echoes it back on the one-time GET handshake. It is **not** the staff key any more: that is `STAFF_ACCESS_KEY` (below). |
+| `STAFF_ACCESS_KEY` | Production + Preview | for the studio | The key a person types on `/login`. Deliberately separate from `WHATSAPP_VERIFY_TOKEN`: one string doing both jobs meant rotating either one broke the other, and the staff key had to live wherever the webhook was configured. Unset, the app falls back to `WHATSAPP_VERIFY_TOKEN` so an existing deployment is not locked out — set it. |
+| `RESORT_WHATSAPP_NUMBER` | Production + Preview | for the guest copy page | The WhatsApp number a guest replies to, digits only (`15551506595`). Unset, our copy of a quotation shows no reply button at all, because `wa.me/?text=…` with no number opens WhatsApp on an empty "choose a chat" screen. |
 | `WHATSAPP_APP_SECRET` | Production + Preview | only for the WhatsApp channel | Meta app secret. Verifies `X-Hub-Signature-256` on every inbound message; with it unset the webhook 500s rather than trusting whoever finds the public URL. |
 | `WHATSAPP_ACCESS_TOKEN` | Production + Preview | only for the WhatsApp channel | **System user token** (never expires) for the phone number — §6 explains how to mint one. Without it the webhook still acks Meta but cannot reply to the guest. |
 | `WHATSAPP_PHONE_NUMBER_ID` | Production + Preview | only for the WhatsApp channel | The WhatsApp Business phone number's **ID**, not the number. |
@@ -751,9 +753,13 @@ node packages/extractor/eval/runner.mjs --provider deepseek-flash
   `/q/:slug` cannot take a credential: it is the link staff paste into WhatsApp and guests have
   no account. So the slug **is** the credential and is now a UUID (122 bits); an unknown slug is
   a 404. `GET /v1/quotes`, `GET /quotes`, `GET/PUT /v1/quotes/:id` and
-  `POST /v1/quotes/:id/confirm` require `x-verify-token` (the same `WHATSAPP_VERIFY_TOKEN` the
-  handoff routes use — no new env var), and they **fail closed**: with no token configured they
-  are unreachable, not open.
+  `POST /v1/quotes/:id/confirm` require a staff session: the `casa_gais_session` cookie from
+  `/login` (signed with `STAFF_ACCESS_KEY`), or `x-verify-token` / `?token=` for scripts. Those
+  token paths still read `WHATSAPP_VERIFY_TOKEN` — a leftover from when one string did both jobs,
+  and the reason `STAFF_ACCESS_KEY` exists (see the env table in §2) — and they **fail closed**:
+  with no token configured they are unreachable, not open. `/v1/quotes/:id/cancel` and
+  `/v1/quotes/cleanup-duplicates` additionally require the **staff** role, because a cancelled
+  quotation answers 410 on a guest's link and a deleted record is gone.
 
   `POST /v1/quotes/compute` is the exception that cannot take a credential, because
   `docs/ai-hono-odoo-architecture-spec.md` has the AI tool calling it in production. It used to

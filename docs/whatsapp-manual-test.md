@@ -52,7 +52,11 @@ regexes drifts").
 > test trên production mà bot vẫn gửi `/q/...` thì production đang chạy **build cũ** — xem mục cuối.
 
 Trang để kiểm chứng: `https://technext-edge-casa-bff.vercel.app`
-Staff key: **lấy từ Vercel env `WHATSAPP_VERIFY_TOKEN`** (Production). Không dán vào file này, không dán vào chat, không chụp màn hình kèm.
+Staff key: **`STAFF_ACCESS_KEY`** trên Vercel (Production) — đây là key của studio. Nếu deployment
+chưa set biến này thì nó tạm dùng `WHATSAPP_VERIFY_TOKEN`, nhưng đó chỉ là đường lùi cho deployment
+đang chạy: key studio **không** phải token webhook của Meta, và từ khi tách ra thì xoay token Meta
+không còn làm mất phiên đăng nhập của nhân viên. Không dán key vào file này, không dán vào chat,
+không chụp màn hình kèm.
 
 | Cần mở | Ở đâu |
 |---|---|
@@ -281,8 +285,12 @@ enquiry rồi hiển thị **tên của khách ở enquiry sau** bên cạnh con
      không được tới tay khách mà không có người xác nhận đã nhìn nó).
    - Thành công → link dạng `https://tn-casa-estimator-fixture.vercel.app/quote/<token>`.
    - **Link được kiểm trước khi báo thành công**: server gọi `GET /api/share/<token>` (đúng request mà
-     trang khách gọi) và từ chối bằng **502 `link_unverified`** nếu không mở được — record **không** bị
-     đánh dấu published, nên thử lại là an toàn. Nút gửi cũng kiểm lại lần nữa trước khi nhắn khách.
+     trang khách gọi). Nếu link **không** mở được thì publish **vẫn thành công**, nhưng khách sẽ được
+     gửi **bản sao trên host của mình** (`/q/<slug>`) — record giữ cả `guestUrl` lẫn `mirrorUrl` kèm lý
+     do, và studio hiện khung cảnh báo. Không còn mã `link_unverified`: từ chối publish vì lỗi của app
+     khách chỉ đẩy vấn đề sang người đang phục vụ khách. Nút gửi cũng kiểm lại lần nữa trước khi nhắn.
+   - Muốn **luôn** dùng bản sao của mình (demo trên deployment có link không bền): đặt
+     `GUEST_LINK_MODE=copy` — publish sẽ set `mirrorUrl` và ghi rõ lý do.
    - ⚠️ **Deployment fixture của khách giữ token trong bộ nhớ một instance**: cùng một token, mở 24 lần
      song song cho **200 × 17, 404 × 7**, nên link có thể 404 ngẫu nhiên dù vừa publish xong (số đo và
      cách xử lý: `docs/upstream-note-bff-vercel-deploy.md`). `GET /quote/<token>` trả 200 cho **mọi**
