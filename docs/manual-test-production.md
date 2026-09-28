@@ -5,9 +5,10 @@ Dành cho người **tự bấm tay** trên production, không dùng script. M�
 
 > **Điều phải biết trước:** deployment engine mà production đang trỏ vào là bản **fixture** của khách
 > (`tn-casa-estimator-fixture.vercel.app`). Bản đó giữ scenario + share token trong **bộ nhớ của một
-> instance serverless**, nên link có thể 404 bất cứ lúc nào dù studio vừa báo "Sent to guest". Số đo và
-> cách xử lý: `docs/upstream-note-bff-vercel-deploy.md`. Vì vậy **bước 5 dưới đây phải mở link ngay**,
-> và câu nói thật khi demo nằm ở cuối file.
+> instance serverless**, nên link có thể 404 bất cứ lúc nào — publish **không** còn từ chối vì lý do đó,
+> nó kiểm link rồi gửi **bản sao của mình** (`/q/<slug>`) nếu link khách không mở, và studio ghi rõ lý do.
+> Số đo: `docs/upstream-note-bff-vercel-deploy.md`. Vì vậy **bước 5 dưới đây phải mở link ngay**, và câu
+> nói thật khi demo nằm ở cuối file.
 
 ---
 
@@ -15,11 +16,13 @@ Dành cho người **tự bấm tay** trên production, không dùng script. M�
 
 1. **Số điện thoại của bạn phải nằm trong danh sách test của Meta app.** Số đang dùng được:
    `84359386414`. Nếu chưa có, vào Meta App → WhatsApp → API Setup → *To* → thêm số.
-2. **Lấy token staff** để mở studio (token nằm trong `.env.local`, biến `WHATSAPP_VERIFY_TOKEN`):
+2. **Lấy key staff** để mở studio. Từ 2026-09-28 key này là `STAFF_ACCESS_KEY` (không còn là
+   `WHATSAPP_VERIFY_TOKEN` — key đó Meta cũng biết, và đã lộ trong chat nên production đã đổi; token cũ
+   giờ trả **401**). Key nằm trong `.env.local`:
 
    ```powershell
    cd E:\technext-edge
-   $t = (Get-Content .env.local | Where-Object { $_ -match '^WHATSAPP_VERIFY_TOKEN=' }) -replace '^WHATSAPP_VERIFY_TOKEN=','' -replace '"',''
+   $t = (Get-Content .env.local | Where-Object { $_ -match '^STAFF_ACCESS_KEY=' }) -replace '^STAFF_ACCESS_KEY=','' -replace '"',''
    Start-Process "https://technext-edge-casa-bff.vercel.app/quotes?token=$t"
    ```
 3. **Tab thứ hai (tuỳ chọn)** — chỉ cần khi muốn cho lead thấy *tiền đổi theo dữ liệu*: tab đó là
@@ -64,7 +67,11 @@ Mở báo giá mới nhất của Ana trong sidebar (mã dạng `QT-1120-ANA-…
 | 2 | **Continue to approve →** | màn 3 · `Step 3 · Approve` · preview lời nhắn |
 | 3 | **Approve quotation** | tự sang màn 4 · `Approved — not sent yet` · nút "Create link & send" **mờ** vì chưa tick |
 | 4 | tick **I have checked this sample price** | hai nút sáng lên |
-| 5 | **Create link & send** | `Sent to guest` + ô link có URL `…/quote/<token>` |
+| 5 | **Create link & send** | `Sent to guest` + ô link có URL `…/quote/<token>` — hoặc link `/q/<slug>` của mình nếu link khách không mở được, kèm câu giải thích |
+
+> Nếu bạn bấm **Create link only** (không gửi), badge phải là **`Link ready — not sent`** và nút chính
+> đổi thành **Send the message** — không còn nói "đã gửi khách" khi thực ra chưa gửi. Đây là lỗi tìm
+> thấy trên production 2026-09-28 và đã sửa.
 
 **Trên điện thoại:** tin nhắn thứ ba từ resort, chứa **link báo giá**. Kiểm tra: tin đó **không có giá**
 của mình, có nhãn "Sample prices", và câu *"nothing is booked yet"*.
@@ -97,6 +104,19 @@ Sau khi đã Approve ở kịch bản A, nhắn tiếp từ điện thoại:
 after it was priced…"*. Bấm Approve lại mới gửi được. Đây là điều cố ý: duyệt là duyệt cho **một
 chuyến cụ thể**.
 
+### B1b. Sửa của nhân viên phải sống sót (bẫy A1 — đã sửa 2026-09-28)
+
+Nếu bạn **đã sửa chuyến trong studio** (ví dụ đổi ngày lặn từ Ana sang Ben) rồi Approve, sau đó khách
+nhắn một câu **không nói lại** thông tin đó:
+
+> One more thing: our flight lands at 4pm, everything else is as we said
+
+**Phải thấy:** bản sửa của bạn **vẫn còn** (`Ben: dive 22/11`, `Ana: no dive`), badge **vẫn
+`Sent to guest`/`Approved`** theo trạng thái thật, và một dòng cảnh báo dạng *"the guest's latest
+message would change priced facts you corrected … The corrected trip and its price were kept"*. Nếu
+thay vào đó bản sửa bị đảo lại và mất duyệt kèm câu đổ lỗi cho khách — đó là lỗi cũ, báo ngay.
+(Đo trước khi sửa: đúng y hệt như vậy, trên `QT-1121-ANA-46717280`.)
+
 ### B2. Reset là hết một enquiry
 
 Nhắn tiếp:
@@ -122,8 +142,9 @@ nói thẳng; muốn thấy số đổi thì làm ở tab sim.
 2. **Giá là của engine, không phải của mình.** Con số ₱31.200 là câu trả lời của engine; sửa chuyến thì
    payload + bản đóng băng đổi, còn fixture thì trả lại bản chụp nên số có thể đứng yên.
 3. **Link do app của quý khách phát hành.** Và: *bản demo đó chưa có database nên link chỉ sống khi
-   request rơi đúng instance; bản thật chạy Odoo thì bền.* Studio đã **từ chối gọi là published nếu
-   link không mở**, nên không có chuyện gửi link chết mà báo thành công.
+   request rơi đúng instance; bản thật chạy Odoo thì bền.* Khi link đó không mở, khách nhận **bản sao
+   cùng revision trên trang của mình** (`/q/<slug>`), studio nói rõ vì sao — không có chuyện gửi link
+   chết mà báo thành công.
 4. **Bot không tự bịa.** Nếu model viết câu sai (giá, chữ "confirmed", loại phòng khác), câu đó bị chặn
    và thay bằng bản do code dựng.
 
@@ -133,8 +154,8 @@ nói thẳng; muốn thấy số đổi thì làm ở tab sim.
 
 | Hiện tượng | Nghĩa | Làm gì |
 |---|---|---|
-| Trang khách "not valid or has expired" | Fixture của khách mất token | Bấm **Create link only** rồi mở lại **ngay**; ghi lại thời điểm |
-| Studio: *"The guest link did not open, so nothing was sent"* | Guard mới **chặn gửi link chết** | Bấm tạo link lại; nếu lặp lại → báo khách (store bền) |
+| Trang khách "not valid or has expired" | Fixture của khách mất token | Mở link `/q/<slug>` mà studio đưa (bản sao của mình), rồi ghi lại thời điểm để báo khách |
+| Studio: badge `Link ready — not sent` | Đã tạo link nhưng **chưa** gửi tin cho khách | Bấm **Send the message** — badge chỉ đổi sang `Sent to guest` sau khi gửi thật |
 | Studio: *"this price did not come from the booking engine…"* | Record có giá sample nhưng chưa có scenario | Vào **màn 2 → Get price**, rồi Approve lại |
 | Bot im lặng, hoặc trả lời *"something went wrong on our side"* | Gemini free tier 429 (15 req/phút) | Đợi ~1 phút rồi nhắn lại |
 | Tin không tới điện thoại, webhook trả `failed:1` | Meta từ chối (`#131030` = số chưa có trong danh sách test) | Thêm số vào *To* trong Meta App |
@@ -148,6 +169,7 @@ Xoá dữ liệu test khỏi queue để buổi demo sạch:
 
 ```powershell
 # đóng báo giá test (giữ record, chỉ rời khỏi queue đang làm việc)
+$t = (Get-Content .env.local | Where-Object { $_ -match '^STAFF_ACCESS_KEY=' }) -replace '^STAFF_ACCESS_KEY=','' -replace '"',''
 Invoke-RestMethod -Method Post -Uri "https://technext-edge-casa-bff.vercel.app/v1/quotes/<QUOTE_ID>/cancel?token=$t"
 ```
 
