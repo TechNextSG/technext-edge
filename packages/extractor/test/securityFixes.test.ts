@@ -6,6 +6,7 @@
 // inbox's deep link. They are grouped here so the reason they exist is readable in one place.
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { createApp } from "../../../apps/casa-bff/src/app.js";
+import { createEstimatorClient } from "../../../apps/casa-bff/src/estimatorClient.js";
 import { saveQuotationDraft, listQuotations } from "../../../apps/casa-bff/src/quotationStore.js";
 import { buildHonoQuotationDraft } from "../../../packages/extractor/src/quotationTool.js";
 import { renderLoginHtml } from "../../../apps/casa-bff/src/demoAuth.js";
@@ -304,6 +305,61 @@ describe("a plain save edits the contact fields and nothing else", () => {
     for (const refused of ["status", "pricing", "estimator", "bffTrip", "confirmedBy"]) {
       expect(body.ignored, `${refused} was not reported as ignored`).toContain(refused);
     }
+  });
+});
+
+describe("a link that stopped opening is replaced, not sent", () => {
+  // The last moment before a guest holds the link. Measured on the customer's fixture deployment:
+  // 200 six times, then 404 twelve times in a row for the same token minutes later.
+  it("sends our copy of the same revision when their link has since died", async () => {
+    const now = new Date().toISOString();
+    const draft = await saveQuotationDraft({
+      ...buildHonoQuotationDraft(tripWith("Ana"), "https://example.test", "QT-SEND-MIRROR"),
+      status: "confirmed_by_hono",
+      confirmedAt: now,
+      confirmedBy: "Hono Reservation Studio",
+      phone: "639171234567",
+      estimator: {
+        id: "scenario-1",
+        cookie: "ubg_sid=1",
+        seq: 1,
+        guestUrl: "https://their-app.test/quote/dead-token",
+        sharedAt: now,
+      },
+    });
+
+    const sent: Array<{ to: string; body: string }> = [];
+    const app = createApp({
+      estimator: createEstimatorClient({
+        baseUrl: "https://their-app.test",
+        // Their share endpoint is not called again; the guest-link check is the one that answers 404.
+        fetchImpl: (async (url: string) =>
+          new Response(JSON.stringify({ error: "not found" }), { status: 404 })) as never,
+      }),
+      sendWhatsApp: async (message) => {
+        sent.push(message);
+      },
+    });
+
+    const res = await app.request(`/v1/quotes/${draft.quoteId}/send-whatsapp${STAFF}`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ phone: "639171234567" }),
+    });
+    const body = await res.json();
+
+    // Sent, not refused: the guest gets a link that opens.
+    expect(res.status).toBe(200);
+    expect(body.mirror).toBe(true);
+    expect(body.guestLink).toContain(`/q/${draft.slug}`);
+    expect(sent).toHaveLength(1);
+    expect(sent[0]!.body).toContain(`/q/${draft.slug}`);
+    // …and their link is not in the message, because it does not open.
+    expect(sent[0]!.body).not.toContain("their-app.test/quote/dead-token");
+
+    const stored = await (await app.request(`/v1/quotes/${draft.quoteId}${STAFF}`)).json();
+    expect(stored.quotation.estimator.mirrorUrl).toContain(`/q/${draft.slug}`);
+    expect(stored.quotation.estimator.guestUrl).toBe("https://their-app.test/quote/dead-token");
   });
 });
 

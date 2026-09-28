@@ -2382,25 +2382,39 @@ export function createApp(options: AppOptions = {}) {
     //
     // The check is only asked about THEIR link. Our own copy is rendered from the record on every
     // request (`/q/:slug`), so there is no stored token to lose; asking ourselves over HTTP would
-    // add a round trip and prove nothing. A port with no guest app (the simulated one) cannot answer
-    // the question at all, so it is not asked.
-    const isOurCopy = Boolean(existing.estimator?.mirrorUrl);
-    if (!isOurCopy && estimator.kind === "remote") {
+    // The last moment before a guest holds the link, so this is where a link that has since died is
+    // caught — and the answer is not to refuse: it is to send OUR copy of the same frozen revision,
+    // which is rendered from this record on every request and cannot be lost.
+    //
+    // Measured: their demo deployment has answered 200 six times, then 404 twelve times in a row for
+    // the same token minutes later (and its scenario 404s with it). Publishing checks the link too,
+    // but a link that was fine at publish can be gone by the time somebody sends it.
+    //
+    // Our own copy needs no check: `/q/:slug` renders from the record, so there is no stored token to
+    // lose. A port with no guest app (the simulated one) cannot answer the question at all, so it is
+    // not asked.
+    let draft = existing;
+    if (!draft.estimator?.mirrorUrl && estimator.kind === "remote") {
       const linkCheck = await estimator.verifyGuestLink(guestUrl);
       if (!linkCheck.ok) {
-        return c.json(
-          {
-            ok: false,
-            reason: "link_unverified",
-            error:
-              linkCheck.reason === "not_found"
-                ? "The guest's link does not open any more, so nothing was sent. Create the link again, then send."
-                : `The guest's link could not be checked: ${linkCheck.detail}`,
+        const origin = new URL(c.req.url).origin;
+        const mirrorReason =
+          linkCheck.reason === "not_found"
+            ? "the booking app no longer recognises the link it issued, so the guest was sent a copy of the same revision on our own page"
+            : `the booking app could not be asked for the link (${linkCheck.reason}: ${linkCheck.detail}), so the guest was sent a copy of the same revision on our own page`;
+        draft = await saveQuotationDraft({
+          ...existing,
+          estimator: {
+            ...(existing.estimator ?? { id: null, cookie: null, seq: null, guestUrl: null, sharedAt: null }),
+            mirrorUrl: `${origin}/q/${encodeURIComponent(existing.slug)}`,
+            mirrorReason,
           },
-          409,
-        );
+        });
+        // eslint-disable-next-line no-console
+        console.warn(`[casa-bff] send ${id}: their link failed verification (${linkCheck.reason}); sending our copy`);
       }
     }
+    const guestLinkSent = guestLinkFor(draft) ?? guestUrl;
 
     const body = (await c.req.json().catch(() => ({}))) as { phone?: string };
     const recipient = checkRecipient(body.phone || existing.phone || "");
@@ -2417,11 +2431,19 @@ export function createApp(options: AppOptions = {}) {
     } catch {
       // No provider configured: the deterministic message is complete on its own.
     }
-    const text = await synthesizeConfirmedQuotationReply(existing, provider);
+    const text = await synthesizeConfirmedQuotationReply(draft, provider);
     const send = options.sendWhatsApp ?? createWhatsAppSender(whatsAppConfig());
     try {
       await send({ to: recipient.phone, body: text });
-      return c.json({ ok: true, phone: recipient.phone, body: text });
+      return c.json({
+        ok: true,
+        phone: recipient.phone,
+        body: text,
+        guestLink: guestLinkSent,
+        // True when the guest was sent our copy instead of the booking app's link, so the studio can
+        // say why without guessing.
+        mirror: Boolean(draft.estimator?.mirrorUrl),
+      });
     } catch (err) {
       const meta = err instanceof WhatsAppSendError ? err : null;
       // eslint-disable-next-line no-console
