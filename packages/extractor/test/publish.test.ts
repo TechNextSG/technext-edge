@@ -258,6 +258,36 @@ describe("publishing a guest link", () => {
     expect(asked.some((u) => u.endsWith("/api/share/tok-live"))).toBe(true);
   });
 
+  it("sends our copy even when their link works, when this deployment is set to", async () => {
+    // GUEST_LINK_MODE=copy: for a demo on a deployment whose links are not durable, where a guest
+    // page that may 404 at random in front of an audience is the thing to avoid.
+    const draft = await pricedQuote("QT-PUB-FORCE-COPY");
+    const fetchImpl = vi.fn(async (url: string) =>
+      String(url).endsWith("/commit")
+        ? new Response(JSON.stringify({ seq: 1 }), { status: 200, headers: { "content-type": "application/json" } })
+        : String(url).includes("/api/share/")
+          ? new Response(JSON.stringify({ seq: 1 }), { status: 200, headers: { "content-type": "application/json" } })
+          : new Response(JSON.stringify({ url: "/quote/tok-fine", expiresAt: null }), {
+              status: 200,
+              headers: { "content-type": "application/json" },
+            }),
+    );
+    const app = createApp({
+      estimator: createEstimatorClient({ baseUrl: "https://quotes.customer.test", fetchImpl: fetchImpl as never }),
+    });
+    vi.stubEnv("GUEST_LINK_MODE", "copy");
+    try {
+      const body = await (await publish(app, draft.quoteId, { acknowledgeSample: true })).json();
+      expect(body.mirrorUrl).toContain(`/q/${draft.slug}`);
+      expect(body.guestLink).toBe(body.mirrorUrl);
+      expect(body.mirrorReason).toContain("set to send our own copy");
+      // Their link is still recorded — the copy is an addition, not a replacement of the record.
+      expect(body.guestUrl).toBe("https://quotes.customer.test/quote/tok-fine");
+    } finally {
+      vi.unstubAllEnvs();
+    }
+  });
+
   it("joins the guest link to the APP host when their app is not on the API host", async () => {    // Their local dev setup splits them (`npm run dev -w bff` → API on :8787, `dev:app` → the app on
     // :5173). Joining a guest link to the API host there produces a URL that 404s while the token
     // behind it is valid — measured against their own BFF, which is why the host is configurable.

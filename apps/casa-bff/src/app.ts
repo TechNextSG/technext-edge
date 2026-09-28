@@ -2158,17 +2158,24 @@ export function createApp(options: AppOptions = {}) {
     // holds and why. `guestLinkFor()` is the single place that decides.
     let mirrorUrl: string | null = null;
     let mirrorReason: string | null = null;
+    // `GUEST_LINK_MODE=copy` sends our own copy of the quotation instead of the booking app's link,
+    // whether or not their link opens. It exists for a demo on a deployment whose links are not
+    // durable (their fixture keeps them in one instance's memory), where the alternative is a guest
+    // page that may 404 at random in front of an audience. The default is their link: the customer's
+    // app owns the frozen revision and the folio, and that is the integration being shown.
+    const forceCopy = (process.env.GUEST_LINK_MODE ?? "").trim().toLowerCase() === "copy";
     if (guestUrl && estimator.kind === "remote") {
-      const check = await estimator.verifyGuestLink(guestUrl);
+      const check = forceCopy ? ({ ok: false, reason: "not_found", detail: "this deployment is set to send our own copy" } as const) : await estimator.verifyGuestLink(guestUrl);
       if (!check.ok) {
         const origin = new URL(c.req.url).origin;
         mirrorUrl = `${origin}/q/${encodeURIComponent(existing.slug)}`;
-        mirrorReason =
-          check.reason === "not_found"
+        mirrorReason = forceCopy
+          ? "this deployment is set to send our own copy of the quotation (GUEST_LINK_MODE=copy)"
+          : check.reason === "not_found"
             ? "the booking app did not recognise the link it had just issued, so the guest gets a copy of the same revision on our own page"
             : `the booking app could not be asked for the link (${check.reason}: ${check.detail}), so the guest gets a copy of the same revision on our own page`;
         // eslint-disable-next-line no-console
-        console.warn(`[casa-bff] publish ${existing.quoteId}: their link failed verification (${check.reason}); using our copy`);
+        console.warn(`[casa-bff] publish ${existing.quoteId}: using our copy of the quotation (${forceCopy ? "configured" : check.reason})`);
       }
     }
 
