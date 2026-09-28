@@ -131,6 +131,18 @@ async function loadStudio(): Promise<Studio> {
 
   const fetchCalls: string[] = [];
   const putBodies: string[] = [];
+  /** Every POST, with its body: the trip a save sends is the thing worth asserting on. */
+  const postBodies: Array<{ url: string; body: string }> = [];
+  /**
+   * The trip the SERVER holds — which is not the same thing as the page's copy of it.
+   *
+   * The stub used to answer the details save with the page's own state, including an edit made in the
+   * memory of the page. A real server cannot do that: the trip is not one of the fields that route
+   * accepts (it may only arrive through a route that re-prices it), so it answers with the trip it
+   * already had. Modelling that is what makes this file able to see a save that sends the wrong trip —
+   * the bug it missed twice, found by hand in a browser on 2026-09-28.
+   */
+  let serverTrip: unknown = null;
   let reloads = 0;
   const context: Record<string, unknown> = {
     document: {
@@ -162,13 +174,19 @@ async function loadStudio(): Promise<Studio> {
     fetch: async (url: string, init?: { method?: string; body?: string }) => {
       const method = init?.method ?? "GET";
       fetchCalls.push(`${method} ${url}`);
-      if (method === "PUT") putBodies.push(String(init?.body ?? ""));
+      if (method === "POST") postBodies.push({ url, body: String(init?.body ?? "") });
       // What each route answers, as the page expects it. A save and an approval echo the record,
       // because the page re-reads its state from the answer; publishing answers with the link it
       // minted; the two pricing routes answer with the engine's own `ok`.
       const echo = () => runInContext("state", context) as Record<string, unknown>;
       let body: Record<string, unknown> = {};
-      if (method === "PUT" || url.includes("/confirm")) {
+      if (method === "PUT") {
+        putBodies.push(String(init?.body ?? ""));
+        // The details it accepted, over the record as stored — the trip included, unchanged. Deep-copied,
+        // because the page keeps a reference to its own trip and mutates it in place when the grid is
+        // clicked: handing back the same object would let the server's copy follow an edit it never saw.
+        body = { ok: true, quotation: { ...echo(), bffTrip: serverTrip === null ? null : JSON.parse(JSON.stringify(serverTrip)) } };
+      } else if (url.includes("/confirm")) {
         body = { ok: true, quotation: echo(), aiReply: "ready" };
       } else if (url.includes("/publish")) {
         body = {
@@ -181,6 +199,10 @@ async function loadStudio(): Promise<Studio> {
           },
         };
       } else if (url.includes("/sync-estimate") || url.includes("/trip?")) {
+        // Both routes price a trip and STORE it: `/trip` re-prices an existing scenario, and
+        // `/sync-estimate` now accepts the trip a first save posts rather than ignoring it.
+        const posted = JSON.parse(String(init?.body ?? "{}")) as { trip?: unknown };
+        if (posted.trip) serverTrip = posted.trip;
         body = { ok: true, sample: false, issues: [] };
       } else if (url.includes("/send-whatsapp")) {
         body = { ok: true, phone: "639171234567" };
@@ -198,6 +220,12 @@ async function loadStudio(): Promise<Studio> {
 
   createContext(context);
   runInContext(code, context, { filename: "studio.js" });
+  // The page script declares `state`, so the server's copy of the trip can only be read once it has
+  // run. The fetch stub above closes over this variable, so it is live for every call a test makes.
+  // Deep-copied out of the page on purpose: it stands for the server's own record, which cannot change
+  // because somebody clicked a checkbox in the browser.
+  const initialTrip = (runInContext("state", context) as { bffTrip?: unknown }).bffTrip;
+  serverTrip = initialTrip === undefined ? null : JSON.parse(JSON.stringify(initialTrip));
 
   return {
     // `let state = …` at the top of a script lives in the context's lexical scope, not on its global
@@ -207,6 +235,9 @@ async function loadStudio(): Promise<Studio> {
     },
     fetchCalls,
     putBodies,
+    postBodies,
+    /** The trip as the server holds it now, after whatever the page sent. */
+    serverTrip: () => serverTrip,
     stepButtons,
     step: () => runInContext("stepNumber()", context) as number,
     reloads: () => reloads,
@@ -347,6 +378,39 @@ describe("the studio's own script", () => {
     expect(studio.fetchCalls[putAt]).toContain("PUT ");
     expect(priceAt).toBeGreaterThan(putAt);
     expect(studio.fetchCalls.some((c) => c.includes("/trip?"))).toBe(false);
+  });
+
+  it("prices the trip the person edited, not the one the details save handed back", async () => {
+    // The bug this pins was found by hand in a browser, after the route had already been fixed: the
+    // save is two calls, and the record the PUT answers with carries the trip the server already had —
+    // because the trip is not a field that route accepts. Assigning that answer to state discarded the
+    // edit, and the second call then sent the old trip. The screen said "Saved and priced" and the
+    // record never moved.
+    //
+    // The assertion is on the trip that was POSTed, compared with the trip the grid holds — not on the
+    // ending state. An earlier version of this test checked the ending state and passed against the
+    // broken code, because the stub happened to answer with the page's own copy.
+    const studio = await loadStudio();
+    studio.state.estimator = null;
+    const trip = studio.state.bffTrip as {
+      guests: Array<{ id: string; days: Record<string, { dive?: boolean }> }>;
+    };
+    const date = Object.keys(trip.guests[0]!.days)[0]!;
+
+    // Exactly what the review grid does when a person moves a dive day to the other guest.
+    studio.setGuestDay(trip.guests[0]!.id, date, "dive", false);
+    studio.setGuestDay(trip.guests[1]!.id, date, "dive", true);
+    const asEdited = JSON.parse(JSON.stringify(studio.state.bffTrip)) as typeof trip;
+
+    await studio.saveStudio();
+
+    const pricing = studio.postBodies.find((c) => c.url.includes("/sync-estimate") || c.url.includes("/trip?"));
+    expect(pricing, "the save asked for a price").toBeTruthy();
+    const posted = (JSON.parse(pricing!.body) as { trip: typeof trip }).trip;
+
+    expect(posted.guests[0]!.days[date]?.dive ?? false).toBe(false);
+    expect(posted.guests[1]!.days[date]?.dive).toBe(true);
+    expect(posted).toEqual(asEdited);
   });
 
   it("re-prices on the existing scenario when the trip is edited and one already exists", async () => {

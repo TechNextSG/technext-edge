@@ -2402,6 +2402,17 @@ ${themeCss()}
       const hint = document.getElementById('save-hint');
       clearNotice();
       if (btn) btn.disabled = true;
+      // The trip as the person just edited it, captured BEFORE the first request.
+      //
+      // The save is two calls — the guest's details go to PUT, then the trip goes to the engine — and
+      // the PUT answers with the record as the server holds it. The trip is not one of the fields PUT
+      // accepts (it may only arrive through a route that re-prices it), so that answer carries the OLD
+      // trip, and assigning it to state threw the edit away before the second call could send it.
+      // Measured in a browser on production, 2026-09-28: a dive day moved between guests in the grid,
+      // "Save & get price" then step 2 · Priced — needs approval, and the record still had the original
+      // guest diving with staffEdits empty. The route was fixed first and this was still broken, which
+      // is precisely why the fix had to be walked by hand to be believed.
+      const tripToSave = state.bffTrip;
       try {
         const details = await fetch('/v1/quotes/' + encodeURIComponent(state.quoteId) + '?token=' + encodeURIComponent(staffToken()), {
           method: 'PUT',
@@ -2413,7 +2424,9 @@ ${themeCss()}
           showError('Could not save', detailsData);
           return;
         }
-        state = detailsData.quotation;
+        // The server's own fields (contact details, status) come back; the trip stays what the person
+        // edited, because the trip was never part of this request.
+        state = Object.assign({}, detailsData.quotation, { bffTrip: tripToSave });
 
         const published = Boolean(state.estimator && state.estimator.sharedAt);
         // "Priced" means the ENGINE priced it (estimator.id), not that a figure is on the record: a
@@ -2436,10 +2449,8 @@ ${themeCss()}
         const res = await fetch('/v1/quotes/' + encodeURIComponent(state.quoteId) + (hasScenario ? '/trip' : '/sync-estimate') + '?token=' + encodeURIComponent(staffToken()), {
           method: 'POST',
           headers: { 'content-type': 'application/json' },
-          // The trip goes to BOTH routes. The sync-estimate route used to receive no body and priced
-          // whatever was already on the record, so the first save after a person edited the review grid
-          // priced the unedited trip and threw their work away without a word (measured on production).
-          body: JSON.stringify({ trip: state.bffTrip })
+          // The trip the person edited, not the one the PUT just handed back.
+          body: JSON.stringify({ trip: tripToSave })
         });
         const data = await res.json();
         if (!data.ok) {
