@@ -386,7 +386,18 @@ export function renderHonoQuotationEditorHtml(
   // One status now, derived from the record in one place, and a four-step bar that says what is left
   // to do. Everything is SERVER-rendered first: the script can move the bar after an action, but a
   // quotation that is already approved must not read as unapproved because a script did not run.
-  const published = Boolean(draft.estimator?.sharedAt && draft.estimator?.guestUrl);
+  /**
+   * The link the guest will actually be sent: our copy when their app lost theirs.
+   *
+   * Computed before `published`, because what "published" means is "there is a link the guest can
+   * open" — and that is this link, not `estimator.guestUrl` specifically. Measured on the sim
+   * deployment, 2026-09-28: the simulated engine answers `share` with a relative path and no app host
+   * resolves it, so publishing mints our copy and leaves `guestUrl` null; the studio then called the
+   * record unpublished and said "Approved — not sent yet" about a quotation whose copy page opens
+   * perfectly, with its link sitting in the field right beside the wrong label.
+   */
+  const guestLink = guestLinkFor(draft);
+  const published = Boolean(draft.estimator?.sharedAt && guestLink);
   const priced = Boolean(draft.pricing);
   /**
    * A price is only usable for a guest link when the ENGINE has a scenario behind it: publishing
@@ -398,8 +409,6 @@ export function renderHonoQuotationEditorHtml(
   const enginePriced = Boolean(draft.estimator?.id);
   const approved = draft.status === "confirmed_by_hono";
   const archived = draft.status === "cancelled";
-  /** The link the guest will actually be sent: our copy when their app lost theirs. */
-  const guestLink = guestLinkFor(draft);
 
   const statusLabel = archived
     ? "Archived"
@@ -2058,7 +2067,9 @@ ${themeCss()}
      */
     function renderStatus() {
       const badge = document.getElementById('quote-status-badge');
-      const published = Boolean(state.estimator && state.estimator.sharedAt && state.estimator.guestUrl);
+      const published = Boolean(
+        state.estimator && state.estimator.sharedAt && (state.estimator.mirrorUrl || state.estimator.guestUrl),
+      );
       const approved = state.status === 'confirmed_by_hono';
       const archived = state.status === 'cancelled';
       const priced = Boolean(state.pricing);
@@ -2520,7 +2531,10 @@ ${themeCss()}
       const badge = document.getElementById('publish-status-badge');
       const btn = document.getElementById('btn-publish-quote');
       if (!badge || !btn) return;
-      if (state.estimator && state.estimator.guestUrl) {
+      // The same test the status pill uses: a link exists when theirs does OR ours does. A record
+      // published with our own copy has no guestUrl, and reading that as "not published" offered to
+      // create a link that was already there.
+      if (state.estimator && state.estimator.sharedAt && (state.estimator.mirrorUrl || state.estimator.guestUrl)) {
         badge.textContent = 'Link created';
         btn.disabled = true;
       } else {

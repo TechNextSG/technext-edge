@@ -106,6 +106,35 @@ describe("one status, and it is the record's", () => {
     expect(markupOnly(await studioFor(archived.quoteId))).toContain("Archived");
   });
 
+  it("calls a quotation published when the guest's link is our own copy", async () => {
+    // The simulated engine answers `share` with a relative path and no app host resolves it, so a
+    // publish mints our copy and leaves `guestUrl` null. The studio read that as unpublished and said
+    // "Approved — not sent yet" beside a link field that held a working URL — measured on the sim
+    // deployment on 2026-09-28. Published means "there is a link the guest can open", whoever hosts it.
+    const base = await seed();
+    const mirror = await saveQuotationDraft(
+      copyOf(enginePriced(base), "QT-STUDIO-MIRROR", {
+        status: "confirmed_by_hono",
+        estimator: {
+          id: "sim-mirror",
+          cookie: "ubg_sid=mirror",
+          seq: 1,
+          guestUrl: null,
+          sharedAt: "2026-09-28T00:00:00.000Z",
+          mirrorUrl: "https://bff.test/q/mirror-slug",
+          mirrorReason: "this deployment has no guest app to open the booking engine's link on",
+        },
+      }),
+    );
+
+    const markup = markupOnly(await studioFor(mirror.quoteId));
+    expect(markup).toContain("Link ready — not sent");
+    expect(markup).not.toContain("Approved — not sent yet");
+    // The step bar agrees, and the link field is the link the guest actually gets.
+    expect(markup).toContain('class="pstep done"');
+    expect(await studioFor(mirror.quoteId)).toContain("https://bff.test/q/mirror-slug");
+  });
+
   it("no longer states it twice, and never in the words that disagreed", async () => {
     const base = await seed();
     const html = await studioFor(base.quoteId);
