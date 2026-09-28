@@ -78,7 +78,11 @@ function randomSlug(): string {
 // with a link nobody can open is a bad first impression of a flow that works, so the fixture is
 // rebuilt to its pre-publish state: no estimator session, pending review, priced by the sample
 // engine. See `docs/upstream-note-bff-vercel-deploy.md` for the measurement.
-const SEED_VERSION = 4;
+//
+// v5: it happened again during the 2026-09-28 audit (published 07:10 UTC), because the only thing
+// stopping it was a version check that nobody re-runs. Same rebuild, and `/publish` now refuses the
+// fixture outright — see `seeded_fixture` in app.ts — so the third time is not a matter of chance.
+const SEED_VERSION = 5;
 
 /**
  * The fixture's trip, as the extractor would have produced it: a split-day diving group, which is
@@ -1520,6 +1524,7 @@ ${themeCss()}
       already_shared: 'This quotation is already published, and a published link cannot change. Start a new quotation instead.',
       sample_not_acknowledged: 'Tick the sample-price box before sending.',
       no_trip: 'This quotation has no trip to price.',
+      seeded_fixture: 'This record is the cold-start example in this studio. Take a real enquiry through the flow and publish that one.',
       trip_not_priceable: 'The engine cannot price this trip yet — check the fields it named.',
       invalid_trip: 'The trip is not in the shape the engine accepts.',
       phone_missing: "Enter the guest's WhatsApp number, including the country code.",

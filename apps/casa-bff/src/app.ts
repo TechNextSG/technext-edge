@@ -2278,6 +2278,25 @@ export function createApp(options: AppOptions = {}) {
     const existing = await getQuotationByIdOrSlug(c.req.param("id"));
     if (!existing) return c.json({ error: "not_found" }, 404);
 
+    // The seeded fixture is a cold-start example, not a guest's quotation.
+    //
+    // Measured twice on production (2026-09-27 and again on 2026-09-28, published 07:10 UTC): the
+    // fixture gets published during a test, the customer's demo app loses the share token it issued
+    // (one serverless instance's memory), and the first thing anybody sees on a cold start is an
+    // approved record offering to "send the message again" over a link nobody can open. Rebuilding
+    // the fixture fixes the state; this refusal is what stops it coming back, because the last fix
+    // was a version check that nobody re-runs.
+    if (typeof existing.seedVersion === "number") {
+      return c.json(
+        {
+          ok: false,
+          reason: "seeded_fixture",
+          detail:
+            "this is the studio's cold-start example, not a guest's quotation — take an enquiry through the flow and publish that instead",
+        },
+        409,
+      );
+    }
     if (!existing.bffTrip) {
       return c.json({ ok: false, reason: "no_trip", detail: "this quotation has no trip to send" }, 409);
     }

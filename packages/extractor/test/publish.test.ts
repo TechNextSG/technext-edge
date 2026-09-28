@@ -125,6 +125,26 @@ describe("publishing a guest link", () => {
     expect((await res.json()).reason).toBe("not_priced");
   });
 
+  it("refuses to publish the studio's cold-start fixture", async () => {
+    // Measured twice on production: the fixture gets published during a test, the customer's demo app
+    // loses the token, and a cold start then opens on "send the message again" over a dead link. The
+    // version bump that rebuilt it was a fix nobody re-runs, so this is the guard.
+    const app = createApp();
+    const seed = (await (await app.request(`/v1/quotes?token=${VERIFY_TOKEN}`)).json()).quotations.find(
+      (q: { seedVersion?: number }) => typeof q.seedVersion === "number",
+    );
+    expect(seed, "the fixture seeds itself on first read").toBeTruthy();
+
+    const res = await publish(app, seed.quoteId, { acknowledgeSample: true });
+    expect(res.status).toBe(409);
+    const body = await res.json();
+    expect(body.reason).toBe("seeded_fixture");
+    expect(body.detail).toContain("cold-start example");
+
+    const stored = await (await app.request(`/v1/quotes/${seed.quoteId}${STAFF}`)).json();
+    expect(stored.quotation.estimator?.sharedAt ?? null).toBeNull();
+  });
+
   it("publishes once, and refuses the second attempt", async () => {
     const draft = await pricedQuote("QT-PUB-5");
     const app = createApp();
