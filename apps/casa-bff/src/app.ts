@@ -2244,7 +2244,26 @@ export function createApp(options: AppOptions = {}) {
     }
 
     const session = { id: existing.estimator?.id ?? null, cookie: existing.estimator?.cookie ?? null };
-    const result = await estimator.updateEstimate(session, parsed.data);
+    let result = await estimator.updateEstimate(session, parsed.data);
+    /**
+     * The engine can forget a scenario we still hold an id for.
+     *
+     * Their store keeps one draft per session, and a draft that has been swept — or lost with a
+     * deployment — answers 404 to every scenario-scoped call: the edit, the commit, the share. Found
+     * on production 2026-09-28, on a quotation eleven minutes old: a dive day moved between guests in
+     * the review grid, "Save & get price", and the studio answered `unexpected · not found`. The
+     * person's next move was to press the same button again, which could only fail the same way.
+     *
+     * Pricing the edited trip in the SAME session is the honest repair rather than a guess: the engine
+     * computes a real answer for the trip that is on the screen, and the record takes the new scenario
+     * id, which is exactly what a first price does. Nothing is invented and nothing frozen here — the
+     * quotation still has to be approved and published like any other.
+     */
+    let recovered = false;
+    if (!result.ok && result.status === 404) {
+      result = await estimator.sendEstimate(parsed.data, session);
+      recovered = result.ok;
+    }
     if (!result.ok) {
       const status = result.reason === "rejected" ? 422 : result.reason === "not_configured" ? 503 : 502;
       return c.json({ ok: false, reason: result.reason, detail: result.detail, fields: result.fields }, status);
@@ -2283,6 +2302,12 @@ export function createApp(options: AppOptions = {}) {
       editedAt: new Date().toISOString(),
       /** The field paths this edit changed, so the page can say what it did rather than "done". */
       changedFields,
+      /**
+       * True when the engine no longer knew this quotation and it was priced again from scratch. The
+       * page says so: "saved" and "saved on a scenario the engine had already dropped" are different
+       * facts, and the second one is worth knowing before the guest is sent a link.
+       */
+      recovered,
       issues: [...precheck, ...result.issues.map((i) => ({ level: "warn", source: "estimator", detail: i }))],
       computedAt: result.computedAt,
       sample: result.sample,

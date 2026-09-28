@@ -340,7 +340,90 @@ describe("editing the trip behind a quotation", () => {
 
     const body = await res.json();
     expect(body.ok).toBe(true);
+    expect(body.recovered).toBe(false);
     expect(body.pricing.kpis.revenue).toBe(38400);
+  });
+
+  it("prices the edited trip again when the engine has forgotten the scenario", async () => {
+    // Their store keeps one draft per session, and a swept draft answers 404 to every scenario-scoped
+    // call — the edit, the commit, the share. Measured on production 2026-09-28, on a quotation eleven
+    // minutes old: a dive day moved between guests in the review grid, "Save & get price", and the
+    // studio answered `Saved the guest details, but not the trip: unexpected not found`. The record
+    // still held an id the engine did not know, so the same button could only fail the same way.
+    //
+    // Re-pricing the trip on screen is the repair: a real engine answer for the trip the person is
+    // looking at, recorded against the same session, instead of an editable-looking record that can
+    // never be priced or published again.
+    const draft = await pricedQuote("QT-EDIT-FORGOTTEN");
+    const calls: Array<{ url: string; method: string }> = [];
+    const fetchImpl = vi.fn(async (url: string, init: RequestInit) => {
+      const method = String(init.method);
+      calls.push({ url: String(url), method });
+      if (method === "PATCH") {
+        return new Response(JSON.stringify({ error: "not found" }), {
+          status: 404,
+          headers: { "content-type": "application/json" },
+        });
+      }
+      return new Response(
+        JSON.stringify({
+          id: "scenario-fresh",
+          role: "guest",
+          model: { kpis: { revenue: 38400 } },
+          issues: [],
+          sample: true,
+          mode: "fixture",
+        }),
+        { status: 201, headers: { "content-type": "application/json", "set-cookie": "ubg_sid=fresh; Path=/; HttpOnly" } },
+      );
+    });
+    const app = createApp({
+      estimator: createEstimatorClient({ baseUrl: "https://quotes.customer.test", fetchImpl: fetchImpl as never }),
+    });
+
+    const res = await editTrip(app, draft.quoteId, withRoomType(draft.bffTrip!, "deluxe"));
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body.ok).toBe(true);
+    expect(body.recovered).toBe(true);
+    expect(body.pricing.kpis.revenue).toBe(38400);
+    expect(body.changedFields).toContain("rooms[0].type");
+
+    // The repair is addressed to the quotation's own session, so the new scenario belongs to the same
+    // cookie — a second anonymous session would leave the guest link pointing at a different draft.
+    expect(calls.map((c) => c.method)).toEqual(["PATCH", "POST"]);
+    expect(calls[1]!.url).toBe("https://quotes.customer.test/api/estimates");
+
+    const stored = await (await app.request(`/v1/quotes/${draft.quoteId}?token=${VERIFY_TOKEN}`)).json();
+    expect(stored.quotation.estimator.id).toBe("scenario-fresh");
+    expect(stored.quotation.estimator.cookie).toContain("fresh");
+    expect(stored.quotation.pricing.kpis.revenue).toBe(38400);
+  });
+
+  it("does not re-create a scenario for a failure that is not a missing one", async () => {
+    // The repair above must not swallow a real refusal: an engine that rejects our payload (422) is a
+    // defect on this side, and answering it by minting a second scenario would hide the defect and
+    // leave two drafts for one enquiry.
+    const draft = await pricedQuote("QT-EDIT-REJECTED");
+    const calls: string[] = [];
+    const fetchImpl = vi.fn(async (_url: string, init: RequestInit) => {
+      calls.push(String(init.method));
+      return new Response(JSON.stringify({ error: "Trip thiếu trường ảnh hưởng giá", fields: ["checkIn"] }), {
+        status: 422,
+        headers: { "content-type": "application/json" },
+      });
+    });
+    const app = createApp({
+      estimator: createEstimatorClient({ baseUrl: "https://quotes.customer.test", fetchImpl: fetchImpl as never }),
+    });
+
+    const res = await editTrip(app, draft.quoteId, withRoomType(draft.bffTrip!, "suite"));
+    expect(res.status).toBe(422);
+    expect((await res.json()).reason).toBe("rejected");
+    expect(calls).toEqual(["PATCH"]);
+
+    const stored = await (await app.request(`/v1/quotes/${draft.quoteId}?token=${VERIFY_TOKEN}`)).json();
+    expect(stored.quotation.estimator.id).toBe(`sim-${draft.quoteId}`);
   });
 
   it("records what staff changed, as field paths — the only measure of the extractor", async () => {

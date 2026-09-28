@@ -2461,6 +2461,12 @@ ${themeCss()}
         const issues = Array.isArray(data.issues) ? data.issues : [];
         showInfo('Saved and priced'
           + (data.sample ? ' — sample prices, not a real quote.' : '.')
+          + (data.recovered
+            // The engine had dropped the scenario this record pointed at and the route priced the
+            // trip again in the same session. Worth saying: the quotation the guest is about to be
+            // sent is a new scenario, not the one earlier screens were showing.
+            ? ' The engine no longer had this quotation, so it was priced again from the trip on screen.'
+            : '')
           + (issues.length ? ' ' + issues.length + ' note(s) from the engine.' : '')
           + ' Reloading…');
         rememberStep(2);
