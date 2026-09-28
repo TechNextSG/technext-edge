@@ -25,7 +25,7 @@ Tài liệu này tồn tại vì hai lý do, và cả hai đều đo được:
 | `already_shared` | 409 | `/trip`, `/sync-estimate`, `/publish` | Đã publish: link khách đang giữ phải bất động | Tạo báo giá mới thay vì sửa bản đã phát |
 | `not_approved` | 409 | `/publish`, `/send-whatsapp` | Chưa duyệt | Bấm **Approve** |
 | `not_published` | 409 | `/send-whatsapp` | Chưa có link khách | Bấm **Publish Link** trước (tin nhắn chỉ chở link) |
-| `sample_not_acknowledged` | 409 | `/publish` | Giá đang là sample, chưa tick xác nhận | Tick "I have checked this SAMPLE price" |
+| `sample_not_acknowledged` | 409 | `/publish` | Giá đang là sample, chưa tick xác nhận | Tick "I have checked this sample price" ở khung **Send to the guest** (khi đó cả hai nút tạo link mới bật) |
 | `already` | 409 | `/submit` | Đã có `submission` cho báo giá này | Không đặt lại (tránh folio thứ hai) |
 | `wrong_place` | 409 | `/submit` | Chế độ `remote`: chỗ đặt là app của khách, không phải studio | Mở link khách |
 | `phone_missing` | 400 | `/send-whatsapp` | Thiếu số | Nhập số kèm mã quốc gia |

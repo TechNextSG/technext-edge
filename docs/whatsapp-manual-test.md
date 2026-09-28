@@ -241,38 +241,47 @@ enquiry rồi hiển thị **tên của khách ở enquiry sau** bên cạnh con
 > (`technext-edge-casa-bff-sim.vercel.app`), xem mục "Hai tab khi demo" ở cuối file.
 
 1. `/login` (staff key) → `/quotes` → mở quotation.
-   - Sidebar giờ có thẻ **🎯 Extractor scorecard**: *x/y unchanged* — bao nhiêu báo giá đã được định giá
-     mà **không phải sửa chuyến**. Đây là con số duy nhất đo được chất lượng trích xuất, và là thứ
-     đáng cho lead xem.
-2. Bấm **Price with the Estimator BFF** → thẻ **Per guest**, nhãn `SAMPLE DATA`, khối *From the booking engine*.
-   - Badge **"FIXTURE — prices are captured samples"** = đang gọi BFF của khách (đúng cấu hình hiện tại).
-   - Badge **"SIMULATED"** = đang chạy bộ giả lập trong tiến trình.
-3. **Trip review** (mới): bảng **Rooms** (chọn `standard/deluxe/suite` cho từng phòng) và bảng **Guests**
-   (phòng của từng khách, khoá học `DSD / Open Water / AOW`, và lưới **D · 3rd · Night** cho từng ngày).
-   - Sửa xong bấm **Save trip & re-price** → giá được tính lại **trên cùng một scenario** (PATCH), không
-     tạo scenario thứ hai.
-   - **Sửa chuyến sẽ huỷ duyệt**: status về *Pending Hono Confirmation* và tin nhắn đã soạn bị xoá —
-     nên phải Approve lại. Đây là điều cố ý: duyệt là duyệt cho **một chuyến cụ thể**.
-   - Bấm **Save trip & re-price** khi không sửa gì → không ghi nhận "sửa" (scorecard không bị lệch).
-4. Bấm **Approve Quotation & Prepare Guest Message** (bắt buộc — publish từ chối báo giá chưa duyệt).
+   - Sidebar có dòng **AI reading check**: *x of y quotations needed no correction after the bot read them*
+     — bao nhiêu báo giá đã được định giá mà **không phải sửa chuyến**. Đây là con số duy nhất đo được
+     chất lượng trích xuất, và là thứ đáng cho lead xem.
+2. Đầu trang: **một** trạng thái (*Needs review → Priced — needs approval → Approved — not sent yet →
+   Sent to guest*) và thanh **4 bước** (*Review trip · Get price · Approve · Send*).
+3. Bấm **Save & get price** (nút lưu duy nhất, ở đầu trang) → thẻ **Per guest**, nhãn `SAMPLE DATA`.
+   - Lần đầu nút này tạo scenario và tính giá; sửa chuyến rồi bấm lại thì giá được tính lại **trên cùng
+     một scenario** (PATCH), không tạo scenario thứ hai.
+   - Badge **"Sample engine (captured prices)"** = đang gọi BFF của khách (đúng cấu hình hiện tại).
+     **"Sample engine (built in)"** = bộ giả lập trong tiến trình. **"Connected — live prices"** = Odoo thật.
+4. **Trip review**: bảng **Rooms** (thêm/xoá phòng, chọn `standard/deluxe/suite`) và bảng **Guests**
+   (phòng của từng khách, khoá học `DSD / Open Water / AOW`, lưới **D · 3rd · Night** cho từng ngày, và
+   hàng *Everyone on this day* để bật/tắt cả nhóm).
+   - Sửa gì cũng phải bấm **Save & get price** ở đầu trang; chưa lưu thì trang nói rõ giá đang hiển thị
+     vẫn thuộc chuyến trước.
+   - **Sửa chuyến sẽ huỷ duyệt**: trạng thái về *Priced — needs approval* — nên phải Approve lại. Đây là
+     điều cố ý: duyệt là duyệt cho **một chuyến cụ thể**.
+   - Bấm **Save & get price** khi không sửa gì và đã có giá → **không** gọi engine lại (scorecard không
+     bị lệch, và con số khách đọc không nhảy vì một lỗi chính tả).
+5. Bấm **Approve quotation** (bắt buộc — gửi từ chối báo giá chưa duyệt).
    - Server từ chối **409 `not_priced`** nếu báo giá **chưa có giá**: duyệt là duyệt *một con số*, không
      duyệt một trạng thái. (Trước đây một record có thể mang "đã duyệt" mà chưa từng được định giá —
      đúng thứ đã nằm trong queue production.)
    - Server từ chối **409 `trip_changed`** nếu trip trong trang khác với trip **đã được định giá** (ví
-     dụ tab này mở trong khi tab khác đã lưu một sửa đổi) — bấm **Price with the Estimator BFF** lại rồi
-     mới duyệt. Khác biệt **không ảnh hưởng giá** (sửa tên, ghi chú) vẫn duyệt được, và được ghi vào
-     scorecard như một lần sửa.
+     dụ tab này mở trong khi tab khác đã lưu một sửa đổi) — bấm **Save & get price** lại rồi mới duyệt.
+     Khác biệt **không ảnh hưởng giá** (sửa tên, ghi chú) vẫn duyệt được, và được ghi vào scorecard như
+     một lần sửa.
      - Danh sách đầy đủ mã từ chối của 6 route ghi: `docs/error-codes.md`.
-5. Khung **Publish guest link**: tick **"I have checked this SAMPLE price"** rồi bấm **Publish guest link**.
-   - Chưa tick → **409 `sample_not_acknowledged`** (đúng thiết kế).
-   - Thành công → `✅ Published as version 1` + link dạng
-     `https://tn-casa-estimator-fixture.vercel.app/quote/<token>`.
-   - Đã publish rồi thì **không sửa chuyến được nữa** → **409 `already_shared`** (khách đang giữ link;
-     sửa dưới chân khách là tự động đổi giá — Q-005).
+6. Khung **Send to the guest**: tick **"I have checked this sample price"** rồi bấm **Create link & send**.
+   - Khi giá là sample, **cả hai** nút tạo link (`Create link & send`, `Create link only`) bị **mờ đi**
+     cho tới khi tick, kèm câu nói rõ vì sao. Đây là điểm dễ mắc nhất khi demo: production đang trỏ vào
+     engine fixture của khách nên **mọi** giá đều là sample và **luôn** cần tick này.
+   - Chưa tick mà gọi thẳng route → **409 `sample_not_acknowledged`** (đúng thiết kế: một con số sample
+     không được tới tay khách mà không có người xác nhận đã nhìn nó).
+   - Thành công → link dạng `https://tn-casa-estimator-fixture.vercel.app/quote/<token>`.
+   - Đã publish rồi thì **không sửa chuyến được nữa** (Trip review chuyển sang chỉ-đọc) → gọi route sẽ
+     nhận **409 `already_shared`** (khách đang giữ link; sửa dưới chân khách là tự động đổi giá — Q-005).
 6. Mở link đó → mở được app báo giá của khách (SPA của họ), số tiền **trùng** số trong studio, có nhãn
    sample. `GET /api/share/<token>` trả đúng revision đã đóng băng, **kèm `trip.rooms[].type`** — đây là
    chỗ chứng minh loại phòng khách nói đi tới tận bản đã publish.
-7. Bấm **Publish** lần hai → **409 `already_shared`** (một link cho mỗi báo giá; Q-005).
+7. Bấm **Create link only** lần nữa → **409 `already_shared`** (một link cho mỗi báo giá; Q-005).
 8. `/q/<slug>` (đường cũ của mình) → **410**, không còn phục vụ báo giá — trang đó giờ có hai nút:
    *Reply on WhatsApp* và *Staff sign-in*.
 
