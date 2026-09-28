@@ -134,6 +134,16 @@ export function renderGuestQuotationCopyHtml(
     }
     .btn-primary { background: var(--accent); border-color: var(--accent); color: #fff; }
     .note { margin-top: 18px; font-size: 13.5px; color: var(--muted); font-weight: 600; line-height: 1.6; }
+    @media (max-width: 480px) {
+      /* A guest opens this on a phone, from a WhatsApp message. */
+      body { padding: 14px 12px 32px; }
+      .card { padding: 18px 15px; border-radius: 14px; }
+      h1 { font-size: 19px; }
+      .total { font-size: 28px; }
+      .guest { padding: 12px 13px; }
+      .line { font-size: 13.5px; gap: 8px; }
+      .actions .btn { width: 100%; text-align: center; }
+    }
   </style>
 </head>
 <body>

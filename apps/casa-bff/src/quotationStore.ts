@@ -586,13 +586,77 @@ ${themeCss()}
       grid-template-columns: 310px 1fr;
       gap: 24px;
     }
+    /* A grid item's default min-width: auto lets one wide child (the queue's tab row, a table)
+       push the whole page wider than the screen. Measured: a 502px phone viewport had a 716px
+       document because of it. */
+    .container > * { min-width: 0; }
     @media (max-width: 1024px) {
       /* Narrow screen: the wizard is the work, so it comes FIRST and the queue follows. Measured in
          a browser at 630px: the sidebar (AI check + the whole quotation list) filled the viewport and
-         the screen somebody is actually working on was below the fold. */
+         the screen somebody is actually working on was below the fold. The bar also stops being
+         sticky here — a sticky bar over a short viewport covers the content it belongs to. */
       .container { grid-template-columns: 1fr; }
       .container > main { order: -1; }
       .wizard-nav { position: static; }
+      body { padding-bottom: 16px; }
+    }
+    /* ---- Phones -------------------------------------------------------------
+       A phone is a real device for this page: reading a quotation back to a guest on the phone,
+       checking a dive grid while standing at the boat. The two things that break first are the tables
+       and the wizard bar, so both are restructured rather than shrunk. */
+    @media (max-width: 640px) {
+      .topbar { padding: 10px 12px; gap: 10px; }
+      .brand { gap: 10px; }
+      .brand h1 { font-size: 16.5px; line-height: 1.3; }
+      .brand-badge { font-size: 10.5px; padding: 4px 8px; letter-spacing: 0.03em; }
+      .top-actions { gap: 8px; }
+      .theme-btn { padding: 6px 10px; font-size: 12.5px; }
+      .container { padding: 0 10px; margin: 12px auto; }
+      .card { padding: 16px 13px; border-radius: 14px; }
+      .card-title { font-size: 15px; }
+      /* One field per row: two 130px inputs on a 360px screen is a coin flip on every keystroke. */
+      .meta-grid { grid-template-columns: 1fr; gap: 10px; }
+      /* Four steps wrap to two rows, which is fine; the circles shrink so the labels stay legible. */
+      .progress { gap: 6px; }
+      .pstep { padding: 5px 10px; font-size: 12.5px; gap: 6px; }
+      .pstep .pnum { width: 17px; height: 17px; font-size: 11px; }
+      .psep { width: 10px; }
+      /* The bar becomes three stacked rows: where you are, the action, then Back. The primary action
+         is full width and ABOVE Back, because a thumb reaches the middle of the screen rather than
+         the bottom-left corner. */
+      .wizard-nav {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 10px;
+        padding: 12px;
+        border-radius: 14px;
+        margin-top: 14px;
+      }
+      .wizard-nav .btn { width: 100%; justify-content: center; padding: 14px 16px; font-size: 16px; }
+      .wizard-label { order: 1; text-align: center; }
+      #btn-next { order: 2; }
+      #btn-back { order: 3; }
+      /* Tables keep their columns and scroll sideways inside their card, which is honest about the
+         data; squeezing a five-column dive grid into 360px would make it unreadable instead. */
+      .quote-table { font-size: 13px; }
+      .quote-table th, .quote-table td { padding: 6px 8px; }
+      .link-editor-bar { padding: 10px; gap: 8px; }
+      .link-editor-bar input { min-width: 100%; font-size: 13.5px; padding: 9px 11px; }
+      .link-editor-bar .btn { flex: 1; justify-content: center; }
+      .ai-reply-box { font-size: 15px; padding: 14px; border-radius: 12px; }
+      .btn { padding: 10px 14px; font-size: 14px; }
+      .notice { font-size: 13.5px; padding: 10px 12px; }
+      input[type="checkbox"] { width: 15px; height: 15px; }
+      /* The dive grid is wider than a phone on purpose (five columns of days cannot be squeezed into
+         360px and stay readable), so the screen says it scrolls rather than leaving it to be found. */
+      .scroll-hint { display: block; }
+    }
+    .scroll-hint {
+      display: none;
+      font-size: 12.5px;
+      color: var(--muted);
+      font-weight: 700;
+      margin-top: 6px;
     }
     .card {
       background: var(--surface);
@@ -916,8 +980,20 @@ ${themeCss()}
       border-color: var(--accent);
       background: var(--accent-soft);
     }
+    .tab-row {
+      display: flex;
+      gap: 4px;
+      /* Wraps rather than forcing the sidebar wider than the screen: four buttons in a row measured
+         706px, which is what made the whole page scroll sideways on a phone. */
+      flex-wrap: wrap;
+      margin-bottom: 12px;
+      background: var(--surface-2);
+      padding: 4px;
+      border-radius: 8px;
+    }
     .tab-btn {
-      flex: 1;
+      flex: 1 1 auto;
+      min-width: 70px;
       padding: 7px 10px;
       font-size: 13px;
       font-weight: 700;
@@ -1011,7 +1087,7 @@ ${themeCss()}
           <span id="queue-count-badge" style="font-size:12px;font-weight:800;background:var(--accent-soft);color:var(--accent);padding:2px 8px;border-radius:999px;"></span>
         </div>
         <input type="text" id="quote-search-input" oninput="filterQuotesList(this.value)" placeholder="Search guest, phone, quote ID..." class="cell-input" style="margin-bottom:10px;font-size:13.5px;padding:9px 12px;" />
-        <div style="display:flex;gap:4px;margin-bottom:12px;background:var(--surface-2);padding:4px;border-radius:8px;">
+        <div class="tab-row">
           <button type="button" class="tab-btn active" id="tab-needs-review" onclick="setQuoteFilter('needs-review')">Needs Review</button>
           <button type="button" class="tab-btn" id="tab-approved" onclick="setQuoteFilter('approved')">Approved</button>
           <button type="button" class="tab-btn" id="tab-cancelled" onclick="setQuoteFilter('cancelled')">Archived</button>
@@ -1748,6 +1824,7 @@ ${themeCss()}
             </tr></tfoot>\` : ''}
           </table>
         </div>
+        <p class="scroll-hint">Scroll the grid sideways to see every day.</p>
         <p style="font-size:13px;color:var(--muted);font-weight:600;margin-top:10px;">
           D = boat dive, 3 = third dive, N = night dive. \${frozen ? 'Read-only while the guest holds the link.' : 'Nothing here reaches the engine until you press the button at the bottom of the screen.'}
         </p>\`;
