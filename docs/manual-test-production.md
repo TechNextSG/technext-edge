@@ -7,8 +7,10 @@ Dành cho người **tự bấm tay** trên production, không dùng script. M�
 > (`tn-casa-estimator-fixture.vercel.app`). Bản đó giữ scenario + share token trong **bộ nhớ của một
 > instance serverless**, nên link có thể 404 bất cứ lúc nào — publish **không** còn từ chối vì lý do đó,
 > nó kiểm link rồi gửi **bản sao của mình** (`/q/<slug>`) nếu link khách không mở, và studio ghi rõ lý do.
-> Số đo: `docs/upstream-note-bff-vercel-deploy.md`. Vì vậy **bước 5 dưới đây phải mở link ngay**, và câu
-> nói thật khi demo nằm ở cuối file.
+> Cùng lý do đó, một record tạo từ lúc trước có thể **mất scenario**: mọi lệnh theo scenario (sửa chuyến,
+> commit, share) trả 404. Cả hai đường đều **tự tính lại trong cùng session** rồi đi tiếp — xem bảng sự cố
+> ở mục 4. Số đo: `docs/upstream-note-bff-vercel-deploy.md`. Vì vậy **bước 5 dưới đây phải mở link ngay**,
+> và câu nói thật khi demo nằm ở cuối file.
 
 ---
 
@@ -77,10 +79,11 @@ hỏi tên (đã có trong câu trên).
 Mở báo giá mới nhất của Ana trong sidebar (mã dạng `QT-1120-ANA-…`). Trạng thái lúc này:
 **Needs review**, màn 1, `Rooms: r1:deluxe`.
 
-> Queue hiện có sẵn vài record test cũ. **Bỏ qua** `QT-1121-ANA-911E50C7` (record tôi publish lúc audit,
-> `Link ready — not sent`) và `QT-1205-SAM-7798D2B1` (record test trên tab sim). Record của lần chạy này
-> là record **mới nhất** cùng số điện thoại, và là record duy nhất ở trạng thái `Needs review` có
-> `r1:deluxe` do chính bạn vừa tạo.
+> Queue sau lần dọn 2026-09-28 còn **hai record gửi thật** để tham chiếu — `QT-1120-ANAR-F4A4C2DC` (chạy
+> trọn luồng hôm nay, có bản sửa của nhân viên trên record) và `QT-1120-ANAR-4998724A` (bản cũ, có
+> `mirrorUrl` nên mở được **trang khách của mình** ở `/q/<slug>`) — cộng seed `QT-1010-SKY`
+> (`Needs review`, để thấy tab *Action Needed* có việc). Record của lần chạy này là record **mới nhất**
+> cùng số điện thoại, và là record duy nhất ở trạng thái `Needs review` có `r1:deluxe` do chính bạn vừa tạo.
 
 | Bước | Bấm | Phải thấy |
 |---|---|---|
@@ -89,6 +92,10 @@ Mở báo giá mới nhất của Ana trong sidebar (mã dạng `QT-1120-ANA-…
 | 3 | **Approve quotation** | tự sang màn 4 · `Approved — not sent yet` · nút "Create link & send" **mờ** vì chưa tick |
 | 4 | tick **I have checked this sample price** | hai nút sáng lên |
 | 5 | **Create link & send** | `Sent to guest` + ô link có URL `…/quote/<token>` — hoặc link `/q/<slug>` của mình nếu link khách không mở được, kèm câu giải thích |
+
+> **Cái tick đó áp cho TỪNG hành động publish, không phải một lần cho cả phiên.** Bấm **Create link only**
+> xong trang tự tải lại và ô tick **trắng lại** — muốn bấm **Send the message** thì tick lại. Đây là chủ ý
+> (mỗi lần đưa giá sample ra ngoài là một lần tự chịu), nhưng nếu không biết thì rất dễ tưởng nút hỏng.
 
 > Nếu bạn bấm **Create link only** (không gửi), badge phải là **`Link ready — not sent`** và nút chính
 > đổi thành **Send the message** — không còn nói "đã gửi khách" khi thực ra chưa gửi. Đây là lỗi tìm
@@ -164,8 +171,9 @@ báo giá đã duyệt còn hiện tên khách của enquiry sau.)
 ### B3. Nhân viên đổi chuyến
 
 Trong studio màn 1: đổi một phòng sang `suite`, bấm **Save & get price**. Phải thấy giá được tính lại
-**trên cùng một scenario** và duyệt bị huỷ. Ở tab production **số không đổi** (fixture trả bản chụp) —
-nói thẳng; muốn thấy số đổi thì làm ở tab sim.
+**trên cùng một scenario** (nếu fixture đã quên scenario thì câu thông báo nói rõ là tính lại từ đầu) và
+duyệt bị huỷ. Ở tab production **số không đổi** (fixture trả bản chụp) — nói thẳng; muốn thấy số đổi thì
+làm ở tab sim.
 
 ---
 
@@ -190,6 +198,8 @@ nói thẳng; muốn thấy số đổi thì làm ở tab sim.
 | Trang khách "not valid or has expired" | Fixture của khách mất token | Mở link `/q/<slug>` mà studio đưa (bản sao của mình), rồi ghi lại thời điểm để báo khách |
 | Studio: badge `Link ready — not sent` | Đã tạo link nhưng **chưa** gửi tin cho khách | Bấm **Send the message** — badge chỉ đổi sang `Sent to guest` sau khi gửi thật |
 | Studio: *"this price did not come from the booking engine…"* | Record có giá sample nhưng chưa có scenario | Vào **màn 2 → Get price**, rồi Approve lại |
+| Studio: *"the engine no longer had this quotation, so it was priced again from the trip on screen"* | Fixture đã quên scenario của record (bộ nhớ một instance), nên **Save & get price** tự tạo scenario mới trong cùng session | Không phải lỗi — đọc câu đó rồi đi tiếp. Bản đóng băng cũ không còn, nên **Version** trên link khách bắt đầu lại từ 1 |
+| Studio: *"Saved the guest details, but not the trip: unexpected not found"* | Cùng nguyên nhân trên, nhưng bản deploy **trước** 2026-09-28 (chưa có đường tự tạo lại) | Bấm **Save & get price** lần nữa — bản hiện tại tự tính lại; nếu vẫn lỗi thì ghi lại thời điểm |
 | Bot im lặng, hoặc trả lời *"something went wrong on our side"* | Gemini free tier 429 (15 req/phút) | Đợi ~1 phút rồi nhắn lại |
 | Tin không tới điện thoại, webhook trả `failed:1` | Meta từ chối (`#131030` = số chưa có trong danh sách test) | Thêm số vào *To* trong Meta App |
 | Muốn chạy lại từ đầu | — | Mục 0.4 (reset) rồi bắt đầu lại từ tin 1 |

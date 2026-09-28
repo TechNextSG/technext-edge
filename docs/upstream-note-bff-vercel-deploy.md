@@ -151,3 +151,40 @@ That one remaining difference is the honest thing to say out loud, and it is wor
 that appears to match: *"the revision carries the deluxe room the guest asked for; the price line is
 still the captured standard one, because this gateway does not recompute. On real Odoo this line is
 Deluxe — ₱3,600 more per night."*
+
+### Update 2026-09-28 — a scenario can be gone while our record still points at it
+
+The instance-memory store above does not only lose share tokens; it loses the **scenario** too, and
+that breaks the studio rather than the guest page. Measured today on a quotation created eleven
+minutes earlier: every scenario-scoped call answered 404.
+
+| What was asked (same cookie as the record held) | Answer |
+|---|---|
+| `PATCH /api/estimates/<id>` for the record's scenario | **404 `{"error":"not found"}`** |
+| `GET /api/estimates` for that record's cookie | **200 `{"items":[]}`** — the session knows no drafts |
+| `POST /api/estimates` in the same session, then `PATCH`/`commit`/`share` on the id it returned | **200 / 200 / 200** |
+
+So it is not expiry and it is not a missing cookie: a scenario is known only to the instance that
+minted it, and the record keeps pointing at an id nobody recognises. In the studio that read as
+`Saved the guest details, but not the trip: unexpected not found`, and pressing the button again
+could only fail the same way — the record could not be priced or published again.
+
+Our side now repairs it on both paths: a 404 on the edit, the commit, or the share **re-prices the
+trip on screen in the same session** and records the new scenario id, so the quotation returns to a
+publishable state. The studio says so rather than a flat "Saved and priced" (`the engine no longer
+had this quotation, so it was priced again from the trip on screen`), and the guest's link reports a
+new `Version` because the frozen revision that was lost is genuinely a different one.
+
+**What to ask them for** is the same as above, and this is the sharper version of the argument: it is
+not only the guest's link that a coin-flip store breaks — a staff correction, an approval and a
+publish all stop working for any quotation that is a few minutes old.
+
+While measuring this, one detail of the fixture worth stating exactly, because the demo line about it
+depends on it: its `fillTrip` **does** run. `POST /api/estimates` with a trip missing
+`guestType`/`transportType`/`checkIn`/`checkOut` answers **422** with those field names (in
+Vietnamese, from their own validator). What does not happen is pricing: the trip passes validation,
+then `pickCompute` returns a capture chosen by trip **shape**, so the dates and the counts come from
+our payload while the named guests and the room line come from the capture. That is why moving the
+dive day to the other guest changed `bffTrip` and the staff-edit count but left the guest page
+reading `1 diving Ana` at the same ₱31,200 — one diver either way, and the capture calls that diver
+Ana.
