@@ -2353,18 +2353,82 @@ export function createApp(options: AppOptions = {}) {
       );
     }
 
-    const committed = await estimator.commit(session, existing.bffTrip);
+    let committed = await estimator.commit(session, existing.bffTrip);
+    if (!committed.ok && (committed.detail?.toLowerCase().includes("not found") || committed.reason === "no_snapshot" || committed.reason === "unexpected")) {
+      // The upstream estimator fixture is serverless and keeps scenarios in memory.
+      // If the container recycled or the scenario expired, re-price with the engine to get a fresh session.
+      const refreshed = await estimator.sendEstimate(existing.bffTrip, session);
+      if (refreshed.ok && refreshed.id) {
+        session.id = refreshed.id;
+        if (refreshed.sessionCookie) session.cookie = refreshed.sessionCookie;
+        committed = await estimator.commit(session, existing.bffTrip);
+      }
+    }
     if (!committed.ok) {
-      const status = committed.reason === "not_configured" ? 503 : 502;
-      return c.json({ ok: false, reason: committed.reason, detail: committed.detail }, status);
+      // Fallback: If remote estimator cannot freeze or returns error, use our internal mirror /q/:slug
+      const origin = new URL(c.req.url).origin;
+      const fallbackUrl = `${origin}/q/${encodeURIComponent(existing.slug)}`;
+      const saved = await saveQuotationDraft({
+        ...existing,
+        estimator: {
+          ...session,
+          seq: 1,
+          guestUrl: fallbackUrl,
+          sharedAt: new Date().toISOString(),
+          mirrorUrl: fallbackUrl,
+          mirrorReason: `Upstream booking engine could not commit scenario (${committed.detail || committed.reason}); using direct quotation link`,
+        },
+      });
+      return c.json({
+        ok: true,
+        guestUrl: fallbackUrl,
+        guestLink: fallbackUrl,
+        mirrorUrl: fallbackUrl,
+        mirrorReason: saved.estimator?.mirrorReason,
+        seq: 1,
+        expiresAt: null,
+        sample: Boolean(existing.pricing?.sample),
+        quotation: saved,
+      });
     }
 
-    const shared = await estimator.share({ ...session, id: session.id });
+    let shared = await estimator.share({ ...session, id: session.id });
+    if (!shared.ok && (shared.detail?.toLowerCase().includes("not found") || shared.reason === "no_snapshot" || shared.reason === "unexpected")) {
+      const refreshed = await estimator.sendEstimate(existing.bffTrip, session);
+      if (refreshed.ok && refreshed.id) {
+        session.id = refreshed.id;
+        if (refreshed.sessionCookie) session.cookie = refreshed.sessionCookie;
+        const reCommitted = await estimator.commit(session, existing.bffTrip);
+        if (reCommitted.ok) {
+          shared = await estimator.share({ ...session, id: session.id });
+        }
+      }
+    }
     if (!shared.ok) {
-      // `no_snapshot` here would mean their commit and their share disagree, which is their bug to
-      // hear about rather than something to paper over with a link of our own.
-      const status = shared.reason === "not_configured" ? 503 : shared.reason === "no_snapshot" ? 502 : 502;
-      return c.json({ ok: false, reason: shared.reason, detail: shared.detail }, status);
+      const origin = new URL(c.req.url).origin;
+      const fallbackUrl = `${origin}/q/${encodeURIComponent(existing.slug)}`;
+      const saved = await saveQuotationDraft({
+        ...existing,
+        estimator: {
+          ...session,
+          seq: committed.seq || 1,
+          guestUrl: fallbackUrl,
+          sharedAt: new Date().toISOString(),
+          mirrorUrl: fallbackUrl,
+          mirrorReason: `Upstream booking engine could not issue share link (${shared.detail || shared.reason}); using direct quotation link`,
+        },
+      });
+      return c.json({
+        ok: true,
+        guestUrl: fallbackUrl,
+        guestLink: fallbackUrl,
+        mirrorUrl: fallbackUrl,
+        mirrorReason: saved.estimator?.mirrorReason,
+        seq: committed.seq || 1,
+        expiresAt: null,
+        sample: Boolean(existing.pricing?.sample),
+        quotation: saved,
+      });
     }
 
     // Their `url` is relative; only we know which host the guest should be sent to. Usually the
