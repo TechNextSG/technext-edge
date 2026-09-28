@@ -2804,7 +2804,15 @@ export function createApp(options: AppOptions = {}) {
     } catch {
       // No provider configured: the deterministic message is complete on its own.
     }
-    const text = await synthesizeConfirmedQuotationReply(draft, provider);
+    // The deadline is part of what the guest is told, and at this moment the send has not happened yet —
+    // so a message built from the record as it stands would state the booking terms without the one
+    // date that matters. Measured on production 2026-09-28 by reading the body the send route returned:
+    // the page promised "valid until …" and the WhatsApp message said nothing about it. The provisional
+    // timestamp is only used to *write* the sentence; what gets stored is the real send time below.
+    const text = await synthesizeConfirmedQuotationReply(
+      draft.sentToGuestAt ? draft : { ...draft, sentToGuestAt: new Date().toISOString() },
+      provider,
+    );
     const send = options.sendWhatsApp ?? createWhatsAppSender(whatsAppConfig());
     try {
       await send({ to: recipient.phone, body: text });

@@ -131,6 +131,79 @@ describe("writes need a session", () => {
   });
 });
 
+describe("the message a guest actually receives", () => {
+  /**
+   * Read from production on 2026-09-28: the send route returns the body it sent, and that body stated
+   * the booking terms but said nothing about when the quotation lapses — because the deadline is
+   * derived from `sentToGuestAt`, which is only written *after* the send. The page promised a deadline
+   * the message never mentioned.
+   */
+  async function approvedPublished(id: string) {
+    const draft = await storedNasty(id);
+    const published = await saveQuotationDraft({
+      ...draft,
+      status: "confirmed_by_hono",
+      pricing: {
+        source: "remote",
+        sample: true,
+        mode: "fixture",
+        role: "guest",
+        computedAt: "2026-09-28T00:00:00.000Z",
+        guests: [],
+        catRev: {},
+        kpis: { revenue: 31_200, guests: 2, nights: 2, discounts: null, rpgn: 15_600 },
+        warnings: [],
+        retail: null,
+        ops: null,
+      },
+      estimator: {
+        id: "sim-1",
+        cookie: "ubg_sid=1",
+        seq: 1,
+        guestUrl: "https://their-app.test/quote/live-token",
+        sharedAt: "2026-09-28T00:00:00.000Z",
+      },
+    });
+    const sent: Array<{ to: string; body: string }> = [];
+    const app = createApp({ sendWhatsApp: async (m) => void sent.push(m) });
+    const res = await app.request(`/v1/quotes/${published.quoteId}/send-whatsapp${STAFF}`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ phone: "639171234567" }),
+    });
+    return { res, sent, published };
+  }
+
+  it("states when the quotation lapses, and no price of ours", async () => {
+    const { res, sent, published } = await approvedPublished("QT-MSG-1");
+    expect(res.status).toBe(200);
+    expect(sent).toHaveLength(1);
+    const body = sent[0]!.body;
+
+    expect(body).toContain("valid until");
+    expect(body).toContain("(Manila time)");
+    // The terms are the resort's own, and nothing about money this service invented.
+    expect(body).toContain("50% non-refundable down payment confirms your reservation");
+    expect(body).toContain("nothing is booked yet");
+    expect(body).not.toContain("31,200");
+    expect(body).not.toContain("15,600");
+    expect(body.toLowerCase()).not.toContain("hold");
+
+    // The deadline the guest is told is the record's own send window, not a sentence typed for the
+    // occasion: it lands one window after the send that is being recorded right now.
+    const stored = (await listQuotations()).find((q) => q.quoteId === published.quoteId)!;
+    expect(stored.sentToGuestAt).toBeTruthy();
+    const windowHours = Number(process.env.QUOTATION_VALID_HOURS ?? 72);
+    const sentMs = new Date(stored.sentToGuestAt!).getTime();
+    const stated = /valid until ([^)]+) \(Manila time\)/.exec(body)?.[1];
+    expect(stated, "the message names a date").toBeTruthy();
+    expect(sentMs).toBeGreaterThan(0);
+    // 72 hours after the send, in Manila — asserted through the formatter so a timezone bug shows.
+    const { formatManila } = await import("../src/quotationValidity.js");
+    expect(stated).toBe(formatManila(new Date(sentMs + windowHours * 3_600_000)));
+  });
+});
+
 describe("only an approved quotation can be sent to a guest", () => {
   it("refuses an unapproved one, and never reaches WhatsApp", async () => {
     const draft = await storedNasty("QT-SEC-4");
