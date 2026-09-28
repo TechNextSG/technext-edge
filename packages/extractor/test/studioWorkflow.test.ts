@@ -12,7 +12,7 @@
 // status after an action). Asserting on the whole document would pass for the wrong reason.
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { createApp } from "../../../apps/casa-bff/src/app.js";
-import { listQuotations, saveQuotationDraft } from "../../../apps/casa-bff/src/quotationStore.js";
+import { listQuotations, renderHonoQuotationEditorHtml, saveQuotationDraft } from "../../../apps/casa-bff/src/quotationStore.js";
 import type { HonoQuotationDraft } from "../../../packages/extractor/src/index.js";
 
 const STAFF_TOKEN = "studio-workflow-token";
@@ -159,10 +159,12 @@ describe("the trip controls a group booking needs", () => {
     const base = await seed();
     const html = await studioFor(base.quoteId);
 
-    // One button, wired to the one handler that stores the details AND sends the trip to the route
-    // that prices it. Two buttons asked a receptionist to know which of their edits belonged where.
-    expect(html).toContain('id="btn-save-all"');
+    // One action, wired to the one handler that stores the details AND sends the trip to the route
+    // that prices it — now carried by the wizard's own Next button, which is the only primary
+    // button on the screen.
+    expect(html).toContain('id="btn-next"');
     expect(html).toContain("saveStudio()");
+    expect(html).toContain("wizardNext()");
     expect(html).not.toContain("saveEditsOnly()");
     expect(html).not.toContain("saveTripAndReprice()");
     expect(html).not.toContain('id="btn-save-draft"');
@@ -181,6 +183,57 @@ describe("the trip controls a group booking needs", () => {
     expect(html).toContain("Published: this trip and its price are frozen on the guest's link.");
     expect(html).toContain("Read-only while the guest holds the link.");
     expect(html).toContain("const ro = frozen ? ' disabled' : ''");
+  });
+});
+
+describe("the four screens", () => {
+  it("puts one screen in front at a time, chosen server-side", async () => {
+    const base = await seed();
+    const markup = markupOnly(await studioFor(base.quoteId));
+
+    // Every screen is in the page; CSS shows the one `data-step` names. The attribute is rendered by
+    // the server, so the right screen is in front before any script runs.
+    for (const n of [1, 2, 3, 4]) {
+      expect(markup, `screen ${n} is missing`).toContain(`data-step-card="${n}"`);
+    }
+    // The fixture is priced and unapproved: the next thing to do is approve it.
+    expect(markup).toMatch(/<main data-step="3">/);
+    expect(markup).toContain("Step 3 · Approve");
+  });
+
+  it("carries a Back and a Next, and the Next is named after what it does", async () => {
+    const base = await seed();
+    const markup = markupOnly(await studioFor(base.quoteId));
+
+    expect(markup).toContain('id="btn-back"');
+    expect(markup).toContain('id="btn-next"');
+    expect(markup).toContain("wizardNext()");
+    // Priced and unapproved, so the button that finishes that screen is the approval.
+    expect(markup).toContain("Approve quotation");
+    expect(markup).toContain("Step <strong id=\"wizard-step-num\">3</strong> of 4");
+  });
+
+  it("opens on step 1 for a quotation nobody has priced yet", async () => {
+    const base = await seed();
+    const unpriced = await saveQuotationDraft(copyOf(base, "QT-WIZ-UNPRICED", { pricing: null, status: "pending_hono_review" }));
+    const markup = markupOnly(await studioFor(unpriced.quoteId));
+
+    expect(markup).toMatch(/<main data-step="1">/);
+    // Nothing priced yet means steps 2+ have not been earned: the bar offers only what is possible.
+    expect(markup).toContain("Save &amp; get price");
+    expect(markup).toContain("Finish the earlier steps first");
+  });
+
+  it("gives a guest session the price and no wizard", async () => {
+    // The wizard's screens are staff-only, so a guest role must not open on step 1 — that screen is
+    // the trip review, which is ours. Rendered directly with the guest role, because the role comes
+    // from the demo session cookie rather than from the URL.
+    const all = await listQuotations();
+    const html = renderHonoQuotationEditorHtml(all[0]!, all, "guest");
+    const markup = markupOnly(html);
+
+    expect(markup).toMatch(/<main data-step="2">/);
+    expect(markup).toContain("body[data-role=\"guest\"] .wizard-nav { display: none !important; }");
   });
 });
 

@@ -46,6 +46,11 @@ interface Studio {
   sendToGuest: () => Promise<void>;
   syncEstimate: () => Promise<void>;
   updateSendControls: () => void;
+  // The wizard.
+  goStep: (n: number) => void;
+  wizardNext: () => Promise<void> | void;
+  step: () => number;
+  stepButtons: Array<{ disabled: boolean }>;
   /** The bodies of the PUTs the page made, so a test can say what a save may contain. */
   putBodies: string[];
   /** What the page says next to its one save button. */
@@ -83,13 +88,41 @@ async function loadStudio(): Promise<Studio> {
     return elements.get(id)!;
   };
 
+  // The wizard works on `<main data-step>` and on the four step buttons, so the stub has to have
+  // them. The starting value comes from the markup the server rendered, which is the point: the
+  // script is not what decides which screen opens.
+  const serverStep = /<main data-step="(\d)"/.exec(html)?.[1] ?? "1";
+  const main = {
+    attrs: { "data-step": serverStep } as Record<string, string>,
+    getAttribute(name: string) {
+      return this.attrs[name] ?? null;
+    },
+    setAttribute(name: string, value: string) {
+      this.attrs[name] = value;
+    },
+    scrollIntoView: () => {},
+  };
+  const stepButtons = [1, 2, 3, 4].map((n) => ({
+    attrs: { "data-step": String(n) } as Record<string, string>,
+    disabled: false,
+    classes: new Set<string>(),
+    getAttribute(name: string) {
+      return this.attrs[name] ?? null;
+    },
+    classList: {
+      toggle: () => {},
+      add: () => {},
+      remove: () => {},
+    },
+  }));
+
   const fetchCalls: string[] = [];
   const putBodies: string[] = [];
   const context: Record<string, unknown> = {
     document: {
       getElementById: element,
-      querySelector: () => null,
-      querySelectorAll: () => [],
+      querySelector: (sel: string) => (sel === "main" ? main : null),
+      querySelectorAll: (sel: string) => (sel === ".pstep" ? stepButtons : []),
       documentElement: { setAttribute: () => {}, getAttribute: () => "light" },
     },
     window: {
@@ -148,6 +181,8 @@ async function loadStudio(): Promise<Studio> {
     },
     fetchCalls,
     putBodies,
+    stepButtons,
+    step: () => runInContext("stepNumber()", context) as number,
     element,
     notice: () => element("studio-notice").textContent,
     hint: () => element("save-hint").textContent,
@@ -155,6 +190,65 @@ async function loadStudio(): Promise<Studio> {
     ...(context as unknown as Omit<Studio, "state" | "fetchCalls" | "element" | "notice" | "hint" | "putBodies" | "sendHint">),
   };
 }
+
+describe("the wizard's own script", () => {
+  it("opens on the step the server rendered, and moves when asked", async () => {
+    const studio = await loadStudio();
+    // The fixture is priced and unapproved, so the server opened on step 3.
+    expect(studio.step()).toBe(3);
+
+    studio.goStep(1);
+    expect(studio.step()).toBe(1);
+    studio.goStep(4);
+    // Step 4 needs an approval the record does not have: the bar and the script both refuse to
+    // offer a screen whose prerequisites are missing.
+    expect(studio.step()).toBe(3);
+  });
+
+  it("runs the action that finishes the screen in front of the person", async () => {
+    const studio = await loadStudio();
+    expect(studio.step()).toBe(3);
+
+    // Step 3, unapproved: the button approves.
+    await studio.wizardNext();
+    expect(studio.fetchCalls.some((c) => c.includes("/confirm"))).toBe(true);
+    expect(studio.fetchCalls.some((c) => c.includes("/send-whatsapp"))).toBe(false);
+  });
+
+  it("asks for the price from step 2 when there is none", async () => {
+    const studio = await loadStudio();
+    studio.state.pricing = null;
+    studio.goStep(2);
+
+    await studio.wizardNext();
+
+    expect(studio.fetchCalls.some((c) => c.includes("/sync-estimate"))).toBe(true);
+  });
+
+  it("advances without touching the network when the screen has nothing left to do", async () => {
+    const studio = await loadStudio();
+    // Priced, so step 2 has nothing to run: Next moves to step 3.
+    studio.goStep(2);
+    const before = studio.fetchCalls.length;
+
+    await studio.wizardNext();
+
+    expect(studio.step()).toBe(3);
+    expect(studio.fetchCalls.length).toBe(before);
+  });
+
+  it("sends from step 4, which is the end of the wizard", async () => {
+    const studio = await loadStudio();
+    studio.state.status = "confirmed_by_hono";
+    studio.element("ack-sample").checked = true;
+    studio.goStep(4);
+
+    await studio.wizardNext();
+
+    expect(studio.fetchCalls.some((c) => c.includes("/publish"))).toBe(true);
+    expect(studio.fetchCalls.some((c) => c.includes("/send-whatsapp"))).toBe(true);
+  });
+});
 
 describe("the studio's own script", () => {
   it("adds a room with a fresh id, and removes an empty one", async () => {

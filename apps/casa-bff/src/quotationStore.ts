@@ -307,15 +307,29 @@ export function renderHonoQuotationEditorHtml(
     { label: "Approve", state: approved || published ? "done" : priced ? "current" : "todo" },
     { label: "Send", state: published ? "done" : approved ? "current" : "todo" },
   ];
-  // Archived is not a step in a workflow, so the bar says so rather than showing a frozen sequence.
+  // Which screen opens. Server-rendered, like the status: the right step must be in front of the
+  // person before any script runs, and a guest session has no wizard at all — it opens on the price.
+  //
+  // The script may move it afterwards (`goStep`), and remembers the choice in `sessionStorage`
+  // because the actions that finish a step RELOAD the page (the record is the source of truth for
+  // every figure on it).
+  const maxStep = published ? 4 : approved ? 4 : priced ? 3 : draft.bffTrip ? 2 : 1;
+  const initialStep = role === "guest" ? 2 : approved || published ? 4 : priced ? 3 : 1;
+
   const progressHtml = archived
     ? `<div class="progress-note">This quotation is archived. Nothing is sent to the guest from here.</div>`
     : `<div class="progress">${steps
-        .map(
-          (s, i) =>
-            `<div class="pstep ${s.state}"><span class="pnum">${s.state === "done" ? "✓" : i + 1}</span>${s.label}</div>`,
-        )
+        .map((s, i) => {
+          const n = i + 1;
+          // A step ahead of where the record has got to is not offered: the bar says what is
+          // possible, not what the workflow would look like if earlier work had been done.
+          const reachable = n <= maxStep;
+          return `<button type="button" class="pstep ${s.state}" data-step="${n}" onclick="goStep(${n})"${reachable ? "" : " disabled"} title="${
+            reachable ? `Go to step ${n}: ${s.label}` : `Finish the earlier steps first`
+          }">${`<span class="pnum">${s.state === "done" ? "✓" : n}</span>${s.label}`}</button>`;
+        })
         .join('<div class="psep"></div>')}</div>`;
+
 
   const initialJson = JSON.stringify(draft).replace(/</g, "\\u003c");
   const allQuotesJson = JSON.stringify(
@@ -662,6 +676,43 @@ ${themeCss()}
       border-left: 5px solid var(--emerald);
       color: var(--emerald);
     }
+    /* ---- The wizard: one screen per step ------------------------------------
+       The page used to be one long column of cards and a person scrolled to find the next thing to
+       do. Each step now owns the screen, the nav bar owns the one action that finishes it, and the
+       step that is not being worked on is not in the way.
+
+       The initial screen is chosen SERVER-side (the data-step attribute on the main element), so it
+       is correct before any script runs — the same reason the status pill is server-rendered. */
+    main > [data-step-card] { display: none; }
+    main[data-step="1"] > [data-step-card="1"],
+    main[data-step="2"] > [data-step-card="2"],
+    main[data-step="3"] > [data-step-card="3"],
+    main[data-step="4"] > [data-step-card="4"] { display: block; }
+    .pstep { cursor: pointer; }
+    .pstep:disabled { cursor: default; opacity: 0.55; }
+    .wizard-nav {
+      position: sticky;
+      bottom: 0;
+      z-index: 5;
+      margin-top: 18px;
+      padding: 12px 16px;
+      background: var(--card);
+      border: 2px solid var(--border);
+      border-radius: 14px 14px 0 0;
+      box-shadow: 0 -6px 18px rgba(0,0,0,0.08);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+    .wizard-label {
+      font-size: 13.5px;
+      font-weight: 800;
+      color: var(--muted);
+    }
+    .wizard-label strong { color: var(--text); }
+    body[data-role="guest"] .wizard-nav { display: none !important; }
     .link-editor-bar {
       display: flex;
       gap: 10px;
@@ -937,7 +988,7 @@ ${themeCss()}
     </aside>
 
     <!-- Main Studio -->
-    <main>
+    <main data-step="${initialStep}">
       ${
         archived
           ? `<div style="margin-bottom:18px;padding:14px 18px;border-radius:12px;background:rgba(244,63,94,0.1);border:2px solid #f43f5e;color:#e11d48;font-weight:700;display:flex;justify-content:space-between;align-items:center;">
@@ -954,14 +1005,10 @@ ${themeCss()}
           <span id="quote-status-badge" class="status-pill status-${statusTone}">${statusLabel}</span>
         </div>
         ${progressHtml}
-        <!-- One save for the whole review step: the guest's details AND the trip, in that order,
-             with the trip going through the route that prices it. Two buttons ("Save details",
-             "Reprice") asked a receptionist to know which of their edits belonged to which. -->
-        <div class="staff-only" style="margin-top:12px;display:flex;justify-content:space-between;align-items:center;gap:14px;flex-wrap:wrap;">
-          <div id="save-hint" style="font-size:13px;color:var(--muted);font-weight:600;">
-            ${published ? "Published: the trip and its price are frozen. Change them by starting a new quotation." : "One save for the guest's details and the priced trip."}
-          </div>
-          <button class="btn btn-primary" onclick="saveStudio()" id="btn-save-all" ${published ? "disabled" : ""}>Save &amp; get price</button>
+        <!-- The one action that finishes a step lives in the wizard bar at the bottom of the screen,
+             so the card in front of the person holds no competing primary button. -->
+        <div id="save-hint" class="staff-only" style="margin-top:12px;font-size:13px;color:var(--muted);font-weight:600;">
+          ${published ? "Published: the trip and its price are frozen. Change them by starting a new quotation." : "One save for the guest's details and the priced trip."}
         </div>
         <!-- One place for anything that goes wrong. Every action writes here instead of into its own
              corner of the page, so a refusal is never missed because it appeared somewhere the eye
@@ -969,10 +1016,10 @@ ${themeCss()}
         <div id="studio-notice" class="notice" style="display:none;" role="status" aria-live="polite"></div>
       </div>
 
-      <!-- Guest & stay details -->
-      <div class="card">
+      <!-- STEP 1 — the guest's details and the trip the engine will be asked to price -->
+      <div class="card" data-step-card="1">
         <div class="card-title">
-          <span>Guest &amp; stay details</span>
+          <span>Step 1 · Guest &amp; stay details</span>
           <span style="font-size:13px;font-weight:700;color:var(--muted);">From the guest's message — correct anything that is wrong</span>
         </div>
 
@@ -1016,17 +1063,22 @@ ${themeCss()}
           <a class="btn btn-outline staff-only" id="btn-open-ops-sheet" href="/quotes/${encodeURIComponent(draft.quoteId)}/ops" target="_blank" style="padding:6px 14px;font-size:13px;font-weight:700;">Ops Sheet</a>
         </div>
 
-        <!-- The save for the whole review step lives at the top of this page (see the workflow
-             card): the guest's details and the trip go together. -->
+        <div style="margin-top:18px;">
+          <label style="display:block;font-size:15px;font-weight:800;color:var(--text);margin-bottom:8px;">Note for the guest (printed on their quotation page)</label>
+          <input type="text" id="input-staff-notes" class="cell-input" value="${esc(draft.staffNotes)}" />
+        </div>
+
+        <!-- The save for the whole review step lives at the bottom of the screen (the wizard bar):
+             the guest's details and the trip go together. -->
         <div class="staff-only" style="margin-top:16px;display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
-          <span style="font-size:13px;color:var(--muted);font-weight:600;">Saved with <strong>Save &amp; get price</strong>, above.</span>
+          <span style="font-size:13px;color:var(--muted);font-weight:600;">Saved by <strong>Save &amp; get price</strong> at the bottom of this screen.</span>
         </div>
       </div>
 
-      <!-- Rooms & diving: the trip the engine prices, and the trip staff can correct -->
-      <div class="card">
+      <!-- STEP 1, continued: the trip itself -->
+      <div class="card" data-step-card="1">
         <div class="card-title">
-          <span>Rooms &amp; diving</span>
+          <span>Step 1 · Rooms &amp; diving</span>
           <span style="font-size:13px;font-weight:700;color:var(--muted);">What the resort's engine prices</span>
         </div>
 
@@ -1034,13 +1086,22 @@ ${themeCss()}
         <div class="staff-only" style="margin-bottom:18px;">
           <div style="margin-bottom:10px;">
             <div style="font-size:15px;font-weight:800;color:var(--text);">Trip review</div>
-            <div style="font-size:13.5px;color:var(--muted);">Add or remove rooms, set each room's type, move guests between rooms, and tick the dives and courses. <strong>Save &amp; get price</strong>, above, sends this to the engine.</div>
+            <div style="font-size:13.5px;color:var(--muted);">Add or remove rooms, set each room's type, move guests between rooms, and tick the dives and courses. The button at the bottom of the screen saves this and asks the engine to price it.</div>
           </div>
           <div id="trip-review"></div>
         </div>
+      </div>
 
-        <!-- The engine bar. One button that always works: it re-prices an existing scenario, and
-             prices a new one the first time (see 'saveTripAndReprice'). -->
+      <!-- STEP 2 — what the engine answered. Nothing to edit here: the figures are the engine's, and
+           the only action is to ask it again or to move on. -->
+      <div class="card" data-step-card="2">
+        <div class="card-title">
+          <span>Step 2 · The price</span>
+          <span style="font-size:13px;font-weight:700;color:var(--muted);">From the resort's booking engine — the only source of a figure</span>
+        </div>
+
+        <!-- The engine bar. One button that always works: it prices a new scenario, and re-prices an
+             existing one. -->
         <div class="staff-only" style="margin-bottom:18px;padding:14px 16px;background:var(--surface-2);border:2px solid var(--border);border-radius:12px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;">
           <div>
             <div style="font-size:15px;font-weight:800;color:var(--text);">Price</div>
@@ -1048,7 +1109,7 @@ ${themeCss()}
               ${
                 priced
                   ? `Priced ${esc(String(draft.pricing?.computedAt ?? "").slice(0, 16).replace("T", " "))} — saving the trip again replaces this figure.`
-                  : "Not priced yet. The resort's booking engine calculates every figure on this page."
+                  : "Not priced yet. The resort's booking engine calculates every figure on this screen."
               }
             </div>
           </div>
@@ -1058,36 +1119,22 @@ ${themeCss()}
           </div>
         </div>
 
-        <!-- Advanced: reservation (simulated engine only) and publishing without sending. -->
-        <details class="staff-only" style="margin-bottom:18px;padding:12px 16px;background:var(--surface-2);border:1px solid var(--border);border-radius:12px;">
-          <summary style="font-size:14px;font-weight:700;color:var(--muted);cursor:pointer;user-select:none;">More actions</summary>
-          <div style="margin-top:14px;display:flex;flex-direction:column;gap:14px;">
-            ${
-              // Hidden when the customer's app owns the booking (see `estimatorKind`).
-              estimatorKind === "simulated"
-                ? `<!-- Reservation bar -->
-            <div style="padding:12px 14px;background:var(--card);border:1px solid var(--border);border-radius:10px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;">
-              <div>
-                <div style="font-size:14px;font-weight:800;color:var(--text);">Book the reservation</div>
-                <div style="font-size:12.5px;color:var(--muted);">Creates the booking in the resort's engine. Only available with the built-in sample engine.</div>
-              </div>
-              <div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap;">
-                <button class="btn btn-outline" onclick="submitReservation()" id="btn-submit-reservation">Create booking</button>
-                <span id="reservation-status-badge" style="font-size:13px;font-weight:700;color:var(--muted);"></span>
-              </div>
-            </div>`
-                : ""
-            }
-
-            <!-- Creating the guest's link lives in the Send card with the acknowledgement it needs:
-                 two buttons that publish, with the tick for one of them somewhere else, is how a
-                 receptionist meets "Tick the sample-price box" for a button they never saw. -->
-            <div style="padding:12px 14px;background:var(--card);border:1px solid var(--border);border-radius:10px;">
-              <div style="font-size:14px;font-weight:800;color:var(--text);">Book the guest's link without messaging them</div>
-              <div style="font-size:12.5px;color:var(--muted);">Use <strong>Create link</strong> in the Send section below — it needs the same sample-price acknowledgement as sending.</div>
+        <!-- Booking the reservation (simulated engine only). Kept off the guest's path and away from
+             the two things this screen is for: reading the price and moving on. -->
+        ${
+          estimatorKind === "simulated"
+            ? `<details class="staff-only" style="margin-bottom:18px;padding:12px 16px;background:var(--surface-2);border:1px solid var(--border);border-radius:12px;">
+          <summary style="font-size:14px;font-weight:700;color:var(--muted);cursor:pointer;user-select:none;">Book this as a reservation</summary>
+          <div style="margin-top:14px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;">
+            <div style="font-size:12.5px;color:var(--muted);">Creates the booking in the resort's engine. Only available with the built-in sample engine.</div>
+            <div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap;">
+              <button class="btn btn-outline" onclick="submitReservation()" id="btn-submit-reservation">Create booking</button>
+              <span id="reservation-status-badge" style="font-size:13px;font-weight:700;color:var(--muted);"></span>
             </div>
           </div>
-        </details>
+        </details>`
+            : ""
+        }
 
         <div class="totals-grid">
           <div class="totals-box">
@@ -1122,21 +1169,20 @@ ${themeCss()}
         </div>`
             : ""
         }
-
-        <div style="margin-top:18px;">
-          <label style="display:block;font-size:15px;font-weight:800;color:var(--text);margin-bottom:8px;">Note for the guest (printed on their quotation page)</label>
-          <input type="text" id="input-staff-notes" class="cell-input" value="${esc(draft.staffNotes)}" />
-        </div>
       </div>
 
-      <!-- Approve: one decision, and the message it prepares -->
-      <div class="card staff-only">
+      <!-- STEP 3 — one decision, and the message it prepares -->
+      <div class="card staff-only" data-step-card="3">
         <div class="card-title">
-          <span>Approve</span>
+          <span>Step 3 · Approve</span>
           <span style="font-size:13px;font-weight:700;color:var(--muted);">
             ${approved ? "Approved" : priced ? "Waiting for your approval" : "Get the price first"}
           </span>
         </div>
+
+        <p style="font-size:13.5px;color:var(--muted);font-weight:600;margin:0 0 14px;">
+          Approving locks in the price for this trip. The guest's link is created when you send, on the next screen.
+        </p>
 
         <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:14px;">
           <button class="btn btn-outline" onclick="cancelQuotationAction()" id="btn-cancel-quote" style="color:var(--rose, #f43f5e);border-color:var(--rose, #f43f5e);">Archive quotation</button>
@@ -1145,10 +1191,6 @@ ${themeCss()}
           </button>
         </div>
 
-        <p style="font-size:13.5px;color:var(--muted);font-weight:600;margin:14px 0 0;">
-          Approving locks in the price for this trip. The guest's link is created when you send — one action, below.
-        </p>
-
         <div class="ai-reply-box" id="ai-confirmed-reply-box" style="${draft.status === "confirmed_by_hono" ? "" : "color:var(--muted);font-style:italic;"}">${
           draft.status === "confirmed_by_hono" && draft.aiConfirmedReply
             ? draft.aiConfirmedReply
@@ -1156,15 +1198,16 @@ ${themeCss()}
         }</div>
       </div>
 
-      <!-- Send: the link, the number, and one button that does both -->
-      <div class="card staff-only" id="ai-response-card">
+      <!-- STEP 4 — the link, the number, and one button that does both -->
+      <div class="card staff-only" data-step-card="4" id="ai-response-card">
         <div class="card-title">
-          <span>Send to the guest</span>
+          <span>Step 4 · Send to the guest</span>
           <span style="font-size:13px;font-weight:700;color:var(--muted);">
             ${
               published
                 ? `Link created ${esc(String(draft.estimator?.sharedAt ?? "").slice(0, 16).replace("T", " "))}`
                 : "The link is created when you send"
+
             }
           </span>
         </div>
@@ -1200,6 +1243,28 @@ ${themeCss()}
           The message carries the guest's own quotation link and no price of ours: the figures they read are the engine's, on their page.
           ${published ? "" : "Sending creates the link first."}
         </p>
+      </div>
+
+      <!-- The wizard bar. One action finishes the screen it belongs to, and Back is always there:
+           a person who is unsure of a figure goes back and looks, which is what the long column of
+           cards made awkward. Server-rendered state, like the progress bar, so the right button is
+           in front of the person before any script runs. -->
+      <div class="wizard-nav staff-only">
+        <button type="button" class="btn btn-outline" onclick="goStep(stepNumber() - 1)" id="btn-back" ${initialStep <= 1 ? "disabled" : ""}>&larr; Back</button>
+        <div class="wizard-label">
+          Step <strong id="wizard-step-num">${initialStep}</strong> of 4 · <span id="wizard-step-name">${steps[initialStep - 1]?.label ?? ""}</span>
+        </div>
+        <button type="button" class="btn btn-primary" onclick="wizardNext()" id="btn-next">
+          ${
+            published
+              ? "Send the message again"
+              : approved
+                ? "Create link &amp; send"
+                : priced
+                  ? "Approve quotation"
+                  : "Save &amp; get price"
+          }
+        </button>
       </div>
     </main>
   </div>
@@ -1284,6 +1349,110 @@ ${themeCss()}
         box.style.display = 'none';
         box.textContent = '';
       }
+    }
+
+    /**
+     * The wizard: which screen is in front, and what the button at the bottom does.
+     *
+     * The four screens are in the page at once and CSS shows one of them (the data-step attribute on main), so a
+     * step change is an attribute write and never a re-render. The step is remembered in
+     * sessionStorage because finishing a step RELOADS the page — every figure on screen comes from
+     * the record, so the record is what the next screen is drawn from — and coming back to step 1
+     * after saving the trip would make the person walk the wizard again.
+     */
+    const STEP_NAMES = ['Review trip', 'Get price', 'Approve', 'Send'];
+    const STEP_KEY = 'casa_studio_step';
+
+    function stepNumber() {
+      const main = document.querySelector('main');
+      return Number(main && main.getAttribute('data-step')) || 1;
+    }
+
+    /** The furthest step the record has earned. A step after it is not offered at all. */
+    function maxStep() {
+      const published = Boolean(state.estimator && state.estimator.sharedAt);
+      const approved = state.status === 'confirmed_by_hono';
+      if (published || approved) return 4;
+      if (state.pricing) return 3;
+      if (state.bffTrip) return 2;
+      return 1;
+    }
+
+    function goStep(n) {
+      const target = Math.max(1, Math.min(4, Math.min(n, maxStep())));
+      const main = document.querySelector('main');
+      if (main) main.setAttribute('data-step', String(target));
+      rememberStep(target);
+      updateWizard();
+      const box = document.getElementById('studio-notice');
+      if (box) box.scrollIntoView({ block: 'nearest' });
+    }
+
+    /**
+     * Where to open next time. The actions that finish a step reload the page — every figure on it
+     * comes from the record — so the step has to survive the reload, or saving the trip would put the
+     * person back on step 1 to walk the wizard again.
+     */
+    function rememberStep(n) {
+      try { sessionStorage.setItem(STEP_KEY, String(n)); } catch (err) {}
+    }
+
+    /** The nav: where we are, what Back does, and the one action that finishes this screen. */
+    function updateWizard() {
+      const step = stepNumber();
+      const num = document.getElementById('wizard-step-num');
+      const name = document.getElementById('wizard-step-name');
+      if (num) num.textContent = String(step);
+      if (name) name.textContent = STEP_NAMES[step - 1] || '';
+
+      const back = document.getElementById('btn-back');
+      if (back) back.disabled = step <= 1;
+
+      const next = document.getElementById('btn-next');
+      if (next) {
+        const published = Boolean(state.estimator && state.estimator.sharedAt);
+        const approved = state.status === 'confirmed_by_hono';
+        const priced = Boolean(state.pricing);
+        // The label is the ACTION, not "next": on screen 1 the button saves and prices, on screen 3
+        // it approves, on screen 4 it sends. A wizard whose button only says "Next" hides what the
+        // person is about to do.
+        next.textContent = published
+          ? 'Send the message again'
+          : step === 1
+            ? 'Save & get price'
+            : step === 2
+              ? (priced ? 'Approve quotation' : 'Get price')
+              : step === 3
+                ? (approved ? 'Create link & send' : 'Approve quotation')
+                : 'Create link & send';
+        // Step 4's send also needs the sample acknowledgement; updateSendControls owns that and is
+        // called from here so the two gates cannot drift.
+        if (step === 4) updateSendControls();
+      }
+
+      // The bar is clickable for the steps the record allows, so a person can jump back to a figure
+      // without walking the wizard.
+      document.querySelectorAll('.pstep').forEach(function (btn) {
+        const n = Number(btn.getAttribute('data-step'));
+        btn.disabled = n > maxStep();
+        btn.classList.toggle('current', n === step);
+        btn.classList.toggle('done', n < step);
+      });
+    }
+
+    /** The one action that finishes the screen in front of the person. */
+    async function wizardNext() {
+      const step = stepNumber();
+      if (step === 1) return saveStudio();          // save the details AND price the trip, then reload
+      if (step === 2) {
+        if (!state.pricing) return syncEstimate();  // nothing priced yet: ask for the price
+        return goStep(3);
+      }
+      if (step === 3) {
+        if (state.status !== 'confirmed_by_hono') return confirmAndSendToAI();
+        return goStep(4);
+      }
+      return sendToGuest();
     }
 
     function applyTheme(theme) {
@@ -1533,7 +1702,7 @@ ${themeCss()}
           </table>
         </div>
         <p style="font-size:13px;color:var(--muted);font-weight:600;margin-top:10px;">
-          D = boat dive, 3 = third dive, N = night dive. \${frozen ? 'Read-only while the guest holds the link.' : 'Nothing here reaches the engine until you press <strong>Save &amp; get price</strong>, at the top of the page.'}
+          D = boat dive, 3 = third dive, N = night dive. \${frozen ? 'Read-only while the guest holds the link.' : 'Nothing here reaches the engine until you press the button at the bottom of the screen.'}
         </p>\`;
     }
 
@@ -1685,11 +1854,10 @@ ${themeCss()}
         { label: 'Approve', state: (approved || published) ? 'done' : (priced ? 'current' : 'todo') },
         { label: 'Send', state: published ? 'done' : (approved ? 'current' : 'todo') }
       ];
-      const bar = document.querySelector('.progress');
-      if (!bar) return;
-      bar.innerHTML = steps.map(function (s, i) {
-        return '<div class="pstep ' + s.state + '"><span class="pnum">' + (s.state === 'done' ? '✓' : (i + 1)) + '</span>' + s.label + '</div>';
-      }).join('<div class="psep"></div>');
+      // The bar itself is NOT re-drawn here: it is server-rendered as buttons that can be clicked to
+      // jump to a step, and rewriting its markup would take those with it. updateWizard moves its
+      // classes and its disabled state instead.
+      void steps;
 
       const sendBtn = document.getElementById('btn-send-guest');
       if (sendBtn) {
@@ -1701,6 +1869,7 @@ ${themeCss()}
       const approveBtn = document.getElementById('btn-confirm-hono');
       if (approveBtn && approved) approveBtn.textContent = 'Approved';
       updateSendControls();
+      updateWizard();
     }
 
     /**
@@ -1811,6 +1980,7 @@ ${themeCss()}
           showInfo(published
             ? 'Saved. This quotation is published, so its trip and price are frozen — start a new quotation for a different trip.'
             : 'Saved.');
+          rememberStep(published ? 4 : 2);
           window.location.reload();
           return;
         }
@@ -1832,6 +2002,7 @@ ${themeCss()}
           + (data.sample ? ' — sample prices, not a real quote.' : '.')
           + (issues.length ? ' ' + issues.length + ' note(s) from the engine.' : '')
           + ' Reloading…');
+        rememberStep(2);
         window.location.reload();
       } catch (err) {
         showError('Could not save', { detail: err && err.message ? err.message : String(err) });
@@ -2168,6 +2339,18 @@ ${themeCss()}
 
     renderSidebar();
     renderTripReview();
+    // Which screen to open on: the step remembered before a reload (see rememberStep), clamped to
+    // what the record has actually earned. A remembered step 4 on a quotation that was never
+    // approved would otherwise be a screen with nothing to send from.
+    (function openRememberedStep() {
+      let remembered = 0;
+      try { remembered = Number(sessionStorage.getItem(STEP_KEY) || 0); } catch (err) {}
+      const main = document.querySelector('main');
+      const serverStep = Number((main && main.getAttribute('data-step')) || 1);
+      if (remembered > serverStep) goStep(remembered);
+      else if (remembered > 0 && remembered < serverStep) goStep(remembered);
+      else updateWizard();
+    })();
     renderStatus();
   </script>
 </body>
