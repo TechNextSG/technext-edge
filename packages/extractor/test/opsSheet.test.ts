@@ -140,18 +140,38 @@ describe("the studio draws the engine's answer", () => {
     expect(html).toContain(`/quotes/${draft.quoteId}/ops`);
   });
 
-  it("calls itself the live working copy, because there is no frozen one", async () => {
-    // Our stored record is not a snapshot, so staff editing a quotation changes what an already-sent
-    // link shows — and saying "frozen" would promise something the system does not do. The
-    // guest-facing half of that wording now lives in the customer's app; what this service still
-    // owns is the studio's own label, and the fact that it serves no guest page at all.
+  it("offers the guest's published link, and never the retired /q/ one", async () => {
+    // This page used to show our own `/q/<slug>` URL and call itself "the live working copy ….
+    // there is no frozen version yet". Both halves were stale: that page is retired and answers 410,
+    // and the link a guest receives is minted by the customer's app at Publish and frozen there —
+    // so the studio was inviting staff to paste a dead URL into a chat.
     const { app, draft } = await pricedQuote("QT-OPS-9");
 
     const studio = await (await app.request(`/quotes/${draft.quoteId}?token=${VERIFY_TOKEN}`)).text();
-    expect(studio).toContain("live working copy");
-    expect(studio).toContain("no frozen version yet");
-
+    // Every URL the page OFFERS — an `href` or an input `value` — rather than the whole document:
+    // the quotation record is embedded in the page's own script (`let state = …`) and legitimately
+    // contains `quotationUrl`. Asserting on the document was a test that could not tell a dead link
+    // on a button from a field of data, and passed or failed on whether the state was embedded.
+    const offered = (html: string) => [...html.matchAll(/(?:href|value)="([^"]*)"/g)].map((m) => m[1]!);
+    expect(offered(studio).some((u) => u.includes("/q/"))).toBe(false);
+    expect(studio).toContain("not published yet");
+    expect(studio).not.toContain("live working copy");
     expect((await app.request(`/q/${draft.slug}`)).status).toBe(410);
+
+    // Once published, that link — and only that link — is what the studio offers.
+    const published = await saveQuotationDraft({
+      ...draft,
+      estimator: {
+        id: "sim-9",
+        cookie: "ubg_sid=sim-9",
+        seq: 1,
+        guestUrl: "https://their-app.test/quote/tok-nine",
+        sharedAt: new Date().toISOString(),
+      },
+    });
+    const after = await (await app.request(`/quotes/${published.quoteId}?token=${VERIFY_TOKEN}`)).text();
+    expect(offered(after)).toContain("https://their-app.test/quote/tok-nine");
+    expect(offered(after).some((u) => u.includes("/q/"))).toBe(false);
   });
 
   it("marks the page with the role it was opened as, which is what gates the staff actions", async () => {    const draft = await storedQuote("QT-OPS-8");
