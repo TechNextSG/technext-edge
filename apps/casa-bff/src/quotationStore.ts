@@ -264,10 +264,12 @@ export function renderHonoQuotationEditorHtml(
       guestName: q.guestName,
       checkIn: q.checkIn,
       nights: q.nights,
-      // The engine's figure when the quotation has been priced, because it is the only number that
-      // will appear on a guest's link. `totalAmount` is the old hand-typed table's sum, and it is
-      // only still here for quotations priced before this page stopped doing its own arithmetic.
-      totalAmount: (q.pricing?.kpis.revenue ?? null) ?? q.totalAmount,
+      // The engine's figure, and ONLY the engine's. `totalAmount` is the draft builder's own
+      // hand-computed table (still produced, and still useful as a preview while staff look at an
+      // enquiry), but it is not what a guest is quoted — so it must never be what the queue shows
+      // next to "checkIn (n nights)". A quotation nobody has priced shows no money rather than a
+      // number no engine produced; measured on a real quotation where the two disagreed by 7,200.
+      engineRevenue: q.pricing?.kpis.revenue ?? null,
       currency: q.currency,
       status: q.status,
     }))
@@ -775,7 +777,16 @@ ${themeCss()}
       <div class="card">
         <div class="card-title">
           <span>👤 STEP 1: Guest Details &amp; Customer Quotation Link</span>
-          <span id="quote-status-badge" class="status-pill status-pending">⏳ Waiting for Staff Approval</span>
+          ${
+            // Rendered from the record, not from a guess. This used to hard-code "Waiting for Staff
+            // Approval" and let the page's own script correct it — so a quotation a staff member had
+            // already approved said it was still waiting until the JavaScript ran, and said it
+            // forever if the script failed or was blocked. A status that is only right after a
+            // client-side fix-up is a status nobody can trust while looking at it.
+            draft.status === "confirmed_by_hono"
+              ? `<span id="quote-status-badge" class="status-pill status-confirmed">✅ Confirmed by Hono &amp; Sent to AI</span>`
+              : `<span id="quote-status-badge" class="status-pill status-pending">⏳ Waiting for Staff Approval</span>`
+          }
         </div>
 
         ${
@@ -1019,7 +1030,7 @@ ${themeCss()}
             </span>
           </div>
           <div style="font-size:15px;font-weight:700;">\${escHtml(q.guestName)}</div>
-          <div style="font-size:14px;color:var(--muted);">\${q.checkIn} (\${q.nights} nights) · <strong>\${fmtMoney(q.totalAmount, q.currency)}</strong></div>
+          <div style="font-size:14px;color:var(--muted);">\${q.checkIn} (\${q.nights} nights) · <strong>\${q.engineRevenue == null ? 'not priced yet' : fmtMoney(q.engineRevenue, q.currency)}</strong></div>
         </a>
       \`).join('');
     }

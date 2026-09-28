@@ -10,7 +10,7 @@
 // none of them execute the page's JavaScript. This file does: it parses each rendered script.
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import { createApp } from "../../../apps/casa-bff/src/app.js";
-import { listQuotations } from "../../../apps/casa-bff/src/quotationStore.js";
+import { listQuotations, saveQuotationDraft } from "../../../apps/casa-bff/src/quotationStore.js";
 
 const STAFF_TOKEN = "test-staff-token";
 const savedToken = process.env.WHATSAPP_VERIFY_TOKEN;
@@ -203,5 +203,36 @@ describe("the studio has one price, and it is the engine's", () => {
     expect(html).toContain("Extractor scorecard");
     expect(html).toContain("unchanged");
     expect(html).toContain("Field names only");
+  });
+
+  // Found on a real quotation in production: the page hard-coded "Waiting for Staff Approval" and
+  // let its own script correct it, so a quotation staff had already approved read as unapproved
+  // until the JavaScript ran — and said that forever if the script failed or was blocked.
+  it("states the approval in the server-rendered page, not only after the script runs", async () => {
+    const app = createApp();
+    const quotations = await listQuotations();
+    const id = quotations[0]!.quoteId;
+
+    const pending = await (await app.request(`/quotes/${id}?token=${STAFF_TOKEN}`)).text();
+    expect(pending).toContain("Waiting for Staff Approval");
+
+    const confirmed = await saveQuotationDraft({ ...quotations[0]!, status: "confirmed_by_hono" });
+    const html = await (await app.request(`/quotes/${confirmed.quoteId}?token=${STAFF_TOKEN}`)).text();
+    expect(html).toContain("Confirmed by Hono");
+    expect(html).not.toContain("Waiting for Staff Approval");
+  });
+
+  // The queue's price must be the engine's or nothing. `totalAmount` is the draft builder's own
+  // arithmetic, and on a real production quotation the two disagreed by ₱7,200 — a number no engine
+  // produced, sitting beside the dates in the queue.
+  it("shows no price in the queue for a quotation nobody has priced", async () => {
+    const app = createApp();
+    const quotations = await listQuotations();
+    const html = await (await app.request(`/quotes/${quotations[0]!.quoteId}?token=${STAFF_TOKEN}`)).text();
+    const start = html.indexOf("allQuotes = ");
+    const sidebar = html.slice(start, start + 4000);
+
+    expect(sidebar).toContain("engineRevenue");
+    expect(sidebar).not.toContain("totalAmount:");
   });
 });
