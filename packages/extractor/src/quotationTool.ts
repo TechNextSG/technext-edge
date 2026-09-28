@@ -13,6 +13,7 @@ import {
   TRANSPORT_RATE,
   PARTNER_DISCOUNT_PCT,
   ROOM_TYPE_LABELS,
+  vansForGuests,
   type RoomType,
 } from "./rates.js";
 
@@ -441,20 +442,29 @@ export function buildHonoQuotationDraft(
     }
   }
 
-  // 4. Airport transfer — a per-van price, not per guest.
+  // 4. Airport transfer — a per-van price, not per guest, and more than one van once the group is
+  //    bigger than a van carries. It used to be `quantity: 1` for every group, so a 10-guest trip was
+  //    drafted with a single van and the engine's answer arrived thousands of pesos higher — the draft
+  //    exists to be the engine's own answer, and a fixed one-van line cannot be that for a big group.
   if (trip.transport?.value === true) {
     const oneWay = trip.transportType?.value === "oneway";
     const rate = oneWay ? TRANSPORT_RATE.oneway : TRANSPORT_RATE.roundtrip;
+    // Who is actually riding: the per-guest flag when the record has one (that is what the payload
+    // sends), and the party size when nobody is flagged — a transfer asked for but not assigned is
+    // still a van.
+    const riding = bffTrip.guests.filter((guest) => guest.transport).length || stayingGuests;
+    const vans = vansForGuests(riding);
+    const label = oneWay ? "One Way" : "Round-Trip";
     lineItems.push({
       id: "item-transfer",
       category: "transfer",
-      description: oneWay ? "Private Van Transfer (One Way)" : "Private Van Transfer (Round-Trip)",
-      quantity: 1,
-      unitLabel: "van",
+      description: `Private Van Transfer (${label}${vans > 1 ? `, ${vans} vans` : ""})`,
+      quantity: vans,
+      unitLabel: vans === 1 ? "van" : "vans",
       multiplier: 1,
       multiplierLabel: "trip",
       unitPrice: rate,
-      subtotal: rate,
+      subtotal: rate * vans,
     });
   }
 

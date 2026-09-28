@@ -3,7 +3,14 @@
 // (see src/rates.ts for provenance); these tests reproduce the rules from the field guide and
 // the compute examples in the cloned tn-casa-quotation-estimator repo.
 import { describe, it, expect } from "vitest";
-import { roomNightlyRate, diveTierPrice, MEAL_RATE } from "../src/rates.js";
+import {
+  roomNightlyRate,
+  diveTierPrice,
+  MEAL_RATE,
+  TRANSPORT_RATE,
+  vanLoads,
+  vansForGuests,
+} from "../src/rates.js";
 import { buildHonoQuotationDraft } from "../src/quotationTool.js";
 import type { Trip } from "../src/schema.js";
 
@@ -119,5 +126,56 @@ describe("buildHonoQuotationDraft prices with the real model", () => {
 
     const standard = buildHonoQuotationDraft(anaTrip());
     expect(standard.lineItems.find((i) => i.category === "room")!.description).toContain("Standard Room");
+  });
+});
+
+describe("the airport transfer", () => {
+  // Two customer sources disagree about this price, and the table follows the one a guest is told:
+  // the resort's own site publishes PHP 14,000 per van round trip, while the engine's captured runs
+  // price 6,500 per run (13,000). Both are recorded in rates.ts and in
+  // docs/resort-website-cross-check.md as a question for Phillip.
+  it("is priced per van, at the resort's published round-trip price", () => {
+    expect(TRANSPORT_RATE.roundtrip).toBe(14000);
+    // The one-way figure keeps the engine's own number: the site publishes none, so nothing to differ.
+    expect(TRANSPORT_RATE.oneway).toBe(6500);
+  });
+
+  it("counts the vans a group actually needs", () => {
+    // The engine's own captured runs split seven guests into a van of six and a van of one.
+    expect(vansForGuests(1)).toBe(1);
+    expect(vansForGuests(6)).toBe(1);
+    expect(vansForGuests(7)).toBe(2);
+    expect(vansForGuests(12)).toBe(2);
+    expect(vansForGuests(13)).toBe(3);
+    expect(vansForGuests(0)).toBe(1);
+    expect(vanLoads(7)).toEqual([{ pax: 6 }, { pax: 1 }]);
+    expect(vanLoads(12)).toEqual([{ pax: 6 }, { pax: 6 }]);
+  });
+
+  it("drafts one van for a small group, and two for a group of seven", () => {
+    const two = buildHonoQuotationDraft(anaTrip({ guests: f(2), rooms: f(1), transport: f(true) }));
+    const twoVan = two.lineItems.find((i) => i.category === "transfer")!;
+    expect(twoVan.quantity).toBe(1);
+    expect(twoVan.unitPrice).toBe(14000);
+    expect(twoVan.subtotal).toBe(14000);
+    expect(twoVan.description).not.toContain("2 vans");
+
+    // Seven guests riding: one van cannot carry them, and a flat one-van line drafted a transfer
+    // ₱14,000 short of what the engine would charge.
+    const seven = buildHonoQuotationDraft(anaTrip({ guests: f(7), rooms: f(4), transport: f(true) }));
+    const sevenVans = seven.lineItems.find((i) => i.category === "transfer")!;
+    expect(sevenVans.quantity).toBe(2);
+    expect(sevenVans.unitLabel).toBe("vans");
+    expect(sevenVans.subtotal).toBe(28000);
+    expect(sevenVans.description).toContain("2 vans");
+  });
+
+  it("charges one van when a transfer was asked for but no guest is flagged as riding", () => {
+    // `transport: true` with no per-guest flag is what a guest who says "we need the airport pickup"
+    // produces; the van is still a van.
+    const trip = anaTrip({ transport: f(true), transportType: f("roundtrip") });
+    const van = buildHonoQuotationDraft(trip).lineItems.find((i) => i.category === "transfer")!;
+    expect(van.quantity).toBe(1);
+    expect(van.subtotal).toBe(14000);
   });
 });

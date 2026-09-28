@@ -72,9 +72,50 @@ export const DIVE_TIERS: Record<number, number> = {
 };
 
 export const MEAL_RATE = 1500;
-export const TRANSPORT_RATE = { roundtrip: 13000, oneway: 6500 } as const;
+
+/**
+ * Airport transfer: a price per VAN, and a van carries `VAN_CAPACITY` guests.
+ *
+ * Two customer sources disagree about the round trip, and the disagreement is recorded here rather
+ * than quietly resolved:
+ *
+ *   * the resort's own public site publishes **PHP 14,000 per van, round trip, max 7 pax with light
+ *     luggage** (`https://www.casaescondida-anilao.com/book-now`, read 2026-09-28) — and that is the
+ *     number a guest is told, so it is the one this copy uses;
+ *   * the engine's captured examples price each van **run** at 6,500 (arrival + departure = 13,000)
+ *     and split 7 guests into two vans (`contracts/odoo/examples/compute.agent-group.json`) — and the
+ *     engine is what actually prices a real quotation.
+ *
+ * The one-way price keeps the engine's own 6,500: the site publishes no one-way figure, so there is
+ * nothing to disagree with. Capacity follows the engine's observed runs (6 per van), not the site's
+ * "max 7 pax", because this table exists to approximate what the engine will answer. Both questions
+ * are open with Phillip and written up in `docs/resort-website-cross-check.md`.
+ */
+export const TRANSPORT_RATE = { roundtrip: 14000, oneway: 6500 } as const;
+
+/** Guests one van carries, as the engine's own runs show (7 guests → a van of 6 plus a van of 1). */
+export const VAN_CAPACITY = 6;
+
 export const COURSE_RATES = { dsd: 5500, ow: 22000, aow: 18000 } as const;
 export const PARTNER_DISCOUNT_PCT = 30;
+
+/**
+ * How many vans a group of `guests` needs, and never fewer than one: a transfer that was asked for
+ * is at least one van, whatever the party size looks like in the record.
+ */
+export function vansForGuests(guests: number): number {
+  return Math.max(1, Math.ceil(Math.max(0, guests) / VAN_CAPACITY));
+}
+
+/** The same split as a load per van, filled to capacity — the shape a van-run reads in the model. */
+export function vanLoads(guests: number): Array<{ pax: number }> {
+  const total = Math.max(0, guests);
+  const vans: Array<{ pax: number }> = [];
+  for (let left = total; left > 0; left -= VAN_CAPACITY) {
+    vans.push({ pax: Math.min(VAN_CAPACITY, left) });
+  }
+  return vans.length > 0 ? vans : [{ pax: 0 }];
+}
 
 /**
  * The nightly room rate for a given occupancy, falling back to the highest band when a room is

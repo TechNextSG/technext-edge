@@ -1016,17 +1016,23 @@ export function declinesPartner(text: string): boolean {
 const FALLBACKS: Record<FallbackKind, Record<GuestLanguage, string>> = {
   // Sent when a turn failed before anything reached the guest. It says what
   // happened in one clause, then the only thing that is actually true and useful:
-  // a person has it. It does not promise a time, and it does not ask the guest to
-  // type everything again — the transcript is kept on our side.
+  // a person has it. It does not ask the guest to type everything again — the test
+  // transcript is kept on our side.
+  //
+  // Both promises that a person will reply now carry the front desk's hours, because the bot runs
+  // 24/7 and the desk does not: the resort's own site publishes "front desk open until 9 PM"
+  // (read 2026-09-28), so at 22:00 "a person will reply here" was a promise with no morning in it.
+  // The sentence is deliberately static rather than clock-aware — it is true at every hour, and it
+  // needs no timezone arithmetic to stay true.
   apology: {
-    en: "Sorry — something went wrong on our side while I was reading your last message, so I haven't managed to note the details down yet. I've flagged this for the Casa team and a person will reply to you here.",
-    zh: "抱歉，我们这边读取您刚才的消息时出了问题，暂时还没能记录下信息。我已经通知 Casa 团队，会在这里回复您。",
+    en: "Sorry — something went wrong on our side while I was reading your last message, so I haven't managed to note the details down yet. I've flagged this for the Casa team and a person will reply to you here. Our front desk is open until 9 PM (Manila time), so if you have written outside those hours you will hear from us the next morning.",
+    zh: "抱歉，我们这边读取您刚才的消息时出了问题，暂时还没能记录下信息。我已经通知 Casa 团队，会在这里回复您。前台服务时间至晚上 9 点（马尼拉时间），若您在此时间之后留言，我们会在第二天早上回复您。",
   },
   // Sent while a thread is parked for a human (after a failure, after the guest
   // asked for a person, or once asking has stopped being useful).
   handoff: {
-    en: "A member of the Casa team is handling your enquiry now and will reply to you here. Thank you for your patience.",
-    zh: "Casa 团队正在处理您的咨询，会在这里回复您。感谢您的耐心等待。",
+    en: "A member of the Casa team is handling your enquiry now and will reply to you here. Our front desk is open until 9 PM (Manila time), so if you have written outside those hours you will hear from us the next morning. Thank you for your patience.",
+    zh: "Casa 团队正在处理您的咨询，会在这里回复您。前台服务时间至晚上 9 点（马尼拉时间），若您在此时间之后留言，我们会在第二天早上回复您。感谢您的耐心等待。",
   },
   // Sent when the message is not a booking enquiry at all (see intent.ts). It names what this
   // number is for and who answers, and it deliberately does not scold: a guest who asked the wrong

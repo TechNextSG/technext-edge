@@ -43,6 +43,8 @@ import {
   PARTNER_DISCOUNT_PCT,
   roomNightlyRate,
   TRANSPORT_RATE,
+  vanLoads,
+  vansForGuests,
   type RoomType,
 } from "../../../packages/extractor/src/rates.js";
 import type {
@@ -242,6 +244,10 @@ export function buildSimulatedModel(trip: BffTrip, asRole?: SimulatedRole): SimM
   const transportGuests = guests.filter((g) => g.transport).length || guests.length;
   const vanPrice =
     trip.transportType === "oneway" ? TRANSPORT_RATE.oneway : TRANSPORT_RATE.roundtrip;
+  // More than one van once the group is bigger than a van carries: the engine's own captured runs
+  // split 7 guests into a van of 6 and a van of 1, so a single van for any group was the one thing
+  // this simulation could not be trusted to price. See `vansForGuests`.
+  const vanCount = transportRequested ? vansForGuests(transportGuests) : 0;
 
   const partner = role === "agent" || role === "instructor";
 
@@ -312,13 +318,16 @@ export function buildSimulatedModel(trip: BffTrip, asRole?: SimulatedRole): SimM
       });
     }
 
-    // 5. Transport — one van per trip, split across the guests riding it.
+    // 5. Transport — the vans this group needs, split across the guests riding them.
     if (transportRequested && guest.transport) {
       push({
         cat: "transport",
-        label: trip.transportType === "oneway" ? "Private van — one way" : "Private van — round trip",
+        label:
+          trip.transportType === "oneway"
+            ? `Private van — one way${vanCount > 1 ? ` (${vanCount} vans)` : ""}`
+            : `Private van — round trip${vanCount > 1 ? ` (${vanCount} vans)` : ""}`,
         sub: `per van, split across ${transportGuests} guest${transportGuests === 1 ? "" : "s"}`,
-        gross: vanPrice / transportGuests,
+        gross: (vanPrice * vanCount) / transportGuests,
       });
     }
 
@@ -408,11 +417,11 @@ export function buildSimulatedModel(trip: BffTrip, asRole?: SimulatedRole): SimM
     nonDivers,
     diverCount,
     dayPlans,
-    vans: transportRequested ? 1 : 0,
+    vans: vanCount,
     vanRuns: transportRequested
       ? [
-          { date: checkIn, dir: "arrival", vans: [{ pax: guestCount }] },
-          { date: checkOut, dir: "departure", vans: [{ pax: guestCount }] },
+          { date: checkIn, dir: "arrival", vans: vanLoads(transportGuests) },
+          { date: checkOut, dir: "departure", vans: vanLoads(transportGuests) },
         ]
       : null,
     kpis: {

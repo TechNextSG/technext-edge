@@ -100,3 +100,15 @@ một dòng tiền đang thiếu trong cả hai hệ.
 2. Nếu chốt 14.000: sửa `rates.ts` + test, và nói rõ với lead rằng con số engine vẫn là giá thật.
 3. Nếu có số WhatsApp chính thức: set `RESORT_WHATSAPP_NUMBER` và (nếu Cloud API) đổi luôn số gửi.
 4. Cân nhắc câu chữ handoff theo **giờ lễ tân 21:00**.
+
+## 6. Đã làm ngày 28/09/2026 (theo yêu cầu)
+
+| Việc | Thay đổi | Ghi chú |
+|---|---|---|
+| Giá van | `TRANSPORT_RATE.roundtrip: 13000 → 14000` (giữ `oneway: 6500` của engine) | Theo **giá công bố trên website**; engine vẫn tính 13.000 → **vẫn là câu hỏi mở cho Phillip**, đã ghi ngay trong comment của `rates.ts` |
+| Số van theo nhóm | thêm `VAN_CAPACITY = 6`, `vansForGuests()`, `vanLoads()`; `quotationTool.ts` và `simulatedEstimator.ts` đều tính đủ van | Nhóm 7 khách: 2 van × 14.000 = 28.000 (trước đây luôn 1 van) |
+| Câu chữ handoff | `fallbackReply("handoff")` và `("apology")` thêm *"Our front desk is open until 9 PM (Manila time) … next morning"* (+ bản tiếng Trung) | Câu tĩnh, đúng ở mọi giờ; câu mở đầu mà test/field guide đang gắn vẫn giữ nguyên |
+
+Vẫn **chưa** làm, vì cần Phillip chốt: trẻ 0–6 tuổi miễn phí, day use, và luồng đại lý nào là chính
+(website upload chứng chỉ hay app tự phục vụ).
+

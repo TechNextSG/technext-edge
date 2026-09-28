@@ -520,6 +520,21 @@ describe("fallbacks", () => {
     expect(fallbackReply("handoff", null)).toBe(fallbackReply("handoff", "en"));
   });
 
+  it("tells the guest the hours behind the promise that a person will reply", () => {
+    // The bot answers at 3am; the resort's front desk closes at 9 PM (published on their own site,
+    // read 2026-09-28). "A person will reply here" with no hours is a promise with no morning in it,
+    // and both texts that make that promise now carry the hours — statically, so they stay true
+    // whatever the clock says and need no timezone arithmetic.
+    for (const kind of ["handoff", "apology"] as const) {
+      const en = fallbackReply(kind, "en");
+      expect(en, kind).toContain("9 PM");
+      expect(en, kind).toContain("next morning");
+      expect(fallbackReply(kind, "zh"), kind).toContain("晚上 9 点");
+    }
+    // The sentence the tests and the field guide pin is still the opening of the handoff text.
+    expect(fallbackReply("handoff", "en")).toContain("A member of the Casa team is handling your enquiry");
+  });
+
   it("recognises a guest asking for a person in both languages", () => {
     expect(wantsHuman("Can I talk to a human please?")).toBe(true);
     expect(wantsHuman("please put me through to the manager")).toBe(true);

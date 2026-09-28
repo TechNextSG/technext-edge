@@ -147,6 +147,46 @@ describe("buildSimulatedModel — the captured couple, reproduced", () => {
     expect(model.warnings).toEqual([{ level: "warn", text: "Sat, Nov 21: no boat picked yet for Ana." }]);
   });
 
+  it("puts a group of seven in two vans, the way the engine's own runs do", () => {
+    // Their captured runs carry a van of 6 and a van of 1 for seven guests, and the transfer is split
+    // across the riders. This simulation priced one van for any group, which is the one transport
+    // number a big booking would have been quoted wrong.
+    const seven = buildSimulatedModel(
+      buildBffTrip(
+        retailCoupleSource({
+          guests: { value: 7, state: "stated", evidence: null },
+          rooms: { value: 4, state: "stated", evidence: null },
+          transport: { value: true, state: "stated", evidence: null },
+          transportType: { value: "roundtrip", state: "stated", evidence: null },
+          guestNames: { value: [], state: "missing", evidence: null },
+        }),
+      ),
+    );
+
+    expect(seven.vans).toBe(2);
+    expect(seven.vanRuns?.map((run) => run.vans)).toEqual([
+      [{ pax: 6 }, { pax: 1 }],
+      [{ pax: 6 }, { pax: 1 }],
+    ]);
+    // 2 vans × PHP 14,000, split across the seven riders.
+    expect(seven.catRev.transport).toBe(28000);
+    const rider = seven.quotes[0]!;
+    expect(rider.lines.find((l) => l.cat === "transport")!.gross).toBeCloseTo(4000, 2);
+  });
+
+  it("keeps one van for a couple, at the resort's published round-trip price", () => {
+    const couple = buildSimulatedModel(
+      buildBffTrip(
+        retailCoupleSource({
+          transport: { value: true, state: "stated", evidence: null },
+          transportType: { value: "roundtrip", state: "stated", evidence: null },
+        }),
+      ),
+    );
+    expect(couple.vans).toBe(1);
+    expect(couple.catRev.transport).toBe(14000);
+  });
+
   it("keeps the nullable cost half null — we have no cost data in any mode", () => {
     expect(model.cost).toBeNull();
     expect(model.costs).toBeNull();
