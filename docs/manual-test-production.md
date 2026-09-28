@@ -113,23 +113,20 @@ Mở link trên điện thoại (hoặc dán vào tab 3 của máy tính). Phả
 
 ---
 
-## 2. Kịch bản B — hai bẫy phải tự kiểm
+## 2. Kịch bản B — ba bẫy phải tự kiểm
 
-### B1. Khách đổi số lượng giữa chừng (trong cùng một enquiry)
-
-Sau khi đã Approve ở kịch bản A, nhắn tiếp từ điện thoại:
-
-> Sorry, there are 4 of us
-
-**Phải thấy trong studio** (tải lại trang): **giữ nguyên mã báo giá**, nhưng
-`status` về `Priced — needs approval`, **mất duyệt**, có dòng cảnh báo *"The guest changed the trip
-after it was priced…"*. Bấm Approve lại mới gửi được. Đây là điều cố ý: duyệt là duyệt cho **một
-chuyến cụ thể**.
+> **Thứ tự quan trọng:** làm **B1b trước khi bấm Publish**. Một báo giá đã publish thì không được tái sử
+> dụng nữa, nên khách nhắn tiếp sẽ mở **record MỚI** (đúng thiết kế: báo giá đã gửi không sửa được) — khi
+> đó không còn gì để kiểm "bản sửa có sống sót không", và queue có thêm một dòng.
 
 ### B1b. Sửa của nhân viên phải sống sót (bẫy A1 — đã sửa 2026-09-28)
 
-Nếu bạn **đã sửa chuyến trong studio** (ví dụ đổi ngày lặn từ Ana sang Ben) rồi Approve, sau đó khách
-nhắn một câu **không nói lại** thông tin đó:
+**Làm ở màn 1, trước khi Approve/Publish.** Sửa một chi tiết **khách không hề nói** (ví dụ chuyển ô **D**
+ngày lặn từ người này sang người kia trong lưới *Rooms & diving*), rồi bấm **Save & get price**.
+Kiểm ngay trong studio: trip phải giữ **đúng bản sửa** (nếu bị trả về bản cũ thì đó là lỗi cũ đã sửa hôm
+2026-09-28 — báo ngay), và bảng *AI reading check* phải đếm thêm một correction.
+
+Rồi Approve, và **trước khi Publish** nhắn từ điện thoại một câu **không nói lại** chi tiết đó:
 
 > One more thing: our flight lands at 4pm, everything else is as we said
 
@@ -138,6 +135,17 @@ nhắn một câu **không nói lại** thông tin đó:
 message would change priced facts you corrected … The corrected trip and its price were kept"*. Nếu
 thay vào đó bản sửa bị đảo lại và mất duyệt kèm câu đổ lỗi cho khách — đó là lỗi cũ, báo ngay.
 (Đo trước khi sửa: đúng y hệt như vậy, trên `QT-1121-ANA-46717280`.)
+
+### B1. Khách đổi số lượng giữa chừng (trong cùng một enquiry, **trước** khi publish)
+
+Sau khi đã Approve ở kịch bản A (và đã làm B1b), nhắn tiếp từ điện thoại:
+
+> Sorry, there are 4 of us
+
+**Phải thấy trong studio** (tải lại trang): **giữ nguyên mã báo giá**, nhưng
+`status` về `Priced — needs approval`, **mất duyệt**, có dòng cảnh báo *"The guest changed the trip
+after it was priced…"*. Bấm Approve lại mới gửi được. Đây là điều cố ý: duyệt là duyệt cho **một
+chuyến cụ thể**.
 
 ### B2. Reset là hết một enquiry
 

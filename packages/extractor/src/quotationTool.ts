@@ -578,8 +578,15 @@ export async function synthesizeConfirmedQuotationReply(
   const note = guestSafeStaffNotes(draft.staffNotes);
   const rooms = draft.bffTrip?.rooms ?? [];
 
-  const deterministicMessage = [
-    `Hi ${draft.guestName}! Your quotation for ${draft.checkIn} to ${draft.checkOut} (${draft.nights} nights) is ready to look at here:`,
+  // The block the guest reads, without a salutation.
+  //
+  // It used to open with "Hi <name>! Your quotation for…", and the model writes a greeting of its own
+  // above it — so the message the guest actually received on production (2026-09-28, read from the
+  // body the send route returned) began "Hi Ana Reyes! It's a pleasure to help you start planning…"
+  // and then said "Hi Ana Reyes!" again. The greeting belongs to whoever writes it: the model when
+  // there is one, and this fallback when there is not.
+  const messageBlock = [
+    `Your quotation for ${draft.checkIn} to ${draft.checkOut} (${draft.nights} nights) is ready to look at here:`,
     ``,
     // No link yet means this text is being shown as the APPROVAL preview, not sent: the send rebuilds
     // the message from the record once the link exists. Printing "(no link — this quotation has not
@@ -601,6 +608,9 @@ export async function synthesizeConfirmedQuotationReply(
     .filter(Boolean)
     .join("\n");
 
+  /** The whole message with no model involved — and the one that greets the guest itself. */
+  const deterministicMessage = `Hi ${draft.guestName}! ${messageBlock}`;
+
   if (!provider?.generateText) {
     return deterministicMessage;
   }
@@ -620,12 +630,13 @@ export async function synthesizeConfirmedQuotationReply(
     const sys = [
       `You are the Senior Concierge at Casa Escondida Resort & Dive Center in Anilao, Batangas.`,
       `A member of our reservations team has just finished preparing a guest's quotation and it is ready to look at.`,
-      `Write a warm, natural TWO-sentence opening ONLY. Do not list prices, totals or line items — the guest's own quotation page shows those.`,
+      `Write a warm, natural TWO-sentence opening ONLY, and address the guest by name once — the block below starts with the quotation itself, so do not greet them a second time and do not repeat their name.`,
+      `Do not list prices, totals or line items — the guest's own quotation page shows those.`,
       `Never say a booking, a stay, a room or a quotation is confirmed: nothing is booked yet and only our front desk takes bookings.`,
       `Then include the link and the closing line provided below, verbatim, and nothing else.`,
     ].join(" ");
 
-    const user = `Guest: ${draft.guestName}\nWrite the greeting, then reproduce this block verbatim:\n${deterministicMessage}`;
+    const user = `Guest: ${draft.guestName}\nWrite the greeting, then reproduce this block verbatim:\n${messageBlock}`;
     const llmReply = await withBudget(provider.generateText(sys, user), CONFIRMED_GREETING_BUDGET_MS);
 
     if (llmReply && llmReply.includes(guestLink ?? "\u0000")) {

@@ -620,6 +620,44 @@ describe("staff quotation routes require the staff token", () => {
       const message = await synthesizeConfirmedQuotationReply(built);
       expect(message).toContain("Boat leaves at 7am");
     });
+
+    it("greets the guest once, not twice, when a model writes the opening", async () => {
+      // Read from production on 2026-09-28, from the body the send route returned: the message began
+      // "Hi Ana Reyes! It's a pleasure to help you start planning…" and then the block said
+      // "Hi Ana Reyes!" again. The greeting belongs to whoever writes it — the model when there is
+      // one, and the deterministic fallback when there is not.
+      const built = await saveQuotationDraft({
+        ...buildHonoQuotationDraft(makeTrip()),
+        quoteId: "QT-0000-GREETING-AAA",
+        slug: randomUUID(),
+        guestName: "Ana",
+        status: "confirmed_by_hono",
+        estimator: {
+          id: "sim-greet",
+          cookie: null,
+          seq: 1,
+          guestUrl: "https://their-app.test/quote/live",
+          sharedAt: new Date().toISOString(),
+        },
+      });
+
+      // What the fallback says, minus its own salutation: exactly what a model is asked to append.
+      const fallback = await synthesizeConfirmedQuotationReply(built);
+      expect(fallback.startsWith("Hi Ana! ")).toBe(true);
+      const block = fallback.slice("Hi Ana! ".length);
+
+      const withModel = await synthesizeConfirmedQuotationReply(built, {
+        id: "fake:greeting",
+        call: async () => ({ raw: {}, tokensIn: 1, tokensOut: 1, cacheReadTokens: 0, ms: 1 }),
+        generateText: async () => `Hi Ana! Lovely to hear from you — the team has put your quotation together.\n\n${block}`,
+      } as never);
+
+      expect((withModel.match(/Hi Ana/g) ?? []).length).toBe(1);
+      // …and the message is still the whole thing: the link, and the terms nobody may drop.
+      expect(withModel).toContain("https://their-app.test/quote/live");
+      expect(withModel).toContain("nothing is booked yet");
+      expect(withModel).toContain("50% non-refundable down payment confirms your reservation");
+    });
   });
 
   it("fails closed when no token is configured, rather than opening the routes", async () => {
