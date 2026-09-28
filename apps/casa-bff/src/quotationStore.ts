@@ -431,6 +431,12 @@ export function renderHonoQuotationEditorHtml(
               ? "Priced — needs approval"
               : "Needs review";
   const statusTone = archived ? "rose" : published || approved ? "emerald" : "amber";
+  const sentTime = draft.sentToGuestAt
+    ? new Date(draft.sentToGuestAt).getTime()
+    : draft.estimator?.sharedAt
+      ? new Date(draft.estimator.sharedAt).getTime()
+      : null;
+  const isStale = Boolean(published && !archived && sentTime && (Date.now() - sentTime) > 72 * 3600 * 1000);
 
   // A step is `done` when it is behind us, `current` when it is the next thing to do. "Get price"
   // counts as done only when the ENGINE priced it: a figure with no scenario behind it cannot become
@@ -1232,6 +1238,7 @@ ${themeCss()}
           <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
             <div style="font-size:15px;font-weight:800;">This quotation</div>
             <span id="quote-status-badge" class="status-pill status-${statusTone}">${statusLabel}</span>
+            ${isStale ? `<span class="status-pill status-amber" title="Sent over 72 hours ago without confirmed deposit" style="font-size:12.5px;padding:4px 10px;">⚠️ Stale (&gt;72h)</span>` : ""}
           </div>
           <a class="btn btn-outline staff-only" id="workflow-ops-sheet-btn" href="/quotes/${encodeURIComponent(draft.quoteId)}/ops" target="_blank" style="padding:6px 14px;font-size:13px;font-weight:700;text-decoration:none;display:inline-flex;align-items:center;gap:6px;">Ops Sheet &nearr;</a>
         </div>
@@ -1481,8 +1488,18 @@ ${themeCss()}
         </div>
         <p id="send-hint" style="font-size:13px;color:var(--muted);font-weight:600;margin-top:10px;">
           The message carries the guest's own quotation link and no price of ours: the figures they read are the engine's, on their page.
-          ${published ? "" : "The button at the bottom of the screen creates the link and sends it."}
         </p>
+
+        <!-- Casa 48h/72h Follow-up Reminder -->
+        <div style="margin-top:20px;padding:16px 18px;border:1px solid var(--border);border-radius:12px;background:var(--surface-2);">
+          <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;margin-bottom:8px;">
+            <div style="font-size:14px;font-weight:800;color:var(--text);">Casa 48h/72h Follow-up Reminder</div>
+            <button type="button" class="btn btn-outline" onclick="copyFollowupMessage()" style="padding:6px 12px;font-size:12.5px;font-weight:700;">Copy Follow-up Message</button>
+          </div>
+          <div style="font-size:13px;color:var(--muted);line-height:1.55;">
+            "Hi ${esc(draft.guestName || "there")}! Just checking in regarding your quotation for ${esc(draft.checkIn)} &rarr; ${esc(draft.checkOut)} at Casa Escondida Anilao. Rooms for those dates are filling up quickly on a first-come basis (50% deposit to confirm). Let us know if you would like us to secure your stay!"
+          </div>
+        </div>
       </div>
 
       <!-- The wizard bar. One action finishes the screen it belongs to, and Back is always there:
@@ -1803,14 +1820,17 @@ ${themeCss()}
       el.innerHTML = pageItems.map(q => {
         const isApproved = q.status === 'confirmed_by_hono';
         const isCancelled = q.status === 'cancelled';
+        const sentTime = q.sentToGuestAt ? new Date(q.sentToGuestAt).getTime() : (q.estimator && q.estimator.sharedAt ? new Date(q.estimator.sharedAt).getTime() : null);
+        const isStale = Boolean(!isCancelled && sentTime && (Date.now() - sentTime) > 72 * 3600 * 1000);
         const statusLabel = isCancelled ? 'Archived' : (isApproved ? 'Approved' : 'Needs Review');
         const statusColor = isCancelled ? 'var(--rose, #f43f5e)' : (isApproved ? 'var(--emerald)' : 'var(--amber)');
         return \`
         <a class="quote-list-item \${q.quoteId === state.quoteId ? 'active' : ''}" href="/quotes/\${q.quoteId}\${qs}">
           <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
             <strong style="font-size:15px;color:var(--accent);">\${q.quoteId}</strong>
-            <span style="font-size:12.5px;font-weight:800;color:\${statusColor};">
+            <span style="font-size:12.5px;font-weight:800;color:\${statusColor};display:flex;align-items:center;gap:6px;">
               \${statusLabel}
+              \${isStale ? '<span style="font-size:10px;font-weight:800;color:var(--amber);background:var(--amber-soft);padding:1px 5px;border-radius:4px;border:1px solid var(--amber);">Stale</span>' : ''}
             </span>
           </div>
           <div style="font-size:15px;font-weight:700;">\${escHtml(q.guestName)}</div>
@@ -2260,6 +2280,20 @@ ${themeCss()}
       if (!input || !input.value) return;
       navigator.clipboard.writeText(input.value);
       showInfo('Guest link copied.');
+    }
+
+    function copyFollowupMessage() {
+      const name = state.guestName || 'there';
+      const checkIn = state.checkIn || '';
+      const checkOut = state.checkOut || '';
+      const input = document.getElementById('input-quotation-url');
+      const link = (input && input.value) || state.quotationUrl || '';
+      const text = 'Hi ' + name + '! Just checking in regarding your quotation for ' + checkIn + ' to ' + checkOut + ' at Casa Escondida Anilao.\\n\\nOur rooms for those dates are filling up quickly on a first-come basis. As a reminder, reservations are confirmed upon receipt of a 50% non-refundable deposit.\\n\\nYou can review your quotation here: ' + link + '\\n\\nPlease let us know if you would like us to secure your room!';
+      navigator.clipboard.writeText(text).then(function() {
+        showInfo('Follow-up message copied to clipboard!');
+      }).catch(function() {
+        showError('Copy failed', { detail: 'Please copy the message manually.' });
+      });
     }
 
     async function cancelQuotationAction() {

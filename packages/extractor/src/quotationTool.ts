@@ -579,6 +579,8 @@ export async function synthesizeConfirmedQuotationReply(
     note ? `\n📝 ${note}` : ``,
     ``,
     `Open the link to see the full breakdown. If anything looks wrong, just reply here and a member of our team will fix it — nothing is booked yet.`,
+    ``,
+    `💡 Casa Escondida Note: A 50% non-refundable deposit is required to secure your reservation (first-come, first-served). This provisional quote is held for 72 hours.`,
   ]
     .filter(Boolean)
     .join("\n");

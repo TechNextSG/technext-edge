@@ -182,6 +182,15 @@ export function renderGuestQuotationCopyHtml(
         the reservations team — nothing is booked yet, and this page does not book anything. If anything here
         looks wrong, reply on WhatsApp and a member of the team will fix it.
       </div>
+      <div style="margin-top:18px;border-left:5px solid var(--accent);background:var(--surface-2);padding:16px 18px;border-radius:14px;">
+        <div style="font-size:12px;font-weight:800;letter-spacing:0.08em;text-transform:uppercase;color:var(--accent);margin-bottom:6px;">Casa Escondida Anilao · Booking &amp; Deposit Policy</div>
+        <ul style="margin:0;padding-left:18px;font-size:13.5px;color:var(--text);line-height:1.65;font-weight:600;">
+          <li><strong>50% non-refundable down payment</strong> required to confirm reservation.</li>
+          <li><strong>Full payment</strong> required at least 1 month prior to travel date.</li>
+          <li>Rooms and dive boats are allocated on a <strong>first-come, first-served</strong> basis.</li>
+          <li>This provisional quotation and room hold are valid for <strong>72 hours</strong> from issuance.</li>
+        </ul>
+      </div>
     </div>
   </div>
 </body>
