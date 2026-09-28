@@ -783,6 +783,11 @@ ${themeCss()}
           <button type="button" class="tab-btn" id="tab-all" onclick="setQuoteFilter('all')">All</button>
         </div>
         <div id="quote-sidebar-list"></div>
+        <div id="quote-pagination" style="display:flex;justify-content:space-between;align-items:center;padding:12px 4px 4px;margin-top:10px;border-top:1px solid var(--border);font-size:12.5px;font-weight:700;">
+          <button type="button" class="btn btn-outline" onclick="changeQuotePage(-1)" id="btn-prev-page" style="padding:4px 10px;font-size:12px;">&larr; Prev</button>
+          <span id="quote-page-info" style="color:var(--muted);font-size:12px;">Page 1 of 1</span>
+          <button type="button" class="btn btn-outline" onclick="changeQuotePage(1)" id="btn-next-page" style="padding:4px 10px;font-size:12px;">Next &rarr;</button>
+        </div>
       </div>
     </aside>
 
@@ -1058,8 +1063,12 @@ ${themeCss()}
     let quoteFilter = (state && state.status === 'confirmed_by_hono') ? 'approved' : ((state && state.status === 'cancelled') ? 'cancelled' : 'needs-review');
     let quoteSearch = '';
 
+    const PAGE_SIZE = 10;
+    let quotePage = 1;
+
     function setQuoteFilter(tab) {
       quoteFilter = tab;
+      quotePage = 1;
       document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
       const activeBtn = document.getElementById('tab-' + tab);
       if (activeBtn) activeBtn.classList.add('active');
@@ -1068,6 +1077,12 @@ ${themeCss()}
 
     function filterQuotesList(val) {
       quoteSearch = (val || '').toLowerCase().trim();
+      quotePage = 1;
+      renderSidebar();
+    }
+
+    function changeQuotePage(delta) {
+      quotePage += delta;
       renderSidebar();
     }
 
@@ -1092,15 +1107,37 @@ ${themeCss()}
         return true;
       });
 
+      const totalPages = Math.ceil(filtered.length / PAGE_SIZE) || 1;
+      if (quotePage > totalPages) quotePage = totalPages;
+      if (quotePage < 1) quotePage = 1;
+
       const badge = document.getElementById('queue-count-badge');
       if (badge) badge.textContent = filtered.length + ' / ' + allQuotes.length;
+
+      const pagEl = document.getElementById('quote-pagination');
+      const pageInfo = document.getElementById('quote-page-info');
+      const btnPrev = document.getElementById('btn-prev-page');
+      const btnNext = document.getElementById('btn-next-page');
+      if (pagEl && pageInfo && btnPrev && btnNext) {
+        if (filtered.length <= PAGE_SIZE) {
+          pagEl.style.display = 'none';
+        } else {
+          pagEl.style.display = 'flex';
+          pageInfo.textContent = 'Page ' + quotePage + ' of ' + totalPages;
+          btnPrev.disabled = quotePage <= 1;
+          btnNext.disabled = quotePage >= totalPages;
+        }
+      }
 
       if (filtered.length === 0) {
         el.innerHTML = '<div style="padding:16px;text-align:center;color:var(--muted);font-size:13px;font-weight:600;">No quotations match this filter.</div>';
         return;
       }
 
-      el.innerHTML = filtered.map(q => {
+      const startIdx = (quotePage - 1) * PAGE_SIZE;
+      const pageItems = filtered.slice(startIdx, startIdx + PAGE_SIZE);
+
+      el.innerHTML = pageItems.map(q => {
         const isApproved = q.status === 'confirmed_by_hono';
         const isCancelled = q.status === 'cancelled';
         const statusLabel = isCancelled ? 'Archived' : (isApproved ? 'Approved' : 'Needs Review');
@@ -1119,6 +1156,21 @@ ${themeCss()}
       \`;
       }).join('');
     }
+
+    (function initQuotePagination() {
+      const isApproved = state && state.status === 'confirmed_by_hono';
+      const isCancelled = state && state.status === 'cancelled';
+      const initialFiltered = allQuotes.filter(q => {
+        if (quoteFilter === 'needs-review' && (q.status === 'confirmed_by_hono' || q.status === 'cancelled')) return false;
+        if (quoteFilter === 'approved' && q.status !== 'confirmed_by_hono') return false;
+        if (quoteFilter === 'cancelled' && q.status !== 'cancelled') return false;
+        return true;
+      });
+      const idx = initialFiltered.findIndex(q => q.quoteId === state.quoteId);
+      if (idx !== -1) {
+        quotePage = Math.floor(idx / PAGE_SIZE) + 1;
+      }
+    })();
 
     /**
      * The trip review panel: the BffTrip the engine is asked to price, as editable controls.
