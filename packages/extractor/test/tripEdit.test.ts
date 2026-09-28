@@ -13,7 +13,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { createApp } from "../../../apps/casa-bff/src/app.js";
 import { createEstimatorClient } from "../../../apps/casa-bff/src/estimatorClient.js";
 import { buildHonoQuotationDraft } from "../../../packages/extractor/src/quotationTool.js";
-import { saveQuotationDraft } from "../../../apps/casa-bff/src/quotationStore.js";
+import { listQuotations, saveQuotationDraft } from "../../../apps/casa-bff/src/quotationStore.js";
 import { buildBffTrip } from "../../../packages/extractor/src/odooHandoff.js";
 import type { BffTrip, Trip } from "../../../packages/extractor/src/schema.js";
 
@@ -95,6 +95,29 @@ function editTrip(
   });
 }
 
+/**
+ * The FIRST save on a quotation the engine has never priced.
+ *
+ * The studio chooses which route to call by whether the record has an engine scenario yet
+ * (`needsPrice = tripDirty || !hasScenario`), so a fresh enquiry's first "Save & get price" goes to
+ * `sync-estimate` — and that route used to ignore the request body and price the trip already stored.
+ * Measured on production, 2026-09-28: a dive day moved from the guest to their companion in the review
+ * grid, "Save & get price" answered `Priced — needs approval`, and the record still had the original
+ * guest diving with `staffEdits: []`. The person's work was gone and the screen said it had saved.
+ */
+function firstSave(
+  app: ReturnType<typeof createApp>,
+  id: string,
+  trip: unknown,
+  token = VERIFY_TOKEN,
+) {
+  return app.request(`/v1/quotes/${id}/sync-estimate?token=${token}`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ trip }),
+  });
+}
+
 /** The whole trip with every room's type changed — what the studio's room-type select posts. */
 function withRoomType(trip: BffTrip, type: "standard" | "deluxe" | "suite"): BffTrip {
   return { ...trip, rooms: trip.rooms.map((r) => ({ ...r, type })) };
@@ -119,6 +142,49 @@ describe("editing the trip behind a quotation", () => {
 
     const missing = await editTrip(app, "QT-NOPE", draft.bffTrip);
     expect(missing.status).toBe(404);
+  });
+
+  it("prices and stores the trip the first save posts, instead of the one already on the record", async () => {
+    const draft = await pricedQuote("QT-FIRST-SAVE");
+    // A fresh enquiry carries no estimator session: the engine has never seen this trip, which is
+    // exactly when the studio calls this route rather than `/trip`.
+    await saveQuotationDraft({ ...draft, status: "pending_hono_review", estimator: null });
+    const app = createApp();
+
+    // The person changed the room type in the review grid — the biggest per-night lever there is.
+    const corrected = withRoomType(draft.bffTrip!, "deluxe");
+    const res = await firstSave(app, draft.quoteId, corrected);
+
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body.ok).toBe(true);
+
+    const stored = (await listQuotations()).find((q) => q.quoteId === draft.quoteId)!;
+    // The trip the price belongs to is the corrected one…
+    expect(stored.bffTrip?.rooms.map((r) => r.type)).toEqual(corrected.rooms.map((r) => r.type));
+    // …and the correction is on the record, so the channel can defend it later: `pathsRestatedByGuest`
+    // only protects a record that knows somebody corrected it.
+    expect(stored.staffEdits?.some((e) => e.source === "trip")).toBe(true);
+    expect(stored.staffEdits?.at(-1)?.fields.some((f) => f.includes("rooms"))).toBe(true);
+  });
+
+  it("still refuses a trip the engine cannot price, rather than pricing the stored one", async () => {
+    const draft = await pricedQuote("QT-FIRST-SAVE-BAD");
+    await saveQuotationDraft({ ...draft, status: "pending_hono_review", estimator: null });
+    const app = createApp();
+
+    // Both guests marked as diving with no dive days: the precheck refuses this outright.
+    const broken = structuredClone(draft.bffTrip!);
+    broken.guests = broken.guests.map((g) => ({ ...g, diver: true, days: {} }));
+
+    const res = await firstSave(app, draft.quoteId, broken);
+    expect(res.status).toBe(422);
+    const body = await res.json();
+    expect(body.reason).toBe("trip_not_priceable");
+    // A refused save changes nothing: the record still holds the trip it had, not the broken one.
+    const stored = (await listQuotations()).find((q) => q.quoteId === draft.quoteId)!;
+    expect(stored.bffTrip).toEqual(draft.bffTrip);
+    expect(stored.staffEdits ?? []).toHaveLength(0);
   });
 
   it("re-prices the edited trip on the engine, so the number on the link follows the correction", async () => {

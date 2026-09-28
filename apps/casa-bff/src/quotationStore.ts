@@ -2436,7 +2436,10 @@ ${themeCss()}
         const res = await fetch('/v1/quotes/' + encodeURIComponent(state.quoteId) + (hasScenario ? '/trip' : '/sync-estimate') + '?token=' + encodeURIComponent(staffToken()), {
           method: 'POST',
           headers: { 'content-type': 'application/json' },
-          body: hasScenario ? JSON.stringify({ trip: state.bffTrip }) : undefined
+          // The trip goes to BOTH routes. The sync-estimate route used to receive no body and priced
+          // whatever was already on the record, so the first save after a person edited the review grid
+          // priced the unedited trip and threw their work away without a word (measured on production).
+          body: JSON.stringify({ trip: state.bffTrip })
         });
         const data = await res.json();
         if (!data.ok) {

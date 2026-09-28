@@ -2080,11 +2080,50 @@ export function createApp(options: AppOptions = {}) {
       );
     }
 
+    // What to price: the trip the caller posted, or the one on the record.
+    //
+    // This route used to price the RECORD's trip and ignore anything in the body, which is how a staff
+    // correction disappeared: a fresh enquiry has no engine scenario yet, so the studio's Save chooses
+    // this route (see `saveStudio`, `needsPrice`), posts the trip the person just edited, and had it
+    // priced against the trip nobody edited. Measured on production 2026-09-28: a dive day moved from
+    // the guest to their companion in the review grid, "Save & get price" → step 2 · `Priced — needs
+    // approval`, and the record still showed the original guest diving, with `staffEdits: []`. The
+    // person's work was gone and the page said it had saved.
+    const body = (await c.req.json().catch(() => ({}))) as { trip?: unknown };
+    let tripToPrice = existing.bffTrip;
+    let staffEdits = existing.staffEdits ?? [];
+    if (body.trip !== undefined) {
+      const parsed = BffTrip.safeParse(body.trip);
+      if (!parsed.success) {
+        return c.json(
+          {
+            ok: false,
+            reason: "invalid_trip",
+            detail: "the edited trip does not match the estimator contract",
+            fields: parsed.error.issues.map((i) => i.path.join(".") || "(root)"),
+          },
+          422,
+        );
+      }
+      const precheck = validateBffTripPrecheck(parsed.data);
+      if (precheck.some((i) => i.level === "error")) {
+        return c.json({ ok: false, reason: "trip_not_priceable", issues: precheck }, 422);
+      }
+      // The correction is recorded exactly as `/trip` records it, because the same thing happened: a
+      // person changed the payload the engine will be given. Without this the first-save correction was
+      // not on the record at all, so the channel could not defend it afterwards (see `pathsRestatedByGuest`).
+      const changed = existing.bffTrip ? diffBffTrip(existing.bffTrip, parsed.data) : [];
+      if (changed.length > 0) {
+        staffEdits = [...staffEdits, { at: new Date().toISOString(), fields: changed, source: "trip" }];
+      }
+      tripToPrice = parsed.data;
+    }
+
     // Their API is session-scoped, so a re-price has to arrive on the same session the scenario was
     // created in — otherwise their BFF is looking at a different draft and the id it returns is a
     // second one. The id and cookie are replayed from the quotation record.
     const session = { id: existing.estimator?.id ?? null, cookie: existing.estimator?.cookie ?? null };
-    const result = await estimator.sendEstimate(existing.bffTrip, session);
+    const result = await estimator.sendEstimate(tripToPrice, session);
     if (!result.ok) {
       // 422 maps to 422: the estimator rejected our payload, which is a defect here and not a
       // bad gateway. Everything else is infrastructure and is reported as 502.
@@ -2109,6 +2148,10 @@ export function createApp(options: AppOptions = {}) {
     await saveQuotationDraft({
       ...existing,
       ...pricing,
+      // The trip the price was computed from, which is the edited one when the caller posted it: the
+      // record and the price have to describe the same trip, or the studio shows one and holds the other.
+      bffTrip: tripToPrice,
+      staffEdits,
       status: "pending_hono_review",
       confirmedAt: undefined,
       confirmedBy: undefined,
