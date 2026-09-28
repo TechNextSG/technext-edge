@@ -197,11 +197,24 @@ rule("STEP 5 — STAFF: approve, then publish the guest link");
 // `gatherPayload()` posts the page's own `state`. Sending `{guestName}` alone (the first version of
 // this script) is a client the product does not have, and it wrote an `undefined` into a business
 // record — the route spreads whatever body it is given over the draft.
+//
+// And the record is RE-READ first, because the page's `state` is re-read too: `/trip` reloads the
+// studio after re-pricing, so what Approve posts is the trip the server now holds. Posting this
+// script's own older copy — which still said `standard` after the edit above — is a client that does
+// not exist, and `/confirm` refuses it on purpose (409 `trip_changed`): an approval may not be given
+// for one trip while the stored price describes another.
+const fresh = (await staff(`/v1/quotes/${id}`)).body.quotation;
 const confirmed = await staff(`/v1/quotes/${id}/confirm`, {
   method: "POST",
-  body: JSON.stringify({ ...q, status: undefined, confirmedAt: undefined, confirmedBy: undefined }),
+  body: JSON.stringify({ ...fresh, status: undefined, confirmedAt: undefined, confirmedBy: undefined }),
 });
-console.log(`   approve → ${confirmed.body.quotation?.status ?? confirmed.body.error}`);
+if (!confirmed.body.ok) {
+  // Loud, because a rehearsal that cannot approve cannot rehearse the demo. This is local behaviour
+  // (no call to their app), so it is a real failure of OUR path, not the environment's.
+  console.log(`   approve → REFUSED  ${confirmed.body.reason}: ${confirmed.body.detail ?? confirmed.body.error ?? ""}`);
+  finish(1);
+}
+console.log(`   approve → ${confirmed.body.quotation.status}  (trip the approver saw: ${fresh.bffTrip.rooms.map((r) => `${r.id}:${r.type}`).join(", ")})`);
 const published = await staff(`/v1/quotes/${id}/publish`, { method: "POST", body: JSON.stringify({ acknowledgeSample: true }) });
 console.log(`   publish → ${published.body.ok ? `version ${published.body.seq}` : `${published.body.reason}: ${published.body.detail}`}`);
 console.log(`   guest link → ${published.body.guestUrl ?? "(none — no host for their app)"}`);
