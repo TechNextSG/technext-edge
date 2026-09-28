@@ -146,6 +146,20 @@ export interface HonoQuotationDraft {  quoteId: string;
    * once the bot stops publishing its own — see `sharedAt`, which is also what locks the quotation
    * against further edits (their link always resolves to the latest saved revision).
    */
+  /**
+   * When the message carrying the guest's link actually left, or absent if it never did.
+   *
+   * Publishing and sending are two different actions ("Create link only" exists for a reason), and
+   * the studio used to read `estimator.sharedAt` — a link exists — as "the guest has it". It was
+   * caught on production: a record published with `Create link only` showed the status pill
+   * "Sent to guest" and a button offering to send "the message again", for a message that had never
+   * been sent once. This is the fact that distinguishes them.
+   */
+  sentToGuestAt?: string | null;
+  /**
+   * The number the message went to, so a second send defaults to the same recipient.
+   */
+  sentToPhone?: string | null;
   estimator?: QuotationEstimatorState | null;
 }
 

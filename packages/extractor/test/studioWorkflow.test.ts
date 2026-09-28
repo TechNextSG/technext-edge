@@ -84,10 +84,21 @@ describe("one status, and it is the record's", () => {
     const approved = await saveQuotationDraft(copyOf(priced, "QT-STUDIO-APPROVED", { status: "confirmed_by_hono" }));
     expect(markupOnly(await studioFor(approved.quoteId))).toContain("Approved — not sent yet");
 
-    // Sent: approved AND published, which is the only state a guest has a link in.
+    // Published, and the message has not gone out: "Create link only" is one of the two buttons on
+    // screen 4, so a link existing is not evidence that a guest was told about it. Found on
+    // production, where this state read "Sent to guest" and offered to send "the message again".
+    const publishedOnly = await saveQuotationDraft(copyOf(priced, "QT-STUDIO-PUBLISHED", {
+      status: "confirmed_by_hono",
+      estimator: { id: "sim-seed", cookie: "ubg_sid=seed", seq: 1, guestUrl: "https://their-app.test/quote/tok", sharedAt: "2026-09-28T00:00:00.000Z" },
+    }));
+    expect(markupOnly(await studioFor(publishedOnly.quoteId))).toContain("Link ready — not sent");
+
+    // Sent: approved, published, and a send was actually recorded.
     const sent = await saveQuotationDraft(copyOf(priced, "QT-STUDIO-SENT", {
       status: "confirmed_by_hono",
       estimator: { id: "sim-seed", cookie: "ubg_sid=seed", seq: 1, guestUrl: "https://their-app.test/quote/tok", sharedAt: "2026-09-28T00:00:00.000Z" },
+      sentToGuestAt: "2026-09-28T00:05:00.000Z",
+      sentToPhone: "639171234567",
     }));
     expect(markupOnly(await studioFor(sent.quoteId))).toContain("Sent to guest");
 

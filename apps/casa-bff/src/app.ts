@@ -2674,11 +2674,18 @@ export function createApp(options: AppOptions = {}) {
     const send = options.sendWhatsApp ?? createWhatsAppSender(whatsAppConfig());
     try {
       await send({ to: recipient.phone, body: text });
+      // Remember that somebody actually pressed send. Publishing and sending are separate actions
+      // ("Create link only" is one of the buttons), and the studio's status pill read `sharedAt` as
+      // "the guest has it" — measured on production, where a link-only publish showed "Sent to guest"
+      // and offered to send "the message again" for a message that had never gone out.
+      const sentAt = new Date().toISOString();
+      await saveQuotationDraft({ ...draft, sentToGuestAt: sentAt, sentToPhone: recipient.phone });
       return c.json({
         ok: true,
         phone: recipient.phone,
         body: text,
         guestLink: guestLinkSent,
+        sentAt,
         // True when the guest was sent our copy instead of the booking app's link, so the studio can
         // say why without guessing.
         mirror: Boolean(draft.estimator?.mirrorUrl),

@@ -402,7 +402,11 @@ export function renderHonoQuotationEditorHtml(
     : draft.status !== "confirmed_by_hono" && published
       ? "Published — needs approval"
       : published
-        ? "Sent to guest"
+        ? // A link is not a delivery. "Create link only" publishes without sending, and reading that
+          // as "the guest has it" is the one thing this label must never do — measured on production.
+          draft.sentToGuestAt
+          ? "Sent to guest"
+          : "Link ready — not sent"
         : priced && !enginePriced
           ? // Ahead of "approved" on purpose: an approval of a figure the engine never priced is not
             // progress, and it must not hide the one thing to do. Found on production, where the
@@ -454,7 +458,9 @@ export function renderHonoQuotationEditorHtml(
             ? "Continue to send &rarr;"
             : "Approve quotation"
           : published
-            ? "Send the message again"
+            ? draft.sentToGuestAt
+              ? "Send the message again"
+              : "Send the message"
             : "Create link &amp; send";
 
   const progressHtml = archived
@@ -1632,14 +1638,14 @@ ${themeCss()}
         // approve. Verified in a browser, where 'Approve quotation' on screen 2 read as if pressing it
         // would approve the quotation.
         next.textContent = published
-          ? 'Send the message again'
+          ? (state.sentToGuestAt ? 'Send the message again' : 'Send the message')
           : step === 1
             ? 'Save & get price'
             : step === 2
               ? (enginePriced ? 'Continue to approve →' : 'Get price')
               : step === 3
                 ? (approved ? 'Continue to send →' : 'Approve quotation')
-                : (published ? 'Send the message again' : 'Create link & send');
+                : (published ? (state.sentToGuestAt ? 'Send the message again' : 'Send the message') : 'Create link & send');
         // Step 4's send also needs the sample acknowledgement; updateSendControls owns that and is
         // called from here so the two gates cannot drift.
         if (step === 4) updateSendControls();
