@@ -2372,19 +2372,38 @@ export function createApp(options: AppOptions = {}) {
     // page that may 404 at random in front of an audience. The default is their link: the customer's
     // app owns the frozen revision and the folio, and that is the integration being shown.
     const forceCopy = (process.env.GUEST_LINK_MODE ?? "").trim().toLowerCase() === "copy";
-    if (guestUrl && estimator.kind === "remote") {
-      const check = forceCopy ? ({ ok: false, reason: "not_found", detail: "this deployment is set to send our own copy" } as const) : await estimator.verifyGuestLink(guestUrl);
+    // Three ways there is nothing to send, and all three end in our own copy rather than in a link
+    // the guest cannot open:
+    //
+    //   * the engine's `share` answered a relative path and this deployment has no app host, so there
+    //     is no absolute URL at all — the simulated engine's case, which used to publish a quotation
+    //     with `guestUrl: null` and a Send step that could only refuse. Our copy is a real page for
+    //     the same revision, so a rehearsal deployment can finish the flow;
+    //   * this deployment is configured to send our copy (`GUEST_LINK_MODE=copy`);
+    //   * their link does not open (the measured failure above).
+    if (!guestUrl || estimator.kind === "remote") {
+      const check = !guestUrl
+        ? ({
+            ok: false as const,
+            reason: "not_configured" as const,
+            detail: "the engine returned a relative link and no guest app host is configured",
+          })
+        : forceCopy
+          ? ({ ok: false as const, reason: "not_found" as const, detail: "this deployment is set to send our own copy" })
+          : await estimator.verifyGuestLink(guestUrl);
       if (!check.ok) {
         const origin = new URL(c.req.url).origin;
         mirrorUrl = `${origin}/q/${encodeURIComponent(existing.slug)}`;
         mirrorReason = forceCopy
           ? "this deployment is set to send our own copy of the quotation (GUEST_LINK_MODE=copy)"
-          : check.reason === "not_found"
-            ? "the booking app did not recognise the link it had just issued, so the guest gets a copy of the same revision on our own page"
-            : // The reason only. `check.detail` is a transport message ("fetch failed", a DNS name,
-              // a vendor body) and this sentence is drawn in the studio, in front of staff; the detail
-              // goes to the log line below, where somebody debugging can find it.
-              `the booking app could not be asked whether the link opens (${check.reason}), so the guest gets a copy of the same revision on our own page`;
+          : check.reason === "not_configured"
+            ? "this deployment has no guest app to open the booking engine's link on, so the guest gets a copy of the same revision on our own page"
+            : check.reason === "not_found"
+              ? "the booking app did not recognise the link it had just issued, so the guest gets a copy of the same revision on our own page"
+              : // The reason only. `check.detail` is a transport message ("fetch failed", a DNS name,
+                // a vendor body) and this sentence is drawn in the studio, in front of staff; the detail
+                // goes to the log line below, where somebody debugging can find it.
+                `the booking app could not be asked whether the link opens (${check.reason}), so the guest gets a copy of the same revision on our own page`;
         // eslint-disable-next-line no-console
         console.warn(
           `[casa-bff] publish ${existing.quoteId}: using our copy of the quotation (${forceCopy ? "configured" : check.reason}: ${check.detail})`,

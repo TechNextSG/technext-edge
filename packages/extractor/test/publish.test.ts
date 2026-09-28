@@ -258,6 +258,24 @@ describe("publishing a guest link", () => {
     expect(asked.some((u) => u.endsWith("/api/share/tok-live"))).toBe(true);
   });
 
+  it("gives the guest our own copy when the engine has no guest app to link to", async () => {
+    // The simulated engine answers `share` with a relative `/quote/sim-…`, and a deployment in that
+    // mode has no app host to resolve it against — so before this, publishing left `guestUrl: null`
+    // and `mirrorUrl: null`, and the Send step could only refuse for a reason nobody could act on. The
+    // rehearsal deployment could not finish the flow it exists to rehearse.
+    const draft = await pricedQuote("QT-PUB-SIM-COPY");
+    const body = await (await publish(createApp(), draft.quoteId, { acknowledgeSample: true })).json();
+
+    expect(body.guestUrl).toBeNull();
+    expect(body.mirrorUrl).toContain(`/q/${draft.slug}`);
+    expect(body.guestLink).toBe(body.mirrorUrl);
+    expect(body.mirrorReason).toContain("no guest app");
+
+    // And the copy is a page that opens, showing the engine's own answer for this revision.
+    const copy = await createApp().request(`/q/${draft.slug}`, { headers: { accept: "text/html" } });
+    expect(copy.status).toBe(200);
+  });
+
   it("sends our copy even when their link works, when this deployment is set to", async () => {
     // GUEST_LINK_MODE=copy: for a demo on a deployment whose links are not durable, where a guest
     // page that may 404 at random in front of an audience is the thing to avoid.
