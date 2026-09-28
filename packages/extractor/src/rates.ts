@@ -23,6 +23,15 @@
 //   * transport is a per-van price: roundtrip 13,000, oneway 6,500.
 //   * the agent/instructor discount is 30% OFF ROOMS ONLY.
 //
+// TWO NUMBERS ARE NOT FROM THE ABOVE, and each says so where it is declared:
+//   * `TRANSPORT_RATE.roundtrip` is 14,000, from the resort's own public site (read 2026-09-28), not
+//     from source 2 — which also says 13,000, as do the compute examples (6,500 per run). So the
+//     round trip is the ONE value here that disagrees with the customer's own files, deliberately,
+//     and it is an open question for Phillip: `docs/resort-website-cross-check.md`.
+//   * `VAN_CAPACITY` (6) is **inferred by us** from a single captured run that split 7 guests into a
+//     van of 6 and a van of 1. No source states a capacity; the website says "max 7 pax with light
+//     luggage". Treat it as a reading, not a fact, until somebody confirms it.
+//
 // This is a COPY that will drift the moment Phillip changes the live rates, so it is a draft
 // estimate only — the authoritative price is Odoo's `POST /v1/estimate/compute` response, which
 // is what this service surfaces once the estimator leaves FIXTURE_MODE. Until then, "cứ chạy giá,
@@ -76,24 +85,32 @@ export const MEAL_RATE = 1500;
 /**
  * Airport transfer: a price per VAN, and a van carries `VAN_CAPACITY` guests.
  *
- * Two customer sources disagree about the round trip, and the disagreement is recorded here rather
- * than quietly resolved:
+ * This is the one value in this file that does NOT come from the customer's own rate card, so read
+ * the disagreement before changing it:
  *
  *   * the resort's own public site publishes **PHP 14,000 per van, round trip, max 7 pax with light
- *     luggage** (`https://www.casaescondida-anilao.com/book-now`, read 2026-09-28) — and that is the
- *     number a guest is told, so it is the one this copy uses;
- *   * the engine's captured examples price each van **run** at 6,500 (arrival + departure = 13,000)
- *     and split 7 guests into two vans (`contracts/odoo/examples/compute.agent-group.json`) — and the
- *     engine is what actually prices a real quotation.
+ *     luggage** (`https://www.casaescondida-anilao.com/book-now`, read 2026-09-28) — and that is what
+ *     a guest is told, which is why this copy uses it;
+ *   * `contracts/odoo/examples/rates.json` — the customer's own rate card export — says
+ *     **`"transport":{"roundtrip":13000.0,"oneway":6500.0}`**, and the compute examples charge 6,500
+ *     per van RUN, so a round trip is 13,000 there too.
  *
- * The one-way price keeps the engine's own 6,500: the site publishes no one-way figure, so there is
- * nothing to disagree with. Capacity follows the engine's observed runs (6 per van), not the site's
- * "max 7 pax", because this table exists to approximate what the engine will answer. Both questions
- * are open with Phillip and written up in `docs/resort-website-cross-check.md`.
+ * Two customer-side sources against one public page. The engine is what actually prices a real
+ * quotation, so 13,000 is what a guest would be charged today; the page is what a guest is told.
+ * One of the two is stale and only Phillip can say which — see `docs/resort-website-cross-check.md`.
+ * The one-way price keeps the rate card's 6,500, which the site does not contradict.
  */
 export const TRANSPORT_RATE = { roundtrip: 14000, oneway: 6500 } as const;
 
-/** Guests one van carries, as the engine's own runs show (7 guests → a van of 6 plus a van of 1). */
+/**
+ * Guests one van carries — **our inference, not a published fact**.
+ *
+ * Taken from one captured run that split 7 guests into a van of 6 and a van of 1
+ * (`contracts/odoo/examples/compute.agent-group.json`). No source states a capacity, and the resort's
+ * site says "max 7 pax with light luggage", so 6 and 7 are both defensible readings of a single data
+ * point. It is here so a big group is drafted with the vans it needs rather than one; the number
+ * itself is a question for Phillip.
+ */
 export const VAN_CAPACITY = 6;
 
 export const COURSE_RATES = { dsd: 5500, ow: 22000, aow: 18000 } as const;

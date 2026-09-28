@@ -27,24 +27,32 @@ Mục đích: biết chỗ nào ba bên **khớp**, chỗ nào **lệch**, để
 
 ## 2. Lệch — cần Phillip xác nhận
 
-### 2.1. Giá van sân bay: website 14.000 vs engine 13.000
+### 2.1. Giá van sân bay: website 14.000 vs **hai** nguồn của khách là 13.000
 
 - Website `/book-now`: *"PHP 14,000 per van, round trip · max 7 pax with light luggage"*.
-- Engine khách: mỗi **lượt** van là `rev: 6500`; một round trip = 2 lượt = **13.000**
+- **Rate card của chính khách** — `contracts/odoo/examples/rates.json`:
+  `"transport":{"roundtrip":13000.0,"oneway":6500.0}`.
+- Engine khách: mỗi **lượt** van là `rev: 6500`; round trip = 2 lượt = **13.000**
   (`compute.agent-group.json`: `vanRuns` arrival + departure, `vanCount: 2, rev: 13000`).
-- Mình: `TRANSPORT_RATE = { roundtrip: 13000, oneway: 6500 }` — **theo engine**, không theo website.
+- Mình: `TRANSPORT_RATE = { roundtrip: 14000, oneway: 6500 }` — round trip **theo website**, one-way
+  theo rate card.
 
-→ Nếu 14.000 mới là giá hiện hành thì **website đang đắt hơn engine 1.000/van**, và mọi báo giá của
-engine đang thấp hơn giá công bố. Nếu 13.000 đúng thì website cần sửa. Câu hỏi cho Phillip: *giá van
-round trip hiện hành là bao nhiêu, và nguồn nào là chuẩn — trang web hay rate card trong Odoo?*
+→ **Hai nguồn của khách nói 13.000, một trang công khai nói 14.000.** Engine mới là chỗ tính tiền thật,
+nên hôm nay khách sẽ bị tính 13.000 còn trang web nói 14.000 — một trong hai đã cũ. Câu hỏi cho Phillip:
+*giá van round trip hiện hành là bao nhiêu, và nguồn nào chuẩn — trang web hay rate card trong Odoo?*
+Nếu chốt 13.000 thì sửa **một dòng** (`TRANSPORT_RATE.roundtrip`) + test.
 
-### 2.2. Sức chứa van: website 7 khách vs engine 6 khách/lượt
+### 2.2. Sức chứa van: website 7 khách, mình **suy ra** 6 từ một ví dụ
 
 - Website: *"max 7 pax with light luggage"*.
-- Engine: 7 khách được chia **2 van** ở cả lượt đón và lượt tiễn (van 1: 6 khách, van 2: 1 khách).
+- Engine: trong **một** bản chụp, 7 khách được chia **2 van** (van 1: 6 khách, van 2: 1 khách).
+- `VAN_CAPACITY = 6` trong `rates.ts` là **suy luận của mình** từ đúng một data point đó — không nguồn
+  nào nói sức chứa là 6. Cần Phillip xác nhận 6 hay 7; con số này chỉ dùng để nháp đủ số van,
+  giá thật vẫn của engine.
 
 → Ảnh hưởng tiền thật với nhóm đông: 7 khách theo website = 1 van 14.000; theo engine = 2 van
-26.000. Cần biết con số đúng để không báo thiếu.
+26.000 (và nếu tính 6.500/lượt thì 2 lượt × 2 van = 26.000).
+
 
 ### 2.3. Rate card mẫu của mình chỉ tính **1 van** cho mọi nhóm
 
