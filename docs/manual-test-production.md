@@ -22,18 +22,22 @@ Dành cho người **tự bấm tay** trên production, không dùng script. M�
 
    ```powershell
    cd E:\technext-edge
-   $t = (Get-Content .env.local | Where-Object { $_ -match '^STAFF_ACCESS_KEY=' }) -replace '^STAFF_ACCESS_KEY=','' -replace '"',''
-   Start-Process "https://technext-edge-casa-bff.vercel.app/quotes?token=$t"
+   (Get-Content .env.local | Where-Object { $_ -match '^STAFF_ACCESS_KEY=' }) -replace '^STAFF_ACCESS_KEY=','' -replace '"',''
    ```
+
+   Rồi mở **`https://technext-edge-casa-bff.vercel.app/login`** và **dán key vào ô mật khẩu**.
+   > Đừng mở studio bằng `?token=...` trên URL nữa. URL nằm trong lịch sử trình duyệt, trong ảnh chụp
+   > màn hình khi demo và trong mọi lần share tab — còn form đăng nhập thì đổi lấy cookie `HttpOnly`
+   > (8 giờ) và key không rời khỏi trang. Các script thì vẫn dùng `?token=`/`x-verify-token` bình thường.
 
    **Hai secret khác nhau, đừng lẫn** (từ 2026-09-28): `STAFF_ACCESS_KEY` mở studio và mọi route
    `/v1/quotes/*`. Các route của **kênh** (`/v1/channels/whatsapp/threads/...`) vẫn dùng
    `WHATSAPP_VERIFY_TOKEN` — vì Meta cũng là người gọi chúng. Đo trên production: key staff vào route
    kênh → **401**; token WhatsApp vào → 200.
-3. **Tab thứ hai (tuỳ chọn)** — chỉ cần khi muốn cho lead thấy *tiền đổi theo dữ liệu*: tab đó là
-   `https://technext-edge-casa-bff-sim.vercel.app/quotes?token=$t`, chạy engine giả lập **có tính lại**
-   (7.600 → 11.200/đêm khi đổi sang deluxe). Tab production thì **không** đổi số, vì fixture trả lại bản
-   chụp — nói thẳng điều đó khi demo.
+3. **Tab thứ hai (tuỳ chọn)** — chỉ cần khi muốn cho lead thấy *tiền đổi theo dữ liệu*: mở
+   `https://technext-edge-casa-bff-sim.vercel.app/login` rồi dán **cùng key** đó (tab sim chạy engine
+   giả lập **có tính lại**: 7.600 → 11.200/đêm khi đổi sang deluxe). Tab production thì **không** đổi số,
+   vì fixture trả lại bản chụp — nói thẳng điều đó khi demo.
 4. **Reset cho lần chạy sạch** (xoá hội thoại + đóng báo giá đang mở của số đó) — dùng token **kênh**:
 
    ```powershell

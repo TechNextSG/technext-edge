@@ -195,6 +195,73 @@ describe("publishing a guest link", () => {
    * So the guest does not get that link. They get OUR copy of the same frozen revision, and the
    * record keeps both — their link, and the copy with the reason it was needed.
    */
+  /**
+   * A failed commit or share is a failed publish — not a success with our own copy stapled to it.
+   *
+   * Measured before this: either failure answered `ok: true`, set `sharedAt` (which freezes the record
+   * for good: no edits, and the cleanup route refuses it), invented `seq: 1` and let the guest page
+   * print "version 1" for a revision their app never froze. Thirty seconds of an unreachable engine
+   * left a quotation that could be neither sent nor edited nor cleaned up.
+   */
+  it("reports a failed commit as a failure, and leaves the record usable", async () => {
+    const draft = await pricedQuote("QT-PUB-COMMIT-FAIL");
+    const fetchImpl = vi.fn(async (url: string) => {
+      if (String(url).endsWith("/commit")) {
+        return new Response(JSON.stringify({ error: "engine is unwell" }), { status: 500 });
+      }
+      return new Response(JSON.stringify({ url: "/quote/tok", expiresAt: null }), {
+        status: 200,
+        headers: { "content-type": "application/json" },
+      });
+    });
+    const app = createApp({
+      estimator: createEstimatorClient({ baseUrl: "https://quotes.customer.test", fetchImpl: fetchImpl as never }),
+    });
+
+    const res = await publish(app, draft.quoteId, { acknowledgeSample: true });
+    const body = await res.json();
+
+    expect(res.status).toBe(502);
+    expect(body.ok).toBe(false);
+    expect(body.reason).toBeTruthy();
+    // No link, and nothing frozen.
+    expect(body.guestUrl ?? null).toBeNull();
+    expect(body.mirrorUrl ?? null).toBeNull();
+    const stored = await (await app.request(`/v1/quotes/${draft.quoteId}${STAFF}`)).json();
+    expect(stored.quotation.estimator?.sharedAt ?? null).toBeNull();
+    expect(stored.quotation.estimator?.seq ?? null).toBeNull();
+
+    // …and the quotation can still be worked on: the trip route refuses a *published* record, so a
+    // record that answers 200 there is a record nobody froze.
+    const trip = await app.request(`/v1/quotes/${draft.quoteId}/sync-estimate${STAFF}`, { method: "POST" });
+    expect(trip.status).not.toBe(409);
+  });
+
+  it("reports a failed share as a failure, rather than minting a link of our own", async () => {
+    const draft = await pricedQuote("QT-PUB-SHARE-FAIL");
+    const fetchImpl = vi.fn(async (url: string) => {
+      if (String(url).endsWith("/commit")) {
+        return new Response(JSON.stringify({ seq: 3 }), { status: 200, headers: { "content-type": "application/json" } });
+      }
+      // A share that is refused outright — not a link that fails to open, which is the case the copy
+      // is for. `rejected` is their engine saying no.
+      return new Response(JSON.stringify({ error: "cannot share this scenario" }), { status: 403 });
+    });
+    const app = createApp({
+      estimator: createEstimatorClient({ baseUrl: "https://quotes.customer.test", fetchImpl: fetchImpl as never }),
+    });
+
+    const res = await publish(app, draft.quoteId, { acknowledgeSample: true });
+    const body = await res.json();
+
+    expect(res.status).toBe(502);
+    expect(body.ok).toBe(false);
+    expect(body.guestLink ?? null).toBeNull();
+    expect(body.mirrorUrl ?? null).toBeNull();
+    const stored = await (await app.request(`/v1/quotes/${draft.quoteId}${STAFF}`)).json();
+    expect(stored.quotation.estimator?.sharedAt ?? null).toBeNull();
+  });
+
   it("falls back to our own copy when the guest's app does not open the link it just issued", async () => {
     const draft = await pricedQuote("QT-PUB-UNVERIFIED");
     const fetchImpl = vi.fn(async (url: string) => {

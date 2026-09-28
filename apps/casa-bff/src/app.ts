@@ -2402,31 +2402,18 @@ export function createApp(options: AppOptions = {}) {
       }
     }
     if (!committed.ok) {
-      // Fallback: If remote estimator cannot freeze or returns error, use our internal mirror /q/:slug
-      const origin = new URL(c.req.url).origin;
-      const fallbackUrl = `${origin}/q/${encodeURIComponent(existing.slug)}`;
-      const saved = await saveQuotationDraft({
-        ...existing,
-        estimator: {
-          ...session,
-          seq: 1,
-          guestUrl: fallbackUrl,
-          sharedAt: new Date().toISOString(),
-          mirrorUrl: fallbackUrl,
-          mirrorReason: `Upstream booking engine could not commit scenario (${committed.detail || committed.reason}); using direct quotation link`,
-        },
-      });
-      return c.json({
-        ok: true,
-        guestUrl: fallbackUrl,
-        guestLink: fallbackUrl,
-        mirrorUrl: fallbackUrl,
-        mirrorReason: saved.estimator?.mirrorReason,
-        seq: 1,
-        expiresAt: null,
-        sample: Boolean(existing.pricing?.sample),
-        quotation: saved,
-      });
+      // A failed commit is a failed publish, and it has to look like one.
+      //
+      // These two branches used to answer `ok: true` with our own copy, a `sharedAt` that freezes the
+      // record for good (no further edits, and cleanup refuses it), and an invented `seq: 1` that the
+      // guest page printed as "version 1" — for a revision their app never froze. The practical result
+      // was measured: thirty seconds of an unreachable engine left staff with a quotation that could
+      // not be sent, could not be edited and could not be cleaned up, and the next attempt was a new
+      // enquiry. The copy exists for one failure only — their app minted a link and then could not find
+      // it (see the check further down, and `docs/upstream-note-bff-vercel-deploy.md`), which is a
+      // failure of their *link*, not of the price.
+      const status = committed.reason === "not_configured" ? 503 : 502;
+      return c.json({ ok: false, reason: committed.reason, detail: committed.detail }, status);
     }
 
     let shared = await estimator.share({ ...session, id: session.id });
@@ -2442,30 +2429,14 @@ export function createApp(options: AppOptions = {}) {
       }
     }
     if (!shared.ok) {
-      const origin = new URL(c.req.url).origin;
-      const fallbackUrl = `${origin}/q/${encodeURIComponent(existing.slug)}`;
-      const saved = await saveQuotationDraft({
-        ...existing,
-        estimator: {
-          ...session,
-          seq: committed.seq || 1,
-          guestUrl: fallbackUrl,
-          sharedAt: new Date().toISOString(),
-          mirrorUrl: fallbackUrl,
-          mirrorReason: `Upstream booking engine could not issue share link (${shared.detail || shared.reason}); using direct quotation link`,
-        },
-      });
-      return c.json({
-        ok: true,
-        guestUrl: fallbackUrl,
-        guestLink: fallbackUrl,
-        mirrorUrl: fallbackUrl,
-        mirrorReason: saved.estimator?.mirrorReason,
-        seq: committed.seq || 1,
-        expiresAt: null,
-        sample: Boolean(existing.pricing?.sample),
-        quotation: saved,
-      });
+      // Same rule as the commit above: their app could not issue the link it was asked for, so this is
+      // a failure to report — not a success with our own copy stapled to it. Nothing is frozen here,
+      // so the record stays editable and the button can be pressed again.
+      //
+      // `no_snapshot` means their commit and their share disagree, which is their bug to hear about
+      // rather than something to paper over with a link of our own.
+      const status = shared.reason === "not_configured" ? 503 : 502;
+      return c.json({ ok: false, reason: shared.reason, detail: shared.detail }, status);
     }
 
     // Their `url` is relative; only we know which host the guest should be sent to. Usually the
