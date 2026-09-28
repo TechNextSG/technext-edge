@@ -685,8 +685,11 @@ node packages/extractor/eval/runner.mjs --provider deepseek-flash
   was priced as standard and nothing downstream could tell: the payload said `standard`,
   the readback said `standard`, and the studio showed what the payload said. Their own rate
   card (`contracts/odoo/examples/rates.json`) prices that mistake at ₱7,600 against
-  ₱11,200 a night for the same two guests — 47% under on the biggest line of the stay, per
-  night. `roomType` is therefore a real `Trip` field, asked like the dive questions and
+  ₱11,200 a night for the same two guests: **₱3,600 short, every night, on the biggest line
+  of the stay**. State it in pesos, not percent — 3,600 against 7,600 is checkable against
+  the rate card by anyone in the room, and "47%" stops being true the moment the party is
+  four people in one room (₱16,400) rather than a couple. `roomType` is therefore a real
+  `Trip` field, asked like the dive questions and
   kept only as `stated` (ADR-006 Decision 4, "ask what money depends on; never infer it"),
   and the fact gate in `synthesis.ts` now rejects prose that names a type the guest did not
   choose. The lesson generalises: **a field the estimator prices per night belongs in the

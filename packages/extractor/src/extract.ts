@@ -427,7 +427,7 @@ function postProcess(raw: unknown, today: string, sourceText: string): unknown {
   // comprehension, and a verbatim quote is not proof the quote was about the room type — "a nice
   // room" is verbatim, and it is not "deluxe". Their rate card is what makes this worth a check
   // rather than a hope: the same two guests cost ₱7,600 a night in a standard room and ₱11,200 in
-  // a deluxe one, so a type nobody said is a 47% error in whichever direction the model guessed.
+  // a deluxe one — ₱3,600 a night, in whichever direction the model guessed.
   // No type word in the guest's message means the field is a question (questions.ts), not a guess.
   if (trip.roomType?.state === "stated" && typeof trip.roomType.value === "string") {
     if (!roomTypeNamedBy(trip.roomType.value, guestText)) {

@@ -99,3 +99,20 @@ Their fixture gateway **does not compute prices**: `bff/src/odoo/fixture.ts` say
 `ESTIMATOR_MODE=remote` a room-type or dive-day edit changes the **payload and the frozen revision**
 but not the number (the couple stays 31,200). To show the money following the trip, run our
 `simulated` port, which implements their `rates.json` arithmetic.
+
+**The trap that follows from it, found by walking the demo.** `pickCompute` sends any retail enquiry
+with diving and no course to `compute.retail-couple.json`, which is *a specific booking*: 2 guests
+named Ana and Ben, 20–22 Nov 2026, room "Standard A", ₱31,200. A demo message about four guests in a
+deluxe room therefore produced a guest link showing two strangers on other dates — the screen
+contradicting the conversation at the exact moment the conversation was what was being demonstrated.
+
+So the demo message is written to the **same shape as the capture** (2 guests, 20–22 Nov, 2 nights,
+Ana travelling with Ben). Everything then agrees — label `Ana — 2 nights`, guests Ana and Ben, the
+right dates, and the frozen revision carries `rooms: r1:deluxe` because that is what our payload says
+— **except one line**: the priced line still reads `Standard A — 2 nights, ₱7,600`, because the
+gateway replays a capture instead of pricing the trip.
+
+That one remaining difference is the honest thing to say out loud, and it is worth more than a demo
+that appears to match: *"the revision carries the deluxe room the guest asked for; the price line is
+still the captured standard one, because this gateway does not recompute. On real Odoo this line is
+Deluxe — ₱3,600 more per night."*

@@ -71,9 +71,13 @@ const RULES: QuestionRule[] = [
   { key: "rooms", question: { en: "How many rooms do you need?", zh: "您需要几间房？" } },
   // The single biggest lever on the nightly rate, and the one field a guest always knows and
   // the model can only guess. Their own rate card prices a deluxe room at ₱11,200 a night
-  // against ₱7,600 for a standard one for the same two guests, so quietly sending `standard`
-  // for a guest who asked for deluxe is not a rounding error — it is a 47% under-quote on the
-  // largest line of the stay, and nobody downstream could see that it had happened. ADR-006
+  // against ₱7,600 for a standard one, for the same two guests — so quietly sending `standard`
+  // for a guest who asked for deluxe is not a rounding error: it is ₱3,600 short, every night,
+  // on the largest line of the stay, and nobody downstream could see that it had happened.
+  //
+  // Quoted in pesos rather than as "47%", and that is a correction worth keeping: 3,600 against
+  // 7,600 is a number anyone can check against the rate card, and the percentage stops being true
+  // the moment the party is four people in one room (₱16,400) instead of a couple. ADR-006
   // Decision 4 ("ask what money depends on; never infer it") is why this is a question and
   // why extract.ts keeps only a `stated` answer.
   {

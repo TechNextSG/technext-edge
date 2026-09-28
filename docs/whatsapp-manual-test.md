@@ -10,7 +10,7 @@
 > node apps/casa-bff/scripts/whatsapp-manual-run.mjs --port 8799 --capture 8899 --delay 4000 --verbose
 > ```
 >
-> Kết quả lần chạy 27/09: **21/21 check xanh**. Hai điều cần biết khi đọc kết quả: `--delay` để tránh
+> Kết quả lần chạy 27/09: **22/22 check xanh** (KB1–KB10). Hai điều cần biết khi đọc kết quả: `--delay` để tránh
 > quota Gemini free tier (15 request/phút, mỗi lượt tốn vài request); và nếu lượt nào provider chết thì
 > script ghi **`⊘ skipped`** chứ không tính là lỗi sản phẩm — một lượt không tới được model thì không
 > nói gì về bot cả.
@@ -47,15 +47,29 @@ Staff key: **lấy từ Vercel env `WHATSAPP_VERIFY_TOKEN`** (Production). Khôn
 
 ## KB1 — Chốt đủ trong một lượt, và **không** có link
 
+> **Đọc trước: KB1 được viết lại cho khớp bản chụp (27/09).** Ở chế độ fixture, BFF của khách **không
+> tính giá** — nó chọn một response đã chụp theo *hình dạng* chuyến (`bff/src/odoo/fixture.ts`), và
+> khách lẻ có lặn, không học khoá thì luôn rơi vào `compute.retail-couple.json`: **2 khách Ana và Ben,
+> 20–21/11/2026, phòng "Standard A", ₱31.200**.
+>
+> Bản KB1 cũ (4 khách, 1 phòng deluxe) vì thế làm **link khách nói ngược lại cuộc chat**: WhatsApp đọc
+> lại "4 khách · Room type: deluxe", còn link khách mở ra 2 người lạ, phòng Standard, ngày khác. Đúng
+> lúc đang định chứng minh bot hiểu đúng loại phòng thì màn hình cho thấy điều ngược lại. Nên KB1 dùng
+> **cùng hình dạng với bản chụp** — 2 khách, 20/11, 2 đêm, Ana đi cùng Ben — để tên, ngày, số khách, số
+> đêm đều khớp; **chỉ còn loại phòng lệch**, và chỗ lệch đó là cảnh trung thực nhất để nói (xem mục
+> Publish).
+
 **Gửi (copy nguyên):**
-> Hi, I'm Miguel. We are 4 guests and we need 1 deluxe room. Check in on 2026-11-20 and check out on 2026-11-22, so 2 nights. Full board please. No airport transfer. All 4 of us will dive on 2026-11-21.
+> Hi, I'm Ana and I'm travelling with Ben. 2 guests, 1 deluxe room. Check in on 2026-11-20 and check out on 2026-11-22, so 2 nights. Full board please. No airport transfer. One of us will dive on 2026-11-21.
 
 **Mong đợi:**
-- Tóm tắt đầy đủ thông tin, trong đó có dòng **`• Room type: deluxe`** (không có chữ *(assumed)*).
+- Tóm tắt đầy đủ thông tin, và **có chữ `Deluxe`** — model có thể in thành dòng `• Room type: Deluxe`
+  hoặc gộp vào `• Rooms: 1 Deluxe Room`; cả hai đều đúng, điều cần kiểm là **đúng loại khách nói**.
+- `Guests: 2` và `Stay: Nov 20 – 22, 2026 (2 nights)`.
 - Câu **"Our reservations team is preparing your quotation now, and will send it to you here shortly."**
 - **KHÔNG có link** — không `/q/...`, không `/quote/...`, không biểu tượng 🔗. Đây là điểm chính của Đợt 1: giá không được tới tay khách trước khi nhân viên xem.
-- Không hỏi lại "how many of you will be diving" (câu "All 4 of us will dive" là ca `DIVERS_CLAUSE`).
 - Không hỏi lại **"Would you like a standard, deluxe, or suite room?"** — đã nói "deluxe room".
+- Không hỏi lại "how many of you will be diving" (câu "One of us will dive" là ca `DIVERS_CLAUSE`).
 
 **Kiểm chứng:** mở `/quotes` → quotation vừa sinh → **xem tiếp mục "Publish" bên dưới**.
 
@@ -71,21 +85,27 @@ Staff key: **lấy từ Vercel env `WHATSAPP_VERIFY_TOKEN`** (Production). Khôn
 
 ---
 
-## KB2b — Câu hỏi mới: loại phòng (Đợt 4)
+## KB2b — Câu hỏi mới: loại phòng
 
-**Gửi:** `Hi, 2 of us from Oct 17 to Oct 19, full board, no transfer, no diving, name is Miguel.`
+**Gửi:** `Hi, 2 of us from Nov 20 to Nov 22, full board, no transfer, no diving, name is Ana.`
 **Mong đợi:** bot **hỏi đúng một câu còn thiếu**:
 > Would you like a standard, deluxe, or suite room?
 
-Đây là lý do có câu hỏi này: bảng giá của khách (`rates.json`) tính **standard 7,600 / deluxe 11,200 /
-suite 14,200** cho 2 khách một đêm. Trước đây payload luôn gửi `standard`, nên khách hỏi "deluxe" bị
-báo giá thấp hơn **47%** ở dòng lớn nhất của kỳ nghỉ, và không ai nhìn ra.
+Đây là lý do có câu hỏi này: bảng giá của khách (`rates.json`) tính **standard 7.600 / deluxe 11.200 /
+suite 14.200** cho 2 khách một đêm. Trước đây payload luôn gửi `standard`, nên khách hỏi "deluxe" bị
+**báo thiếu ₱3.600 mỗi đêm** ở dòng lớn nhất của kỳ nghỉ, và không ai nhìn ra. Nói bằng **peso mỗi đêm**
+chứ đừng nói "47%": 3.600 so với 7.600 là con số người nghe kiểm được ngay trên bảng giá, còn phần trăm
+thì đổi nghĩa tuỳ số khách trong phòng (4 khách một phòng deluxe là 16.400/đêm, không so với 7.600 được).
 
 **Gửi tiếp:** `Deluxe please`
 **Mong đợi:** tóm tắt có **`• Room type: deluxe`**, không link.
-**Kiểm chứng giá:** sau khi publish trong studio, mở link khách → tiền phòng phải theo giá deluxe
-(2 đêm × 11,200 = 22,400), **không phải** 15,200 của standard. Đây là điểm kiểm tiền quan trọng nhất
-của đợt này.
+
+**Kiểm chứng giá:** đây là chỗ **hai chế độ khác nhau**, và phải nói đúng đang ở chế độ nào:
+- **`ESTIMATOR_MODE=simulated`** (tab "số tiền đổi theo dữ liệu"): đổi loại phòng → tiền phòng đổi thật,
+  2 đêm: **15.200 → 22.400** (₱3.600 × 2 đêm). Đây là cảnh duy nhất cho thấy con số chạy theo dữ liệu.
+- **`ESTIMATOR_MODE=remote`** (tab "tích hợp thật"): dòng giá **đứng yên** vì bản chụp của khách không
+  tính lại. Nói: *"revision đóng băng mang `deluxe`, còn dòng tiền vẫn là Standard vì fixture của anh
+  trả lại bản chụp. Nối Odoo thật thì dòng này là Deluxe, cộng ₱3.600 mỗi đêm."*
 
 ---
 
@@ -170,8 +190,12 @@ Bot phải nói "nothing is booked yet" và "someone from our team will follow u
 > **Một điều phải nói đúng khi demo:** gateway fixture của khách **không tính giá** — nó trả về
 > response đã chụp (`bff/src/odoo/fixture.ts`: *"Không có logic giá ở đây"*, chọn file theo hình dạng
 > trip). Nên trong chế độ `remote` + fixture, sửa **loại phòng** đổi **payload và revision** nhưng
-> **không đổi con số** (vẫn 31.200 của ca couple đã chụp). Muốn thấy tiền chạy theo loại phòng thì
-> dùng `ESTIMATOR_MODE=simulated` (bộ giả lập của mình tính theo đúng `rates.json`: 7.600 → 11.200).
+> **không đổi con số** (vẫn 31.200 của ca couple đã chụp). Đó cũng là lý do KB1 được viết lại cho khớp
+> hình dạng bản chụp: nếu chat nói 4 khách còn link nói 2 khách thì màn hình đang phản bác chính điều
+> mình vừa chứng minh.
+>
+> **Cảnh "tiền đổi theo dữ liệu" chỉ chạy ở chế độ `simulated`** — dùng tab Preview riêng
+> (`technext-edge-casa-bff-sim.vercel.app`), xem mục "Hai tab khi demo" ở cuối file.
 
 1. `/login` (staff key) → `/quotes` → mở quotation.
    - Sidebar giờ có thẻ **🎯 Extractor scorecard**: *x/y unchanged* — bao nhiêu báo giá đã được định giá
@@ -209,13 +233,20 @@ nguồn: engine. Nếu thấy chỗ nào vẫn cho nhập giá bằng tay, **bá
 
 | Bước | Kết quả |
 |---|---|
-| `POST /v1/converse` câu đủ thông tin (2 phòng deluxe, 4 khách, 4 diver) | `done=true`, tóm tắt có `• Room type: deluxe`, draft `bffTrip` 2 phòng `deluxe` |
+| `POST /v1/converse` đúng câu KB1 | `done=true`, draft mang **`rooms: r1:deluxe`**, guests **Ana + Ben** |
 | `POST /v1/quotes/:id/sync-estimate` | 200, ghi được `estimator.id` + cookie `ubg_sid` (BFF khách đã trả) |
-| `POST /v1/quotes/:id/trip` (đổi `standard` → `deluxe`) | 200, `changedFields=["rooms[0].type"]`, `staffEdits=1`, status về *pending* |
 | `POST /v1/quotes/:id/confirm` | 200, `confirmed_by_hono` |
-| `POST /v1/quotes/:id/publish` + `acknowledgeSample` | 200, `seq=1`, link khách `…/quote/<token>` |
-| Mở link khách | 200 (SPA của khách), `GET /api/share/<token>` → `seq=1`, `trip.rooms[].type = deluxe` |
+| `POST /v1/quotes/:id/publish` + `acknowledgeSample` | 200, `seq=1`, link `…/quote/ye2Gtt0se…` |
+| Mở link khách | 200 (SPA của khách) |
+| `GET /api/share/<token>` | `seq=1`, label **`Ana — 2 nights`**, guests **Ana + Ben**, `2026-11-20 → 2026-11-22`, **`rooms: r1:deluxe`** |
+| ...nhưng dòng giá trong cùng bản đó | **`Standard A — 2 nights`, ₱7.600** × 2 → tổng ₱31.200 (**bản chụp**, không tính lại) |
 | `/api/health` của BFF khách | `{"ok":true,"mode":"fixture"}` |
+
+**Câu nói đúng cho chỗ lệch cuối bảng đó** (đây là cảnh trung thực nhất, đừng giấu):
+
+> "Revision đã đóng băng mang đúng `deluxe` mà khách nói — anh xem `rooms: r1:deluxe`, tên Ana và Ben,
+> đúng ngày. Dòng tiền vẫn ghi `Standard A` vì fixture của anh **không tính giá**, nó trả lại bản chụp.
+> Nối Odoo thật thì dòng này là Deluxe: **+₱3.600 mỗi đêm**."
 
 ## Nếu có gì sai, gửi mình
 - Nguyên văn tin bạn gửi và **nguyên văn tin bot trả**.
@@ -244,4 +275,24 @@ build lại từ Stage1 hiện tại nên có `id`, cookie `ubg_sid`, `PATCH`, `
 mình luôn gắn `sample: true`. Khác biệt duy nhất đáng nhớ: **fixture của khách trả lại response đã
 chụp** (không tính giá), còn `ESTIMATOR_MODE=simulated` **tính theo `rates.json`** — nên chỉ ở chế độ
 simulated mới thấy con số đổi khi sửa loại phòng / số ngày lặn.
+
+---
+
+## Hai tab khi demo (và tab nào nói điều gì)
+
+| | Tab "tích hợp thật" | Tab "số tiền đổi theo dữ liệu" |
+|---|---|---|
+| URL | `technext-edge-casa-bff.vercel.app` (**Production**) | `technext-edge-casa-bff-sim.vercel.app` (**Preview**) |
+| `ESTIMATOR_MODE` | `remote` → gọi BFF của khách | `simulated` → tính trong tiến trình |
+| Badge trên studio | `FIXTURE — prices are captured samples` | `SIMULATED — sample prices, not a real quote` |
+| Chứng minh | bot → BFF của khách → app của khách → **link khách mở được**; revision đóng băng mang `rooms[].type` | đổi loại phòng → **tiền phòng đổi thật** (15.200 → 22.400 cho 2 đêm) |
+| Đừng làm gì ở tab này | đừng kỳ vọng con số đổi khi sửa chuyến (fixture không tính lại) | **đừng bấm Publish** — bộ giả lập không có host cho `/quote/<token>` |
+
+**Thứ tự đề xuất (≈8 phút):** WhatsApp thật (KB1) → studio tab "tích hợp thật" (Per guest + Trip review,
+nói về lỗi loại phòng bằng peso/đêm) → Approve → Publish → **mở link khách** → quay lại scorecard →
+cuối cùng nhảy sang tab simulated, đổi `standard` ↔ `deluxe` cho lead thấy con số chạy.
+
+**Hai điều phải nói rõ, tránh bị hỏi ngược:** giá là **sample** ở cả hai tab (cứ đọc theo badge trên
+trang); và fixture của khách **không tính giá**, nên con số thật chỉ có khi Phillip đưa key Odoo.
+**Đừng publish bản seed `QT-1010-SKY`** trong lúc demo — publish là một chiều, bản đó sẽ hết sửa được.
 

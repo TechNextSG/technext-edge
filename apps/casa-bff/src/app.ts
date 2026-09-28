@@ -1483,6 +1483,13 @@ export function createApp(options: AppOptions = {}) {
    *
    * A 422 from their `fillTrip` means WE sent something wrong, so it is surfaced as a failure
    * and not smoothed over — that is the whole reason for wiring this up.
+   *
+   * It refuses a quotation that is **already published**, for the same reason the trip-edit route
+   * does: the guest is holding a link to a frozen revision, and re-pricing the record underneath it
+   * makes the studio and the guest's link disagree about the same quotation. Found while setting up
+   * a second, `simulated` deployment for the demo: both deployments share one KV store, so the
+   * simulated tab could re-price a quotation the other tab had published — and the same thing
+   * happens to anyone who reopens a published quotation and clicks Price.
    */
   app.post("/v1/quotes/:id/sync-estimate", async (c) => {
     if (!staffSession(c).ok) {
@@ -1491,6 +1498,18 @@ export function createApp(options: AppOptions = {}) {
     const id = c.req.param("id");
     const existing = await getQuotationByIdOrSlug(id);
     if (!existing) return c.json({ error: "not_found" }, 404);
+    if (existing.estimator?.sharedAt) {
+      return c.json(
+        {
+          ok: false,
+          reason: "already_shared",
+          detail:
+            "this quotation is already published, so its price is frozen on the guest's link — re-pricing it here would make the studio and the link disagree. Start a new quotation instead.",
+          guestUrl: existing.estimator.guestUrl,
+        },
+        409,
+      );
+    }
 
     // Their API is session-scoped, so a re-price has to arrive on the same session the scenario was
     // created in — otherwise their BFF is looking at a different draft and the id it returns is a

@@ -163,19 +163,35 @@ async function scenario(kb, title, fn) {
 
 // ---- the scenarios (mirroring docs/whatsapp-manual-test.md) -----------------
 await scenario("KB1", "complete in one turn, and no link", async () => {
+  // Deliberately the same SHAPE as their captured fixture (2 guests, 20–22 Nov 2026, 2 nights) —
+  // see the note in docs/whatsapp-manual-test.md. In fixture mode their gateway does not compute a
+  // price, it picks a captured response by trip shape, so a 4-guest chat would make the guest's link
+  // show 2 strangers on other dates: the screen contradicting the conversation at the exact moment
+  // the conversation is what is being demonstrated.
   const r = await send(
-    "Hi, I'm Miguel. We are 4 guests and we need 1 deluxe room. Check in on 2026-11-20 and check out on 2026-11-22, so 2 nights. Full board please. No airport transfer. All 4 of us will dive on 2026-11-21. Name is Miguel.",
+    "Hi, I'm Ana and I'm travelling with Ben. 2 guests, 1 deluxe room. Check in on 2026-11-20 and check out on 2026-11-22, so 2 nights. Full board please. No airport transfer. One of us will dive on 2026-11-21.",
   );
   const reply = lastReply();
   if (verbose) console.log(reply);
   check("the turn was answered", r.replied === 1, JSON.stringify(r));
   check("no link of any kind in the guest's message", !hasLink(reply), reply);
+  // A model writes the reply, so these read for MEANING and permit either word order and markdown
+  // emphasis. Learned twice: the first version failed on "Guests: 2" instead of "2 guests", and the
+  // second on "**Guests:** 2" — the model may also fold the room type into the Rooms line rather
+  // than printing a "Room type:" line of its own, which is fine as long as it names the right one.
+  check(
+    "names the couple's room type",
+    /deluxe/i.test(reply) && /(?:2\s*guests|guests?\**\s*:\**\s*2)/i.test(reply),
+    reply,
+  );
   check("it does not re-ask how many are diving", !/how many of you will be diving/i.test(reply), reply);
   check("it says the quotation is being prepared", /preparing your quotation|quotation .*team|team will/i.test(reply), reply);
 });
 
 await scenario("KB2b", "the room-type question, then the answer", async () => {
-  await send("Hi, 2 of us from Oct 17 to Oct 19, full board, no transfer, no diving, name is Miguel.");
+  // The same dates and party shape as KB1's capture, so this scenario's price can be talked about
+  // with the couple's real numbers (standard 7,600 → deluxe 11,200 a night).
+  await send("Hi, 2 of us from Nov 20 to Nov 22, full board, no transfer, no diving, name is Ana.");
   const asked = lastReply();
   if (verbose) console.log(`asked: ${asked}`);
   check("asks for the room type", /standard, deluxe, or suite/i.test(asked), asked);

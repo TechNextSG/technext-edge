@@ -103,8 +103,8 @@ describe("P5 BFF & Odoo Estimate Schema Contract (docs/06-p5-bff-schema-contract
     expect(bffTrip.diveTo).toBe("2026-10-19");
 
     // Rooms and Guest assignments. The type is the guest's own word, carried through instead of
-    // being flattened to `standard` — for these two rooms that is ₱11,200 a night against
-    // ₱7,600, so the payload used to under-quote the largest line of the stay by 47%.
+    // being flattened to `standard` — ₱11,200 a night against ₱7,600, so ₱3,600 short per room per
+    // night, on the largest line of the stay.
     expect(bffTrip.rooms).toEqual([
       { id: "r1", type: "deluxe", name: null },
       { id: "r2", type: "deluxe", name: null },

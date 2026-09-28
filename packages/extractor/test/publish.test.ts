@@ -139,6 +139,21 @@ describe("publishing a guest link", () => {
     expect((await second.json()).reason).toBe("already_shared");
   });
 
+  it("refuses to re-price a quotation a guest is already holding a link to", async () => {
+    const draft = await pricedQuote("QT-PUB-10");
+    const app = createApp();
+    await publish(app, draft.quoteId, { acknowledgeSample: true });
+
+    // The trip-edit route already refuses this; pricing is the other way to change what a published
+    // quotation says. Found while setting up a second, `simulated` deployment for the demo, where a
+    // shared KV store means the other tab can reach the same record — but the same is true of anyone
+    // who reopens a published quotation and clicks Price.
+    const res = await app.request(`/v1/quotes/${draft.quoteId}/sync-estimate${STAFF}`, { method: "POST" });
+
+    expect(res.status).toBe(409);
+    expect((await res.json()).reason).toBe("already_shared");
+  });
+
   it("records the frozen revision and the share time on the quotation", async () => {
     const draft = await pricedQuote("QT-PUB-6");
     const app = createApp();

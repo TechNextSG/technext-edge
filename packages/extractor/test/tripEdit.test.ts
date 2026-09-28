@@ -7,8 +7,8 @@
 // price, is that there stays exactly one source of the number on the guest's link.
 //
 // These tests are therefore about two things at once: that an edit really changes what the engine
-// charges (the deluxe-room case is a real 47% nightly difference), and that an edit cannot leave the
-// quotation approved, published, or holding a second engine scenario.
+// charges (the deluxe-room case is ₱3,600 a night, and the simulated port prices it), and that an
+// edit cannot leave the quotation approved, published, or holding a second engine scenario.
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { createApp } from "../../../apps/casa-bff/src/app.js";
 import { createEstimatorClient } from "../../../apps/casa-bff/src/estimatorClient.js";
