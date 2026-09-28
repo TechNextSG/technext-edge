@@ -1079,16 +1079,12 @@ ${themeCss()}
                 : ""
             }
 
-            <!-- Publish without sending: the guest's link exists, no WhatsApp message goes out. -->
-            <div style="padding:12px 14px;background:var(--card);border:1px solid var(--border);border-radius:10px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;">
-              <div>
-                <div style="font-size:14px;font-weight:800;color:var(--text);">Create the guest link only</div>
-                <div style="font-size:12.5px;color:var(--muted);">Freezes this quotation on the guest's own page without messaging them.</div>
-              </div>
-              <div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap;">
-                <button class="btn btn-outline" onclick="publishQuote()" id="btn-publish-quote">Create link</button>
-                <span id="publish-status-badge" style="font-size:13px;font-weight:700;color:var(--muted);"></span>
-              </div>
+            <!-- Creating the guest's link lives in the Send card with the acknowledgement it needs:
+                 two buttons that publish, with the tick for one of them somewhere else, is how a
+                 receptionist meets "Tick the sample-price box" for a button they never saw. -->
+            <div style="padding:12px 14px;background:var(--card);border:1px solid var(--border);border-radius:10px;">
+              <div style="font-size:14px;font-weight:800;color:var(--text);">Book the guest's link without messaging them</div>
+              <div style="font-size:12.5px;color:var(--muted);">Use <strong>Create link</strong> in the Send section below — it needs the same sample-price acknowledgement as sending.</div>
             </div>
           </div>
         </details>
@@ -1183,18 +1179,24 @@ ${themeCss()}
           <label style="font-size:14px;font-weight:800;">Guest's WhatsApp number</label>
           <input type="text" id="whatsapp-phone-input" class="cell-input" style="width:220px;" placeholder="e.g. 639171234567" value="${draft.phone ?? ""}" />
           ${
+            // The acknowledgement sits beside BOTH actions that publish, and until it is ticked the
+            // primary button is disabled with the reason on screen — a button that is refused only
+            // after the click teaches nothing, and this is the one place a sample price can reach a
+            // guest.
             pricing?.sample
               ? `<label style="font-size:13px;font-weight:700;color:var(--accent);display:flex;align-items:center;gap:6px;">
-                   <input type="checkbox" id="ack-sample" /> I have checked this sample price
+                   <input type="checkbox" id="ack-sample" onchange="updateSendControls()" /> I have checked this sample price
                  </label>`
               : ""
           }
           <button class="btn btn-primary" onclick="sendToGuest()" id="btn-send-guest" ${approved ? "" : 'disabled style="opacity:0.5;cursor:not-allowed;"'}>
             ${published ? "Send the message again" : "Create link &amp; send"}
           </button>
+          <button class="btn btn-outline" onclick="publishQuote()" id="btn-publish-quote">Create link only</button>
+          <span id="publish-status-badge" style="font-size:13px;font-weight:700;color:var(--muted);"></span>
           <span id="wa-toast" style="font-size:14px;font-weight:700;color:var(--accent);"></span>
         </div>
-        <p style="font-size:13px;color:var(--muted);font-weight:600;margin-top:10px;">
+        <p id="send-hint" style="font-size:13px;color:var(--muted);font-weight:600;margin-top:10px;">
           The message carries the guest's own quotation link and no price of ours: the figures they read are the engine's, on their page.
           ${published ? "" : "Sending creates the link first."}
         </p>
@@ -1697,6 +1699,46 @@ ${themeCss()}
       }
       const approveBtn = document.getElementById('btn-confirm-hono');
       if (approveBtn && approved) approveBtn.textContent = 'Approved';
+      updateSendControls();
+    }
+
+    /**
+     * The sample-price acknowledgement, applied to every action that publishes.
+     *
+     * Both buttons that create the guest's link live in one card beside this checkbox, and until it
+     * is ticked they are disabled with the reason on screen. The first version ticked it in one card
+     * while a second publish button sat in "More actions" without it, so that button answered "Tick
+     * the sample-price box before sending" — true, unhelpful, and about a box the person had not
+     * seen.
+     */
+    function updateSendControls() {
+      const ack = document.getElementById('ack-sample');
+      const needsAck = Boolean(ack) && !ack.checked;
+      const hint = document.getElementById('send-hint');
+      for (const id of ['btn-send-guest', 'btn-publish-quote']) {
+        const btn = document.getElementById(id);
+        if (!btn) continue;
+        if (needsAck) {
+          btn.disabled = true;
+          btn.style.opacity = '0.5';
+          btn.style.cursor = 'not-allowed';
+        } else {
+          btn.style.opacity = '1';
+          btn.style.cursor = 'pointer';
+          // The send button is ALSO gated on approval; read that from the record rather than calling
+          // renderStatus, which calls this function.
+          btn.disabled = id === 'btn-send-guest' ? state.status !== 'confirmed_by_hono' : false;
+        }
+      }
+      if (hint) {
+        // Double-quoted, because the sentence contains apostrophes: inside this page's template
+        // literal an escaped quote is consumed by the OUTER string and leaves the page's own JS
+        // unbalanced.
+        hint.textContent = needsAck
+          ? 'Tick "I have checked this sample price" to create the guest link. These are sample prices, not a real quote.'
+          : "The message carries the guest's own quotation link and no price of ours: the figures they read are the engine's, on their page.";
+        hint.style.color = needsAck ? 'var(--accent)' : 'var(--muted)';
+      }
     }
 
     /**
@@ -2094,7 +2136,7 @@ ${themeCss()}
       if (ack && !ack.checked) {
         showError('Could not create the guest link', {
           reason: 'sample_not_acknowledged',
-          detail: 'These are sample prices, so they have to be seen and ticked off first.'
+          detail: 'These are sample prices. Tick "I have checked this sample price" in the Send section, then try again.'
         });
         return false;
       }

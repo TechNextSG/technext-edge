@@ -45,10 +45,13 @@ interface Studio {
   confirmAndSendToAI: () => Promise<void>;
   sendToGuest: () => Promise<void>;
   syncEstimate: () => Promise<void>;
+  updateSendControls: () => void;
   /** The bodies of the PUTs the page made, so a test can say what a save may contain. */
   putBodies: string[];
   /** What the page says next to its one save button. */
   hint: () => string;
+  /** What the page says under the send/publish buttons. */
+  sendHint: () => string;
 }
 
 /** The page's last inline script — the studio's own — with a DOM stub around it. */
@@ -144,11 +147,12 @@ async function loadStudio(): Promise<Studio> {
       return runInContext("state", context) as Record<string, unknown>;
     },
     fetchCalls,
+    putBodies,
     element,
     notice: () => element("studio-notice").textContent,
     hint: () => element("save-hint").textContent,
-    putBodies,
-    ...(context as unknown as Omit<Studio, "state" | "fetchCalls" | "element" | "notice" | "hint" | "putBodies">),
+    sendHint: () => element("send-hint").textContent,
+    ...(context as unknown as Omit<Studio, "state" | "fetchCalls" | "element" | "notice" | "hint" | "putBodies" | "sendHint">),
   };
 }
 
@@ -277,6 +281,26 @@ describe("the studio's own script", () => {
 
     expect(studio.fetchCalls.some((c) => c.includes("/send-whatsapp"))).toBe(false);
     expect(studio.notice()).toContain("sample-price box");
+  });
+
+  it("disables every action that publishes until the sample price is acknowledged", async () => {
+    // Found by using it: the tick box sat in the Send card while a second publish button lived in
+    // "More actions", so that button answered "Tick the sample-price box before sending" — true,
+    // unhelpful, and about a box the person had not seen. Both buttons now live beside the box, and
+    // until it is ticked they are disabled with the reason on screen.
+    const studio = await loadStudio();
+
+    studio.element("ack-sample").checked = false;
+    studio.updateSendControls();
+    expect(studio.element("btn-send-guest").disabled).toBe(true);
+    expect(studio.element("btn-publish-quote").disabled).toBe(true);
+    expect(studio.sendHint()).toContain("Tick");
+
+    studio.element("ack-sample").checked = true;
+    studio.updateSendControls();
+    // Approved and ticked: sending is available; the link-only button too.
+    expect(studio.element("btn-publish-quote").disabled).toBe(false);
+    expect(studio.sendHint()).toContain("carries the guest");
   });
 
   it("approves the quotation and says what happens next", async () => {
