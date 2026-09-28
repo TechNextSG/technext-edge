@@ -54,13 +54,16 @@ Dành cho người **tự bấm tay** trên production, không dùng script. M�
 
 Nhắn **từ WhatsApp của bạn** tới số resort (số test `+1 555-150-6595`), đúng hai tin sau.
 
-### Tin 1 — cố tình thiếu loại phòng
+### Tin 1 — cố tình thiếu loại phòng (mọi thứ khác đã có, kể cả tên)
 
-> Hi, I'm Ana. 2 guests, 1 room. Check in on 2026-11-20 and check out on 2026-11-22, so 2 nights. Full board please. No airport transfer. One of us will dive on 2026-11-21.
+> Hi, I'm Ana Reyes. 2 guests, 1 room, 2 nights from 2026-11-20 to 2026-11-22. Full board please. No airport transfer. 1 diver, diving on 2026-11-21.
 
-**Phải thấy trên điện thoại:** bot đọc lại ngày/khách/ăn/lặn, và hỏi **đúng một câu**:
-*"Would you prefer a standard, deluxe, or suite room?"* — không hỏi lại ngày, không hỏi lại số khách.
+**Phải thấy trên điện thoại:** bot đọc lại ngày/khách/ăn/lặn, và hỏi **đúng một câu**, nguyên văn:
+*"Would you like a standard, deluxe, or suite room?"* — không hỏi lại ngày, không hỏi lại số khách, không
+hỏi tên (đã có trong câu trên).
 **Không được có:** link, giá, chữ "confirmed".
+> Nếu bot hỏi thêm field nào khác: nghĩa là nó chưa đọc được field đó từ câu trên — trả lời nốt rồi đi
+> tiếp. Đó là model đọc văn bản, không phải lỗi luồng.
 
 ### Tin 2 — trả lời loại phòng
 
