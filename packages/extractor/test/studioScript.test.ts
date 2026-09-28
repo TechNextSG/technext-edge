@@ -51,7 +51,11 @@ interface Studio {
   wizardNext: () => Promise<void> | void;
   step: () => number;
   stepButtons: Array<{ disabled: boolean }>;
+  /** How many times the page asked to reload. */
+  reloads: () => number;
   /** The bodies of the PUTs the page made, so a test can say what a save may contain. */
+  /** The step kept for the next load. */
+  rememberedStep: () => number;
   putBodies: string[];
   /** What the page says next to its one save button. */
   hint: () => string;
@@ -118,6 +122,7 @@ async function loadStudio(): Promise<Studio> {
 
   const fetchCalls: string[] = [];
   const putBodies: string[] = [];
+  let reloads = 0;
   const context: Record<string, unknown> = {
     document: {
       getElementById: element,
@@ -126,12 +131,24 @@ async function loadStudio(): Promise<Studio> {
       documentElement: { setAttribute: () => {}, getAttribute: () => "light" },
     },
     window: {
-      location: { search: "", reload: () => { throw new Error("RELOAD"); } },
+      // A reload is recorded rather than thrown: the wizard reloads after every action that finishes
+      // a step (the record is the truth about what to draw next), and a stub that threw would turn
+      // each successful action into a caught "failure".
+      location: { search: "", reload: () => { reloads += 1; } },
       prompt: () => "x",
       confirm: () => true,
     },
     localStorage: { getItem: () => null, setItem: () => {} },
-    sessionStorage: { getItem: () => STAFF_TOKEN, setItem: () => {}, removeItem: () => {} },
+    // A real store, keyed by name: the wizard keeps its step here across the reload that follows every
+    // action, and the staff token lives here too.
+    sessionStorage: (() => {
+      const store = new Map<string, string>([["casa_staff_token", STAFF_TOKEN]]);
+      return {
+        getItem: (k: string) => store.get(k) ?? null,
+        setItem: (k: string, v: string) => { store.set(k, String(v)); },
+        removeItem: (k: string) => { store.delete(k); },
+      };
+    })(),
     navigator: { clipboard: { writeText: () => {} } },
     fetch: async (url: string, init?: { method?: string; body?: string }) => {
       const method = init?.method ?? "GET";
@@ -183,6 +200,9 @@ async function loadStudio(): Promise<Studio> {
     putBodies,
     stepButtons,
     step: () => runInContext("stepNumber()", context) as number,
+    reloads: () => reloads,
+    /** The step the page will open on next time (the reload that follows each action). */
+    rememberedStep: () => Number(runInContext("sessionStorage.getItem(STEP_KEY)", context) || 0),
     element,
     notice: () => element("studio-notice").textContent,
     hint: () => element("save-hint").textContent,
@@ -378,31 +398,41 @@ describe("the studio's own script", () => {
   });
 
   it("disables every action that publishes until the sample price is acknowledged", async () => {
-    // Found by using it: the tick box sat in the Send card while a second publish button lived in
+    // Found by using it: the tick box sat in one card while a second publish button lived in
     // "More actions", so that button answered "Tick the sample-price box before sending" — true,
-    // unhelpful, and about a box the person had not seen. Both buttons now live beside the box, and
-    // until it is ticked they are disabled with the reason on screen.
+    // unhelpful, and about a box the person had not seen. Both controls that publish are now on the
+    // Send screen beside the box, and until it is ticked they are disabled with the reason on screen.
     const studio = await loadStudio();
+    studio.state.status = "confirmed_by_hono";
+    studio.goStep(4);
 
     studio.element("ack-sample").checked = false;
     studio.updateSendControls();
-    expect(studio.element("btn-send-guest").disabled).toBe(true);
+    expect(studio.element("btn-next").disabled).toBe(true);
     expect(studio.element("btn-publish-quote").disabled).toBe(true);
     expect(studio.sendHint()).toContain("Tick");
 
     studio.element("ack-sample").checked = true;
     studio.updateSendControls();
-    // Approved and ticked: sending is available; the link-only button too.
     expect(studio.element("btn-publish-quote").disabled).toBe(false);
     expect(studio.sendHint()).toContain("carries the guest");
+    // And on the OTHER screens the wizard button is not gated by a sample-price tick: its action
+    // there is to approve, or to price the trip, and neither publishes anything.
+    studio.goStep(3);
+    studio.element("ack-sample").checked = false;
+    studio.updateSendControls();
+    expect(studio.element("btn-next").disabled).toBe(false);
   });
 
-  it("approves the quotation and says what happens next", async () => {
+  it("approves the quotation, and moves to the screen that sends it", async () => {
     const studio = await loadStudio();
 
     await studio.confirmAndSendToAI();
 
     expect(studio.fetchCalls.some((c) => c.includes("/confirm"))).toBe(true);
-    expect(studio.notice()).toContain("Approved");
+    // Approving finishes screen 3, so the wizard advances and the page is rebuilt from the record —
+    // which is where the guest's message comes from.
+    expect(studio.reloads()).toBe(1);
+    expect(studio.rememberedStep()).toBe(4);
   });
 });

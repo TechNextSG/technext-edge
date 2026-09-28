@@ -208,9 +208,13 @@ describe("the four screens", () => {
     expect(markup).toContain('id="btn-back"');
     expect(markup).toContain('id="btn-next"');
     expect(markup).toContain("wizardNext()");
-    // Priced and unapproved, so the button that finishes that screen is the approval.
+    // On screen 3 with a price in hand, the button's action is the approval itself — and this is the
+    // SERVER-rendered label, so it is right for a person whose script has not run yet.
     expect(markup).toContain("Approve quotation");
     expect(markup).toContain("Step <strong id=\"wizard-step-num\">3</strong> of 4");
+    // On screen 2 the same button only walks forward. That label is set by the script after load
+    // (`updateWizard`), so it is asserted on the whole document rather than on the markup.
+    expect(await studioFor(base.quoteId)).toContain("Continue to approve");
   });
 
   it("opens on step 1 for a quotation nobody has priced yet", async () => {
@@ -258,10 +262,15 @@ describe("one place for failures, and one action that sends", () => {
     const base = await seed();
     const html = await studioFor(base.quoteId);
 
+    // The action lives in the wizard bar (`wizardNext` → `sendToGuest`), and the only other control
+    // that can publish is the deliberate "create the link without messaging" one, beside the same
+    // sample-price acknowledgement.
     expect(html).toContain("sendToGuest()");
-    expect(html).toContain('id="btn-send-guest"');
+    expect(html).toContain("wizardNext()");
+    expect(html).toContain("Create link only");
     expect(html).not.toContain('id="btn-push-wa"');
-    // The sample acknowledgement belongs to the action that sends, which is where the decision is.
+    expect(html).not.toContain('id="btn-send-guest"');
+    // The sample acknowledgement belongs to that screen, which is where the decision is made.
     expect(html).toContain('id="ack-sample"');
     expect(html).toContain("I have checked this sample price");
   });

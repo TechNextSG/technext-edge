@@ -323,6 +323,30 @@ export function renderHonoQuotationEditorHtml(
   const maxStep = published ? 4 : approved ? 4 : priced ? 3 : draft.bffTrip ? 2 : 1;
   const initialStep = role === "guest" ? 2 : approved || published ? 4 : priced ? 3 : 1;
 
+  /**
+   * What the wizard's button says before any script runs — and it has to be TRUE, not just present.
+   * The label depends on which SCREEN is open, not only on the record: on screen 2 with a price in
+   * hand the button only walks forward, while on screen 3 the same button approves. (Rendered wrong
+   * once, in a browser: screen 2 offered "Approve quotation" for a button that does not approve.)
+   *
+   * The script sets the same labels in `updateWizard`; this is the server-rendered starting point, so
+   * the button is right for a person whose script has not run yet.
+   */
+  const nextLabel =
+    initialStep === 1
+      ? "Save &amp; get price"
+      : initialStep === 2
+        ? priced
+          ? "Continue to approve &rarr;"
+          : "Get price"
+        : initialStep === 3
+          ? approved
+            ? "Continue to send &rarr;"
+            : "Approve quotation"
+          : published
+            ? "Send the message again"
+            : "Create link &amp; send";
+
   const progressHtml = archived
     ? `<div class="progress-note">This quotation is archived. Nothing is sent to the guest from here.</div>`
     : `<div class="progress">${steps
@@ -556,7 +580,12 @@ ${themeCss()}
       gap: 24px;
     }
     @media (max-width: 1024px) {
+      /* Narrow screen: the wizard is the work, so it comes FIRST and the queue follows. Measured in
+         a browser at 630px: the sidebar (AI check + the whole quotation list) filled the viewport and
+         the screen somebody is actually working on was below the fold. */
       .container { grid-template-columns: 1fr; }
+      .container > main { order: -1; }
+      .wizard-nav { position: static; }
     }
     .card {
       background: var(--surface);
@@ -1121,8 +1150,8 @@ ${themeCss()}
             </div>
           </div>
           <div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap;">
-            <button class="btn ${priced ? "btn-outline" : "btn-primary"}" onclick="syncEstimate()" id="btn-sync-estimate">Get price</button>
             <span id="estimator-status-badge" style="font-size:13.5px;font-weight:700;color:var(--muted);">Checking the booking engine…</span>
+            <span style="font-size:13px;color:var(--muted);font-weight:600;">The button at the bottom of the screen asks the engine${priced ? " again" : ""}.</span>
           </div>
         </div>
 
@@ -1191,11 +1220,10 @@ ${themeCss()}
           Approving locks in the price for this trip. The guest's link is created when you send, on the next screen.
         </p>
 
-        <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:14px;">
+        <!-- Approving is the bar's button: the screen in front of the person holds no second copy of
+             the same decision, which is what the first version of this wizard got wrong. -->
+        <div style="display:flex;justify-content:flex-start;align-items:center;flex-wrap:wrap;gap:14px;">
           <button class="btn btn-outline" onclick="cancelQuotationAction()" id="btn-cancel-quote" style="color:var(--rose, #f43f5e);border-color:var(--rose, #f43f5e);">Archive quotation</button>
-          <button class="btn btn-emerald" onclick="confirmAndSendToAI()" id="btn-confirm-hono" style="padding:12px 24px;font-size:15px;">
-            Approve quotation
-          </button>
         </div>
 
         <div class="ai-reply-box" id="ai-confirmed-reply-box" style="${draft.status === "confirmed_by_hono" ? "" : "color:var(--muted);font-style:italic;"}">${
@@ -1239,16 +1267,13 @@ ${themeCss()}
                  </label>`
               : ""
           }
-          <button class="btn btn-primary" onclick="sendToGuest()" id="btn-send-guest" ${approved ? "" : 'disabled style="opacity:0.5;cursor:not-allowed;"'}>
-            ${published ? "Send the message again" : "Create link &amp; send"}
-          </button>
           <button class="btn btn-outline" onclick="publishQuote()" id="btn-publish-quote">Create link only</button>
           <span id="publish-status-badge" style="font-size:13px;font-weight:700;color:var(--muted);"></span>
           <span id="wa-toast" style="font-size:14px;font-weight:700;color:var(--accent);"></span>
         </div>
         <p id="send-hint" style="font-size:13px;color:var(--muted);font-weight:600;margin-top:10px;">
           The message carries the guest's own quotation link and no price of ours: the figures they read are the engine's, on their page.
-          ${published ? "" : "Sending creates the link first."}
+          ${published ? "" : "The button at the bottom of the screen creates the link and sends it."}
         </p>
       </div>
 
@@ -1262,15 +1287,7 @@ ${themeCss()}
           Step <strong id="wizard-step-num">${initialStep}</strong> of 4 · <span id="wizard-step-name">${steps[initialStep - 1]?.label ?? ""}</span>
         </div>
         <button type="button" class="btn btn-primary" onclick="wizardNext()" id="btn-next">
-          ${
-            published
-              ? "Send the message again"
-              : approved
-                ? "Create link &amp; send"
-                : priced
-                  ? "Approve quotation"
-                  : "Save &amp; get price"
-          }
+          ${nextLabel}
         </button>
       </div>
     </main>
@@ -1420,18 +1437,19 @@ ${themeCss()}
         const published = Boolean(state.estimator && state.estimator.sharedAt);
         const approved = state.status === 'confirmed_by_hono';
         const priced = Boolean(state.pricing);
-        // The label is the ACTION, not "next": on screen 1 the button saves and prices, on screen 3
-        // it approves, on screen 4 it sends. A wizard whose button only says "Next" hides what the
-        // person is about to do.
+        // The label is the ACTION, not "next" — but it must also be TRUE: on screen 2 with a price in
+        // hand the button only walks to the approval screen, so it says so rather than claiming to
+        // approve. Verified in a browser, where 'Approve quotation' on screen 2 read as if pressing it
+        // would approve the quotation.
         next.textContent = published
           ? 'Send the message again'
           : step === 1
             ? 'Save & get price'
             : step === 2
-              ? (priced ? 'Approve quotation' : 'Get price')
+              ? (priced ? 'Continue to approve →' : 'Get price')
               : step === 3
-                ? (approved ? 'Create link & send' : 'Approve quotation')
-                : 'Create link & send';
+                ? (approved ? 'Continue to send →' : 'Approve quotation')
+                : (published ? 'Send the message again' : 'Create link & send');
         // Step 4's send also needs the sample acknowledgement; updateSendControls owns that and is
         // called from here so the two gates cannot drift.
         if (step === 4) updateSendControls();
@@ -1866,15 +1884,8 @@ ${themeCss()}
       // classes and its disabled state instead.
       void steps;
 
-      const sendBtn = document.getElementById('btn-send-guest');
-      if (sendBtn) {
-        sendBtn.disabled = !approved;
-        sendBtn.style.opacity = approved ? '1' : '0.5';
-        sendBtn.style.cursor = approved ? 'pointer' : 'not-allowed';
-        sendBtn.textContent = published ? 'Send the message again' : 'Create link & send';
-      }
-      const approveBtn = document.getElementById('btn-confirm-hono');
-      if (approveBtn && approved) approveBtn.textContent = 'Approved';
+      // The bar is NOT re-drawn here: it is server-rendered, and updateWizard moves its classes,
+      // its labels and its disabled state. This function only brought the status pill up to date.
       updateSendControls();
       updateWizard();
     }
@@ -1882,17 +1893,19 @@ ${themeCss()}
     /**
      * The sample-price acknowledgement, applied to every action that publishes.
      *
-     * Both buttons that create the guest's link live in one card beside this checkbox, and until it
-     * is ticked they are disabled with the reason on screen. The first version ticked it in one card
-     * while a second publish button sat in "More actions" without it, so that button answered "Tick
-     * the sample-price box before sending" — true, unhelpful, and about a box the person had not
-     * seen.
+     * The tick box sits in the Send screen beside the two controls that can create a guest link: the
+     * "Create link only" button and the wizard's own button (which publishes AND sends). Until it is
+     * ticked both are disabled with the reason on screen — a button that is refused only after the
+     * click teaches nothing, and this is the one place a sample price can reach a guest.
      */
     function updateSendControls() {
       const ack = document.getElementById('ack-sample');
       const needsAck = Boolean(ack) && !ack.checked;
       const hint = document.getElementById('send-hint');
-      for (const id of ['btn-send-guest', 'btn-publish-quote']) {
+      // Only the wizard button when the wizard is ON the send screen: on the other screens its action
+      // is unrelated to sample prices.
+      const onSendStep = stepNumber() === 4;
+      for (const id of ['btn-publish-quote'].concat(onSendStep ? ['btn-next'] : [])) {
         const btn = document.getElementById(id);
         if (!btn) continue;
         if (needsAck) {
@@ -1902,9 +1915,7 @@ ${themeCss()}
         } else {
           btn.style.opacity = '1';
           btn.style.cursor = 'pointer';
-          // The send button is ALSO gated on approval; read that from the record rather than calling
-          // renderStatus, which calls this function.
-          btn.disabled = id === 'btn-send-guest' ? state.status !== 'confirmed_by_hono' : false;
+          btn.disabled = false;
         }
       }
       if (hint) {
@@ -1929,7 +1940,7 @@ ${themeCss()}
     function markTripDirty() {
       tripDirty = true;
       renderStatus();
-      const btn = document.getElementById('btn-save-all');
+      const btn = document.getElementById('btn-next');
       if (btn) btn.textContent = 'Save & get price';
       const hint = document.getElementById('save-hint');
       if (hint) {
@@ -1962,7 +1973,7 @@ ${themeCss()}
      * figure the guest reads should not move because somebody fixed a spelling.
      */
     async function saveStudio() {
-      const btn = document.getElementById('btn-save-all');
+      const btn = document.getElementById('btn-next');
       const hint = document.getElementById('save-hint');
       clearNotice();
       if (btn) btn.disabled = true;
@@ -2050,7 +2061,7 @@ ${themeCss()}
     }
 
     async function confirmAndSendToAI() {
-      const btn = document.getElementById('btn-confirm-hono');
+      const btn = document.getElementById('btn-next');
       const replyBox = document.getElementById('ai-confirmed-reply-box');
       clearNotice();
       if (btn) btn.disabled = true;
@@ -2075,7 +2086,12 @@ ${themeCss()}
           replyBox.style.fontStyle = 'normal';
           replyBox.textContent = data.aiReply || state.aiConfirmedReply || '';
         }
-        showInfo('Approved. The guest link is created when you send.');
+        // Approving is the end of this screen, so the wizard moves on to Send — the same rule as
+        // saving on screen 1. Reloaded rather than patched, because the message the guest will get is
+        // written from the record and the screen shows the record's version of it.
+        rememberStep(4);
+        showInfo('Approved. Reloading the message to send…');
+        window.location.reload();
       } catch (err) {
         showError('Could not approve', { detail: err && err.message ? err.message : String(err) });
       } finally {
@@ -2127,7 +2143,7 @@ ${themeCss()}
     async function sendToGuest() {
       const phone = document.getElementById('whatsapp-phone-input').value.trim();
       const toast = document.getElementById('wa-toast');
-      const sendBtn = document.getElementById('btn-send-guest');
+      const sendBtn = document.getElementById('btn-next');
       clearNotice();
       if (!state.estimator || !state.estimator.sharedAt) {
         const published = await publishQuote();
@@ -2147,8 +2163,10 @@ ${themeCss()}
           if (toast) toast.textContent = '';
           return;
         }
-        if (toast) toast.textContent = 'Sent to ' + phone;
-        showInfo('Sent to ' + phone + '. The message carries the guest link and no price of ours.');
+        // The record is the truth about what the guest now has, so the screen is rebuilt from it:
+        // link, status ("Sent to guest") and the message that was actually delivered.
+        rememberStep(4);
+        window.location.reload();
       } catch (err) {
         showError('Could not send to the guest', { detail: err && err.message ? err.message : String(err) });
         if (toast) toast.textContent = '';
@@ -2193,7 +2211,7 @@ ${themeCss()}
     }
 
     async function syncEstimate() {
-      const btn = document.getElementById('btn-sync-estimate');
+      const btn = document.getElementById('btn-next');
       if (!btn) return; // a guest session has no pricing bar
       clearNotice();
       btn.disabled = true;
