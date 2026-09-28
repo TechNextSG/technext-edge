@@ -80,9 +80,9 @@ export function followUpState(
   window: FollowUpWindow = followUpWindowFromEnv(),
 ): FollowUpState {
   if (draft.status === "cancelled") return "none";
-  // A booking is the end of this question. `submission` is the folio the customer's app created, so
-  // it is the only thing here that means "money moved".
-  if (draft.submission) return "none";
+  // A booking is the end of this question. `submission` is the folio the customer's app created, and
+  // `depositPayment` is staff-confirmed deposit receipt, so either means money moved.
+  if (draft.submission || draft.depositPayment?.status === "received") return "none";
   const hours = hoursSinceSent(draft, now);
   if (hours === null) return "none";
   if (hours >= window.staleHours) return "stale";

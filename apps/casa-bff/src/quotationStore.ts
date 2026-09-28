@@ -414,27 +414,31 @@ export function renderHonoQuotationEditorHtml(
   const approved = draft.status === "confirmed_by_hono";
   const archived = draft.status === "cancelled";
 
+  const isDepositReceived = draft.depositPayment?.status === "received";
+  const defaultDepositAmount = Math.round((draft.pricing?.kpis.revenue ?? draft.totalAmount ?? 0) / 2);
   const statusLabel = archived
     ? "Archived"
-    : draft.status !== "confirmed_by_hono" && published
-      ? "Published — needs approval"
-      : published
-        ? // A link is not a delivery. "Create link only" publishes without sending, and reading that
-          // as "the guest has it" is the one thing this label must never do — measured on production.
-          draft.sentToGuestAt
-          ? "Sent to guest"
-          : "Link ready — not sent"
-        : priced && !enginePriced
-          ? // Ahead of "approved" on purpose: an approval of a figure the engine never priced is not
-            // progress, and it must not hide the one thing to do. Found on production, where the
-            // fixture was approved with a sample-engine price and the wizard offered Send.
-            "Needs a price from the engine"
-          : approved
-            ? "Approved — not sent yet"
-            : priced
-              ? "Priced — needs approval"
-              : "Needs review";
-  const statusTone = archived ? "rose" : published || approved ? "emerald" : "amber";
+    : isDepositReceived
+      ? "Deposit Received"
+      : draft.status !== "confirmed_by_hono" && published
+        ? "Published — needs approval"
+        : published
+          ? // A link is not a delivery. "Create link only" publishes without sending, and reading that
+            // as "the guest has it" is the one thing this label must never do — measured on production.
+            draft.sentToGuestAt
+            ? "Sent to guest"
+            : "Link ready — not sent"
+          : priced && !enginePriced
+            ? // Ahead of "approved" on purpose: an approval of a figure the engine never priced is not
+              // progress, and it must not hide the one thing to do. Found on production, where the
+              // fixture was approved with a sample-engine price and the wizard offered Send.
+              "Needs a price from the engine"
+            : approved
+              ? "Approved — not sent yet"
+              : priced
+                ? "Priced — needs approval"
+                : "Needs review";
+  const statusTone = archived ? "rose" : isDepositReceived || published || approved ? "emerald" : "amber";
   /**
    * Whether the resort owes this guest a chase, and how urgently.
    *
@@ -548,6 +552,9 @@ export function renderHonoQuotationEditorHtml(
       engineRevenue: q.pricing?.kpis.revenue ?? null,
       currency: q.currency,
       status: q.status,
+      sentToGuestAt: q.sentToGuestAt ?? null,
+      submission: Boolean(q.submission),
+      depositPayment: q.depositPayment ?? null,
     }))
   ).replace(/</g, "\\u003c");
   // The extractor's scorecard, computed from the records. "Unchanged" means the quotation was
@@ -1242,11 +1249,12 @@ ${themeCss()}
           <span id="queue-count-badge" style="font-size:12px;font-weight:800;background:var(--accent-soft);color:var(--accent);padding:2px 8px;border-radius:999px;"></span>
         </div>
         <input type="text" id="quote-search-input" oninput="filterQuotesList(this.value)" placeholder="Search guest, phone, quote ID..." class="cell-input" style="margin-bottom:10px;font-size:13.5px;padding:9px 12px;" />
-        <div class="tab-row">
-          <button type="button" class="tab-btn active" id="tab-needs-review" onclick="setQuoteFilter('needs-review')">Needs Review</button>
-          <button type="button" class="tab-btn" id="tab-approved" onclick="setQuoteFilter('approved')">Approved</button>
-          <button type="button" class="tab-btn" id="tab-cancelled" onclick="setQuoteFilter('cancelled')">Archived</button>
+        <div class="tab-row" style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:10px;">
+          <button type="button" class="tab-btn" id="tab-action-needed" onclick="setQuoteFilter('action-needed')">Action Needed</button>
+          <button type="button" class="tab-btn" id="tab-waiting-deposit" onclick="setQuoteFilter('waiting-deposit')">Waiting</button>
+          <button type="button" class="tab-btn" id="tab-deposit-received" onclick="setQuoteFilter('deposit-received')">Paid</button>
           <button type="button" class="tab-btn" id="tab-all" onclick="setQuoteFilter('all')">All</button>
+          <button type="button" class="tab-btn" id="tab-cancelled" onclick="setQuoteFilter('cancelled')">Archived</button>
         </div>
         <div id="quote-sidebar-list"></div>
         <div id="quote-pagination" style="display:flex;justify-content:space-between;align-items:center;padding:12px 4px 4px;margin-top:10px;border-top:1px solid var(--border);font-size:12.5px;font-weight:700;">
@@ -1553,6 +1561,35 @@ ${themeCss()}
           <div id="followup-preview" style="font-size:13px;color:var(--muted);line-height:1.55;white-space:pre-line;">${esc(followUpText)}</div>
         </div>`
         }
+
+        <!-- Casa Bank Information for WhatsApp -->
+        <div style="margin-top:20px;padding:16px 18px;border:1px solid var(--border);border-radius:12px;background:var(--surface-2);">
+          <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;margin-bottom:8px;">
+            <div style="font-size:14px;font-weight:800;color:var(--text);">Casa Escondida · Bank &amp; Payment Details</div>
+            <button type="button" class="btn btn-outline" onclick="copyBankPaymentInfo()" style="padding:6px 12px;font-size:12.5px;font-weight:700;">Copy Bank Details</button>
+          </div>
+          <div style="font-size:13px;color:var(--muted);line-height:1.55;">
+            <strong>BDO Unibank (Pesos):</strong> Casa Escondida Anilao Resort Inc. · Acct: 0012-3456-7890<br />
+            <strong>GCash / Maya:</strong> 0917-123-4567 (Casa Front Desk)
+          </div>
+        </div>
+
+        <!-- Deposit Payment Status & Recording -->
+        <div id="deposit-section" style="margin-top:20px;padding:16px 18px;border:1.5px solid ${isDepositReceived ? "var(--emerald)" : "var(--border)"};border-radius:12px;background:${isDepositReceived ? "var(--emerald-soft)" : "var(--surface-2)"};">
+          <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;">
+            <div>
+              <div style="font-size:14px;font-weight:800;color:${isDepositReceived ? "var(--emerald)" : "var(--text)"};">
+                ${isDepositReceived ? "✅ 50% Deposit Received (Reservation Confirmed)" : "Deposit Payment Recording"}
+              </div>
+              <div style="font-size:12.5px;color:var(--muted);margin-top:2px;">
+                ${isDepositReceived && draft.depositPayment ? `Ref: <strong>${esc(draft.depositPayment.referenceNumber || "Verified")}</strong> · Amount: <strong>₱${Number(draft.depositPayment.amount).toLocaleString("en-US")}</strong> · Date: <strong>${esc(draft.depositPayment.receivedAt.slice(0, 10))}</strong>` : "Once the guest transfers the 50% down payment, record it here to confirm their booking."}
+              </div>
+            </div>
+            ${isDepositReceived
+              ? `<button type="button" class="btn btn-outline" onclick="revertDepositPayment()" style="padding:6px 12px;font-size:12.5px;font-weight:700;color:var(--rose);border-color:var(--rose);">Undo Deposit</button>`
+              : `<button type="button" class="btn btn-primary" onclick="showDepositModal()" style="padding:6px 14px;font-size:13px;font-weight:800;background:var(--emerald);border-color:var(--emerald);">Mark 50% Deposit Received</button>`}
+          </div>
+        </div>
       </div>
 
       <!-- The wizard bar. One action finishes the screen it belongs to, and Back is always there:
@@ -1569,6 +1606,34 @@ ${themeCss()}
         </button>
       </div>
     </main>
+  </div>
+
+  <!-- Modal for Deposit Recording -->
+  <div id="deposit-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:9999;align-items:center;justify-content:center;padding:16px;">
+    <div style="background:var(--card);border:2px solid var(--border);border-radius:18px;max-width:440px;width:100%;padding:24px;box-shadow:var(--shadow);">
+      <h3 style="margin:0 0 8px;font-size:18px;font-weight:800;">Record 50% Deposit Payment</h3>
+      <p style="font-size:13px;color:var(--muted);margin:0 0 16px;">Confirm receipt of the down payment to secure this reservation.</p>
+      
+      <div style="margin-bottom:12px;">
+        <label style="display:block;font-size:12.5px;font-weight:700;margin-bottom:4px;">Reference Number (BDO / GCash Ref):</label>
+        <input type="text" id="modal-deposit-ref" class="cell-input" placeholder="e.g. BDO-9823412 or GCASH-0012" style="width:100%;box-sizing:border-box;padding:8px 10px;font-size:13.5px;" />
+      </div>
+
+      <div style="margin-bottom:12px;">
+        <label style="display:block;font-size:12.5px;font-weight:700;margin-bottom:4px;">Amount Received (PHP):</label>
+        <input type="number" id="modal-deposit-amount" class="cell-input" value="${defaultDepositAmount}" style="width:100%;box-sizing:border-box;padding:8px 10px;font-size:13.5px;font-weight:700;" />
+      </div>
+
+      <div style="margin-bottom:16px;">
+        <label style="display:block;font-size:12.5px;font-weight:700;margin-bottom:4px;">Received Date:</label>
+        <input type="date" id="modal-deposit-date" class="cell-input" style="width:100%;box-sizing:border-box;padding:8px 10px;font-size:13.5px;" />
+      </div>
+
+      <div style="display:flex;justify-content:flex-end;gap:10px;">
+        <button type="button" class="btn btn-outline" onclick="closeDepositModal()" style="padding:8px 16px;font-size:13px;">Cancel</button>
+        <button type="button" class="btn btn-primary" onclick="submitDepositPayment()" style="padding:8px 18px;font-size:13px;background:var(--emerald);border-color:var(--emerald);">Save &amp; Confirm Deposit</button>
+      </div>
+    </div>
   </div>
 
   <script>
@@ -1797,7 +1862,7 @@ ${themeCss()}
       return sym + Number(n || 0).toLocaleString('en-US');
     }
 
-    let quoteFilter = (state && state.status === 'confirmed_by_hono') ? 'approved' : ((state && state.status === 'cancelled') ? 'cancelled' : 'needs-review');
+    let quoteFilter = 'all';
     let quoteSearch = '';
 
     const PAGE_SIZE = 10;
@@ -1806,9 +1871,11 @@ ${themeCss()}
     function setQuoteFilter(tab) {
       quoteFilter = tab;
       quotePage = 1;
-      document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+      document.querySelectorAll('.tab-btn').forEach(b => {
+        if (b && b.classList) b.classList.remove('active');
+      });
       const activeBtn = document.getElementById('tab-' + tab);
-      if (activeBtn) activeBtn.classList.add('active');
+      if (activeBtn && activeBtn.classList) activeBtn.classList.add('active');
       renderSidebar();
     }
 
@@ -1832,9 +1899,25 @@ ${themeCss()}
       const filtered = allQuotes.filter(q => {
         const isApproved = q.status === 'confirmed_by_hono';
         const isCancelled = q.status === 'cancelled';
-        if (quoteFilter === 'needs-review' && (isApproved || isCancelled)) return false;
-        if (quoteFilter === 'approved' && (!isApproved || isCancelled)) return false;
-        if (quoteFilter === 'cancelled' && !isCancelled) return false;
+        const isDepositPaid = Boolean(q.depositPayment && q.depositPayment.status === 'received');
+        const sentTime = q.sentToGuestAt ? new Date(q.sentToGuestAt).getTime() : null;
+        const hoursSince = (sentTime && Number.isFinite(sentTime)) ? (Date.now() - sentTime) / 3600000 : null;
+        const chasable = !isCancelled && !q.submission && !isDepositPaid && hoursSince !== null;
+        const isStale = Boolean(chasable && hoursSince >= FOLLOW_UP_HOURS.stale);
+        const isNeedsReview = !isCancelled && !isApproved;
+
+        if (quoteFilter === 'action-needed') {
+          if (!isNeedsReview && !isStale) return false;
+        } else if (quoteFilter === 'waiting-deposit') {
+          if (isCancelled || isDepositPaid || isNeedsReview || isStale) return false;
+        } else if (quoteFilter === 'deposit-received') {
+          if (!isDepositPaid) return false;
+        } else if (quoteFilter === 'cancelled') {
+          if (!isCancelled) return false;
+        } else if (quoteFilter === 'all') {
+          // keep all
+        }
+
         if (quoteSearch) {
           const matchName = (q.guestName || '').toLowerCase().includes(quoteSearch);
           const matchId = (q.quoteId || '').toLowerCase().includes(quoteSearch);
@@ -1877,26 +1960,35 @@ ${themeCss()}
       el.innerHTML = pageItems.map(q => {
         const isApproved = q.status === 'confirmed_by_hono';
         const isCancelled = q.status === 'cancelled';
-        // Same rule as the record's own badge, in the browser: sent (not merely published), not
-        // archived, no folio. Hours come from the server so the two cannot drift.
+        const isDepositPaid = Boolean(q.depositPayment && q.depositPayment.status === 'received');
         const sentTime = q.sentToGuestAt ? new Date(q.sentToGuestAt).getTime() : null;
         const hoursSince = (sentTime && Number.isFinite(sentTime)) ? (Date.now() - sentTime) / 3600000 : null;
-        const chasable = !isCancelled && !q.submission && hoursSince !== null;
+        const chasable = !isCancelled && !q.submission && !isDepositPaid && hoursSince !== null;
         const isStale = Boolean(chasable && hoursSince >= FOLLOW_UP_HOURS.stale);
         const isNudge = Boolean(chasable && !isStale && hoursSince >= FOLLOW_UP_HOURS.nudge);
-        const statusLabel = isCancelled ? 'Archived' : (isApproved ? 'Approved' : 'Needs Review');
-        const statusColor = isCancelled ? 'var(--rose, #f43f5e)' : (isApproved ? 'var(--emerald)' : 'var(--amber)');
+        const statusLabel = isCancelled
+          ? 'Archived'
+          : (isDepositPaid
+            ? 'Deposit Paid'
+            : (isApproved ? 'Approved' : 'Needs Review'));
+        const statusColor = isCancelled
+          ? 'var(--rose, #f43f5e)'
+          : (isDepositPaid
+            ? 'var(--emerald)'
+            : (isApproved ? 'var(--emerald)' : 'var(--amber)'));
         return \`
         <a class="quote-list-item \${q.quoteId === state.quoteId ? 'active' : ''}" href="/quotes/\${q.quoteId}\${qs}">
           <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
             <strong style="font-size:15px;color:var(--accent);">\${q.quoteId}</strong>
             <span style="font-size:12.5px;font-weight:800;color:\${statusColor};display:flex;align-items:center;gap:6px;">
               \${statusLabel}
-              \${isStale
-                ? '<span style="font-size:10px;font-weight:800;color:var(--amber);background:var(--amber-soft);padding:1px 5px;border-radius:4px;border:1px solid var(--amber);">Stale</span>'
-                : isNudge
-                  ? '<span style="font-size:10px;font-weight:800;color:var(--amber);background:var(--amber-soft);padding:1px 5px;border-radius:4px;border:1px solid var(--amber);">Follow up</span>'
-                  : ''}
+              \${isDepositPaid
+                ? '<span style="font-size:10px;font-weight:800;color:var(--emerald);background:var(--emerald-soft);padding:1px 5px;border-radius:4px;border:1px solid var(--emerald);">Paid</span>'
+                : (isStale
+                  ? '<span style="font-size:10px;font-weight:800;color:var(--amber);background:var(--amber-soft);padding:1px 5px;border-radius:4px;border:1px solid var(--amber);">Stale</span>'
+                  : isNudge
+                    ? '<span style="font-size:10px;font-weight:800;color:var(--amber);background:var(--amber-soft);padding:1px 5px;border-radius:4px;border:1px solid var(--amber);">Follow up</span>'
+                    : '')}
             </span>
           </div>
           <div style="font-size:15px;font-weight:700;">\${escHtml(q.guestName)}</div>
@@ -1907,12 +1999,38 @@ ${themeCss()}
     }
 
     (function initQuotePagination() {
-      const isApproved = state && state.status === 'confirmed_by_hono';
+      const isDepositPaid = Boolean(state && state.depositPayment && state.depositPayment.status === 'received');
       const isCancelled = state && state.status === 'cancelled';
+      const isApproved = state && state.status === 'confirmed_by_hono';
+      const sentTime = state && state.sentToGuestAt ? new Date(state.sentToGuestAt).getTime() : null;
+      const hoursSince = (sentTime && Number.isFinite(sentTime)) ? (Date.now() - sentTime) / 3600000 : null;
+      const isStale = Boolean(!isCancelled && !state.submission && !isDepositPaid && hoursSince !== null && hoursSince >= FOLLOW_UP_HOURS.stale);
+      const isNeedsReview = !isCancelled && !isApproved;
+
+      if (isDepositPaid) quoteFilter = 'deposit-received';
+      else if (isCancelled) quoteFilter = 'cancelled';
+      else if (isNeedsReview || isStale) quoteFilter = 'action-needed';
+      else quoteFilter = 'waiting-deposit';
+
+      document.querySelectorAll('.tab-btn').forEach(b => {
+        if (b && b.classList) b.classList.remove('active');
+      });
+      const activeBtn = document.getElementById('tab-' + quoteFilter);
+      if (activeBtn && activeBtn.classList) activeBtn.classList.add('active');
+
       const initialFiltered = allQuotes.filter(q => {
-        if (quoteFilter === 'needs-review' && (q.status === 'confirmed_by_hono' || q.status === 'cancelled')) return false;
-        if (quoteFilter === 'approved' && q.status !== 'confirmed_by_hono') return false;
-        if (quoteFilter === 'cancelled' && q.status !== 'cancelled') return false;
+        const qPaid = Boolean(q.depositPayment && q.depositPayment.status === 'received');
+        const qCancelled = q.status === 'cancelled';
+        const qApproved = q.status === 'confirmed_by_hono';
+        const qSentTime = q.sentToGuestAt ? new Date(q.sentToGuestAt).getTime() : null;
+        const qHoursSince = (qSentTime && Number.isFinite(qSentTime)) ? (Date.now() - qSentTime) / 3600000 : null;
+        const qStale = Boolean(!qCancelled && !q.submission && !qPaid && qHoursSince !== null && qHoursSince >= FOLLOW_UP_HOURS.stale);
+        const qNeedsReview = !qCancelled && !qApproved;
+
+        if (quoteFilter === 'action-needed') return qNeedsReview || qStale;
+        if (quoteFilter === 'waiting-deposit') return !qCancelled && !qPaid && !qNeedsReview && !qStale;
+        if (quoteFilter === 'deposit-received') return qPaid;
+        if (quoteFilter === 'cancelled') return qCancelled;
         return true;
       });
       const idx = initialFiltered.findIndex(q => q.quoteId === state.quoteId);
@@ -2368,6 +2486,85 @@ ${themeCss()}
         }
         showInfo('Copy is blocked here — the message is selected below, press Ctrl+C.');
       });
+    }
+
+    function copyBankPaymentInfo() {
+      const text = [
+        'Casa Escondida Anilao - Bank Payment Details:',
+        '1. BDO Unibank (Philippine Peso)\\n   Account Name: Casa Escondida Anilao Resort Inc.\\n   Account Number: 0012-3456-7890',
+        '2. GCash / Maya:\\n   Mobile: 0917-123-4567 (Casa Front Desk)',
+        'Please send a screenshot or reference number once transfer is complete.'
+      ].join('\\n\\n');
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(text).then(function() {
+          showInfo('Casa bank payment details copied to clipboard!');
+        }).catch(function() {
+          showInfo('Bank details copied.');
+        });
+      } else {
+        showInfo('Bank details copied.');
+      }
+    }
+
+    function showDepositModal() {
+      const modal = document.getElementById('deposit-modal');
+      const dateInput = document.getElementById('modal-deposit-date');
+      if (dateInput && !dateInput.value) {
+        dateInput.value = new Date().toISOString().slice(0, 10);
+      }
+      if (modal) modal.style.display = 'flex';
+    }
+
+    function closeDepositModal() {
+      const modal = document.getElementById('deposit-modal');
+      if (modal) modal.style.display = 'none';
+    }
+
+    async function submitDepositPayment() {
+      const refInput = document.getElementById('modal-deposit-ref');
+      const amountInput = document.getElementById('modal-deposit-amount');
+      const dateInput = document.getElementById('modal-deposit-date');
+      const ref = (refInput && refInput.value) || '';
+      const amount = (amountInput && Number(amountInput.value)) || 0;
+      const date = (dateInput && dateInput.value) || new Date().toISOString().slice(0, 10);
+
+      try {
+        const res = await fetch('/v1/quotes/' + encodeURIComponent(state.quoteId) + '/deposit-payment?token=' + encodeURIComponent(staffToken()), {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({ referenceNumber: ref, amount: amount, receivedAt: date })
+        });
+        const data = await res.json();
+        if (data.ok) {
+          state.depositPayment = data.depositPayment;
+          closeDepositModal();
+          showInfo('50% deposit payment recorded! Reservation confirmed.');
+          setTimeout(function() { window.location.reload(); }, 600);
+        } else {
+          showError('Failed to record deposit', { detail: data.error || 'Server error' });
+        }
+      } catch (err) {
+        showError('Request failed', { detail: String(err) });
+      }
+    }
+
+    async function revertDepositPayment() {
+      if (!confirm('Revert deposit payment status? This will un-mark the reservation as paid.')) return;
+      try {
+        const res = await fetch('/v1/quotes/' + encodeURIComponent(state.quoteId) + '/deposit-payment?token=' + encodeURIComponent(staffToken()), {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({ revert: true })
+        });
+        const data = await res.json();
+        if (data.ok) {
+          state.depositPayment = null;
+          showInfo('Deposit status reverted.');
+          setTimeout(function() { window.location.reload(); }, 600);
+        }
+      } catch (err) {
+        showError('Request failed', { detail: String(err) });
+      }
     }
 
     async function cancelQuotationAction() {

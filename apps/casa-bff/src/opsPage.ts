@@ -64,8 +64,12 @@ export function renderOpsSheetHtml(draft: HonoQuotationDraft): string {
   const ops = pricing?.ops ?? null;
 
   const backLink = `<a class="back no-print" href="/quotes/${encodeURIComponent(draft.quoteId)}">← Back to the quotation</a>`;
+  const depositPaid = draft.depositPayment?.status === "received";
+  const depositBadge = depositPaid
+    ? ` <span class="tag" style="background:var(--emerald-soft);color:var(--emerald);border-color:var(--emerald);font-weight:700;font-size:12px;padding:3px 10px;">Deposit 50% Paid (Ref: ${escapeHtml(draft.depositPayment?.referenceNumber || "Confirmed")})</span>`
+    : "";
   const heading = `<header>
-    <h1>Ops sheet</h1>
+    <h1>Ops sheet${depositBadge}</h1>
     <div class="sub">${escapeHtml(draft.guestName || "Guest")} · ${escapeHtml(draft.checkIn)} → ${escapeHtml(draft.checkOut)} · ${draft.stayingGuests} guest(s)</div>
   </header>`;
 
@@ -195,10 +199,12 @@ ${themeCss()}
     dd { margin: 1px 0 0; font-size: 15px; font-weight: 600; }
     .none { color: var(--muted); font-size: 15px; font-weight: 600; margin: 0; }
     @media print {
-      body { background: #fff; color: #000; padding: 0; }
+      body { background: #fff; color: #000; padding: 10mm 12mm; }
       .no-print { display: none !important; }
-      .day { border: 1px solid #999; border-radius: 0; break-after: page; }
+      .day { border: 1.5px solid #444; border-radius: 6px; break-after: page; padding: 18px 20px; margin-bottom: 0; box-shadow: none; background: #fff; }
       .day:last-of-type { break-after: auto; }
+      .blocks { grid-template-columns: repeat(2, 1fr); gap: 14px; }
+      .tag { border-color: #444; color: #000; }
     }
   </style>
 </head>

@@ -163,6 +163,18 @@ export interface HonoQuotationDraft {  quoteId: string;
    */
   sentToPhone?: string | null;
   estimator?: QuotationEstimatorState | null;
+  /**
+   * Record of deposit payment received (e.g. 50% down payment via BDO/GCash) to confirm reservation.
+   */
+  depositPayment?: DepositPayment | null;
+}
+
+export interface DepositPayment {
+  status: "received" | "pending";
+  amount: number;
+  referenceNumber: string;
+  receivedAt: string;
+  note?: string;
 }
 
 export interface QuotationEstimatorState {

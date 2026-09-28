@@ -96,6 +96,7 @@ export type {
   QuotationSubmissionState,
   QuotationContact,
   QuotationEstimatorState,
+  DepositPayment,
 } from "./quotationTool.js";
 
 

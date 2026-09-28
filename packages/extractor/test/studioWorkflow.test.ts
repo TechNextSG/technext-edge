@@ -434,3 +434,66 @@ describe("one place for failures, and one action that sends", () => {
     expect(markupOnly(html)).not.toContain("/q/");
   });
 });
+
+describe("deposit payment recording, ops sheet & 5-tab queue", () => {
+  it("renders 5 sidebar tabs and bank details card in the studio", async () => {
+    const base = await seed();
+    const html = await studioFor(base.quoteId);
+
+    expect(html).toContain('id="tab-action-needed"');
+    expect(html).toContain('id="tab-waiting-deposit"');
+    expect(html).toContain('id="tab-deposit-received"');
+    expect(html).toContain('id="tab-all"');
+    expect(html).toContain('id="tab-cancelled"');
+
+    expect(html).toContain("Casa Escondida · Bank &amp; Payment Details");
+    expect(html).toContain("copyBankPaymentInfo()");
+    expect(html).toContain("BDO Unibank");
+    expect(html).toContain("GCash");
+  });
+
+  it("records 50% deposit payment, updates status badge to Deposit Received and clears stale", async () => {
+    const app = createApp();
+    const base = await seed();
+    const quote = await saveQuotationDraft(copyOf(base, "QT-STUDIO-PAID-TEST", {
+      status: "confirmed_by_hono",
+      sentToGuestAt: new Date(Date.now() - 80 * 3600 * 1000).toISOString(),
+    }));
+
+    // Before deposit: it is past 72h, so it is marked stale
+    const beforeHtml = await (await app.request(`/quotes/${quote.quoteId}?token=${STAFF_TOKEN}`)).text();
+    expect(beforeHtml).toContain("Past its validity");
+
+    // Staff records deposit payment
+    const res = await app.request(`/v1/quotes/${quote.quoteId}/deposit-payment?token=${STAFF_TOKEN}`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ referenceNumber: "BDO-998811", amount: 25000, receivedAt: "2026-10-01" }),
+    });
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body.ok).toBe(true);
+    expect(body.depositPayment.status).toBe("received");
+    expect(body.depositPayment.referenceNumber).toBe("BDO-998811");
+
+    // Studio page now shows Deposit Received and stale banner is cleared
+    const afterHtml = await (await app.request(`/quotes/${quote.quoteId}?token=${STAFF_TOKEN}`)).text();
+    expect(afterHtml).toContain("Deposit Received");
+    expect(afterHtml).toContain("Ref: <strong>BDO-998811</strong>");
+    expect(afterHtml).not.toContain("Past its validity");
+
+    // Ops sheet also displays Deposit 50% Paid badge
+    const opsHtml = await (await app.request(`/quotes/${quote.quoteId}/ops?token=${STAFF_TOKEN}`)).text();
+    expect(opsHtml).toContain("Deposit 50% Paid (Ref: BDO-998811)");
+
+    // Reverting deposit restores previous state
+    const revertRes = await app.request(`/v1/quotes/${quote.quoteId}/deposit-payment?token=${STAFF_TOKEN}`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ revert: true }),
+    });
+    expect(revertRes.status).toBe(200);
+    const revertBody = await revertRes.json();
+    expect(revertBody.depositPayment).toBeNull();
+  });
+});
