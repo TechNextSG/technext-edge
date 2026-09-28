@@ -307,10 +307,13 @@ export function renderHonoQuotationEditorHtml(
       ? "Published — needs approval"
       : published
         ? "Sent to guest"
-        : approved
-          ? "Approved — not sent yet"
-          : priced && !enginePriced
-            ? "Needs a price from the engine"
+        : priced && !enginePriced
+          ? // Ahead of "approved" on purpose: an approval of a figure the engine never priced is not
+            // progress, and it must not hide the one thing to do. Found on production, where the
+            // fixture was approved with a sample-engine price and the wizard offered Send.
+            "Needs a price from the engine"
+          : approved
+            ? "Approved — not sent yet"
             : priced
               ? "Priced — needs approval"
               : "Needs review";
@@ -325,14 +328,14 @@ export function renderHonoQuotationEditorHtml(
     { label: "Approve", state: approved || published ? "done" : enginePriced ? "current" : "todo" },
     { label: "Send", state: published ? "done" : approved ? "current" : "todo" },
   ];
-  // Which screen opens. Server-rendered, like the status: the right step must be in front of the
-  // person before any script runs, and a guest session has no wizard at all — it opens on the price.
+  // Which screen opens — and how far the wizard may go. The ENGINE's price is what unlocks approving
+  // and sending: their `share` freezes a revision of THEIR scenario, so without one there is nothing
+  // to approve and nothing to publish, whatever the record's status happens to say.
   //
-  // The script may move it afterwards (`goStep`), and remembers the choice in `sessionStorage`
-  // because the actions that finish a step RELOAD the page (the record is the source of truth for
-  // every figure on it).
-  const maxStep = published || approved ? 4 : enginePriced ? 3 : draft.bffTrip ? 2 : 1;
-  const initialStep = role === "guest" ? 2 : published || approved ? 4 : enginePriced ? 3 : 1;
+  // Server-rendered, like the status: the right step must be in front of the person before any script
+  // runs, and a guest session has no wizard at all — it opens on the price.
+  const maxStep = published ? 4 : enginePriced ? (approved ? 4 : 3) : draft.bffTrip ? 2 : 1;
+  const initialStep = role === "guest" ? 2 : published ? 4 : enginePriced && approved ? 4 : enginePriced ? 3 : 1;
 
   /**
    * What the wizard's button says before any script runs — and it has to be TRUE, not just present.
@@ -1411,8 +1414,8 @@ ${themeCss()}
       // The engine must own the quotation before there is anything to approve or publish: a price
       // from the built-in sample engine has no scenario to freeze (see the server-side note).
       const enginePriced = Boolean(state.estimator && state.estimator.id);
-      if (published || approved) return 4;
-      if (enginePriced) return 3;
+      if (published) return 4;
+      if (enginePriced) return approved ? 4 : 3;
       if (state.bffTrip) return 2;
       return 1;
     }
@@ -1884,10 +1887,10 @@ ${themeCss()}
             ? 'Published — needs approval'
             : published
               ? 'Sent to guest'
-              : approved
-                ? 'Approved — not sent yet'
-                : priced && !enginePriced
-                  ? 'Needs a price from the engine'
+              : priced && !enginePriced
+                ? 'Needs a price from the engine'
+                : approved
+                  ? 'Approved — not sent yet'
                   : priced
                     ? 'Priced — needs approval'
                     : 'Needs review';

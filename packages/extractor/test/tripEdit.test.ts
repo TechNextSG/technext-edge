@@ -150,6 +150,35 @@ describe("editing the trip behind a quotation", () => {
     expect(after.quotation.pricing.kpis.revenue).toBe(38400);
   });
 
+  it("drops the approval when the engine prices it again, because the price is what was approved", async () => {
+    // The same rule as an edited trip, from the other direction, and the reason it exists: production's
+    // seeded fixture was approved at the built-in sample engine's figure, and the approval survived the
+    // real engine pricing it — so the record read "approved" for a price nobody had seen.
+    const draft = await pricedQuote("QT-EDIT-PRICE-AGAIN");
+    const app = createApp();
+    expect(draft.status).toBe("confirmed_by_hono");
+    expect(draft.aiConfirmedReply).toBeTruthy();
+
+    const res = await app.request(`/v1/quotes/${draft.quoteId}/sync-estimate?token=${VERIFY_TOKEN}`, { method: "POST" });
+    expect(res.status).toBe(200);
+
+    const stored = await (await app.request(`/v1/quotes/${draft.quoteId}?token=${VERIFY_TOKEN}`)).json();
+    expect(stored.quotation.status).toBe("pending_hono_review");
+    expect(stored.quotation.confirmedAt).toBeUndefined();
+    expect(stored.quotation.confirmedBy).toBeUndefined();
+    expect(stored.quotation.aiConfirmedReply).toBeUndefined();
+    // …and the engine now owns the quotation, which is what publishing needs.
+    expect(stored.quotation.estimator.id).toBeTruthy();
+
+    const publish = await app.request(`/v1/quotes/${draft.quoteId}/publish?token=${VERIFY_TOKEN}`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ acknowledgeSample: true }),
+    });
+    expect(publish.status).toBe(409);
+    expect((await publish.json()).reason).toBe("not_approved");
+  });
+
   it("drops the approval with the trip it was given for, message and all", async () => {
     const draft = await pricedQuote("QT-EDIT-3");
     const app = createApp();

@@ -1841,7 +1841,18 @@ export function createApp(options: AppOptions = {}) {
     }
 
     const pricing = estimateToRecord(existing, result);
-    await saveQuotationDraft({ ...existing, ...pricing });
+    // A NEW PRICE INVALIDATES THE APPROVAL, the same rule `/trip` applies to an edited trip: the
+    // approval was given for a figure, and this route exists to replace it. Without this, a quotation
+    // approved at the sample engine's figure kept that approval when the real engine answered — which
+    // is how production's fixture came to be "approved" with no engine price at all.
+    await saveQuotationDraft({
+      ...existing,
+      ...pricing,
+      status: "pending_hono_review",
+      confirmedAt: undefined,
+      confirmedBy: undefined,
+      aiConfirmedReply: undefined,
+    });
 
     return c.json({
       ok: true,
