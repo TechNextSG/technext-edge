@@ -1244,6 +1244,7 @@ ${themeCss()}
       phone_missing: "Enter the guest's WhatsApp number, including the country code.",
       phone_invalid: "That number does not look right. Include the country code, for example 639171234567.",
       send_failed: 'WhatsApp refused the message. The sentence below says what to fix.',
+      link_unverified: 'The guest link did not open, so nothing was sent. Create the link again (Send section), then send.',
       not_configured: 'The pricing engine is not configured on this deployment.',
       unauthorized: 'Your session expired. Sign in again.',
       not_found: 'That quotation no longer exists.'

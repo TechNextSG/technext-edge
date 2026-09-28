@@ -210,9 +210,27 @@ export interface EstimatorPort {
   commit(session: EstimatorSession, trip: BffTrip): Promise<CommitResult>;
   /** Mint the guest link for a committed revision. Their `POST /api/estimates/:id/share`. */
   share(session: EstimatorSession): Promise<ShareResult>;
+  /**
+   * Can the guest actually OPEN the link we just minted?
+   *
+   * Not paranoia, and not a duplicate of `share` answering 200. Measured against the customer's
+   * fixture deployment (2026-09-28): the same token, opened 24 times in parallel, answered **200
+   * seventeen times and 404 seven times** — that deployment keeps scenarios and share tokens in the
+   * memory of one serverless instance, so a token is known only to the instance that minted it.
+   *
+   * The consequence is the worst failure we can hand a guest: a WhatsApp message carrying a dead
+   * link, sent by a studio that reported success. So the link is read back over the guest's own path
+   * (`GET /api/share/:token`) before anyone is told it works.
+   */
+  verifyGuestLink(guestUrl: string): Promise<GuestLinkCheck>;
   submit(input: SubmitInput): Promise<SubmitResult>;
   checkHealth(): Promise<EstimatorHealth>;
 }
+
+/** The answer to "would this link open for the guest?" */
+export type GuestLinkCheck =
+  | { ok: true }
+  | { ok: false; reason: "not_found" | "not_configured" | "unreachable" | "unexpected"; detail: string };
 
 /**
  * Which port to build. Defaults to `simulated`, and that default is the point: a deployment

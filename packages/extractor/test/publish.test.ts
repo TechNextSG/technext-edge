@@ -166,8 +166,72 @@ describe("publishing a guest link", () => {
     expect(stored.quotation.estimator.cookie).toContain("ubg_sid=");
   });
 
-  it("joins the guest link to the APP host when their app is not on the API host", async () => {
-    // Their local dev setup splits them (`npm run dev -w bff` → API on :8787, `dev:app` → the app on
+  /**
+   * The failure this guard exists for, measured on the customer's own fixture deployment: a token
+   * their app had just minted answered 200 seventeen times and 404 seven times in one run of 24
+   * parallel requests. A guest who opens the link on a bad draw reads "this quote link is not valid
+   * or has expired", and staff have no way to know that from the studio.
+   */
+  it("refuses to call a link published when the guest's app does not open it", async () => {
+    const draft = await pricedQuote("QT-PUB-UNVERIFIED");
+    const fetchImpl = vi.fn(async (url: string) => {
+      if (String(url).endsWith("/commit")) {
+        return new Response(JSON.stringify({ seq: 1 }), { status: 200, headers: { "content-type": "application/json" } });
+      }
+      if (String(url).includes("/api/share/")) {
+        // The token their own `share` call just returned, which their app then cannot find.
+        return new Response(JSON.stringify({ error: "not found" }), { status: 404 });
+      }
+      return new Response(JSON.stringify({ url: "/quote/tok-dead", expiresAt: null }), {
+        status: 200,
+        headers: { "content-type": "application/json" },
+      });
+    });
+    const app = createApp({
+      estimator: createEstimatorClient({ baseUrl: "https://quotes.customer.test", fetchImpl: fetchImpl as never }),
+    });
+
+    const res = await publish(app, draft.quoteId, { acknowledgeSample: true });
+    const body = await res.json();
+
+    expect(res.status).toBe(502);
+    expect(body.reason).toBe("link_unverified");
+    expect(body.detail).toContain("does not open");
+    // Nothing was frozen on the guest's side, and the record is not published — so trying again is
+    // safe rather than a second link for the same quotation.
+    const stored = await (await app.request(`/v1/quotes/${draft.quoteId}${STAFF}`)).json();
+    expect(stored.quotation.estimator.sharedAt).toBeNull();
+    expect(stored.quotation.estimator.guestUrl).toBeNull();
+  });
+
+  it("publishes when the link opens, and only then", async () => {
+    const draft = await pricedQuote("QT-PUB-VERIFIED");
+    const asked: string[] = [];
+    const fetchImpl = vi.fn(async (url: string) => {
+      asked.push(String(url));
+      if (String(url).endsWith("/commit")) {
+        return new Response(JSON.stringify({ seq: 2 }), { status: 200, headers: { "content-type": "application/json" } });
+      }
+      if (String(url).includes("/api/share/")) {
+        return new Response(JSON.stringify({ seq: 2 }), { status: 200, headers: { "content-type": "application/json" } });
+      }
+      return new Response(JSON.stringify({ url: "/quote/tok-live", expiresAt: null }), {
+        status: 200,
+        headers: { "content-type": "application/json" },
+      });
+    });
+    const app = createApp({
+      estimator: createEstimatorClient({ baseUrl: "https://quotes.customer.test", fetchImpl: fetchImpl as never }),
+    });
+
+    const body = await (await publish(app, draft.quoteId, { acknowledgeSample: true })).json();
+
+    expect(body.guestUrl).toBe("https://quotes.customer.test/quote/tok-live");
+    // The check is the guest's own request: their `/api/share/<token>`, not their share endpoint.
+    expect(asked.some((u) => u.endsWith("/api/share/tok-live"))).toBe(true);
+  });
+
+  it("joins the guest link to the APP host when their app is not on the API host", async () => {    // Their local dev setup splits them (`npm run dev -w bff` → API on :8787, `dev:app` → the app on
     // :5173). Joining a guest link to the API host there produces a URL that 404s while the token
     // behind it is valid — measured against their own BFF, which is why the host is configurable.
     const draft = await pricedQuote("QT-PUB-8");

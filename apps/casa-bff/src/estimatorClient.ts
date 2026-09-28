@@ -34,6 +34,7 @@ import type {
   EstimatorFailure,
   EstimatorHealth,
   EstimatorSession,
+  GuestLinkCheck,
   ShareResult,
   SubmitInput,
   SubmitResult,
@@ -161,6 +162,12 @@ export function buildEstimateRequest(trip: BffTrip): { body: string } {
  */
 const HEALTH_PATH = "/api/health";
 const MODE_CACHE_MS = 60_000;
+
+/**
+ * Where a guest's page resolves the token in its link — the request their app makes the moment
+ * somebody opens `/quote/<token>`. Checking the link means making that request ourselves.
+ */
+const SHARE_PATH = "/api/share";
 
 export function createEstimatorClient(options: EstimatorClientOptions = {}) {
   const doFetch = options.fetchImpl ?? fetch;
@@ -451,6 +458,49 @@ export function createEstimatorClient(options: EstimatorClientOptions = {}) {
   }
 
   /**
+   * Would this link open for the guest?
+   *
+   * The guest's page resolves a token through `GET /api/share/:token`, which is the request a browser
+   * makes the moment somebody opens the link — so that is what is asked here, rather than trusting
+   * the `share` call that minted it. See `verifyGuestLink` on the port for the measurement that made
+   * this necessary: their fixture deployment answered 200 and 404 to the SAME token in one run of 24
+   * parallel requests, because its store lives in one serverless instance's memory.
+   */
+  async function verifyGuestLink(guestUrl: string): Promise<GuestLinkCheck> {
+    const baseUrl = options.baseUrl?.replace(/\/+$/, "") ?? estimatorBaseUrl();
+    if (!baseUrl) {
+      return { ok: false, reason: "not_configured", detail: "ESTIMATOR_BASE_URL is not set, so the link cannot be checked" };
+    }
+    // The token is whatever their `share` put after `/quote/`; the path is theirs to shape, so a link
+    // that does not look like theirs is reported rather than guessed at.
+    const token = guestUrl.split("/quote/")[1]?.split(/[?#]/)[0] ?? "";
+    if (!token) {
+      return { ok: false, reason: "unexpected", detail: "that link carries no share token to check" };
+    }
+    try {
+      const res = await doFetch(`${baseUrl}${SHARE_PATH}/${encodeURIComponent(token)}`, {
+        signal: AbortSignal.timeout(Math.min(timeoutMs, 8_000)),
+      });
+      if (res.ok) return { ok: true };
+      if (res.status === 404) {
+        return {
+          ok: false,
+          reason: "not_found",
+          detail: "their app does not recognise the link it just issued",
+        };
+      }
+      return { ok: false, reason: "unexpected", detail: `their app answered HTTP ${res.status} for that link` };
+    } catch (err) {
+      const aborted = err instanceof Error && (err.name === "TimeoutError" || err.name === "AbortError");
+      return {
+        ok: false,
+        reason: "unreachable",
+        detail: aborted ? "their app did not answer while checking the link" : err instanceof Error ? err.message : String(err),
+      };
+    }
+  }
+
+  /**
    * Ask their BFF to turn a frozen revision into a booking.
    *
    * Their route is `POST /api/estimates/:id/submit {seq, contact}` and it is the one call in the
@@ -537,6 +587,7 @@ export function createEstimatorClient(options: EstimatorClientOptions = {}) {
     updateEstimate,
     commit,
     share,
+    verifyGuestLink,
     submit,
     checkHealth,
     baseUrl: options.baseUrl ?? estimatorBaseUrl(),

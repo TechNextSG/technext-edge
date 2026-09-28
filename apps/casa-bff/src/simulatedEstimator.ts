@@ -51,6 +51,7 @@ import type {
   EstimatorHealth,
   EstimatorPort,
   EstimatorSession,
+  GuestLinkCheck,
   ShareResult,
   SubmitInput,
   SubmitResult,
@@ -545,6 +546,20 @@ export function createSimulatedEstimator(options: SimulatedEstimatorOptions = {}
     return { reachable: true, mode: "fixture" };
   }
 
+  /**
+   * There is no guest app behind the simulated engine, so a link it mints cannot be checked — and in
+   * practice cannot be opened either: `publish` only builds a URL when a host is configured, and the
+   * simulated port has none. Saying so is the honest answer; answering `ok` would let a link nobody
+   * can open through the gate the real port has to pass.
+   */
+  async function verifyGuestLink(_guestUrl: string): Promise<GuestLinkCheck> {
+    return {
+      ok: false,
+      reason: "not_configured",
+      detail: "the simulated engine has no guest app, so a link it mints cannot be opened",
+    };
+  }
+
   return {
     kind: "simulated",
     sendEstimate,
@@ -554,6 +569,7 @@ export function createSimulatedEstimator(options: SimulatedEstimatorOptions = {}
     updateEstimate: (session: EstimatorSession, trip: BffTrip) => sendEstimate(trip, session),
     commit,
     share,
+    verifyGuestLink,
     submit,
     checkHealth,
   };

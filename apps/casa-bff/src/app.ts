@@ -2098,6 +2098,33 @@ export function createApp(options: AppOptions = {}) {
     // Their `url` is relative; only we know which host the guest should be sent to. Usually the
     // API host serves the guest pages too; their dev setup splits them, hence `appBaseUrl`.
     const guestUrl = absoluteUrl(shared.url, estimator.appBaseUrl ?? estimator.baseUrl);
+
+    // Open the link once, ourselves, before anybody is told it exists.
+    //
+    // A 200 from their `share` is not evidence that the guest can read the quotation: measured on
+    // their fixture deployment (2026-09-28), the same token answered 200 seventeen times and 404
+    // seven times in one run of 24 parallel requests — that deployment keeps share tokens in the
+    // memory of a single serverless instance. Sending a guest a link that only some requests can
+    // resolve is the worst thing this product can hand out, so publishing refuses and the record
+    // stays unpublished (nothing is frozen on the guest's side, and trying again is safe).
+    if (guestUrl && estimator.kind === "remote") {
+      const check = await estimator.verifyGuestLink(guestUrl);
+      if (!check.ok) {
+        return c.json(
+          {
+            ok: false,
+            reason: "link_unverified",
+            detail:
+              check.reason === "not_found"
+                ? "the guest link was created but does not open — the booking app did not recognise it. Nothing is published; try again."
+                : `the guest link could not be checked: ${check.detail}`,
+            guestUrl,
+          },
+          502,
+        );
+      }
+    }
+
     const saved = await saveQuotationDraft({
       ...existing,
       estimator: {
@@ -2293,6 +2320,27 @@ export function createApp(options: AppOptions = {}) {
         },
         409,
       );
+    }
+
+    // The message is the last chance to notice a dead link, and the only one that matters: after
+    // this, a guest is holding it. See the note in `/publish` — their fixture deployment has
+    // answered 404 for a token it minted itself. A port with no guest app (the simulated one) cannot
+    // answer the question, so it is not asked.
+    if (estimator.kind === "remote") {
+      const linkCheck = await estimator.verifyGuestLink(guestUrl);
+      if (!linkCheck.ok) {
+        return c.json(
+          {
+            ok: false,
+            reason: "link_unverified",
+            error:
+              linkCheck.reason === "not_found"
+                ? "The guest's link does not open any more, so nothing was sent. Create the link again, then send."
+                : `The guest's link could not be checked: ${linkCheck.detail}`,
+          },
+          409,
+        );
+      }
     }
 
     const body = (await c.req.json().catch(() => ({}))) as { phone?: string };
