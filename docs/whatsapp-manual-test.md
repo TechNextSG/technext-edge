@@ -1,5 +1,10 @@
 # Kịch bản test tay trên WhatsApp
 
+> **Muốn tự bấm tay trên production với WhatsApp thật** (không script, không capture server): xem
+> **`docs/manual-test-production.md`** — có kịch bản từng tin nhắn, việc phải bấm trong studio, hai bẫy
+> phải kiểm, và những câu phải nói thật khi demo. File này là bản chạy bằng script, dùng khi cần lặp lại
+> nhanh hoặc khi không muốn nhắn thật cho ai.
+
 > **Chạy tự động được rồi (27/09).** Toàn bộ kịch bản dưới đây có một bản chạy bằng script, và nó đọc
 > **đúng tin nhắn mà khách sẽ nhận** thay vì chỉ tin rằng webhook trả `replied: 1`:
 >
@@ -199,7 +204,6 @@ Bot phải nói "nothing is booked yet" và "someone from our team will follow u
 ---
 
 ## KB10 — Reset
-
 **Gửi:** `reset` → lời chào mới, thread sạch.
 
 ---

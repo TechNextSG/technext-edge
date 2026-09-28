@@ -1,0 +1,155 @@
+# Chạy tay thật: WhatsApp thật → bot → studio → link khách
+
+Dành cho người **tự bấm tay** trên production, không dùng script. Mỗi lần chạy hết ~5 phút, và
+điện thoại của bạn sẽ nhận tin thật.
+
+> **Điều phải biết trước:** deployment engine mà production đang trỏ vào là bản **fixture** của khách
+> (`tn-casa-estimator-fixture.vercel.app`). Bản đó giữ scenario + share token trong **bộ nhớ của một
+> instance serverless**, nên link có thể 404 bất cứ lúc nào dù studio vừa báo "Sent to guest". Số đo và
+> cách xử lý: `docs/upstream-note-bff-vercel-deploy.md`. Vì vậy **bước 5 dưới đây phải mở link ngay**,
+> và câu nói thật khi demo nằm ở cuối file.
+
+---
+
+## 0. Chuẩn bị (2 phút)
+
+1. **Số điện thoại của bạn phải nằm trong danh sách test của Meta app.** Số đang dùng được:
+   `84359386414`. Nếu chưa có, vào Meta App → WhatsApp → API Setup → *To* → thêm số.
+2. **Lấy token staff** để mở studio (token nằm trong `.env.local`, biến `WHATSAPP_VERIFY_TOKEN`):
+
+   ```powershell
+   cd E:\technext-edge
+   $t = (Get-Content .env.local | Where-Object { $_ -match '^WHATSAPP_VERIFY_TOKEN=' }) -replace '^WHATSAPP_VERIFY_TOKEN=','' -replace '"',''
+   Start-Process "https://technext-edge-casa-bff.vercel.app/quotes?token=$t"
+   ```
+3. **Tab thứ hai (tuỳ chọn)** — chỉ cần khi muốn cho lead thấy *tiền đổi theo dữ liệu*: tab đó là
+   `https://technext-edge-casa-bff-sim.vercel.app/quotes?token=$t`, chạy engine giả lập **có tính lại**
+   (7.600 → 11.200/đêm khi đổi sang deluxe). Tab production thì **không** đổi số, vì fixture trả lại bản
+   chụp — nói thẳng điều đó khi demo.
+4. **Reset cho lần chạy sạch** (xoá hội thoại + đóng báo giá đang mở của số đó):
+
+   ```powershell
+   Invoke-RestMethod -Method Post -Uri "https://technext-edge-casa-bff.vercel.app/v1/channels/whatsapp/threads/84359386414/reset" -Headers @{ 'x-verify-token' = $t }
+   ```
+
+---
+
+## 1. Kịch bản A — luồng đầy đủ (khách lẻ, có lặn)
+
+Nhắn **từ WhatsApp của bạn** tới số resort (số test `+1 555-150-6595`), đúng hai tin sau.
+
+### Tin 1 — cố tình thiếu loại phòng
+
+> Hi, I'm Ana. 2 guests, 1 room. Check in on 2026-11-20 and check out on 2026-11-22, so 2 nights. Full board please. No airport transfer. One of us will dive on 2026-11-21.
+
+**Phải thấy trên điện thoại:** bot đọc lại ngày/khách/ăn/lặn, và hỏi **đúng một câu**:
+*"Would you prefer a standard, deluxe, or suite room?"* — không hỏi lại ngày, không hỏi lại số khách.
+**Không được có:** link, giá, chữ "confirmed".
+
+### Tin 2 — trả lời loại phòng
+
+> Deluxe please
+
+**Phải thấy:** tóm tắt có dòng room **Deluxe**, câu *"nothing is booked yet"* và *"our team is preparing your quotation"*.
+**Vẫn không được có:** link hay giá.
+
+### Trong studio (tab 1)
+
+Mở báo giá mới nhất của Ana trong sidebar (mã dạng `QT-1120-ANA-…`). Trạng thái lúc này:
+**Needs review**, màn 1, `Rooms: r1:deluxe`.
+
+| Bước | Bấm | Phải thấy |
+|---|---|---|
+| 1 | **Save & get price** (thanh dưới) | vài giây → màn 2 · badge `Priced — needs approval` · **Engine total ₱31.200** · badge engine `Sample engine (captured prices) — not a real quote` |
+| 2 | **Continue to approve →** | màn 3 · `Step 3 · Approve` · preview lời nhắn |
+| 3 | **Approve quotation** | tự sang màn 4 · `Approved — not sent yet` · nút "Create link & send" **mờ** vì chưa tick |
+| 4 | tick **I have checked this sample price** | hai nút sáng lên |
+| 5 | **Create link & send** | `Sent to guest` + ô link có URL `…/quote/<token>` |
+
+**Trên điện thoại:** tin nhắn thứ ba từ resort, chứa **link báo giá**. Kiểm tra: tin đó **không có giá**
+của mình, có nhãn "Sample prices", và câu *"nothing is booked yet"*.
+
+### Mở link — làm NGAY, đừng để lâu
+
+Mở link trên điện thoại (hoặc dán vào tab 3 của máy tính). Phải thấy trang báo giá của khách:
+
+- banner *"Sample data — prices are captured examples, not live quotes"*
+- **Your quote · Version 1**
+- **TOTAL ₱31.200** và itinerary có ngày lặn
+- thẻ *Per guest* với phòng "Standard A" và Full board
+
+> ⚠️ Nếu hiện *"This quote link is not valid or has expired"*: đó là **bản fixture của khách mất dữ
+> liệu**, không phải lỗi luồng. Bấm **Create link only** một lần nữa rồi mở lại ngay — nếu vẫn 404 thì
+> đúng là đang gặp instance khác. Ghi lại thời điểm gặp để báo khách.
+
+---
+
+## 2. Kịch bản B — hai bẫy phải tự kiểm
+
+### B1. Khách đổi số lượng giữa chừng (trong cùng một enquiry)
+
+Sau khi đã Approve ở kịch bản A, nhắn tiếp từ điện thoại:
+
+> Sorry, there are 4 of us
+
+**Phải thấy trong studio** (tải lại trang): **giữ nguyên mã báo giá**, nhưng
+`status` về `Priced — needs approval`, **mất duyệt**, có dòng cảnh báo *"The guest changed the trip
+after it was priced…"*. Bấm Approve lại mới gửi được. Đây là điều cố ý: duyệt là duyệt cho **một
+chuyến cụ thể**.
+
+### B2. Reset là hết một enquiry
+
+Nhắn tiếp:
+
+> reset
+
+**Phải thấy:** lời chào mới. Và trong studio: báo giá cũ **đã đóng** (tab *Archived*, ghi chú "Closed
+when the guest restarted the conversation"). Nhắn một enquiry mới → **mã báo giá mới**, tên mới, không
+`pricing`, không duyệt — **không** thừa hưởng gì của enquiry trước. (Đây là lỗi đã sửa: hôm trước một
+báo giá đã duyệt còn hiện tên khách của enquiry sau.)
+
+### B3. Nhân viên đổi chuyến
+
+Trong studio màn 1: đổi một phòng sang `suite`, bấm **Save & get price**. Phải thấy giá được tính lại
+**trên cùng một scenario** và duyệt bị huỷ. Ở tab production **số không đổi** (fixture trả bản chụp) —
+nói thẳng; muốn thấy số đổi thì làm ở tab sim.
+
+---
+
+## 3. Những câu phải nói thật khi demo
+
+1. **Bot không báo giá, không gửi link.** Giá chỉ tới tay khách sau khi **một người** duyệt và gửi.
+2. **Giá là của engine, không phải của mình.** Con số ₱31.200 là câu trả lời của engine; sửa chuyến thì
+   payload + bản đóng băng đổi, còn fixture thì trả lại bản chụp nên số có thể đứng yên.
+3. **Link do app của quý khách phát hành.** Và: *bản demo đó chưa có database nên link chỉ sống khi
+   request rơi đúng instance; bản thật chạy Odoo thì bền.* Studio đã **từ chối gọi là published nếu
+   link không mở**, nên không có chuyện gửi link chết mà báo thành công.
+4. **Bot không tự bịa.** Nếu model viết câu sai (giá, chữ "confirmed", loại phòng khác), câu đó bị chặn
+   và thay bằng bản do code dựng.
+
+---
+
+## 4. Sự cố thường gặp
+
+| Hiện tượng | Nghĩa | Làm gì |
+|---|---|---|
+| Trang khách "not valid or has expired" | Fixture của khách mất token | Bấm **Create link only** rồi mở lại **ngay**; ghi lại thời điểm |
+| Studio: *"The guest link did not open, so nothing was sent"* | Guard mới **chặn gửi link chết** | Bấm tạo link lại; nếu lặp lại → báo khách (store bền) |
+| Studio: *"this price did not come from the booking engine…"* | Record có giá sample nhưng chưa có scenario | Vào **màn 2 → Get price**, rồi Approve lại |
+| Bot im lặng, hoặc trả lời *"something went wrong on our side"* | Gemini free tier 429 (15 req/phút) | Đợi ~1 phút rồi nhắn lại |
+| Tin không tới điện thoại, webhook trả `failed:1` | Meta từ chối (`#131030` = số chưa có trong danh sách test) | Thêm số vào *To* trong Meta App |
+| Muốn chạy lại từ đầu | — | Mục 0.4 (reset) rồi bắt đầu lại từ tin 1 |
+
+---
+
+## 5. Sau khi test xong
+
+Xoá dữ liệu test khỏi queue để buổi demo sạch:
+
+```powershell
+# đóng báo giá test (giữ record, chỉ rời khỏi queue đang làm việc)
+Invoke-RestMethod -Method Post -Uri "https://technext-edge-casa-bff.vercel.app/v1/quotes/<QUOTE_ID>/cancel?token=$t"
+```
+
+Báo giá đã publish thì **không sửa được nữa** (link khách đang giữ) — muốn demo lại từ đầu thì tạo
+enquiry mới, đừng cố sửa bản đã gửi.
