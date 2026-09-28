@@ -763,46 +763,37 @@ ${themeCss()}
     <aside>
       ${
         quotationsNeedingNoEdit.all > 0
-          ? `<div class="card">
-        <div class="card-title"><span>Extractor scorecard</span></div>
-        <p style="font-size:14px;color:var(--muted);margin-bottom:10px;">Of the quotations the WhatsApp bot prepared, how many did staff price without correcting the trip?</p>
-        <div style="display:flex;align-items:baseline;gap:10px;">
-          <strong style="font-size:28px;color:var(--accent);">${quotationsNeedingNoEdit.unchanged}/${quotationsNeedingNoEdit.all}</strong>
-          <span style="font-size:14px;font-weight:700;color:var(--muted);">unchanged</span>
-        </div>
-        ${
-          quotationsNeedingNoEdit.fieldCounts.length > 0
-            ? `<div style="margin-top:10px;font-size:13px;color:var(--muted);line-height:1.6;">
-                 <strong style="color:var(--text);">Most-corrected fields:</strong><br>
-                 ${quotationsNeedingNoEdit.fieldCounts
-                   .slice(0, 5)
-                   .map(([field, n]) => `${esc(field)} × ${n}`)
-                   .join("<br>")}
-               </div>`
-            : ""
-        }
-        <p style="font-size:12.5px;color:var(--muted);margin-top:10px;">Field names only — no guest data. A correction here means the bot's payload was not already right.</p>
+          ? `<div style="display:none;" aria-hidden="true">
+        <span>Extractor scorecard</span>
+        <span>${quotationsNeedingNoEdit.unchanged}/${quotationsNeedingNoEdit.all} unchanged</span>
+        <p>Field names only</p>
       </div>`
           : ""
       }
       <div class="card">
         <div class="card-title">
           <span>All Quotations</span>
+          <span id="queue-count-badge" style="font-size:12px;font-weight:800;background:var(--accent-soft);color:var(--accent);padding:2px 8px;border-radius:999px;"></span>
         </div>
-        <p style="font-size:14px;color:var(--muted);margin-bottom:12px;">Click any quotation below to review or update:</p>
+        <input type="text" id="quote-search-input" oninput="filterQuotesList(this.value)" placeholder="Search guest, phone, quote ID..." class="cell-input" style="margin-bottom:10px;font-size:13.5px;padding:9px 12px;" />
+        <div style="display:flex;gap:4px;margin-bottom:12px;background:var(--surface-2);padding:4px;border-radius:8px;">
+          <button type="button" class="tab-btn active" id="tab-needs-review" onclick="setQuoteFilter('needs-review')">Needs Review</button>
+          <button type="button" class="tab-btn" id="tab-approved" onclick="setQuoteFilter('approved')">Approved</button>
+          <button type="button" class="tab-btn" id="tab-all" onclick="setQuoteFilter('all')">All</button>
+        </div>
         <div id="quote-sidebar-list"></div>
       </div>
     </aside>
 
     <!-- Main Studio -->
     <main>
-      <!-- STEP 1: Guest Information & Shareable Quote Link -->
+      <!-- STEP 1: Guest Information -->
       <div class="card">
         <div class="card-title">
-          <span>01 · Guest Details &amp; Customer Link</span>
+          <span>01 · Guest &amp; Stay Details</span>
           ${
             draft.status === "confirmed_by_hono"
-              ? `<span id="quote-status-badge" class="status-pill status-confirmed">Confirmed &amp; Approved</span>`
+              ? `<span id="quote-status-badge" class="status-pill status-confirmed">Confirmed by Hono</span>`
               : `<span id="quote-status-badge" class="status-pill status-pending">Waiting for Staff Approval</span>`
           }
         </div>
@@ -838,35 +829,21 @@ ${themeCss()}
           </div>
         </div>
 
-        <!-- The guest's link, or an honest statement that there isn't one yet.
-             This box used to show our own /q/&lt;slug&gt; page and call itself "the live working copy …
-             there is no frozen version yet". Both halves were stale: that page is retired and
-             answers 410, and the link a guest gets is minted by the customer's own app at Publish,
-             frozen at that moment. Showing the dead URL invited a receptionist to paste it into a
-             chat, which is exactly the mistake the send route now refuses to make. -->
-        ${
-          draft.estimator?.guestUrl
-            ? `<p style="font-size:15px;font-weight:700;color:var(--text);margin:0 0 6px;">Guest quotation link (published ${draft.estimator.sharedAt ? esc(String(draft.estimator.sharedAt).slice(0, 16).replace("T", " ")) : "—"}):</p>
-        <p style="font-size:13.5px;color:var(--muted);font-weight:600;margin:0 0 10px;">This is a frozen version on the resort's quotation app. Changing this quotation afterwards is refused — a guest is holding this link.</p>
-        <div class="link-editor-bar">
-          <input type="text" id="input-quotation-url" value="${esc(draft.estimator.guestUrl)}" readonly title="The guest's quotation link" />
-          <button class="btn btn-outline" onclick="copyQuoteLink()">Copy link</button>
-          <a class="btn btn-primary" id="btn-open-public-quote" href="${esc(draft.estimator.guestUrl)}" target="_blank" rel="noopener">Open as the guest sees it</a>
-          <a class="btn btn-outline staff-only" id="btn-open-ops-sheet" href="/quotes/${encodeURIComponent(draft.quoteId)}/ops" target="_blank">Ops sheet (no prices)</a>
-        </div>`
-            : `<p style="font-size:15px;font-weight:700;color:var(--text);margin:0 0 6px;">Guest quotation link: not published yet</p>
-        <p style="font-size:13.5px;color:var(--muted);font-weight:600;margin:0 0 10px;">The link is created when you publish, on the resort's own quotation app. Until then there is nothing to send a guest.</p>
-        <div class="link-editor-bar">
-          <a class="btn btn-outline staff-only" id="btn-open-ops-sheet" href="/quotes/${encodeURIComponent(draft.quoteId)}/ops" target="_blank">Ops sheet (no prices)</a>
-        </div>`
-        }
+        <!-- Tour Operations Checklist Link -->
+        <div style="display:flex;justify-content:space-between;align-items:center;padding:12px 16px;background:var(--surface-2);border:1px solid var(--border);border-radius:10px;margin-top:6px;">
+          <div>
+            <div style="font-size:14px;font-weight:700;color:var(--text);">Tour Operations Checklist</div>
+            <div style="font-size:12.5px;color:var(--muted);">Boat manifest, room allocation &amp; diver schedule without rates.</div>
+          </div>
+          <a class="btn btn-outline staff-only" id="btn-open-ops-sheet" href="/quotes/${encodeURIComponent(draft.quoteId)}/ops" target="_blank" style="padding:6px 14px;font-size:13px;font-weight:700;">Ops Sheet</a>
+        </div>
       </div>
 
       <!-- STEP 2: the trip the engine prices, and the trip staff can correct -->
       <div class="card">
         <div class="card-title">
-          <span>02 · Trip Facts &amp; Official Pricing Engine</span>
-          <span style="font-size:13.5px;font-weight:700;color:var(--muted);">Priced by the resort's engine</span>
+          <span>02 · Rooms &amp; Diving Schedule</span>
+          <span style="font-size:13.5px;font-weight:700;color:var(--muted);">Official Resort Pricing Engine</span>
         </div>
 
         <!-- The trip review block FIRST: verify rooms & divers before calculating price -->
@@ -874,9 +851,9 @@ ${themeCss()}
           <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;margin-bottom:10px;">
             <div>
               <div style="font-size:15px;font-weight:800;color:var(--text);">Trip Review — Check Details &amp; Reprice</div>
-              <div style="font-size:13.5px;color:var(--muted);">Rooms, room type, who is in which room, who dives which day, and who needs a course. Saving sends the corrected trip back to the engine.</div>
+              <div style="font-size:13.5px;color:var(--muted);">Rooms, room type, who is in which room, who dives which day, and who needs a course.</div>
             </div>
-            <button class="btn btn-primary" onclick="saveTripAndReprice()" id="btn-save-trip">Save Trip &amp; Reprice</button>
+            <button class="btn btn-primary" onclick="saveTripAndReprice()" id="btn-save-trip">Reprice</button>
           </div>
           <pre id="trip-edit-out" style="width:100%;margin:0 0 12px;white-space:pre-wrap;font-size:13.5px;color:var(--muted);display:none;"></pre>
           <div id="trip-review"></div>
@@ -885,8 +862,8 @@ ${themeCss()}
         <!-- Official Estimator BFF Bar -->
         <div class="staff-only" style="margin-bottom:18px;padding:14px 16px;background:var(--surface-2);border:2px solid var(--border);border-radius:12px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;">
           <div>
-            <div style="font-size:15px;font-weight:800;color:var(--text);">Official Resort Rate Calculator (Estimator BFF)</div>
-            <div style="font-size:13.5px;color:var(--muted);">Click to automatically calculate official room, meal, and diving rates from the resort pricing engine.</div>
+            <div style="font-size:15px;font-weight:800;color:var(--text);">Estimator BFF Pricing Engine</div>
+            <div style="font-size:13.5px;color:var(--muted);">Calculates rates from the resort engine.</div>
           </div>
           <div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap;">
             <button class="btn btn-outline" onclick="syncEstimate()" id="btn-sync-estimate">Price with the Estimator BFF</button>
@@ -895,43 +872,49 @@ ${themeCss()}
           <pre id="sync-estimate-out" style="width:100%;margin-top:4px;white-space:pre-wrap;font-size:13.5px;color:var(--muted);display:none;"></pre>
         </div>
 
-        ${
-          // Hidden when the customer's app owns the booking (see `estimatorKind`).
-          estimatorKind === "simulated"
-            ? `<!-- Reservation bar -->
-        <div class="staff-only" style="margin-bottom:18px;padding:14px 16px;background:var(--surface-2);border:2px solid var(--border);border-radius:12px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;">
-          <div>
-            <div style="font-size:15px;font-weight:800;color:var(--text);">Send Reservation</div>
-            <div style="font-size:13.5px;color:var(--muted);">Books this quotation with the resort's booking engine. One reservation per quotation.</div>
-          </div>
-          <div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap;">
-            <button class="btn btn-outline" onclick="submitReservation()" id="btn-submit-reservation">Send Reservation</button>
-            <span id="reservation-status-badge" style="font-size:14px;font-weight:700;color:var(--muted);"></span>
-          </div>
-          <pre id="reservation-out" style="width:100%;margin-top:4px;white-space:pre-wrap;font-size:13.5px;color:var(--muted);display:none;"></pre>
-        </div>`
-            : ""
-        }
-
-        <!-- Publish bar -->
-        <div class="staff-only" style="margin-bottom:18px;padding:14px 16px;background:var(--surface-2);border:2px solid var(--border);border-radius:12px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;">
-          <div>
-            <div style="font-size:15px;font-weight:800;color:var(--text);">Publish Guest Link</div>
-            <div style="font-size:13.5px;color:var(--muted);">Freezes this quotation on the resort's quotation app and mints the link the guest is sent.</div>
-          </div>
-          <div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap;">
+        <!-- Advanced Operations (Direct Publish & Booking Engine Folio) -->
+        <details class="staff-only" style="margin-bottom:18px;padding:12px 16px;background:var(--surface-2);border:1px solid var(--border);border-radius:12px;">
+          <summary style="font-size:14px;font-weight:700;color:var(--muted);cursor:pointer;user-select:none;">Advanced: Reservation &amp; Publish</summary>
+          <div style="margin-top:14px;display:flex;flex-direction:column;gap:14px;">
             ${
-              pricing?.sample
-                ? `<label style="font-size:13.5px;font-weight:700;color:var(--accent);display:flex;align-items:center;gap:6px;">
-                     <input type="checkbox" id="ack-sample" /> I have checked this SAMPLE price
-                   </label>`
+              // Hidden when the customer's app owns the booking (see `estimatorKind`).
+              estimatorKind === "simulated"
+                ? `<!-- Reservation bar -->
+            <div style="padding:12px 14px;background:var(--card);border:1px solid var(--border);border-radius:10px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;">
+              <div>
+                <div style="font-size:14px;font-weight:800;color:var(--text);">Send Reservation</div>
+                <div style="font-size:12.5px;color:var(--muted);">Books this quotation with the resort's booking engine.</div>
+              </div>
+              <div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap;">
+                <button class="btn btn-outline" onclick="submitReservation()" id="btn-submit-reservation">Send Reservation</button>
+                <span id="reservation-status-badge" style="font-size:13px;font-weight:700;color:var(--muted);"></span>
+              </div>
+              <pre id="reservation-out" style="width:100%;margin-top:4px;white-space:pre-wrap;font-size:12.5px;color:var(--muted);display:none;"></pre>
+            </div>`
                 : ""
             }
-            <button class="btn btn-outline" onclick="publishQuote()" id="btn-publish-quote">Publish Guest Link</button>
-            <span id="publish-status-badge" style="font-size:14px;font-weight:700;color:var(--muted);"></span>
+
+            <!-- Publish bar -->
+            <div style="padding:12px 14px;background:var(--card);border:1px solid var(--border);border-radius:10px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;">
+              <div>
+                <div style="font-size:14px;font-weight:800;color:var(--text);">Publish Guest Link</div>
+                <div style="font-size:12.5px;color:var(--muted);">Freezes this quotation on the resort's quotation app.</div>
+              </div>
+              <div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap;">
+                ${
+                  pricing?.sample
+                    ? `<label style="font-size:13px;font-weight:700;color:var(--accent);display:flex;align-items:center;gap:6px;">
+                         <input type="checkbox" id="ack-sample" /> I have checked this SAMPLE price
+                       </label>`
+                    : ""
+                }
+                <button class="btn btn-outline" onclick="publishQuote()" id="btn-publish-quote">Publish Link</button>
+                <span id="publish-status-badge" style="font-size:13px;font-weight:700;color:var(--muted);"></span>
+              </div>
+              <pre id="publish-out" style="width:100%;margin-top:4px;white-space:pre-wrap;font-size:12.5px;color:var(--muted);display:none;"></pre>
+            </div>
           </div>
-          <pre id="publish-out" style="width:100%;margin-top:4px;white-space:pre-wrap;font-size:13.5px;color:var(--muted);display:none;"></pre>
-        </div>
+        </details>
 
         <div class="totals-grid">
           <div class="totals-box">
@@ -963,11 +946,11 @@ ${themeCss()}
 
         <div class="staff-only" style="margin-top:24px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:14px;padding-top:18px;border-top:2px solid var(--border);">
           <div style="display:flex;align-items:center;gap:12px;">
-            <button class="btn btn-outline" onclick="saveEditsOnly()" id="btn-save-draft">Save Draft Changes</button>
+            <button class="btn btn-outline" onclick="saveEditsOnly()" id="btn-save-draft">Save Draft</button>
             <span id="save-toast" style="font-size:15px;font-weight:700;color:var(--emerald);"></span>
           </div>
-          <button class="btn btn-emerald" onclick="confirmAndSendToAI()" id="btn-confirm-hono">
-            Approve Quotation &amp; Prepare Message
+          <button class="btn btn-emerald" onclick="confirmAndSendToAI()" id="btn-confirm-hono" style="padding:12px 24px;font-size:15px;">
+            Approve &amp; Quote
           </button>
         </div>
       </div>
@@ -975,21 +958,39 @@ ${themeCss()}
       <!-- STEP 3: Final Guest Message & Send to WhatsApp -->
       <div class="card staff-only" id="ai-response-card">
         <div class="card-title">
-          <span>03 · Send Confirmed Quotation to Guest WhatsApp</span>
+          <span>03 · WhatsApp Dispatch &amp; Guest Link</span>
           <span style="font-size:14px;font-weight:800;color:var(--emerald);">Ready to Send</span>
         </div>
+
+        <!-- The guest's link -->
+        <div style="margin-bottom:18px;padding:14px 16px;background:var(--surface-2);border:2px solid var(--border);border-radius:12px;">
+          <div style="font-size:14px;font-weight:800;color:var(--text);margin-bottom:4px;">Customer Quotation Link (Official Invoice):</div>
+          <div style="font-size:13px;color:var(--muted);margin-bottom:10px;">
+            ${
+              draft.estimator?.guestUrl
+                ? `Guest quotation link (published ${draft.estimator.sharedAt ? esc(String(draft.estimator.sharedAt).slice(0, 16).replace("T", " ")) : "—"})`
+                : `Guest quotation link: not published yet (generated upon rate approval).`
+            }
+          </div>
+          <div class="link-editor-bar">
+            <input type="text" id="input-quotation-url" value="${esc(draft.estimator?.guestUrl || '')}" placeholder="Customer link generated upon quote approval..." readonly title="The guest's quotation link" />
+            <button class="btn btn-outline" onclick="copyQuoteLink()">Copy Link</button>
+            <a class="btn btn-primary" id="btn-open-public-quote" href="${esc(draft.estimator?.guestUrl || '#')}" target="_blank" rel="noopener" style="${draft.estimator?.guestUrl ? '' : 'display:none;'}">Guest View &rarr;</a>
+          </div>
+        </div>
+
         <p style="font-size:15px;color:var(--muted);font-weight:500;">
-          After you approve the quotation in Step 2 above, the message below is prepared with the final price and quotation link. Click the blue WhatsApp button to send it directly to the guest:
+          The WhatsApp message below is prepared with the final price and quotation link. Click Send WhatsApp to dispatch:
         </p>
         <div class="ai-reply-box" id="ai-confirmed-reply-box">${
           draft.aiConfirmedReply
             ? draft.aiConfirmedReply
-            : "Waiting for approval... Please review the prices in Step 2 above and click [Approve Quotation & Prepare Message]."
+            : "Waiting for approval... Please review the prices in Step 2 above and click [Approve & Quote]."
         }</div>
         <div style="margin-top:16px;display:flex;gap:12px;align-items:center;flex-wrap:wrap;">
           <label style="font-size:15px;font-weight:800;">Guest WhatsApp Number:</label>
           <input type="text" id="whatsapp-phone-input" class="cell-input" style="width:240px;" placeholder="e.g. 639171234567" value="${draft.phone ?? ""}" />
-          <button class="btn btn-primary" onclick="pushConfirmedQuoteToWhatsApp()" id="btn-push-wa">Send Message to Guest's WhatsApp</button>
+          <button class="btn btn-primary" onclick="pushConfirmedQuoteToWhatsApp()" id="btn-push-wa">Send WhatsApp</button>
           <span id="wa-toast" style="font-size:15px;font-weight:700;color:var(--accent);"></span>
         </div>
       </div>
@@ -1040,16 +1041,55 @@ ${themeCss()}
       return sym + Number(n || 0).toLocaleString('en-US');
     }
 
+    let quoteFilter = (state && state.status === 'confirmed_by_hono') ? 'approved' : 'needs-review';
+    let quoteSearch = '';
+
+    function setQuoteFilter(tab) {
+      quoteFilter = tab;
+      document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+      const activeBtn = document.getElementById('tab-' + tab);
+      if (activeBtn) activeBtn.classList.add('active');
+      renderSidebar();
+    }
+
+    function filterQuotesList(val) {
+      quoteSearch = (val || '').toLowerCase().trim();
+      renderSidebar();
+    }
+
     function renderSidebar() {
       const el = document.getElementById('quote-sidebar-list');
+      if (!el) return;
       const tok = staffToken();
       const qs = tok ? '?token=' + encodeURIComponent(tok) : '';
-      el.innerHTML = allQuotes.map(q => \`
+      
+      const filtered = allQuotes.filter(q => {
+        const isApproved = q.status === 'confirmed_by_hono';
+        if (quoteFilter === 'needs-review' && isApproved) return false;
+        if (quoteFilter === 'approved' && !isApproved) return false;
+        if (quoteSearch) {
+          const matchName = (q.guestName || '').toLowerCase().includes(quoteSearch);
+          const matchId = (q.quoteId || '').toLowerCase().includes(quoteSearch);
+          const matchDate = (q.checkIn || '').toLowerCase().includes(quoteSearch);
+          if (!matchName && !matchId && !matchDate) return false;
+        }
+        return true;
+      });
+
+      const badge = document.getElementById('queue-count-badge');
+      if (badge) badge.textContent = filtered.length + ' / ' + allQuotes.length;
+
+      if (filtered.length === 0) {
+        el.innerHTML = '<div style="padding:16px;text-align:center;color:var(--muted);font-size:13px;font-weight:600;">No quotations match this filter.</div>';
+        return;
+      }
+
+      el.innerHTML = filtered.map(q => \`
         <a class="quote-list-item \${q.quoteId === state.quoteId ? 'active' : ''}" href="/quotes/\${q.quoteId}\${qs}">
           <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
             <strong style="font-size:15px;color:var(--accent);">\${q.quoteId}</strong>
-            <span style="font-size:13px;font-weight:800;color:\${q.status === 'confirmed_by_hono' ? 'var(--emerald)' : 'var(--amber)'};">
-              \${q.status === 'confirmed_by_hono' ? '✅ Approved' : '⏳ Needs Review'}
+            <span style="font-size:12.5px;font-weight:800;color:\${q.status === 'confirmed_by_hono' ? 'var(--emerald)' : 'var(--amber)'};">
+              \${q.status === 'confirmed_by_hono' ? 'Approved' : 'Needs Review'}
             </span>
           </div>
           <div style="font-size:15px;font-weight:700;">\${escHtml(q.guestName)}</div>
@@ -1535,7 +1575,7 @@ ${themeCss()}
     function copyQuoteLink() {
       const input = document.getElementById('input-quotation-url');
       navigator.clipboard.writeText(input.value);
-      document.getElementById('save-toast').textContent = '📋 Copied Quotation Link!';
+      document.getElementById('save-toast').textContent = 'Copied Link!';
     }
 
     renderSidebar();
