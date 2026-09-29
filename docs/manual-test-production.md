@@ -197,6 +197,81 @@ làm ở tab sim.
 
 ---
 
+## 2b. Đường sai — khi khách và nhân viên không đi đúng đường chuẩn
+
+Khách và nhân viên không lúc nào cũng làm đúng kịch bản A. Mục này thử những gì xảy ra khi họ làm sai,
+đổi ý, bấm hai lần, hoặc khi một thứ phía sau chết. Mỗi ca ghi **làm gì → phải thấy gì**, và một
+trong hai dấu:
+
+- ✅ đã đúng — chạy thấy khác thì là lỗi mới, báo ngay;
+- ⚠️ **lỗi đã biết, chưa sửa** — ghi ở đây để bạn không bất ngờ khi gặp, kèm `file:dòng`. Đây cũng là
+  danh sách việc còn lại trước khi mở cho khách thật. Ca ⚠️ **không chặn demo** miễn là kịch bản demo
+  (`docs/live-demo-script.md`) không đi qua nó.
+
+Đo ngày 2026-09-29 bằng cách đọc code + test, **chưa** chạy từng ca trên production. Chạy xong ca nào,
+ghi kết quả và ngày vào bảng ở cuối mục 2b.
+
+> `reset` (cả từ khoá nhắn WhatsApp lẫn route ở §0.4) là công cụ test của dev, không phải tính năng cho
+> khách. Chạy nó **trước** mỗi ca như §0.4 là đúng; đừng chạy **giữa chừng** một ca, vì nó đóng báo giá
+> đang mở — chính thứ bạn đang thử.
+
+### C1. Phía khách (WhatsApp)
+
+| # | Làm | Phải thấy |
+|---|---|---|
+| C1.1 | Hỏi thẳng `how much?` rồi `can we get a discount?` | ✅ bot không tự nêu giá, nói đội ngũ sẽ gửi báo giá. ⚠️ lớp chặn giá chỉ bắt `$` `₱` PHP USD cạnh một số — lọt `P3,500`, `11,200 a night`, `10% off` (`synthesis.ts:91-92`). **Đọc kỹ từng chữ** câu trả lời |
+| C1.2 | Nhắn 3 tin liên tiếp rất nhanh | ✅ trả lời lần lượt, chỉ **một** báo giá trong studio |
+| C1.3 | `I want to cancel my booking`, rồi `this is a complaint`, rồi `what is the wifi password?` | ✅ bot dừng, nói đã chuyển người; `/handoff` ghi đúng lý do (*Cancellation / complaint*, *Not a booking enquiry*). ⚠️ một tin **có URL** hoặc chữ `parking` / `restaurant` / `directions` cũng bị chuyển người, rồi bot im cho tới khi nhân viên bấm resume (`intent.ts:40-72`) |
+| C1.4 | Nói mãi không chốt: `hmm` → `not sure yet` → `still thinking` → `maybe later` | ✅ sau 3 lượt cùng câu hỏi treo, bot dừng hỏi và chuyển người kèm danh sách còn thiếu (*Stuck — same questions open*) |
+| C1.5 | Cho lịch lặn nằm ngoài kỳ ở (ở 20–22/11, nói lặn 25/11) | ✅ bot hỏi lại, kèm khoảng ngày ở |
+| C1.6 | Gửi **ảnh**, rồi **voice note**, rồi sticker | ⚠️ **im lặng hoàn toàn**: webhook trả 200, không trả lời, không chuyển người, nhân viên không thấy dấu vết nào (`whatsapp.ts:269-292`). Khách Philippines hay gửi voice/ảnh chụp màn hình — đây là lỗi thật, không phải chuyện hiếm |
+| C1.7 | **Sau khi đã nhận link**, nhắn `actually we are 3 now` — hoặc chỉ `thanks!` | ⚠️ tạo thêm **một báo giá mới trùng**; link cũ vẫn sống ở giá cũ; khách lại nghe *"preparing your quotation"*, không ai nói link cũ đã hết giá trị; studio có thêm một dòng không liên kết với bản đã publish (`quotationStore.ts:366-369`, `app.ts:838-842`). Tin nhân viên gửi từ studio **không** được ghi vào lịch sử bot, nên bot không biết có báo giá đã đi |
+| C1.8 | Viết ngày kiểu tháng/ngày của Philippines: `10/12/2026`; rồi `October 10, 2027`; rồi một ngày đầy đủ đã qua như `01/09/2026`; rồi check-out **trước** check-in | ⚠️ có năm thì luôn đọc **ngày trước** (`10/12` thành 10 tháng 12); tên tháng đi kèm năm thì bỏ năm; ngày đầy đủ đã qua vẫn được nhận; khoảng ngược không tính được đêm nên bị tính mặc định 2 đêm mà enquiry vẫn coi là đủ (`dates.ts:128-176`, `quotationTool.ts:334`). **Đọc dòng tóm tắt bot đọc lại** — khách cũng chỉ có dòng đó để bắt lỗi |
+| C1.9 | Mở link sau khi nhân viên huỷ; mở link **chưa publish**; mở một link bịa | ⚠️ trang "đã huỷ" không có số hay nút liên hệ; trang "đang chuẩn bị" có nút `wa.me/?text=` **không số** và còn hiện nút *Staff sign-in* cho khách; link bịa ra JSON thô `{"error":"not_found"}` (`app.ts:1330, 1357-1563`) |
+| C1.10 | Nhắn bằng tiếng Nhật, rồi tiếng Hàn | ⚠️ tiếng Nhật được trả lời bằng **tiếng Trung** (bộ dò chỉ tìm chữ Hán); tiếng Hàn/Tagalog trả bằng tiếng Anh và ngày không đọc được nên bị hỏi lại đến khi dừng (`normalize.ts:72-84`, `dates.ts`) |
+| C1.11 | Từ một số **không phải số test**, nhắn đúng `start over` hoặc `restart` | ⚠️ xoá thread và **đóng báo giá đang mở, kể cả bản nhân viên đã duyệt**, và gỡ thread khỏi `/handoff`; sau đó `/confirm` còn "hồi sinh" được bản đã đóng (`app.ts:241, 345-369`). Hướng sửa: chỉ nhận `reset` ở số nằm trong danh sách dev |
+
+### C2. Phía nhân viên (studio)
+
+| # | Làm | Phải thấy |
+|---|---|---|
+| C2.1 | Ở tab Preview, trỏ engine sai (hoặc rút mạng), bấm **Get price** | ✅ báo lỗi, bản ghi vẫn sửa được và bấm lại được. ⚠️ chữ vẫn là mã thô `timeout` / `unreachable` / `unexpected`; engine trả 409 hiện *"answered HTTP 409 without saying why"* |
+| C2.2 | Gửi cho số không có mã nước (`0359…`) | ✅ *"Add the country code — 63 …, 84 …"*, không gửi gì |
+| C2.3 | Gửi cho số hợp lệ nhưng chưa có trong danh sách test Meta | ✅ *"This number isn't on the WhatsApp test list yet…"*; badge **không** đổi sang `Sent to guest` |
+| C2.4 | Sửa chuyến **sau khi đã Approve** | ✅ tự bỏ duyệt, phải Approve lại |
+| C2.5 | Sửa bất cứ gì **sau khi đã Publish** | ✅ bị từ chối, báo trang đã đóng băng |
+| C2.6 | Mở `QT-1010-SKY` rồi bấm Publish | ✅ từ chối `seeded_fixture`, có câu giải thích |
+| C2.7 | Đổi **ngày nhận/trả phòng** ở ô thông tin liên hệ rồi Approve | ⚠️ ngày mới đi ra WhatsApp và trang khách **cùng giá của ngày cũ**; duyệt vẫn giữ vì đường lưu liên hệ không đụng vào chuyến đã tính giá (`app.ts:282, 1812`) |
+| C2.8 | **Bấm đúp** *Create link & send* | ⚠️ nút của bước 4 chỉ bị khoá sau khi lệnh publish chạy xong, nên click thứ hai bắt đầu một publish nữa: có thể có 2 bản đóng băng phía khách và **2 tin nhắn** (`quotationStore.ts:2709-2712`, `app.ts:2414`). **Bấm một lần và chờ** |
+| C2.9 | Mở **cùng một báo giá ở hai tab**, sửa ở cả hai, lưu lần lượt | ⚠️ tab lưu sau đè tab trước, không cảnh báo; bấm Approve ở tab cũ có thể duyệt một giá mà tab kia mới tính |
+| C2.10 | **Huỷ** một báo giá đã publish; rồi thử bấm *Save & get price* trên một báo giá chưa publish đã huỷ | ⚠️ link phía app khách **vẫn sống và đặt được** (chỉ trang `/q/` của mình trả 410); bản chưa publish đã huỷ bị **hồi sinh** vì Save/Approve không kiểm trạng thái huỷ |
+| C2.11 | Ghi nhận tiền cọc với số `0`, hoặc trên báo giá đã huỷ / chưa từng gửi | ⚠️ nhận hết, còn báo *"Reservation confirmed"* dù chưa có folio nào (`app.ts:1946-1977`) |
+| C2.12 | Để phiên đăng nhập hết hạn (8 giờ) giữa lúc đang sửa chuyến | ⚠️ không chuyển trang, không nhắc lưu; đăng nhập lại là mất phần chưa lưu. Có lỗi máy chủ 500/504 thì màn hình hiện dòng phân tích JSON thô thay vì câu tiếng Anh |
+
+### C3. Phía hệ thống — chỉ đọc, **đừng phá thử trên production**
+
+- **Redis lỗi một lần** làm hỏng mọi route báo giá của instance đó tới khi nó khởi động lại, vì lời hứa
+  "khởi tạo" bị từ chối được lưu lại mãi (`quotationStore.ts:120-121`), và các lệnh Redis không có giới hạn
+  thời gian.
+- **`WHATSAPP_APP_SECRET` sai** → mọi tin vào bị trả 401 mà **không một dòng log** (`app.ts:551-555`); Meta
+  thử lại rồi có thể tắt webhook. Không có cảnh báo nào.
+- **Token Meta hết hạn (mã 190) lúc trả lời khách** → khách nhận im lặng: thread không bị park, không có
+  câu xin lỗi, không vào `/handoff`; chỉ có một dòng `console.error` (`app.ts:950-988`).
+- **Gửi sau 24 giờ**: lỗi 131047 đồng bộ được giải thích rõ, nhưng không có đường gửi bằng template, và nếu
+  Meta báo lỗi muộn qua webhook trạng thái thì webhook bỏ qua — studio vẫn ghi `Sent to guest`.
+
+### Bảng kết quả mục 2b (điền khi chạy)
+
+| Ca | Ngày | Kết quả | Ghi chú |
+|---|---|---|---|
+| | | | |
+
+**Chặn demo nếu:** C1.1 có con số tiền hoặc lời giảm giá; trang khách hiện lời hứa giữ phòng, tiền cọc tự
+chia hoặc ô đổi tiền tệ; hoặc kịch bản A không ra được một link mở được. Các ca ⚠️ khác **không** chặn
+demo nếu bạn không đi qua chúng.
+
+---
+
 ## 3. Những câu phải nói thật khi demo
 
 1. **Bot không báo giá, không gửi link.** Giá chỉ tới tay khách sau khi **một người** duyệt và gửi.
@@ -208,6 +283,9 @@ làm ở tab sim.
    chết mà báo thành công.
 4. **Bot không tự bịa.** Nếu model viết câu sai (giá, chữ "confirmed", loại phòng khác), câu đó bị chặn
    và thay bằng bản do code dựng.
+
+Kịch bản demo đầy đủ theo phút, kèm những gì **không** được làm và câu trả lời thật khi bị hỏi ngược:
+`docs/live-demo-script.md`.
 
 ---
 
@@ -234,8 +312,11 @@ Xoá dữ liệu test khỏi queue để buổi demo sạch:
 ```powershell
 # đóng báo giá test (giữ record, chỉ rời khỏi queue đang làm việc)
 $t = (Get-Content .env.local | Where-Object { $_ -match '^STAFF_ACCESS_KEY=' }) -replace '^STAFF_ACCESS_KEY=','' -replace '"',''
-Invoke-RestMethod -Method Post -Uri "https://technext-edge-casa-bff.vercel.app/v1/quotes/<QUOTE_ID>/cancel?token=$t"
+Invoke-RestMethod -Method Post -Uri "https://technext-edge-casa-bff.vercel.app/v1/quotes/<QUOTE_ID>/cancel" -Headers @{ "x-verify-token" = $t }
 ```
+
+Khoá đi trong **header**, không nằm trên URL — URL ở lại trong lịch sử trình duyệt, log máy chủ và ảnh
+chụp màn hình. Cũng vì vậy, đừng dán lệnh này vào chat.
 
 Báo giá đã publish thì **không sửa được nữa** (link khách đang giữ) — muốn demo lại từ đầu thì tạo
 enquiry mới, đừng cố sửa bản đã gửi.

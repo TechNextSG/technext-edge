@@ -565,27 +565,18 @@ export function renderHonoQuotationEditorHtml(
       currency: q.currency,
       status: q.status,
       sentToGuestAt: q.sentToGuestAt ?? null,
+      // For "latest first": a quotation that has not been sent has no send time, so the queue falls
+      // back to the last time anyone touched it.
+      updatedAt: q.updatedAt ?? null,
       submission: Boolean(q.submission),
       depositPayment: q.depositPayment ?? null,
     }))
   ).replace(/</g, "\\u003c");
-  // The extractor's scorecard, computed from the records. "Unchanged" means the quotation was
-  // priced from a trip staff never corrected — every other quotation either needed a fix or was
-  // never reviewed, and the two are different things, so an edited one is counted as edited even
-  // if the edit was later reverted (the diff is recorded per save).
-  const reviewedQuotes = allQuotes.filter((q) => q.bffTrip);
-  const fieldCounts = new Map<string, number>();
-  for (const q of reviewedQuotes) {
-    for (const edit of q.staffEdits ?? []) {
-      for (const field of edit.fields) fieldCounts.set(field, (fieldCounts.get(field) ?? 0) + 1);
-    }
-  }
-  const quotationsNeedingNoEdit = {
-    all: reviewedQuotes.length,
-    unchanged: reviewedQuotes.filter((q) => (q.staffEdits ?? []).length === 0).length,
-    // Most-corrected first, then alphabetically, so equal counts cannot reorder between renders.
-    fieldCounts: [...fieldCounts.entries()].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0])),
-  };
+  // There used to be an "AI reading check" scorecard computed here ("N of M quotations needed no
+  // correction"). It was removed on 2026-09-29: it counted a quotation nobody had opened as "unchanged"
+  // and it counted test records, so the figure measured nothing a receptionist could act on, and it sat
+  // at the top of the queue pushing the working list below the fold. The per-quotation `staffEdits`
+  // are still recorded on every save — that is the data a real measure would be built from.
 
   // ---- The engine's own answer, drawn -------------------------------------
   // Everything below is read from `draft.pricing`, which is the pricing engine's response as it was
@@ -1138,21 +1129,67 @@ ${themeCss()}
       font-weight: 800;
       color: var(--emerald);
     }
+    /* Two lines, not three. A card used to be ~160px tall — the long quotation id and the status label
+       wrapped inside a narrow sidebar — so a laptop screen showed barely one and a half quotations
+       before the receptionist had to scroll. Name + status on the first line, the trip on the second;
+       the id shrinks to its last eight characters (the full id is still the link's title and is still
+       what the search box matches). */
     .quote-list-item {
       display: block;
-      padding: 14px;
-      border-radius: 12px;
+      padding: 9px 12px;
+      border-radius: 10px;
       border: 2px solid var(--border);
       background: var(--surface-2);
       color: var(--text);
       text-decoration: none;
-      margin-bottom: 12px;
+      margin-bottom: 8px;
       transition: 0.15s;
     }
     .quote-list-item:hover, .quote-list-item.active {
       border-color: var(--accent);
       background: var(--accent-soft);
     }
+    .ql-top { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+    .ql-name { font-size: 15px; font-weight: 700; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .ql-status { font-size: 12.5px; font-weight: 800; display: flex; align-items: center; gap: 6px; white-space: nowrap; flex: none; }
+    .ql-meta { font-size: 13px; color: var(--muted); margin-top: 2px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .ql-id { font-family: 'JetBrains Mono', monospace; font-size: 11.5px; opacity: 0.8; }
+
+    /* Sort + filters. The sort box is always visible; the filters fold away behind one button whose
+       badge says how many are on. A display:grid rule would override the hidden attribute, so it is
+       restated explicitly below. */
+    .queue-tools { display: flex; gap: 6px; align-items: center; margin-bottom: 10px; }
+    .queue-sort { flex: 1; min-width: 0; display: flex; align-items: center; gap: 5px; font-size: 12px; font-weight: 800; color: var(--muted); }
+    /* The sort box has to show its whole current choice: a select that reads "Check-in soo" tells the
+       receptionist nothing. Hence the short option labels and the slim Filters button beside it. */
+    .queue-sort select, .queue-filters select {
+      flex: 1; min-width: 0; width: 100%;
+      border: 2px solid var(--border); border-radius: 8px;
+      background: var(--input-bg); color: var(--text);
+      padding: 6px 6px; font: inherit; font-size: 12.5px; font-weight: 600;
+    }
+    .queue-sort select:focus, .queue-filters select:focus { outline: none; border-color: var(--accent); }
+    .queue-filter-btn { padding: 6px 8px; font-size: 12.5px; white-space: nowrap; flex: none; }
+    .queue-filter-btn.on { border-color: var(--accent); color: var(--accent); background: var(--accent-soft); }
+    #queue-filter-count:not(:empty) {
+      margin-left: 4px; background: var(--accent); color: var(--surface);
+      border-radius: 999px; padding: 0 6px; font-size: 11px; font-weight: 800;
+    }
+    .queue-filters {
+      display: grid; grid-template-columns: 1fr 1fr; gap: 8px 10px;
+      margin-bottom: 10px; padding: 10px;
+      border: 1px solid var(--border); border-radius: 10px; background: var(--surface-2);
+    }
+    .queue-filters[hidden] { display: none; }
+    .queue-filters label { display: flex; flex-direction: column; gap: 3px; font-size: 11.5px; font-weight: 800; color: var(--muted); text-transform: uppercase; letter-spacing: 0.04em; }
+    .queue-filters label:nth-of-type(3) { grid-column: 1 / -1; }
+    .queue-clear {
+      grid-column: 1 / -1; justify-self: start; border: 0; background: none; padding: 2px 0;
+      font: inherit; font-size: 12.5px; font-weight: 800; color: var(--accent); cursor: pointer; text-decoration: underline;
+    }
+    .queue-clear[hidden] { display: none; }
+    .queue-empty { padding: 16px; text-align: center; color: var(--muted); font-size: 13px; font-weight: 600; }
+    .queue-empty button { border: 0; background: none; font: inherit; font-weight: 800; color: var(--accent); cursor: pointer; text-decoration: underline; }
     .tab-row {
       display: flex;
       gap: 4px;
@@ -1241,32 +1278,58 @@ ${themeCss()}
   <div class="container">
     <!-- Sidebar: the quotations a staff member is reviewing -->
     <aside>
-      ${
-        quotationsNeedingNoEdit.all > 0
-          ? `<div class="card" style="padding:12px 14px;margin-bottom:14px;">
-        <div style="font-size:13.5px;font-weight:800;">AI reading check</div>
-        <div style="font-size:12.5px;color:var(--muted);line-height:1.55;margin-top:2px;">
-          ${quotationsNeedingNoEdit.unchanged} of ${quotationsNeedingNoEdit.all} quotations needed no correction after the bot read them${
-            quotationsNeedingNoEdit.fieldCounts[0]
-              ? ` — most corrected: <strong>${esc(quotationsNeedingNoEdit.fieldCounts[0][0])}</strong>`
-              : ""
-          }.<br><span style="font-size:11.5px;">Field names only, never guest details.</span>
-        </div>
-      </div>`
-          : ""
-      }
       <div class="card">
         <div class="card-title">
           <span>All Quotations</span>
           <span id="queue-count-badge" style="font-size:12px;font-weight:800;background:var(--accent-soft);color:var(--accent);padding:2px 8px;border-radius:999px;"></span>
         </div>
-        <input type="text" id="quote-search-input" oninput="filterQuotesList(this.value)" placeholder="Search guest, phone, quote ID..." class="cell-input" style="margin-bottom:10px;font-size:13.5px;padding:9px 12px;" />
+        <input type="text" id="quote-search-input" oninput="filterQuotesList(this.value)" placeholder="Search name, quote ID or date…" class="cell-input" style="margin-bottom:10px;font-size:13.5px;padding:9px 12px;" />
         <div class="tab-row" style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:10px;">
           <button type="button" class="tab-btn" id="tab-action-needed" onclick="setQuoteFilter('action-needed')">Action Needed</button>
           <button type="button" class="tab-btn" id="tab-waiting-deposit" onclick="setQuoteFilter('waiting-deposit')">Waiting</button>
           <button type="button" class="tab-btn" id="tab-deposit-received" onclick="setQuoteFilter('deposit-received')">Paid</button>
           <button type="button" class="tab-btn" id="tab-all" onclick="setQuoteFilter('all')">All</button>
           <button type="button" class="tab-btn" id="tab-cancelled" onclick="setQuoteFilter('cancelled')">Archived</button>
+        </div>
+        <!-- Sort is always in reach; the three filters fold away, but open themselves whenever one is on,
+             so a hidden filter can never be the silent reason a quotation is missing from the list. -->
+        <div class="queue-tools">
+          <label class="queue-sort"><span>Sort</span>
+            <select id="queue-sort" aria-label="Sort quotations" onchange="setQueueView('sort', this.value)">
+              <option value="latest">Latest first</option>
+              <option value="oldest">Oldest first</option>
+              <option value="checkin">Check-in date</option>
+              <option value="name">Name A–Z</option>
+              <option value="total">Highest total</option>
+            </select>
+          </label>
+          <button type="button" id="queue-filter-toggle" class="btn btn-outline queue-filter-btn" aria-expanded="false" aria-controls="queue-filters" onclick="toggleQueueFilters()">Filters<span id="queue-filter-count"></span></button>
+        </div>
+        <div id="queue-filters" class="queue-filters" hidden>
+          <label>Sent
+            <select id="qf-sent" onchange="setQueueView('sent', this.value)">
+              <option value="any">Any time</option>
+              <option value="unsent">Not sent yet</option>
+              <option value="today">Today</option>
+              <option value="7d">Last 7 days</option>
+            </select>
+          </label>
+          <label>Check-in
+            <select id="qf-checkin" onchange="setQueueView('checkin', this.value)">
+              <option value="any">Any date</option>
+              <option value="next7">Next 7 days</option>
+              <option value="next30">Next 30 days</option>
+              <option value="past">Already past</option>
+            </select>
+          </label>
+          <label>Price
+            <select id="qf-price" onchange="setQueueView('price', this.value)">
+              <option value="any">Any</option>
+              <option value="priced">Priced</option>
+              <option value="unpriced">Not priced yet</option>
+            </select>
+          </label>
+          <button type="button" id="queue-clear" class="queue-clear" onclick="clearQueueFilters()">Clear filters</button>
         </div>
         <div id="quote-sidebar-list"></div>
         <div id="quote-pagination" style="display:flex;justify-content:space-between;align-items:center;padding:12px 4px 4px;margin-top:10px;border-top:1px solid var(--border);font-size:12.5px;font-weight:700;">
@@ -1674,6 +1737,18 @@ ${themeCss()}
         .replace(/"/g, '&quot;');
     }
 
+    // "2026-11-20" -> "Nov 20", or "Nov 20 '27" when it is not this year. The queue card has room for
+    // about thirty characters on its second line; a full ISO date pushed the short id off the end and
+    // it was cut to "#735DA7…", which is worse than not showing it. Falls back to the raw text for
+    // anything that is not an ISO date, so a malformed value is still visible rather than blank.
+    function shortDate(iso) {
+      var m = /^(\\d{4})-(\\d{2})-(\\d{2})$/.exec(iso || '');
+      if (!m) return iso || '';
+      var d = new Date(Date.UTC(+m[1], +m[2] - 1, +m[3]));
+      var s = d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', timeZone: 'UTC' });
+      return (+m[1] === new Date().getUTCFullYear()) ? s : s + " '" + m[1].slice(2);
+    }
+
     /**
      * One place for anything that goes wrong, and one for anything that went right.
      *
@@ -1887,6 +1962,146 @@ ${themeCss()}
     const PAGE_SIZE = 10;
     let quotePage = 1;
 
+    // ---- Sort and filters for the queue ------------------------------------
+    // Pure functions on purpose (no DOM, "now" passed in): the order a receptionist works the queue in
+    // is a decision, so it is tested on its own rather than only by looking at the page.
+    var QUEUE_VIEW_KEY = 'casa_queue_view';
+    var QUEUE_SORTS = ['latest', 'oldest', 'checkin', 'name', 'total'];
+    var QUEUE_SENT = ['any', 'unsent', 'today', '7d'];
+    var QUEUE_CHECKIN = ['any', 'next7', 'next30', 'past'];
+    var QUEUE_PRICE = ['any', 'priced', 'unpriced'];
+    var queueView = { sort: 'latest', sent: 'any', checkin: 'any', price: 'any' };
+
+    // When something last happened to a quotation: the time it was sent if it was sent, otherwise the
+    // last time staff or the bot touched it. 0 when neither is known, so it sorts as the oldest
+    // instead of throwing.
+    function activityTime(q) {
+      var t = Date.parse(q.sentToGuestAt || q.updatedAt || '');
+      return isFinite(t) ? t : 0;
+    }
+    function checkInTime(q) {
+      var t = Date.parse((q.checkIn || '') + 'T00:00:00Z');
+      return isFinite(t) ? t : null;
+    }
+    // Equal keys fall back to the quotation id, so the order cannot shuffle between two renders.
+    // The now argument is passed in so the check-in order can be tested against a fixed date.
+    function sortQuotes(list, mode, now) {
+      var byId = function (a, b) { return String(a.quoteId).localeCompare(String(b.quoteId)); };
+      var clock = new Date(now == null ? Date.now() : now);
+      var today = Date.UTC(clock.getFullYear(), clock.getMonth(), clock.getDate());
+      var cmp = {
+        latest: function (a, b) { return (activityTime(b) - activityTime(a)) || byId(a, b); },
+        oldest: function (a, b) { return (activityTime(a) - activityTime(b)) || byId(a, b); },
+        // Guests who are still to arrive come first, soonest first; guests whose date has passed come
+        // after them, most recent first. Plain date order would put someone who arrived last week at
+        // the top of the list, which is the opposite of what the front desk is asking for.
+        checkin: function (a, b) {
+          var x = checkInTime(a), y = checkInTime(b);
+          if (x === null && y === null) return byId(a, b);
+          if (x === null) return 1;
+          if (y === null) return -1;
+          var xAhead = x >= today, yAhead = y >= today;
+          if (xAhead !== yAhead) return xAhead ? -1 : 1;
+          return (xAhead ? x - y : y - x) || byId(a, b);
+        },
+        name: function (a, b) {
+          var x = String(a.guestName || '').trim(), y = String(b.guestName || '').trim();
+          if (!x && !y) return byId(a, b);
+          if (!x) return 1;
+          if (!y) return -1;
+          return x.localeCompare(y, 'en', { sensitivity: 'base' }) || byId(a, b);
+        },
+        total: function (a, b) {
+          var x = a.engineRevenue, y = b.engineRevenue;
+          if (x == null && y == null) return byId(a, b);
+          if (x == null) return 1;
+          if (y == null) return -1;
+          return (y - x) || byId(a, b);
+        }
+      };
+      return list.slice().sort(cmp[mode] || cmp.latest);
+    }
+    function matchesViewFilters(q, f, now) {
+      if (f.sent !== 'any') {
+        var st = q.sentToGuestAt ? Date.parse(q.sentToGuestAt) : NaN;
+        var wasSent = isFinite(st);
+        if (f.sent === 'unsent' && wasSent) return false;
+        if (f.sent === 'today') {
+          var midnight = new Date(now); midnight.setHours(0, 0, 0, 0);
+          if (!wasSent || st < midnight.getTime()) return false;
+        }
+        if (f.sent === '7d' && (!wasSent || now - st > 7 * 86400000)) return false;
+      }
+      if (f.checkin !== 'any') {
+        var ci = checkInTime(q);
+        if (ci === null) return false;
+        var n = new Date(now);
+        var today = Date.UTC(n.getFullYear(), n.getMonth(), n.getDate());
+        if (f.checkin === 'past' && ci >= today) return false;
+        if (f.checkin === 'next7' && (ci < today || ci > today + 7 * 86400000)) return false;
+        if (f.checkin === 'next30' && (ci < today || ci > today + 30 * 86400000)) return false;
+      }
+      if (f.price === 'priced' && q.engineRevenue == null) return false;
+      if (f.price === 'unpriced' && q.engineRevenue != null) return false;
+      return true;
+    }
+    function activeFilterCount() {
+      return (queueView.sent !== 'any' ? 1 : 0) + (queueView.checkin !== 'any' ? 1 : 0) + (queueView.price !== 'any' ? 1 : 0);
+    }
+    // A saved choice is a convenience, never a requirement: storage can be blocked or hold junk.
+    function loadQueueView() {
+      try {
+        var v = JSON.parse(localStorage.getItem(QUEUE_VIEW_KEY) || 'null');
+        if (v && QUEUE_SORTS.indexOf(v.sort) >= 0) queueView.sort = v.sort;
+        if (v && QUEUE_SENT.indexOf(v.sent) >= 0) queueView.sent = v.sent;
+        if (v && QUEUE_CHECKIN.indexOf(v.checkin) >= 0) queueView.checkin = v.checkin;
+        if (v && QUEUE_PRICE.indexOf(v.price) >= 0) queueView.price = v.price;
+      } catch (e) { /* keep the defaults */ }
+    }
+    function saveQueueView() {
+      try { localStorage.setItem(QUEUE_VIEW_KEY, JSON.stringify(queueView)); } catch (e) { /* not persisted */ }
+    }
+    function syncQueueControls() {
+      var set = function (id, value) { var el = document.getElementById(id); if (el) el.value = value; };
+      set('queue-sort', queueView.sort);
+      set('qf-sent', queueView.sent);
+      set('qf-checkin', queueView.checkin);
+      set('qf-price', queueView.price);
+      var n = activeFilterCount();
+      var count = document.getElementById('queue-filter-count');
+      if (count) count.textContent = n ? String(n) : '';
+      var btn = document.getElementById('queue-filter-toggle');
+      var panel = document.getElementById('queue-filters');
+      if (btn && btn.classList) btn.classList.toggle('on', n > 0);
+      // A filter that is on must never be out of sight: open the panel so the reason for a short list
+      // is in view.
+      if (panel && n > 0) panel.hidden = false;
+      if (btn && panel && btn.setAttribute) btn.setAttribute('aria-expanded', panel.hidden ? 'false' : 'true');
+      var clear = document.getElementById('queue-clear');
+      if (clear) clear.hidden = n === 0;
+    }
+    function setQueueView(key, value) {
+      queueView[key] = value;
+      quotePage = 1;
+      saveQueueView();
+      syncQueueControls();
+      renderSidebar();
+    }
+    function clearQueueFilters() {
+      queueView.sent = 'any'; queueView.checkin = 'any'; queueView.price = 'any';
+      quotePage = 1;
+      saveQueueView();
+      syncQueueControls();
+      renderSidebar();
+    }
+    function toggleQueueFilters() {
+      var panel = document.getElementById('queue-filters');
+      var btn = document.getElementById('queue-filter-toggle');
+      if (!panel) return;
+      panel.hidden = !panel.hidden;
+      if (btn && btn.setAttribute) btn.setAttribute('aria-expanded', panel.hidden ? 'false' : 'true');
+    }
+
     function setQuoteFilter(tab) {
       quoteFilter = tab;
       quotePage = 1;
@@ -1915,7 +2130,7 @@ ${themeCss()}
       const tok = staffToken();
       const qs = tok ? '?token=' + encodeURIComponent(tok) : '';
       
-      const filtered = allQuotes.filter(q => {
+      const tabbed = allQuotes.filter(q => {
         const isApproved = q.status === 'confirmed_by_hono';
         const isCancelled = q.status === 'cancelled';
         const isDepositPaid = Boolean(q.depositPayment && q.depositPayment.status === 'received');
@@ -1945,6 +2160,9 @@ ${themeCss()}
         }
         return true;
       });
+      // Tab and search decide what belongs in the list; the sort and filters decide how it is worked.
+      const now = Date.now();
+      const filtered = sortQuotes(tabbed.filter(q => matchesViewFilters(q, queueView, now)), queueView.sort, now);
 
       const totalPages = Math.ceil(filtered.length / PAGE_SIZE) || 1;
       if (quotePage > totalPages) quotePage = totalPages;
@@ -1969,7 +2187,8 @@ ${themeCss()}
       }
 
       if (filtered.length === 0) {
-        el.innerHTML = '<div style="padding:16px;text-align:center;color:var(--muted);font-size:13px;font-weight:600;">No quotations match this filter.</div>';
+        var clearBtn = activeFilterCount() > 0 ? ' <button type="button" onclick="clearQueueFilters()">Clear filters</button>' : '';
+        el.innerHTML = '<div class="queue-empty">No quotations match.' + clearBtn + '</div>';
         return;
       }
 
@@ -1996,10 +2215,10 @@ ${themeCss()}
             ? 'var(--emerald)'
             : (isApproved ? 'var(--emerald)' : 'var(--amber)'));
         return \`
-        <a class="quote-list-item \${q.quoteId === state.quoteId ? 'active' : ''}" href="/quotes/\${q.quoteId}\${qs}">
-          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
-            <strong style="font-size:15px;color:var(--accent);">\${q.quoteId}</strong>
-            <span style="font-size:12.5px;font-weight:800;color:\${statusColor};display:flex;align-items:center;gap:6px;">
+        <a class="quote-list-item \${q.quoteId === state.quoteId ? 'active' : ''}" href="/quotes/\${q.quoteId}\${qs}" title="\${escHtml(q.quoteId)}">
+          <div class="ql-top">
+            <span class="ql-name">\${escHtml(q.guestName)}</span>
+            <span class="ql-status" style="color:\${statusColor};">
               \${statusLabel}
               \${isDepositPaid
                 ? '<span style="font-size:10px;font-weight:800;color:var(--emerald);background:var(--emerald-soft);padding:1px 5px;border-radius:4px;border:1px solid var(--emerald);">Paid</span>'
@@ -2010,14 +2229,15 @@ ${themeCss()}
                     : '')}
             </span>
           </div>
-          <div style="font-size:15px;font-weight:700;">\${escHtml(q.guestName)}</div>
-          <div style="font-size:14px;color:var(--muted);">\${q.checkIn} (\${q.nights} nights) · <strong>\${q.engineRevenue == null ? 'not priced yet' : fmtMoney(q.engineRevenue, q.currency)}</strong></div>
+          <div class="ql-meta">\${escHtml(shortDate(q.checkIn))} · \${q.nights}n · <strong>\${q.engineRevenue == null ? 'not priced yet' : fmtMoney(q.engineRevenue, q.currency)}</strong> · <span class="ql-id">#\${escHtml(String(q.quoteId).split('-').pop())}</span></div>
         </a>
       \`;
       }).join('');
     }
 
     (function initQuotePagination() {
+      loadQueueView();
+      syncQueueControls();
       const isDepositPaid = Boolean(state && state.depositPayment && state.depositPayment.status === 'received');
       const isCancelled = state && state.status === 'cancelled';
       const isApproved = state && state.status === 'confirmed_by_hono';
