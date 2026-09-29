@@ -110,6 +110,15 @@ import {
   type WhatsAppSendText,
 } from "./whatsapp.js";
 
+// Returns the canonical public origin for this deployment.
+// Prefers the `PUBLIC_BASE_URL` env var so that preview/sim aliases never leak
+// into guest-facing links (mirrorUrl). Falls back to the incoming request origin.
+function canonicalOrigin(c: Context): string {
+  const envUrl = (process.env.PUBLIC_BASE_URL ?? "").trim().replace(/\/$/, "");
+  if (envUrl) return envUrl;
+  return new URL(c.req.url).origin;
+}
+
 // `provider`/`apiKey` are an optional per-request override for the test
 // console and the eval harness — bring your own key for a quick bake-off
 // comparison without touching Vercel env vars or redeploying. Omit both to
@@ -2580,8 +2589,7 @@ export function createApp(options: AppOptions = {}) {
           ? ({ ok: false as const, reason: "not_found" as const, detail: "this deployment is set to send our own copy" })
           : await estimator.verifyGuestLink(guestUrl);
       if (!check.ok) {
-        const origin = new URL(c.req.url).origin;
-        mirrorUrl = `${origin}/q/${encodeURIComponent(existing.slug)}`;
+        mirrorUrl = `${canonicalOrigin(c)}/q/${encodeURIComponent(existing.slug)}`;
         mirrorReason = forceCopy
           ? "this deployment is set to send our own copy of the quotation (GUEST_LINK_MODE=copy)"
           : check.reason === "not_configured"
@@ -2825,7 +2833,6 @@ export function createApp(options: AppOptions = {}) {
       if (!draft.estimator?.mirrorUrl && estimator.kind === "remote") {
         const linkCheck = await estimator.verifyGuestLink(guestUrl);
         if (!linkCheck.ok) {
-          const origin = new URL(c.req.url).origin;
           const mirrorReason =
             linkCheck.reason === "not_found"
               ? "the booking app no longer recognises the link it issued, so the guest was sent a copy of the same revision on our own page"
@@ -2834,7 +2841,7 @@ export function createApp(options: AppOptions = {}) {
             ...existing,
             estimator: {
               ...(existing.estimator ?? { id: null, cookie: null, seq: null, guestUrl: null, sharedAt: null }),
-              mirrorUrl: `${origin}/q/${encodeURIComponent(existing.slug)}`,
+              mirrorUrl: `${canonicalOrigin(c)}/q/${encodeURIComponent(existing.slug)}`,
               mirrorReason,
             },
           });
