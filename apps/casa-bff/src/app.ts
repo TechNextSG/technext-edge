@@ -2017,6 +2017,44 @@ export function createApp(options: AppOptions = {}) {
    * explicitly is the more dangerous form, so the same protections apply — see
    * `protectedFromCleanup` — and the answer says which names were refused and why.
    */
+
+  /**
+   * Admin: patch the mirrorUrl on an existing quotation (staff-only).
+   * Used once after the PUBLIC_BASE_URL fix to correct links created with the wrong domain.
+   * Body: { id: string, mirrorUrl: string, confirm: true }
+   */
+  app.post("/v1/quotes/patch-mirror-url", async (c) => {
+    if (!staffWriter(c)) return c.json({ error: "unauthorized" }, 401);
+    const body = (await c.req.json().catch(() => ({}))) as {
+      id?: unknown;
+      mirrorUrl?: unknown;
+      confirm?: unknown;
+    };
+    if (typeof body.id !== "string" || !body.id) return c.json({ error: "id required" }, 400);
+    if (typeof body.mirrorUrl !== "string" || !body.mirrorUrl.startsWith("https://")) {
+      return c.json({ error: "mirrorUrl must be an absolute https URL" }, 400);
+    }
+    const existing = await getQuotationByIdOrSlug(body.id);
+    if (!existing) return c.json({ error: "not found" }, 404);
+    if (body.confirm !== true) {
+      return c.json({
+        dryRun: true,
+        quoteId: existing.quoteId,
+        currentMirrorUrl: existing.estimator?.mirrorUrl ?? null,
+        proposedMirrorUrl: body.mirrorUrl,
+        detail: "POST {confirm: true} to apply",
+      });
+    }
+    const updated = await saveQuotationDraft({
+      ...existing,
+      estimator: {
+        ...(existing.estimator ?? { id: null, cookie: null, seq: null, guestUrl: null, sharedAt: null }),
+        mirrorUrl: body.mirrorUrl,
+      },
+    });
+    return c.json({ ok: true, quoteId: updated.quoteId, mirrorUrl: updated.estimator?.mirrorUrl ?? null });
+  });
+
   app.post("/v1/quotes/cleanup-duplicates", async (c) => {
     // Deleting business records, so the staff role is required, not just any valid session.
     if (!staffWriter(c)) return c.json({ error: "unauthorized" }, 401);
