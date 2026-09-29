@@ -2672,8 +2672,8 @@ ${themeCss()}
           headers: { 'content-type': 'application/json' },
           body: JSON.stringify(gatherDetails())
         });
-        const detailsData = await details.json();
-        if (!detailsData.quotation) {
+        const detailsData = await safeJson(details);
+        if (!details.ok || !detailsData.quotation) {
           showError('Could not save', detailsData);
           return;
         }
