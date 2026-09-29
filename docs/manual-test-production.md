@@ -110,20 +110,36 @@ của mình, có nhãn "Sample prices", và câu *"nothing is booked yet"*.
 
 ### Mở link — làm NGAY, đừng để lâu
 
-Mở link trên điện thoại (hoặc dán vào tab 3 của máy tính). Phải thấy trang báo giá của khách:
+Mở link trên điện thoại (hoặc dán vào tab 3 của máy tính). Có **hai trang có thể hiện**, tuỳ link khách
+nhận là của họ hay bản sao của mình — cả hai đều là cùng một revision đã đóng băng:
+
+**A. Link của app khách** (`…/quote/<token>`, khi link còn sống):
 
 - banner *"Sample data — prices are captured examples, not live quotes"*
 - **Your quote · Version 1**
 - **TOTAL ₱31.200** và itinerary có ngày lặn
 - thẻ *Per guest* với phòng "Standard A" và Full board
 
-> Thẻ per-guest ghi **"Standard A"** dù mình đặt deluxe: đó là **bản chụp** của fixture, không phải lỗi
-> phía mình — engine không tính lại, chỉ phát lại câu trả lời đã chụp (đây chính là điều phải nói thật
-> với lead). Phòng **deluxe** mà studio gửi đi thì kiểm được ở payload: `GET /v1/quotes/<ID>` → `bffTrip.rooms[0].type`.
+**B. Bản sao của mình** (`…/q/<slug>`, khi link khách đã chết — đây là trường hợp hay gặp nhất vì fixture
+mất token sau vài giờ):
 
-> ⚠️ Nếu hiện *"This quote link is not valid or has expired"*: đó là **bản fixture của khách mất dữ
-> liệu**, không phải lỗi luồng. Bấm **Create link only** một lần nữa rồi mở lại ngay — nếu vẫn 404 thì
-> đúng là đang gặp instance khác. Ghi lại thời điểm gặp để báo khách.
+- banner *"Sample data — these prices are examples from our booking engine while it is being set up"*
+- **Hello <tên khách>, here is your quotation** — đúng **một** lời chào
+- **₱31.200 · Total, from the resort's booking engine**
+- hai thẻ per-guest (Ana ₱20.600 · Ben ₱10.600)
+- khối *Booking & Deposit Policy*: chỉ **3 dòng** — 50% không hoàn lại, số còn lại trước ngày đi 1 tháng,
+  và hạn hiệu lực giờ Manila
+- **được kiểm là KHÔNG có**: hộp "giữ phòng 72 giờ", đồng hồ đếm ngược, phép chia 50% tiền cọc/số còn lại,
+  ô chọn tiền tệ (USD/EUR/VND)
+
+> Thẻ per-guest ghi **"Standard A"** dù mình đặt deluxe: đó là **bản chụp** của fixture, không phải lỗi
+> phía mình — gateway của khách chạy `fillTrip` (thiếu field là 422) nhưng **không tính giá**, nó chọn một
+> bản chụp theo *hình dạng* chuyến đi (đây chính là điều phải nói thật với lead). Phòng **deluxe** mà studio
+> gửi đi thì kiểm được ở payload: `GET /v1/quotes/<ID>` → `bffTrip.rooms[0].type`.
+
+> ⚠️ Nếu hiện *"This quote link is not valid or has expired"*: đó là **bản fixture của khách mất dữ liệu**,
+> không phải lỗi luồng. Bấm **Send the message** một lần nữa — route tự kiểm link, đặt `mirrorUrl` và gửi
+> bản sao của mình; khách nhận link mở được ngay. Ghi lại thời điểm gặp để báo khách.
 
 ---
 
