@@ -1998,13 +1998,28 @@ export function createApp(options: AppOptions = {}) {
     // Deleting business records, so the staff role is required, not just any valid session.
     if (!staffWriter(c)) return c.json({ error: "unauthorized" }, 401);
 
-    const body = (await c.req.json().catch(() => ({}))) as { confirm?: unknown; ids?: unknown };
+    const body = (await c.req.json().catch(() => ({}))) as {
+      confirm?: unknown;
+      ids?: unknown;
+      force?: unknown;
+      allExceptSeed?: unknown;
+    };
     const all = await listQuotations();
-    const named = Array.isArray(body.ids) ? new Set(body.ids.map(String)) : null;
+    const isForce = body.force === true;
+    const allExceptSeed = body.allExceptSeed === true;
+    const named = allExceptSeed
+      ? new Set(all.filter((q) => q.quoteId !== "QT-1010-SKY" && typeof q.seedVersion !== "number").map((q) => q.quoteId))
+      : Array.isArray(body.ids)
+        ? new Set(body.ids.map(String))
+        : null;
+    const canDelete = (q: HonoQuotationDraft) => {
+      if (q.quoteId === "QT-1010-SKY" || typeof q.seedVersion === "number") return false;
+      return isForce ? true : deletableByCleanup(q);
+    };
     const considered = named ? all.filter((q) => named.has(q.quoteId)) : all;
-    const doomed = named ? considered.filter(deletableByCleanup) : duplicateQuotationIds(all);
-    const refused = named ? considered.filter((q) => !deletableByCleanup(q)) : [];
-    const notFound = named ? [...named].filter((id) => !all.some((q) => q.quoteId === id)) : [];
+    const doomed = named ? considered.filter(canDelete) : duplicateQuotationIds(all);
+    const refused = named ? considered.filter((q) => !canDelete(q)) : [];
+    const notFound = named && !allExceptSeed ? [...named].filter((id) => !all.some((q) => q.quoteId === id)) : [];
 
     if (body.confirm !== true) {
       return c.json({

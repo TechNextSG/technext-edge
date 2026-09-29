@@ -309,5 +309,33 @@ describe("cleaning up duplicate quotations", () => {
     expect(studioHtml).toContain("This quotation is archived.");
     expect(studioHtml).toContain(">Archived<");
   });
+
+  it("allows authorized force cleanup of all test records while strictly preserving the seed fixture", async () => {
+    await stored("QT-FORCE-1", "639170000088", "2026-09-28T04:00:00Z", { status: "confirmed_by_hono" });
+    await stored("QT-FORCE-2", "639170000089", "2026-09-28T05:00:00Z", { staffEdits: ["roomType"] });
+    const app = createApp();
+
+    // Dry run with allExceptSeed and force: true
+    const dryRes = await cleanup(app, { confirm: false, allExceptSeed: true, force: true });
+    expect(dryRes.status).toBe(200);
+    const dry = await dryRes.json();
+    expect(dry.ok).toBe(true);
+    expect(dry.wouldRemove.some((x: { quoteId: string }) => x.quoteId === "QT-FORCE-1")).toBe(true);
+    expect(dry.wouldRemove.some((x: { quoteId: string }) => x.quoteId === "QT-1010-SKY")).toBe(false);
+
+    // Apply cleanup with confirm: true
+    const applyRes = await cleanup(app, { confirm: true, allExceptSeed: true, force: true });
+    expect(applyRes.status).toBe(200);
+    const applied = await applyRes.json();
+    expect(applied.ok).toBe(true);
+    expect(applied.removed).toContain("QT-FORCE-1");
+    expect(applied.removed).toContain("QT-FORCE-2");
+    expect(applied.removed).not.toContain("QT-1010-SKY");
+
+    // The seed fixture survives
+    const seedRes = await app.request(`/quotes/QT-1010-SKY?token=${VERIFY_TOKEN}`);
+    expect(seedRes.status).toBe(200);
+  });
 });
+
 
