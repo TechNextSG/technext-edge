@@ -16,6 +16,7 @@ import { buildSimulatedModel } from "./simulatedEstimator.js";
 import { createQuotationStoreFromEnv, type QuotationStore } from "./quotationStoreClient.js";
 import { type DemoRole } from "./demoAuth.js";
 import { escapeHtml } from "./html.js";
+import { paymentDetailLines, paymentDetailsText, resortPaymentDetailsFromEnv } from "./resortPaymentDetails.js";
 
 /**
  * Lazily-built, so reading the env happens at first use rather than at import time. That keeps
@@ -477,6 +478,17 @@ export function renderHonoQuotationEditorHtml(
           .join("\n");
   /** A JS string literal that cannot close the page's template literal, whatever the guest is called. */
   const followUpJsString = JSON.stringify(followUpText).replace(/`/g, "\\u0060");
+
+  /**
+   * The resort's payment details, if this deployment was ever given any.
+   *
+   * Null is the normal state and an honest one: the card used to be drawn from constants in this
+   * repository — a bank account number and a mobile number that nobody at Casa Escondida has ever
+   * confirmed. See `resortPaymentDetails.ts`. Nulled, the card and its copy button are absent from
+   * the page entirely, so there is nothing to read out to a guest and nothing to screenshot.
+   */
+  const paymentDetails = resortPaymentDetailsFromEnv();
+  const paymentDetailsJsString = JSON.stringify(paymentDetails ? paymentDetailsText(paymentDetails) : "");
 
   // A step is `done` when it is behind us, `current` when it is the next thing to do. "Get price"
   // counts as done only when the ENGINE priced it: a figure with no scenario behind it cannot become
@@ -1562,17 +1574,22 @@ ${themeCss()}
         </div>`
         }
 
-        <!-- Casa Bank Information for WhatsApp -->
-        <div style="margin-top:20px;padding:16px 18px;border:1px solid var(--border);border-radius:12px;background:var(--surface-2);">
+        <!-- Casa Bank Information for WhatsApp. Rendered only when this deployment was configured
+             with the resort's real details: the numbers that used to be here were invented, and an
+             invented account number is the one kind of wrong answer a guest can act on. -->
+        ${paymentDetails
+          ? `<div style="margin-top:20px;padding:16px 18px;border:1px solid var(--border);border-radius:12px;background:var(--surface-2);">
           <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;margin-bottom:8px;">
             <div style="font-size:14px;font-weight:800;color:var(--text);">Casa Escondida · Bank &amp; Payment Details</div>
             <button type="button" class="btn btn-outline" onclick="copyBankPaymentInfo()" style="padding:6px 12px;font-size:12.5px;font-weight:700;">Copy Bank Details</button>
           </div>
           <div style="font-size:13px;color:var(--muted);line-height:1.55;">
-            <strong>BDO Unibank (Pesos):</strong> Casa Escondida Anilao Resort Inc. · Acct: 0012-3456-7890<br />
-            <strong>GCash / Maya:</strong> 0917-123-4567 (Casa Front Desk)
+            ${paymentDetailLines(paymentDetails)
+              .map((line, i) => (i === 0 ? `<strong>${esc(line)}</strong>` : esc(line)))
+              .join("<br />")}
           </div>
-        </div>
+        </div>`
+          : ""}
 
         <!-- Deposit Payment Status & Recording -->
         <div id="deposit-section" style="margin-top:20px;padding:16px 18px;border:1.5px solid ${isDepositReceived ? "var(--emerald)" : "var(--border)"};border-radius:12px;background:${isDepositReceived ? "var(--emerald-soft)" : "var(--surface-2)"};">
@@ -1643,6 +1660,8 @@ ${themeCss()}
     // record and the sentence in the guest's message cannot disagree about when a quotation lapses.
     const FOLLOW_UP_HOURS = { nudge: ${window.nudgeHours}, stale: ${window.staleHours} };
     const FOLLOW_UP_TEXT = ${followUpJsString};
+    // Empty when this deployment holds no payment details, in which case the card is not rendered.
+    const BANK_PAYMENT_TEXT = ${paymentDetailsJsString};
 
     // The same escaping the server does (html.ts), for the parts of this page the browser draws. A
     // line description and a guest name arrive from WhatsApp, so a less-than sign in either is not
@@ -2509,20 +2528,19 @@ ${themeCss()}
     }
 
     function copyBankPaymentInfo() {
-      const text = [
-        'Casa Escondida Anilao - Bank Payment Details:',
-        '1. BDO Unibank (Philippine Peso)\\n   Account Name: Casa Escondida Anilao Resort Inc.\\n   Account Number: 0012-3456-7890',
-        '2. GCash / Maya:\\n   Mobile: 0917-123-4567 (Casa Front Desk)',
-        'Please send a screenshot or reference number once transfer is complete.'
-      ].join('\\n\\n');
+      // Built server-side from the deployment's own configuration. Empty means the card is not on
+      // the page either, so there is no button to press — this guard is for a stale tab that was
+      // rendered before the configuration changed, where the right answer is to copy nothing rather
+      // than to fall back on a number baked into the source.
+      if (!BANK_PAYMENT_TEXT) return;
       if (navigator.clipboard && navigator.clipboard.writeText) {
-        navigator.clipboard.writeText(text).then(function() {
-          showInfo('Casa bank payment details copied to clipboard!');
+        navigator.clipboard.writeText(BANK_PAYMENT_TEXT).then(function() {
+          showInfo('Casa bank payment details copied to clipboard.');
         }).catch(function() {
-          showInfo('Bank details copied.');
+          showInfo('Copy is blocked here — the details are on screen, select them and press Ctrl+C.');
         });
       } else {
-        showInfo('Bank details copied.');
+        showInfo('Copy is blocked here — the details are on screen, select them and press Ctrl+C.');
       }
     }
 

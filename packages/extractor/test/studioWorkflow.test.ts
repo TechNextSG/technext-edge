@@ -436,7 +436,7 @@ describe("one place for failures, and one action that sends", () => {
 });
 
 describe("deposit payment recording, ops sheet & 5-tab queue", () => {
-  it("renders 5 sidebar tabs and bank details card in the studio", async () => {
+  it("renders the 5 sidebar tabs, and no payment card until this deployment is configured with one", async () => {
     const base = await seed();
     const html = await studioFor(base.quoteId);
 
@@ -446,10 +446,16 @@ describe("deposit payment recording, ops sheet & 5-tab queue", () => {
     expect(html).toContain('id="tab-all"');
     expect(html).toContain('id="tab-cancelled"');
 
-    expect(html).toContain("Casa Escondida · Bank &amp; Payment Details");
-    expect(html).toContain("copyBankPaymentInfo()");
-    expect(html).toContain("BDO Unibank");
-    expect(html).toContain("GCash");
+    // The card used to be drawn from constants in this repository — a bank account number and a
+    // mobile number nobody at Casa Escondida has confirmed — which is why it is now configuration
+    // (see `resortPaymentDetails.ts` and `test/paymentDetails.test.ts` for the configured case).
+    // Unconfigured, the card and its copy button are absent and the invented numbers are nowhere.
+    expect(html).not.toContain("Casa Escondida · Bank &amp; Payment Details");
+    // The function stays in the page's script (it is a no-op with no configured text); it is the
+    // BUTTON that must not exist, because a button with nothing behind it is what invites a guess.
+    expect(html).not.toContain('onclick="copyBankPaymentInfo()"');
+    expect(html).not.toContain("0012-3456-7890");
+    expect(html).not.toContain("0917-123-4567");
   });
 
   it("records 50% deposit payment, updates status badge to Deposit Received and clears stale", async () => {

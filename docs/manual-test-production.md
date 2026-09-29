@@ -11,6 +11,10 @@ Dành cho người **tự bấm tay** trên production, không dùng script. M�
 > commit, share) trả 404. Cả hai đường đều **tự tính lại trong cùng session** rồi đi tiếp — xem bảng sự cố
 > ở mục 4. Số đo: `docs/upstream-note-bff-vercel-deploy.md`. Vì vậy **bước 5 dưới đây phải mở link ngay**,
 > và câu nói thật khi demo nằm ở cuối file.
+>
+> Mỗi lần **Send the message** đều kiểm link trước khi gửi: nếu link khách đã chết thì tin gửi đi là
+> **bản sao của mình** (`/q/<slug>`) và record ghi lại lý do. Đo hôm 2026-09-28: link gửi lúc 16:18 đã
+> 404 khi kiểm lại vài giờ sau; gửi lại một lần là khách nhận link của mình, mở được ngay.
 
 ---
 
@@ -79,11 +83,11 @@ hỏi tên (đã có trong câu trên).
 Mở báo giá mới nhất của Ana trong sidebar (mã dạng `QT-1120-ANA-…`). Trạng thái lúc này:
 **Needs review**, màn 1, `Rooms: r1:deluxe`.
 
-> Queue sau lần dọn 2026-09-28 còn **hai record gửi thật** để tham chiếu — `QT-1120-ANAR-F4A4C2DC` (chạy
-> trọn luồng hôm nay, có bản sửa của nhân viên trên record) và `QT-1120-ANAR-4998724A` (bản cũ, có
-> `mirrorUrl` nên mở được **trang khách của mình** ở `/q/<slug>`) — cộng seed `QT-1010-SKY`
-> (`Needs review`, để thấy tab *Action Needed* có việc). Record của lần chạy này là record **mới nhất**
-> cùng số điện thoại, và là record duy nhất ở trạng thái `Needs review` có `r1:deluxe` do chính bạn vừa tạo.
+> Queue sau lần dọn 2026-09-28 còn **hai dòng**: `QT-1120-ANAR-F4A4C2DC` (chạy trọn luồng hôm nay, có
+> bản sửa của nhân viên trên record, link khách đã gửi **và** `mirrorUrl` nên mở được trang khách của
+> mình ở `/q/<slug>`) và seed `QT-1010-SKY` (`Needs review`, để tab *Action Needed* có việc). Record của
+> lần chạy này là record **mới nhất** cùng số điện thoại, và là record duy nhất ở trạng thái `Needs
+> review` có `r1:deluxe` do chính bạn vừa tạo.
 
 | Bước | Bấm | Phải thấy |
 |---|---|---|
@@ -195,7 +199,8 @@ làm ở tab sim.
 
 | Hiện tượng | Nghĩa | Làm gì |
 |---|---|---|
-| Trang khách "not valid or has expired" | Fixture của khách mất token | Mở link `/q/<slug>` mà studio đưa (bản sao của mình), rồi ghi lại thời điểm để báo khách |
+| Trang khách "not valid or has expired" | Fixture của khách mất token | Bấm **Send the message** một lần nữa: route kiểm link, thấy chết thì đặt `mirrorUrl` và gửi **bản sao của mình** — khách nhận link mở được ngay. Ô link trong studio đổi sang `/q/<slug>` |
+| Ô link trong studio là `/q/<slug>` chứ không phải `…/quote/<token>` | Lần gửi đó link của khách đã chết, nên khách được gửi bản sao cùng revision | Không phải lỗi; studio ghi lý do ngay dưới ô link. Muốn khách đọc app của họ thì phải publish lại lúc link còn sống |
 | Studio: badge `Link ready — not sent` | Đã tạo link nhưng **chưa** gửi tin cho khách | Bấm **Send the message** — badge chỉ đổi sang `Sent to guest` sau khi gửi thật |
 | Studio: *"this price did not come from the booking engine…"* | Record có giá sample nhưng chưa có scenario | Vào **màn 2 → Get price**, rồi Approve lại |
 | Studio: *"the engine no longer had this quotation, so it was priced again from the trip on screen"* | Fixture đã quên scenario của record (bộ nhớ một instance), nên **Save & get price** tự tạo scenario mới trong cùng session | Không phải lỗi — đọc câu đó rồi đi tiếp. Bản đóng băng cũ không còn, nên **Version** trên link khách bắt đầu lại từ 1 |
