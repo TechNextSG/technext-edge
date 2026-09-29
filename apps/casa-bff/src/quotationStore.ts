@@ -1267,7 +1267,6 @@ ${themeCss()}
       <h1>Casa Escondida — Quotation Review #${draft.quoteId}</h1>
     </div>
     <div class="top-actions">
-      <a class="theme-btn staff-only" id="topbar-ops-btn" href="/quotes/${encodeURIComponent(draft.quoteId)}/ops" target="_blank" style="text-decoration:none;font-weight:700;display:inline-flex;align-items:center;gap:6px;">Ops Sheet &nearr;</a>
       <form method="post" action="/logout" style="display:inline;"><button type="submit" class="theme-btn">Sign out</button></form>
       <button type="button" class="theme-btn" id="theme-toggle-btn" onclick="toggleTheme()">
         <span id="theme-label">Dark Mode</span>
@@ -1415,15 +1414,6 @@ ${themeCss()}
             <label>Nights / Rooms / Guests</label>
             <input class="cell-input" value="${draft.nights} nights · ${draft.rooms} rooms · ${draft.stayingGuests}/${draft.totalGroupSize} pax" readonly style="color:var(--muted);background:var(--surface-2);" />
           </div>
-        </div>
-
-        <!-- Tour Operations Checklist Link -->
-        <div style="display:flex;justify-content:space-between;align-items:center;padding:12px 16px;background:var(--surface-2);border:1px solid var(--border);border-radius:10px;margin-top:6px;">
-          <div>
-            <div style="font-size:14px;font-weight:700;color:var(--text);">Tour Operations Checklist</div>
-            <div style="font-size:12.5px;color:var(--muted);">Boat manifest, room allocation &amp; diver schedule without rates.</div>
-          </div>
-          <a class="btn btn-outline staff-only" id="btn-open-ops-sheet" href="/quotes/${encodeURIComponent(draft.quoteId)}/ops" target="_blank" style="padding:6px 14px;font-size:13px;font-weight:700;">Ops Sheet</a>
         </div>
 
         <div style="margin-top:18px;">
