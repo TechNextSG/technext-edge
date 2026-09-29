@@ -74,10 +74,12 @@ function createResilientProvider(primary: ExtractProvider, fallback?: ExtractPro
     try {
       return await fnPrimary();
     } catch (err) {
-      primaryCooldownUntil = Date.now() + COOLDOWN_MS;
+      const msg = err instanceof Error ? err.message : String(err);
+      const isAuthError = msg.includes("401") || msg.includes("Authentication Fails") || msg.includes("invalid");
+      primaryCooldownUntil = Date.now() + (isAuthError ? 3_600_000 : COOLDOWN_MS);
       // eslint-disable-next-line no-console
       console.warn(
-        `[provider] Primary ${primary.id} failed (${err instanceof Error ? err.message : String(err)}); tripping 60s circuit-breaker to fallback ${fallback!.id}`
+        `[provider] Primary ${primary.id} failed (${msg}); tripping ${isAuthError ? "1h" : "60s"} circuit-breaker to fallback ${fallback!.id}`
       );
       return await fnFallback();
     }

@@ -432,6 +432,20 @@ export function guestPendingQuotationNote(): string {
 
 export function createApp(options: AppOptions = {}) {
   const app = new Hono();
+
+  app.onError((err, c) => {
+    // eslint-disable-next-line no-console
+    console.error(`[casa-bff] unhandled error on ${c.req.method} ${c.req.url}:`, err);
+    return c.json(
+      {
+        ok: false,
+        reason: "internal_error",
+        error: err instanceof Error ? err.message : String(err),
+      },
+      500,
+    );
+  });
+
   // Per-app, so a warm serverless instance keeps the thread; see the caveat in
   // conversationStore.ts on why this is a POC store and not the real one.
   const store = options.store ?? createConversationStoreFromEnv();
@@ -2762,123 +2776,152 @@ export function createApp(options: AppOptions = {}) {
    * isn't on the test list" and cannot act on `{"error":{"code":131030,...}}`.
    */
   app.post("/v1/quotes/:id/send-whatsapp", async (c) => {
-    if (!staffSession(c).ok) {
-      return c.json({ error: "unauthorized" }, 401);
-    }
-    const id = c.req.param("id");
-    const existing = await getQuotationByIdOrSlug(id);
-    if (!existing) return c.json({ error: "not_found" }, 404);
+    try {
+      if (!staffSession(c).ok) {
+        return c.json({ error: "unauthorized" }, 401);
+      }
+      const id = c.req.param("id");
+      const existing = await getQuotationByIdOrSlug(id);
+      if (!existing) return c.json({ error: "not_found" }, 404);
 
-    if (existing.status !== "confirmed_by_hono") {
-      return c.json(
-        { ok: false, reason: "not_approved", error: "Approve the quotation before sending it to the guest." },
-        409,
+      if (existing.status !== "confirmed_by_hono") {
+        return c.json(
+          { ok: false, reason: "not_approved", error: "Approve the quotation before sending it to the guest." },
+          409,
+        );
+      }
+      // The link the guest will actually hold: our copy when their app lost the one it issued.
+      const guestUrl = guestLinkFor(existing);
+      if (!existing.estimator?.sharedAt || !guestUrl) {
+        return c.json(
+          {
+            ok: false,
+            reason: "not_published",
+            error:
+              "Publish the quotation first — the message carries the link to the guest's own quotation page, and that link does not exist yet.",
+          },
+          409,
+        );
+      }
+
+      // The message is the last chance to notice a dead link, and the only one that matters: after
+      // this, a guest is holding it. See the note in `/publish` — their fixture deployment has
+      // answered 404 for a token it minted itself.
+      //
+      // The check is only asked about THEIR link. Our own copy is rendered from the record on every
+      // request (`/q/:slug`), so there is no stored token to lose; asking ourselves over HTTP would
+      // The last moment before a guest holds the link, so this is where a link that has since died is
+      // caught — and the answer is not to refuse: it is to send OUR copy of the same frozen revision,
+      // which is rendered from this record on every request and cannot be lost.
+      //
+      // Measured: their demo deployment has answered 200 six times, then 404 twelve times in a row for
+      // the same token minutes later (and its scenario 404s with it). Publishing checks the link too,
+      // but a link that was fine at publish can be gone by the time somebody sends it.
+      //
+      // Our own copy needs no check: `/q/:slug` renders from the record, so there is no stored token to
+      // lose. A port with no guest app (the simulated one) cannot answer the question at all, so it is
+      // not asked.
+      let draft = existing;
+      if (!draft.estimator?.mirrorUrl && estimator.kind === "remote") {
+        const linkCheck = await estimator.verifyGuestLink(guestUrl);
+        if (!linkCheck.ok) {
+          const origin = new URL(c.req.url).origin;
+          const mirrorReason =
+            linkCheck.reason === "not_found"
+              ? "the booking app no longer recognises the link it issued, so the guest was sent a copy of the same revision on our own page"
+              : `the booking app could not be asked for the link (${linkCheck.reason}: ${linkCheck.detail}), so the guest was sent a copy of the same revision on our own page`;
+          draft = await saveQuotationDraft({
+            ...existing,
+            estimator: {
+              ...(existing.estimator ?? { id: null, cookie: null, seq: null, guestUrl: null, sharedAt: null }),
+              mirrorUrl: `${origin}/q/${encodeURIComponent(existing.slug)}`,
+              mirrorReason,
+            },
+          });
+          // eslint-disable-next-line no-console
+          console.warn(`[casa-bff] send ${id}: their link failed verification (${linkCheck.reason}); sending our copy`);
+        }
+      }
+      const guestLinkSent = guestLinkFor(draft) ?? guestUrl;
+
+      const body = (await c.req.json().catch(() => ({}))) as { phone?: string };
+      const recipient = checkRecipient(body.phone || existing.phone || "");
+      if (!recipient.ok) {
+        return c.json({ ok: false, reason: recipient.code, error: recipient.message }, 400);
+      }
+
+      // The message is rebuilt from the record every time rather than reusing `aiConfirmedReply`:
+      // that field was prepared at Approve time, before Publish, so it still contains the old
+      // self-computed table and no link.
+      let provider: ExtractProvider | undefined;
+      try {
+        provider = options.provider ?? createProviderFromEnv();
+      } catch {
+        // No provider configured: the deterministic message is complete on its own.
+      }
+      // The deadline is part of what the guest is told, and at this moment the send has not happened yet —
+      // so a message built from the record as it stands would state the booking terms without the one
+      // date that matters. Measured on production 2026-09-28 by reading the body the send route returned:
+      // the page promised "valid until …" and the WhatsApp message said nothing about it. The provisional
+      // timestamp is only used to *write* the sentence; what gets stored is the real send time below.
+      const text = await synthesizeConfirmedQuotationReply(
+        draft.sentToGuestAt ? draft : { ...draft, sentToGuestAt: new Date().toISOString() },
+        provider,
       );
-    }
-    // The link the guest will actually hold: our copy when their app lost the one it issued.
-    const guestUrl = guestLinkFor(existing);
-    if (!existing.estimator?.sharedAt || !guestUrl) {
+
+      let send: WhatsAppSendText;
+      try {
+        send = options.sendWhatsApp ?? createWhatsAppSender(whatsAppConfig());
+      } catch (configErr) {
+        // eslint-disable-next-line no-console
+        console.error(`[casa-bff] whatsapp sender configuration failed for ${id}:`, configErr);
+        return c.json(
+          {
+            ok: false,
+            reason: "send_failed",
+            error: configErr instanceof Error ? configErr.message : "WhatsApp credentials are not configured on this server.",
+          },
+          500,
+        );
+      }
+
+      try {
+        await send({ to: recipient.phone, body: text });
+        // Remember that somebody actually pressed send. Publishing and sending are separate actions
+        // ("Create link only" is one of the buttons), and the studio's status pill read `sharedAt` as
+        // "the guest has it" — measured on production, where a link-only publish showed "Sent to guest"
+        // and offered to send "the message again" for a message that had never gone out.
+        const sentAt = new Date().toISOString();
+        await saveQuotationDraft({ ...draft, sentToGuestAt: sentAt, sentToPhone: recipient.phone });
+        return c.json({
+          ok: true,
+          phone: recipient.phone,
+          body: text,
+          guestLink: guestLinkSent,
+          sentAt,
+          // True when the guest was sent our copy instead of the booking app's link, so the studio can
+          // say why without guessing.
+          mirror: Boolean(draft.estimator?.mirrorUrl),
+        });
+      } catch (err) {
+        const meta = err instanceof WhatsAppSendError ? err : null;
+        // eslint-disable-next-line no-console
+        console.error(`[casa-bff] whatsapp send failed for ${id}: ${meta?.detail ?? String(err)}`);
+        return c.json(
+          { ok: false, reason: "send_failed", error: explainMetaError(meta?.code, meta?.detail ?? String(err)) },
+          502,
+        );
+      }
+    } catch (topErr) {
+      // eslint-disable-next-line no-console
+      console.error(`[casa-bff] send-whatsapp top-level error:`, topErr);
       return c.json(
         {
           ok: false,
-          reason: "not_published",
-          error:
-            "Publish the quotation first — the message carries the link to the guest's own quotation page, and that link does not exist yet.",
+          reason: "internal_error",
+          error: topErr instanceof Error ? topErr.message : String(topErr),
         },
-        409,
-      );
-    }
-
-    // The message is the last chance to notice a dead link, and the only one that matters: after
-    // this, a guest is holding it. See the note in `/publish` — their fixture deployment has
-    // answered 404 for a token it minted itself.
-    //
-    // The check is only asked about THEIR link. Our own copy is rendered from the record on every
-    // request (`/q/:slug`), so there is no stored token to lose; asking ourselves over HTTP would
-    // The last moment before a guest holds the link, so this is where a link that has since died is
-    // caught — and the answer is not to refuse: it is to send OUR copy of the same frozen revision,
-    // which is rendered from this record on every request and cannot be lost.
-    //
-    // Measured: their demo deployment has answered 200 six times, then 404 twelve times in a row for
-    // the same token minutes later (and its scenario 404s with it). Publishing checks the link too,
-    // but a link that was fine at publish can be gone by the time somebody sends it.
-    //
-    // Our own copy needs no check: `/q/:slug` renders from the record, so there is no stored token to
-    // lose. A port with no guest app (the simulated one) cannot answer the question at all, so it is
-    // not asked.
-    let draft = existing;
-    if (!draft.estimator?.mirrorUrl && estimator.kind === "remote") {
-      const linkCheck = await estimator.verifyGuestLink(guestUrl);
-      if (!linkCheck.ok) {
-        const origin = new URL(c.req.url).origin;
-        const mirrorReason =
-          linkCheck.reason === "not_found"
-            ? "the booking app no longer recognises the link it issued, so the guest was sent a copy of the same revision on our own page"
-            : `the booking app could not be asked for the link (${linkCheck.reason}: ${linkCheck.detail}), so the guest was sent a copy of the same revision on our own page`;
-        draft = await saveQuotationDraft({
-          ...existing,
-          estimator: {
-            ...(existing.estimator ?? { id: null, cookie: null, seq: null, guestUrl: null, sharedAt: null }),
-            mirrorUrl: `${origin}/q/${encodeURIComponent(existing.slug)}`,
-            mirrorReason,
-          },
-        });
-        // eslint-disable-next-line no-console
-        console.warn(`[casa-bff] send ${id}: their link failed verification (${linkCheck.reason}); sending our copy`);
-      }
-    }
-    const guestLinkSent = guestLinkFor(draft) ?? guestUrl;
-
-    const body = (await c.req.json().catch(() => ({}))) as { phone?: string };
-    const recipient = checkRecipient(body.phone || existing.phone || "");
-    if (!recipient.ok) {
-      return c.json({ ok: false, reason: recipient.code, error: recipient.message }, 400);
-    }
-
-    // The message is rebuilt from the record every time rather than reusing `aiConfirmedReply`:
-    // that field was prepared at Approve time, before Publish, so it still contains the old
-    // self-computed table and no link.
-    let provider: ExtractProvider | undefined;
-    try {
-      provider = options.provider ?? createProviderFromEnv();
-    } catch {
-      // No provider configured: the deterministic message is complete on its own.
-    }
-    // The deadline is part of what the guest is told, and at this moment the send has not happened yet —
-    // so a message built from the record as it stands would state the booking terms without the one
-    // date that matters. Measured on production 2026-09-28 by reading the body the send route returned:
-    // the page promised "valid until …" and the WhatsApp message said nothing about it. The provisional
-    // timestamp is only used to *write* the sentence; what gets stored is the real send time below.
-    const text = await synthesizeConfirmedQuotationReply(
-      draft.sentToGuestAt ? draft : { ...draft, sentToGuestAt: new Date().toISOString() },
-      provider,
-    );
-    const send = options.sendWhatsApp ?? createWhatsAppSender(whatsAppConfig());
-    try {
-      await send({ to: recipient.phone, body: text });
-      // Remember that somebody actually pressed send. Publishing and sending are separate actions
-      // ("Create link only" is one of the buttons), and the studio's status pill read `sharedAt` as
-      // "the guest has it" — measured on production, where a link-only publish showed "Sent to guest"
-      // and offered to send "the message again" for a message that had never gone out.
-      const sentAt = new Date().toISOString();
-      await saveQuotationDraft({ ...draft, sentToGuestAt: sentAt, sentToPhone: recipient.phone });
-      return c.json({
-        ok: true,
-        phone: recipient.phone,
-        body: text,
-        guestLink: guestLinkSent,
-        sentAt,
-        // True when the guest was sent our copy instead of the booking app's link, so the studio can
-        // say why without guessing.
-        mirror: Boolean(draft.estimator?.mirrorUrl),
-      });
-    } catch (err) {
-      const meta = err instanceof WhatsAppSendError ? err : null;
-      // eslint-disable-next-line no-console
-      console.error(`[casa-bff] whatsapp send failed for ${id}: ${meta?.detail ?? String(err)}`);
-      return c.json(
-        { ok: false, reason: "send_failed", error: explainMetaError(meta?.code, meta?.detail ?? String(err)) },
-        502,
+        500,
       );
     }
   });

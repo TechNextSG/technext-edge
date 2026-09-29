@@ -1807,6 +1807,30 @@ ${themeCss()}
       }
     }
 
+    async function safeJson(res) {
+      if (typeof res.text === 'function') {
+        const text = await res.text();
+        try {
+          return JSON.parse(text);
+        } catch (err) {
+          const snippet = text ? text.replace(/\s+/g, ' ').trim().slice(0, 160) : '';
+          return {
+            ok: false,
+            reason: 'server_error',
+            error: 'Server returned ' + (res.status || 'error') + (res.statusText ? ' ' + res.statusText : '') + (snippet ? ': ' + snippet : '')
+          };
+        }
+      }
+      if (typeof res.json === 'function') {
+        try {
+          return await res.json();
+        } catch (err) {
+          return { ok: false, reason: 'parse_error', error: String(err) };
+        }
+      }
+      return { ok: false, reason: 'unknown_response', error: 'Invalid response' };
+    }
+
     /**
      * The wizard: which screen is in front, and what the button at the bottom does.
      *
@@ -2681,8 +2705,8 @@ ${themeCss()}
           // The trip the person edited, not the one the PUT just handed back.
           body: JSON.stringify({ trip: tripToSave })
         });
-        const data = await res.json();
-        if (!data.ok) {
+        const data = await safeJson(res);
+        if (!res.ok || !data.ok) {
           // The details ARE saved at this point, and the page says which half failed.
           showError('Saved the guest details, but not the trip', data);
           return;
@@ -2782,14 +2806,14 @@ ${themeCss()}
           headers: { 'content-type': 'application/json' },
           body: JSON.stringify({ referenceNumber: ref, amount: amount, receivedAt: date })
         });
-        const data = await res.json();
-        if (data.ok) {
+        const data = await safeJson(res);
+        if (res.ok && data.ok) {
           state.depositPayment = data.depositPayment;
           closeDepositModal();
           showInfo('50% deposit payment recorded! Reservation confirmed.');
           setTimeout(function() { window.location.reload(); }, 600);
         } else {
-          showError('Failed to record deposit', { detail: data.error || 'Server error' });
+          showError('Failed to record deposit', { detail: data.error || data.detail || 'Server error' });
         }
       } catch (err) {
         showError('Request failed', { detail: String(err) });
@@ -2804,11 +2828,13 @@ ${themeCss()}
           headers: { 'content-type': 'application/json' },
           body: JSON.stringify({ revert: true })
         });
-        const data = await res.json();
-        if (data.ok) {
+        const data = await safeJson(res);
+        if (res.ok && data.ok) {
           state.depositPayment = null;
           showInfo('Deposit status reverted.');
           setTimeout(function() { window.location.reload(); }, 600);
+        } else {
+          showError('Failed to revert deposit', { detail: data.error || data.detail || 'Server error' });
         }
       } catch (err) {
         showError('Request failed', { detail: String(err) });
@@ -2825,8 +2851,8 @@ ${themeCss()}
         const res = await fetch('/v1/quotes/' + encodeURIComponent(state.quoteId) + '/cancel?token=' + encodeURIComponent(staffToken()), {
           method: 'POST'
         });
-        const data = await res.json();
-        if (data.ok) {
+        const data = await safeJson(res);
+        if (res.ok && data.ok) {
           window.location.reload();
           return;
         }
@@ -2850,8 +2876,8 @@ ${themeCss()}
           headers: { 'content-type': 'application/json' },
           body: JSON.stringify(payload)
         });
-        const data = await res.json();
-        if (!data.quotation) {
+        const data = await safeJson(res);
+        if (!res.ok || !data.quotation) {
           // A refusal leaves the quotation exactly as it was, so the page keeps showing the truth.
           showError('Could not approve', data);
           return;
@@ -2918,6 +2944,9 @@ ${themeCss()}
         // false: this flow reloads once, at the end, after the message has gone out.
         const published = await publishQuote(false);
         if (!published) return; // publishQuote() has already said why
+        const linkEl = document.getElementById('whatsapp-link');
+        const linkVal = (state.estimator && (state.estimator.mirrorUrl || state.estimator.guestUrl)) || '';
+        if (linkEl && linkVal) linkEl.value = linkVal;
       }
       if (sendBtn) sendBtn.disabled = true;
       if (toast) toast.textContent = 'Sending…';
@@ -2927,8 +2956,8 @@ ${themeCss()}
           headers: { 'content-type': 'application/json' },
           body: JSON.stringify({ phone })
         });
-        const data = await res.json();
-        if (!data.ok) {
+        const data = await safeJson(res);
+        if (!res.ok || !data.ok) {
           showError('Could not send to the guest', data);
           if (toast) toast.textContent = '';
           return;
@@ -2958,7 +2987,7 @@ ${themeCss()}
       if (!badge) return;
       try {
         const res = await fetch('/v1/quotes/estimator-status?token=' + encodeURIComponent(staffToken()));
-        const data = await res.json();
+        const data = await safeJson(res);
         if (!data.configured) {
           badge.textContent = 'Not configured — no prices available';
           badge.style.color = 'var(--muted)';
@@ -2990,8 +3019,8 @@ ${themeCss()}
           method: 'POST',
           headers: { 'content-type': 'application/json' }
         });
-        const data = await res.json();
-        if (!data.ok) {
+        const data = await safeJson(res);
+        if (!res.ok || !data.ok) {
           showError('Could not get a price', data);
           return;
         }
@@ -3058,9 +3087,9 @@ ${themeCss()}
           headers: { 'content-type': 'application/json' },
           body: JSON.stringify({ name: name, email: email, phone: phone || undefined })
         });
-        const data = await res.json();
+        const data = await safeJson(res);
         if (data.submission) state.submission = data.submission;
-        if (!data.ok) {
+        if (!res.ok || !data.ok) {
           showError('Could not create the booking', data);
           return;
         }
@@ -3124,10 +3153,10 @@ ${themeCss()}
           headers: { 'content-type': 'application/json' },
           body: JSON.stringify({ acknowledgeSample: !!(ack && ack.checked) })
         });
-        const data = await res.json();
+        const data = await safeJson(res);
         if (data.quotation) state = data.quotation;
         renderStatus();
-        if (!data.ok) {
+        if (!res.ok || !data.ok) {
           showError('Could not create the guest link', data);
           return false;
         }
