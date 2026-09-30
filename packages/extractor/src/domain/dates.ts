@@ -132,6 +132,13 @@ export function resolveRelativeDate(phrase: string, today: string, language?: Gu
     const day = isoDay ?? numericDay;
     const month = isoMonth ?? numericMonth;
     const year = isoYear ?? numericYear;
+    // "10/12/2026" is 10 December or 12 October, and both are real dates. This form used to be read
+    // day-first without asking while the yearless form ("10/12") was read by the guest's language, so
+    // one message could resolve two different ways. An explicit numeric date that has a second valid
+    // reading is unresolved: the caller turns null into a question. (ISO "2026-12-10" has one order.)
+    if (numericDate && calendarIso(Number(year), Number(day), Number(month)) !== null && day !== month) {
+      if (calendarIso(Number(year), Number(month), Number(day)) !== null) return null;
+    }
     const candidate = `${year}-${month.padStart(2, "0")}-${day.padStart(2, "0")}`;
     const parsed = new Date(`${candidate}T00:00:00Z`);
     if (
@@ -171,7 +178,13 @@ export function resolveRelativeDate(phrase: string, today: string, language?: Gu
     // groups, so which one is which is decided by which pattern matched, not by position.
     const monthWord = (enMonthFirst ? match[1] : match[2]) as string;
     const day = Number(enMonthFirst ? match[2] : match[1]);
-    const iso = upcomingIso(day, EN_MONTHS[monthWord.slice(0, 3)] as number, today);
+    const month = EN_MONTHS[monthWord.slice(0, 3)] as number;
+    // "October 10, 2027" is 2027. The year the guest wrote is theirs; a year already gone is not
+    // rolled forward here (that would turn "2025" into a date the guest never gave) — the caller
+    // sees a past date and asks.
+    const yearWord = /(?<!\d)(20\d{2})(?!\d)/.exec(p);
+    if (yearWord) return calendarIso(Number(yearWord[1]), month, day);
+    const iso = upcomingIso(day, month, today);
     if (iso) return iso;
   }
 
@@ -309,6 +322,11 @@ export function isPlausibleStayDate(iso: string, today: string): boolean {
   if (Number.isNaN(parsed.getTime()) || parsed.toISOString().slice(0, 10) !== iso) return false;
   if (iso < today) return false; // a stay cannot start in the past
   return daysBetween(today, iso) <= MAX_STAY_HORIZON_DAYS;
+}
+
+/** True when `iso` is a real calendar date before `today` (Manila). A stay cannot start in the past. */
+export function isPastDate(iso: string, today: string): boolean {
+  return /^\d{4}-\d{2}-\d{2}$/.test(iso) && iso < today;
 }
 
 export type DateCorroboration = "consistent" | "contradicted" | "no-opinion";

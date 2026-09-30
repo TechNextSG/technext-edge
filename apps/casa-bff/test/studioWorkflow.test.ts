@@ -375,16 +375,12 @@ describe("the four screens", () => {
     }
   });
 
-  it("gives a guest session the price and no wizard", async () => {
-    // The wizard's screens are staff-only, so a guest role must not open on step 1 — that screen is
-    // the trip review, which is ours. Rendered directly with the guest role, because the role comes
-    // from the demo session cookie rather than from the URL.
+  it("has no guest mode: the studio opens for staff, on the step the record has reached", async () => {
     const all = await listQuotations();
-    const html = renderHonoQuotationEditorHtml(all[0]!, all, "guest");
-    const markup = markupOnly(html);
+    const markup = markupOnly(renderHonoQuotationEditorHtml(all[0]!, all));
 
-    expect(markup).toMatch(/<main data-step="2">/);
-    expect(markup).toContain("body[data-role=\"guest\"] .wizard-nav { display: none !important; }");
+    expect(markup).not.toContain('body[data-role="guest"]');
+    expect(markup).not.toMatch(/<main data-step="2">/);
   });
 });
 

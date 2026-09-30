@@ -2,7 +2,7 @@ import { zodToJsonSchema } from "zod-to-json-schema";
 import { ZodError } from "zod";
 import { Trip, HOUSE_NORM_FIELDS, type Trip as TripType, type Field, type FieldState } from "../domain/schema.js";
 import { HOUSE_NORMS } from "../domain/houseNorms.js";
-import { manilaToday, resolveRelativeDate, deriveCheckOut, deriveNightsFromRange, corroborateDatePhrase, isPlausibleStayDate } from "../domain/dates.js";
+import { manilaToday, resolveRelativeDate, deriveCheckOut, deriveNightsFromRange, corroborateDatePhrase, isPlausibleStayDate, isPastDate } from "../domain/dates.js";
 import { corroborateCount } from "../domain/counts.js";
 import { normalize, detectLanguage, guestTextOf } from "./normalize.js";
 import { generateQuestions } from "./questions.js";
@@ -374,6 +374,13 @@ function postProcess(raw: unknown, today: string, sourceText: string): unknown {
     }
   }
 
+  // A stay cannot start before today (Manila) — their `checkin-in-past`. A guest who wrote a date that
+  // has already gone (or a year already gone) is asked again rather than priced on it, and nothing
+  // fills in a nearby date instead.
+  if (trip.checkIn?.state === "stated" && typeof trip.checkIn.value === "string" && isPastDate(trip.checkIn.value, today)) {
+    trip.checkIn = { value: null, state: "missing", evidence: null };
+  }
+
   for (const key of HOUSE_NORM_FIELDS) {
     const f = trip[key];
     if (f && f.state === "missing") {
@@ -498,12 +505,35 @@ function postProcess(raw: unknown, today: string, sourceText: string): unknown {
       trip[key] = { value: null, state: "missing", evidence: null };
     }
   }
+  // More divers than guests is their `divers-over-guests`. The old code clamped the count to the party
+  // size downstream, which prices a number the guest never said; asking again is the only honest fix.
+  if (
+    trip.divers?.state === "stated" &&
+    typeof trip.divers.value === "number" &&
+    trip.guests?.state === "stated" &&
+    typeof trip.guests.value === "number" &&
+    trip.divers.value > trip.guests.value
+  ) {
+    trip.divers = { value: null, state: "missing", evidence: null };
+  }
 
   // checkOut is arithmetic on the guest's own answers, and it runs *after* evidence
   // enforcement on purpose: a check-in or a night count that did not survive
   // enforcement must not leave a derived check-out behind, pointing at a source that
   // no longer exists. (robustness.test.ts found the earlier order — the derived date
   // was computed first and outlived the check-in it came from.)
+  // A stated check-out has to be a real date after the check-in — their `checkout-not-after-checkin`.
+  // A reversed range or a zero-night one is put back to the guest as the night count / check-out
+  // question; the old path let it through and the draft defaulted to one night.
+  if (
+    trip.checkOut?.state === "stated" &&
+    typeof trip.checkOut.value === "string" &&
+    (isPastDate(trip.checkOut.value, today) ||
+      (typeof trip.checkIn?.value === "string" && trip.checkOut.value <= trip.checkIn.value))
+  ) {
+    trip.checkOut = { value: null, state: "missing", evidence: null };
+  }
+
   const nights = trip.nights;
   if (trip.checkIn?.value && typeof nights?.value === "number") {
     trip.checkOut = {

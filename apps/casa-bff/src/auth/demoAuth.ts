@@ -23,9 +23,15 @@
 import { themeCss } from "../views/theme.js";
 import { createHmac, timingSafeEqual } from "node:crypto";
 
-export type DemoRole = "guest" | "agent" | "staff";
+/**
+ * The studio is a staff tool and nothing else. In the customer's system a role comes from the login
+ * session (Odoo decides it), never from what a client sends, and agents and instructors use the
+ * customer's own tool — so there is one role here. A cookie signed with an older role ("guest",
+ * "agent") is no longer a session at all: `verifySession` returns null for it.
+ */
+export type DemoRole = "staff";
 
-export const DEMO_ROLES: readonly DemoRole[] = ["guest", "agent", "staff"];
+export const DEMO_ROLES: readonly DemoRole[] = ["staff"];
 
 /** Cookie the demo session rides in. HttpOnly: script on the page never reads it. */
 export const DEMO_SESSION_COOKIE = "casa_gais_session";

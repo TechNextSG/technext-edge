@@ -64,13 +64,10 @@ function renderRow(thread: PausedThread, now: number, role: DemoRole): string {
   const missing = (thread.missingFields ?? []).map((f) => FIELD_LABELS[f] ?? f);
   const reason = REASON_LABELS[thread.reason] ?? thread.reason;
   const phone = escapeHtml(thread.phone);
-  // Only staff may hand a thread back, because resume() changes who owns the conversation. An
-  // agent reading the list is useful; an agent un-parking someone else's guest is not.
-  const actions =
-    role === "staff"
-      ? `<form method="post" action="/handoff/${encodeURIComponent(thread.phone)}/resume"><button type="submit">Take it back to the bot</button></form>
-         <form method="post" action="/handoff/${encodeURIComponent(thread.phone)}/reset"><button type="submit" class="danger">Clear the thread</button></form>`
-      : `<span class="readonly">Staff only</span>`;
+  // The inbox is staff-only (the route refuses anyone else), so the actions are always offered.
+  void role;
+  const actions = `<form method="post" action="/handoff/${encodeURIComponent(thread.phone)}/resume"><button type="submit">Take it back to the bot</button></form>
+         <form method="post" action="/handoff/${encodeURIComponent(thread.phone)}/reset"><button type="submit" class="danger">Clear the thread</button></form>`;
 
   return `<tr>
   <td><span class="phone">${phone}</span><div class="since">waiting ${waitingFor(thread.since, now)}</div></td>

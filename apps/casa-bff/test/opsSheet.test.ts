@@ -176,14 +176,13 @@ describe("the studio draws the engine's answer", () => {
     expect(offered(after).some((u) => u.includes("/q/"))).toBe(false);
   });
 
-  it("marks the page with the role it was opened as, which is what gates the staff actions", async () => {    const draft = await storedQuote("QT-OPS-8");
+  it("marks the page as staff, and a cookie signed for an older role is not a session", async () => {
+    const draft = await storedQuote("QT-OPS-8");
     const app = createApp();
-    const cookie = `casa_gais_session=${issueSession("guest", { WHATSAPP_VERIFY_TOKEN: VERIFY_TOKEN } as NodeJS.ProcessEnv)}`;
+    const old = `casa_gais_session=${issueSession("guest" as never, { WHATSAPP_VERIFY_TOKEN: VERIFY_TOKEN } as NodeJS.ProcessEnv)}`;
 
-    const asGuest = await (await app.request(`/quotes/${draft.quoteId}`, { headers: { cookie } })).text();
-    expect(asGuest).toContain('data-role="guest"');
-    // The bars are still in the document — they are hidden by role, and the class is what hides them.
-    expect(asGuest).toContain("staff-only");
+    const asOld = await app.request(`/quotes/${draft.quoteId}`, { headers: { cookie: old } });
+    expect([301, 302, 303, 307, 308]).toContain(asOld.status);
 
     const asStaff = await (await app.request(`/quotes/${draft.quoteId}?token=${VERIFY_TOKEN}`)).text();
     expect(asStaff).toContain('data-role="staff"');

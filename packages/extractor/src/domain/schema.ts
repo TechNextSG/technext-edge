@@ -211,6 +211,7 @@ export const BffValidationCode = z.enum([
   "dive-days-outside-window",
   "arrive-depart-outside-stay",
   "room-over-capacity",
+  "divers-over-guests",
   "room-empty",
   "missing-mandatory-field",
 ]);

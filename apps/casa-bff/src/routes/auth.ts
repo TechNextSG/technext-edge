@@ -2,7 +2,6 @@ import type { Context, Hono } from "hono";
 import { deleteCookie } from "hono/cookie";
 import {
   DEMO_SESSION_COOKIE,
-  isDemoRole,
   renderLoginHtml,
   staffAccessKey,
   SAFE_NEXT_PREFIXES,
@@ -57,7 +56,8 @@ export function registerAuthRoutes(app: Hono, deps: AuthRouteDeps): void {
       return c.html(renderLoginHtml(true, nextPath), 401);
     }
     if (ip) loginLimiter.reset(ip);
-    setSession(c, isDemoRole(body.role) ? body.role : "staff");
+    // The form's `role` field is ignored: a role is not something the client gets to pick.
+    setSession(c, "staff");
     return c.redirect(nextPath);
   });
 

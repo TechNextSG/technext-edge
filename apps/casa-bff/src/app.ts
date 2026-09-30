@@ -1196,10 +1196,9 @@ export function createApp(options: AppOptions = {}) {
   /**
    * A session that may do damage: signed in *as staff*, not merely signed in.
    *
-   * `staffSession` answers "is this a valid session", and the demo has three roles (`guest`, `agent`,
-   * `staff` — see DEMO_ROLES). Cancelling a quotation and deleting records are not things an agent or
-   * a guest session may do, and the sign-in form's `role` field is client-controlled, so the check
-   * has to name the role rather than assume that anyone who signed in is staff.
+   * `staffSession` answers "is this a valid session". The only role left is `staff` (see DEMO_ROLES),
+   * so the two agree today; every route that changes anything asks this one so the check still names the
+   * role if a second one is ever added.
    */
   function staffWriter(c: Context): boolean {
     const auth = staffSession(c);
@@ -1520,7 +1519,7 @@ export function createApp(options: AppOptions = {}) {
           : `${estimator.baseUrl ?? DEFAULT_ESTIMATOR_BASE_URL}${ESTIMATE_PATH}`,
       body: trip ? buildEstimateRequest(trip).body : null,
       bffTrip: trip,
-      validationIssues: trip ? validateBffTripPrecheck(trip) : [],
+      validationIssues: trip ? validateBffTripPrecheck(trip, undefined, { role: "staff" }) : [],
       /**
        * Not sent, and deliberately not part of `body`. Amounts are Odoo's to compute — sending
        * our own subtotal/discount/total invites a second source of pricing truth, and the edge
@@ -1611,6 +1610,8 @@ export function createApp(options: AppOptions = {}) {
   // unauthenticated route a way to read any quotation, guest phone number included. It now
   // computes only from what the caller sent: a `trip`, or `lineItems` to price.
   app.post("/v1/quotes/compute", async (c) => {
+    // Stateless, but it prices any trip it is handed and drafts a quotation from it: staff only.
+    if (!staffWriter(c)) return c.json({ error: "unauthorized" }, 401);
     const body = (await c.req.json().catch(() => ({}))) as {
       trip?: Trip;
       phone?: string;
@@ -1696,7 +1697,7 @@ export function createApp(options: AppOptions = {}) {
   // anyone who can reach the URL. Nothing in this repo or its tests calls it (the bot saves its own
   // draft in-process through `/v1/converse`), so locking it costs no caller.
   app.post("/v1/quotes/submit", async (c) => {
-    if (!staffSession(c).ok) {
+    if (!staffWriter(c)) {
       return c.json({ error: "unauthorized" }, 401);
     }
     const body = (await c.req.json().catch(() => ({}))) as {
@@ -1731,7 +1732,7 @@ export function createApp(options: AppOptions = {}) {
 
   app.put("/v1/quotes/:id", async (c) => {
     // A write, and it edits what the guest will be shown. Staff only.
-    if (!staffSession(c).ok) {
+    if (!staffWriter(c)) {
       return c.json({ error: "unauthorized" }, 401);
     }
     const id = c.req.param("id");
@@ -1762,7 +1763,7 @@ export function createApp(options: AppOptions = {}) {
 
   app.post("/v1/quotes/:id/confirm", async (c) => {
     // Confirming commits the price and can trigger an outbound AI reply, so staff only.
-    if (!staffSession(c).ok) {
+    if (!staffWriter(c)) {
       return c.json({ error: "unauthorized" }, 401);
     }
     const id = c.req.param("id");
@@ -2049,7 +2050,7 @@ export function createApp(options: AppOptions = {}) {
    * happens to anyone who reopens a published quotation and clicks Price.
    */
   app.post("/v1/quotes/:id/sync-estimate", async (c) => {
-    if (!staffSession(c).ok) {
+    if (!staffWriter(c)) {
       return c.json({ error: "unauthorized" }, 401);
     }
     const id = c.req.param("id");
@@ -2093,7 +2094,7 @@ export function createApp(options: AppOptions = {}) {
           422,
         );
       }
-      const precheck = validateBffTripPrecheck(parsed.data);
+      const precheck = validateBffTripPrecheck(parsed.data, undefined, { role: "staff" });
       if (precheck.some((i) => i.level === "error")) {
         return c.json({ ok: false, reason: "trip_not_priceable", issues: precheck }, 422);
       }
@@ -2192,7 +2193,7 @@ export function createApp(options: AppOptions = {}) {
    *     of a button that says "publish", which is precisely the failure the publish gate exists for.
    */
   app.post("/v1/quotes/:id/trip", async (c) => {
-    if (!staffSession(c).ok) return c.json({ error: "unauthorized" }, 401);
+    if (!staffWriter(c)) return c.json({ error: "unauthorized" }, 401);
     const existing = await getQuotationByIdOrSlug(c.req.param("id"));
     if (!existing) return c.json({ error: "not_found" }, 404);
     if (!existing.bffTrip) {
@@ -2226,7 +2227,7 @@ export function createApp(options: AppOptions = {}) {
 
     // Our mirror of their `fillTrip` rules, run here so a bad edit is a message in the studio
     // rather than an Odoo 422 buried in a log. Errors refuse; warnings travel to the caller.
-    const precheck = validateBffTripPrecheck(parsed.data);
+    const precheck = validateBffTripPrecheck(parsed.data, undefined, { role: "staff" });
     if (precheck.some((i) => i.level === "error")) {
       return c.json({ ok: false, reason: "trip_not_priceable", issues: precheck }, 422);
     }
@@ -2370,7 +2371,7 @@ export function createApp(options: AppOptions = {}) {
    *     quote). A re-price after sharing means a new quotation and a new link.
    */
   app.post("/v1/quotes/:id/publish", async (c) => {
-    if (!staffSession(c).ok) return c.json({ error: "unauthorized" }, 401);
+    if (!staffWriter(c)) return c.json({ error: "unauthorized" }, 401);
     const existing = await getQuotationByIdOrSlug(c.req.param("id"));
     if (!existing) return c.json({ error: "not_found" }, 404);
 
@@ -2632,7 +2633,7 @@ export function createApp(options: AppOptions = {}) {
     .strict();
 
   app.post("/v1/quotes/:id/submit", async (c) => {
-    if (!staffSession(c).ok) return c.json({ error: "unauthorized" }, 401);
+    if (!staffWriter(c)) return c.json({ error: "unauthorized" }, 401);
     const id = c.req.param("id");
     const existing = await getQuotationByIdOrSlug(id);
     if (!existing) return c.json({ error: "not_found" }, 404);
@@ -2740,7 +2741,7 @@ export function createApp(options: AppOptions = {}) {
    */
   app.post("/v1/quotes/:id/send-whatsapp", async (c) => {
     try {
-      if (!staffSession(c).ok) {
+      if (!staffWriter(c)) {
         return c.json({ error: "unauthorized" }, 401);
       }
       const id = c.req.param("id");

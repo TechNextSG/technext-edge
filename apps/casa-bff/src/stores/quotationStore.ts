@@ -504,9 +504,9 @@ export function renderHonoQuotationEditorHtml(
   // to approve and nothing to publish, whatever the record's status happens to say.
   //
   // Server-rendered, like the status: the right step must be in front of the person before any script
-  // runs, and a guest session has no wizard at all — it opens on the price.
+  // runs, and the step is derived from the record alone.
   const maxStep = published ? 4 : enginePriced ? (approved ? 4 : 3) : draft.bffTrip ? 2 : 1;
-  const initialStep = role === "guest" ? 2 : published ? 4 : enginePriced && approved ? 4 : enginePriced ? 3 : 1;
+  const initialStep: number = published ? 4 : enginePriced && approved ? 4 : enginePriced ? 3 : 1;
 
   /**
    * What the wizard's button says before any script runs — and it has to be TRUE, not just present.
@@ -983,7 +983,6 @@ ${themeCss()}
       color: var(--muted);
     }
     .wizard-label strong { color: var(--text); }
-    body[data-role="guest"] .wizard-nav { display: none !important; }
     .link-editor-bar {
       display: flex;
       gap: 10px;
@@ -1251,10 +1250,6 @@ ${themeCss()}
       text-transform: uppercase;
       margin-bottom: 6px;
     }
-    /* The demo role the page was opened with decides whether the staff actions are offered at all.
-       A guest session sees the quotation, not the machinery that prices it — before this, the role
-       changed one line of text and nothing else. */
-    body[data-role="guest"] .staff-only { display: none !important; }
   </style>
 </head>
 <body data-role="${role}">

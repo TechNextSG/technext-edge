@@ -328,9 +328,11 @@ export function buildHonoQuotationDraft(
   phone?: string
 ): HonoQuotationDraft {
   const guestName = trip.contactName.value ?? "Valued Guest";
-  const checkIn = trip.checkIn.value ?? "2026-10-10";
-  const checkOut = trip.checkOut.value ?? "2026-10-12";
-  const nights = trip.nights.value ?? 2;
+  // No invented dates: a trip without them yields an empty range, which the pre-flight reports as
+  // `missing-mandatory-field` instead of a quotation for 10-12 October nobody asked for.
+  const checkIn = trip.checkIn.value ?? "";
+  const checkOut = trip.checkOut.value ?? "";
+  const nights = trip.nights.value ?? 0;
   const stayingGuests = trip.guests.value ?? 2;
   const rooms = trip.rooms.value ?? Math.max(1, Math.ceil(stayingGuests / 2));
   const mealPlan = trip.meals?.value ?? "full_board";

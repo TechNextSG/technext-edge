@@ -8,6 +8,7 @@ import type {
   BffValidationIssue,
 } from "../domain/schema.js";
 import { DEFAULT_ROOM_CAPS, type RoomCaps } from "../domain/houseNorms.js";
+import { manilaToday } from "../domain/dates.js";
 import { generateQuestions, getStaffAlerts, diveWindowIsGuessed } from "./questions.js";
 
 export type OdooHandoffMode =
@@ -161,10 +162,10 @@ export function buildBffTrip(trip: Trip, caps: RoomCaps = DEFAULT_ROOM_CAPS): Bf
     const defaultEnd = nights >= 2 ? addDaysIso(checkOut, -1) : checkIn;
     diveFrom = trip.diveFrom?.value ?? defaultStart;
     diveTo = trip.diveTo?.value ?? (defaultEnd >= diveFrom ? defaultEnd : diveFrom);
-    // Clamp within [checkIn, checkOut] to prevent `dive-window-outside-stay` (schema.md §3)
-    if (diveFrom < checkIn) diveFrom = checkIn;
-    if (diveTo > checkOut) diveTo = checkOut;
-    if (diveTo < diveFrom) diveTo = diveFrom;
+    // Not clamped into the stay: a window the guest gave that falls outside it is `dive-window-outside-stay`
+    // (their Q-010: blocked), and moving it here would price dives on days the guest never asked for.
+    // The extractor turns such a window back into a question; `validateBffTripPrecheck` reports it if one
+    // still arrives.
   }
 
   const rooms: BffRoom[] = Array.from({ length: roomCount }, (_, idx) => ({
@@ -251,11 +252,23 @@ export function buildBffTrip(trip: Trip, caps: RoomCaps = DEFAULT_ROOM_CAPS): Bf
 /**
  * Pre-flight validator matching `bff/src/trip/validate.ts` (`schema.md` §3).
  */
+export interface PrecheckOptions {
+  /** Manila "YYYY-MM-DD". Defaults to today. */
+  today?: string;
+  /** Their rule (Q-012): staff may open a record with a check-in in the past; every other role may not. */
+  role?: "guest" | "agent" | "instructor" | "staff";
+}
+
 export function validateBffTripPrecheck(
   bffTrip: BffTrip,
   caps: RoomCaps = DEFAULT_ROOM_CAPS,
+  opts: PrecheckOptions = {},
 ): BffValidationIssue[] {
   const issues: BffValidationIssue[] = [];
+
+  if (bffTrip.checkIn && (opts.role ?? "guest") !== "staff" && bffTrip.checkIn < (opts.today ?? manilaToday())) {
+    issues.push({ code: "checkin-in-past", fields: ["checkIn"], level: "error" });
+  }
 
   if (!bffTrip.checkIn || !bffTrip.checkOut) {
     issues.push({
@@ -444,9 +457,24 @@ export function buildOdooHandoffPayload(trip: Trip): OdooHandoffEnvelope {
 
   const bffTrip = buildBffTrip(trip);
   const bffValidationIssues = validateBffTripPrecheck(bffTrip);
+  // Their `divers-over-guests`. `buildBffTrip` cannot carry more divers than guests (a guest either dives
+  // or does not), so this is read off the Trip, where the number the guest said still is.
+  if (
+    typeof trip.divers?.value === "number" &&
+    typeof trip.guests?.value === "number" &&
+    trip.divers.value > trip.guests.value
+  ) {
+    bffValidationIssues.push({ code: "divers-over-guests", fields: ["divers"], level: "error" });
+  }
   const hasBffErrors = bffValidationIssues.some((i) => i.level === "error");
   if (hasBffErrors) {
     manualReviewReasons.push("bff_validation_error");
+  }
+  // The engine's own limits (guests <= 40, rooms <= 30, a name <= 120 characters). `buildBffTrip` has to
+  // cut to them to stay a valid Trip, and a quotation priced on the cut is a quotation for a smaller
+  // group than the guest wrote — so anything over goes to a person instead of being priced as-is.
+  if ((trip.guests?.value ?? 0) > 40 || (trip.rooms?.value ?? 0) > 30) {
+    manualReviewReasons.push("group_exceeds_engine_limit");
   }
 
   const isManual = manualReviewReasons.length > 0;

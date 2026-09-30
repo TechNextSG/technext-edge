@@ -682,11 +682,21 @@ describe("staff quotation routes require the staff token", () => {
   });
 });
 
-describe("/v1/quotes/compute stays usable by the AI and reads nothing stored", () => {  it("prices a trip with no credential — the product depends on this", async () => {
+describe("/v1/quotes/compute is a staff route and reads nothing stored", () => {
+  it("refuses a caller with no session", async () => {
+    const res = await createApp().request("/v1/quotes/compute", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ trip: makeTrip() }),
+    });
+    expect(res.status).toBe(401);
+  });
+
+  it("prices a trip for staff", async () => {
     const app = createApp();
     const res = await app.request("/v1/quotes/compute", {
       method: "POST",
-      headers: { "content-type": "application/json" },
+      headers: { "content-type": "application/json", "x-verify-token": STAFF_TOKEN },
       body: JSON.stringify({ trip: makeTrip() }),
     });
     expect(res.status).toBe(200);
@@ -700,7 +710,7 @@ describe("/v1/quotes/compute stays usable by the AI and reads nothing stored", (
     const real = (await listQuotations())[0]!;
     const res = await app.request("/v1/quotes/compute", {
       method: "POST",
-      headers: { "content-type": "application/json" },
+      headers: { "content-type": "application/json", "x-verify-token": STAFF_TOKEN },
       // The old endpoint looked this id up and returned the stored quotation, PII included.
       body: JSON.stringify({ draft: { quoteId: real.quoteId } }),
     });
@@ -713,7 +723,7 @@ describe("/v1/quotes/compute stays usable by the AI and reads nothing stored", (
     const app = createApp();
     const res = await app.request("/v1/quotes/compute", {
       method: "POST",
-      headers: { "content-type": "application/json" },
+      headers: { "content-type": "application/json", "x-verify-token": STAFF_TOKEN },
       body: JSON.stringify({
         draft: {
           lineItems: [
@@ -746,7 +756,7 @@ describe("/v1/quotes/compute stays usable by the AI and reads nothing stored", (
     const app = createApp();
     const res = await app.request("/v1/quotes/compute", {
       method: "POST",
-      headers: { "content-type": "application/json" },
+      headers: { "content-type": "application/json", "x-verify-token": STAFF_TOKEN },
       body: JSON.stringify({ trip: makeTrip() }),
     });
     expect(await res.text()).not.toContain(SEED_PHONE);
@@ -924,7 +934,7 @@ describe("the validated BFF Trip reaches the Odoo-bound envelope", () => {
     return app
       .request("/v1/quotes/compute", {
         method: "POST",
-        headers: { "content-type": "application/json" },
+        headers: { "content-type": "application/json", "x-verify-token": STAFF_TOKEN },
         body: JSON.stringify({ draft: { lineItems: withoutTrip.lineItems } }),
       })
       .then(async (r) => {

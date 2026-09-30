@@ -44,8 +44,8 @@ function signIn(role = "staff", password = STAFF_TOKEN) {
 
 describe("demo GAIS session tokens", () => {
   it("round-trips a role, and refuses a tampered or forged token", () => {
-    const token = issueSession("agent");
-    expect(verifySession(token)).toBe("agent");
+    const token = issueSession("staff");
+    expect(verifySession(token)).toBe("staff");
 
     // Any change to the payload invalidates the HMAC.
     const [payload, sig] = token.split(".");
@@ -57,6 +57,14 @@ describe("demo GAIS session tokens", () => {
     expect(verifySession(`${payload}.${"0".repeat(sig!.length)}`)).toBeNull();
     expect(verifySession("not-a-token")).toBeNull();
     expect(verifySession(undefined)).toBeNull();
+  });
+
+  it("does not honour a cookie signed with a role that no longer exists", () => {
+    // Signed with the real key, so only the role is wrong. Before this a signed-in "agent" or "guest"
+    // was a valid session with fewer buttons; now it is not a session.
+    for (const old of ["agent", "guest"]) {
+      expect(verifySession(issueSession(old as never))).toBeNull();
+    }
   });
 
   it("rejects an expired session without recomputing the role", () => {
@@ -77,10 +85,10 @@ describe("demo GAIS session tokens", () => {
     }
   });
 
-  it("only accepts the three GAIS roles", () => {
+  it("has one role: the studio is a staff tool, and agents use the customer's own tool", () => {
     expect(isDemoRole("staff")).toBe(true);
-    expect(isDemoRole("agent")).toBe(true);
-    expect(isDemoRole("guest")).toBe(true);
+    expect(isDemoRole("agent")).toBe(false);
+    expect(isDemoRole("guest")).toBe(false);
     expect(isDemoRole("admin")).toBe(false);
     expect(isDemoRole(null)).toBe(false);
   });
@@ -182,16 +190,16 @@ describe("the studio behind the demo sign-in", () => {
     expect(role.status).toBe(404);
   });
 
-  it("carries the demo role into the page", async () => {
+  it("ignores the role a sign-in form asks for: the client does not pick its role", async () => {
     const res = await signIn("agent");
     const cookie = sessionCookie(res);
 
     const app = createApp();
     const studio = await app.request("/quotes", { headers: { cookie } });
     const html = await studio.text();
-    // A role no longer labels the page — but it still decides what the page OFFERS, and a session
-    // that is not staff must not be handed the approval and send controls.
-    expect(html).toContain('body[data-role="guest"] .staff-only');
+    // Asked for "agent", got staff — and there is no guest mode of the page left to hide controls in.
+    expect(html).toContain('data-role="staff"');
+    expect(html).not.toContain('body[data-role="guest"]');
   });
 
   it("refuses a forged cookie as firmly as no cookie", async () => {
@@ -271,9 +279,7 @@ describe("the role a session carries", () => {
     expect(sessionCookie(res)).toBe("");
   });
 
-  it("comes from the sign-in form, which fills in staff", async () => {
-    // The form carries the role, so a signed-in session is staff unless a script says otherwise —
-    // and the sign-in response is where any other role has to be asked for.
+  it("is always staff, whatever the sign-in form says", async () => {
     const res = await signIn("agent");
     const cookie = sessionCookie(res);
     expect(cookie).not.toBe("");
