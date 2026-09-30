@@ -275,7 +275,8 @@ export function corroborateCount(
   const turns = guestText.split("\n").map((t) => t.trim()).filter(Boolean);
   if (turns.length > 0) {
     const lastTurn = turns[turns.length - 1];
-    const bareMatch = /^\s*(?:just|only)?\s*(\d{1,3})\s*$/iu.exec(lastTurn);
+    // `(?:(?:just|only)\s*)?` so the optional word is not flanked by two \s* that split spaces ambiguously.
+    const bareMatch = /^\s*(?:(?:just|only)\s*)?(\d{1,3})\s*$/iu.exec(lastTurn);
     if (bareMatch && Number(bareMatch[1]) === proposed) {
       return "consistent";
     }

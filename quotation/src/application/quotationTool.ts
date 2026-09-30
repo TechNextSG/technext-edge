@@ -235,8 +235,10 @@ export function buildHonoQuotationDraft(
   let totalGroupSize = stayingGuests;
   if (diver) {
     const note = diveNotes ?? "";
-    const day1Match = note.match(/(\d+)\s*(?:person|people|pax|diver|divers)\s*dives?\s*(?:on\s*)?day\s*1/i);
-    const bothDaysMatch = note.match(/(\d+)\s*(?:person|people|pax|diver|divers)\s*dives?\s*(?:on\s*)?(?:both\s*days|all\s*days|2\s*days)/i);
+    // `(?<!\d)`: a count starts where the digit run starts, so a long run is not re-scanned from each
+    // digit in it (CodeQL js/polynomial-redos). Same first match and capture.
+    const day1Match = note.match(/(?<!\d)(\d+)\s*(?:person|people|pax|diver|divers)\s*dives?\s*(?:on\s*)?day\s*1/i);
+    const bothDaysMatch = note.match(/(?<!\d)(\d+)\s*(?:person|people|pax|diver|divers)\s*dives?\s*(?:on\s*)?(?:both\s*days|all\s*days|2\s*days)/i);
     if (day1Match && bothDaysMatch) {
       totalGroupSize = Math.max(stayingGuests, Number(day1Match[1]) + Number(bothDaysMatch[1]));
     } else if (typeof divers === "number") {
