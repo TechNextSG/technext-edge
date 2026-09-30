@@ -243,6 +243,28 @@ export async function extract(rawText: string, provider: ExtractProvider): Promi
   };
 }
 
+/**
+ * Who is writing, read from the guest's own words — only phrasings that name a trade.
+ *
+ * The bare words "agent" and "agency" used to be enough, and they are ordinary English: "my real-estate
+ * agent recommended you" made a retail guest a partner, who was then invited to sign in and never quoted.
+ * The customer's engine takes the role from the login session, so a wrong guess here costs a guest an
+ * answer and a right one only routes them to the sign-in link. Hence: trade phrases only.
+ *
+ * An instructor is a separate role on their side (`guestType: "instructor"`) and takes the same road as
+ * an agent — a partner rate needs their own login, not our message.
+ */
+const AGENT_RE =
+  /\b(?:travel\s+agen(?:t|ts|cy|cies)|tour\s+(?:operator|operators|company)|wholesaler?s?|partner\s+rates?|dive\s+(?:club|shop|centre|center|operator)s?|our\s+clients?|(?:i'?m|i\s+am|we'?re|we\s+are)\s+(?:a\s+)?(?:travel\s+)?agents?\s+(?:for|at|with|from))\b|旅行社/i;
+const INSTRUCTOR_RE =
+  /\b(?:(?:dive|padi|ssi|naui|scuba|freediving)\s+instructors?|(?:i'?m|i\s+am|we'?re|we\s+are)\s+(?:an?\s+)?(?:\w+\s+)?instructors?)\b|教练|教練/i;
+
+export function partnerTypeOf(guestText: string): "agent" | "instructor" | null {
+  if (AGENT_RE.test(guestText)) return "agent";
+  if (INSTRUCTOR_RE.test(guestText)) return "instructor";
+  return null;
+}
+
 // The two FieldStates that are this file's to set: `default` (house norms, applied
 // to exactly HOUSE_NORM_FIELDS below) and `derived` (checkOut from checkIn + nights, and
 // transportType "none" for a guest who said no transfer). The prompt tells the model its
@@ -395,10 +417,10 @@ function postProcess(raw: unknown, today: string, sourceText: string): unknown {
 
   // Align with Odoo Estimate API (estimate-api.v1.json / casa-api-guide):
   // 1. guestType: detect agency phrasing or default to "retail"
-  const isAgent = /\b(agency|travel\s+agent|travel\s+agency|agent|tour\s+operator)\b|旅行社|代理/i.test(guestText);
   if (!trip.guestType || trip.guestType.state === "missing") {
-    trip.guestType = isAgent
-      ? { value: "agent", state: "inferred", evidence: null }
+    const partner = partnerTypeOf(guestText);
+    trip.guestType = partner
+      ? { value: partner, state: "inferred", evidence: null }
       : { value: "retail", state: "default", evidence: null };
   }
 
@@ -455,6 +477,14 @@ function postProcess(raw: unknown, today: string, sourceText: string): unknown {
     }
   }
 
+
+  // Kitchen and transfer notes are read from the guest's words or not at all: an `inferred` diet or a
+  // guessed direction would be printed on the kitchen sheet as though the guest had said it.
+  for (const key of ["dietNotes", "transferDirection"] as const) {
+    if (trip[key] && trip[key]!.state !== "stated") {
+      trip[key] = { value: null, state: "missing", evidence: null };
+    }
+  }
 
   // Evidence proves an explicit guest statement only. Keeping it on inferred,
   // missing, default or derived fields makes the UI look more certain than the

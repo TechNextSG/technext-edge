@@ -14,7 +14,7 @@
 import { describe, it, expect, vi, afterEach } from "vitest";
 import {
   DEFAULT_FOLLOW_UP_WINDOW,
-  bookingPolicyLines,
+  quotationValidityLines,
   followUpState,
   followUpWindowFromEnv,
   formatManila,
@@ -118,13 +118,14 @@ describe("when a quotation lapses", () => {
   });
 });
 
-describe("what the resort may say about its own terms", () => {
-  const lines = bookingPolicyLines(new Date("2026-10-04T12:00:00Z"));
+describe("what the resort may say about the quotation", () => {
+  const lines = quotationValidityLines(new Date("2026-10-04T12:00:00Z"));
 
-  it("states the deposit and the balance, which the customer's own sources state", () => {
-    // rates.json `terms.depositPct: 50`, and the resort's site in words.
-    expect(lines.join(" ")).toContain("50% non-refundable down payment");
-    expect(lines.join(" ")).toContain("at least 1 month before your travel date");
+  it("says nothing about a deposit or a balance: the customer's own tool does not", () => {
+    const text = lines.join(" ").toLowerCase();
+    expect(text).not.toContain("deposit");
+    expect(text).not.toContain("down payment");
+    expect(text).not.toContain("balance");
   });
 
   it("states the quotation's own validity, with a date", () => {
@@ -132,9 +133,6 @@ describe("what the resort may say about its own terms", () => {
   });
 
   it("promises no room hold and no first-come rule, because neither is the resort's published term", () => {
-    // The words this feature shipped with, and the reason they are absent: nothing here holds
-    // inventory, and "first-come, first-served" is published about parking. If Phillip confirms either
-    // for rooms, it goes in `bookingPolicyLines` with the source quoted beside it.
     const text = lines.join(" ").toLowerCase();
     expect(text).not.toContain("hold");
     expect(text).not.toContain("first-come");
@@ -142,7 +140,6 @@ describe("what the resort may say about its own terms", () => {
   });
 
   it("leaves the deadline off entirely when there is none to state", () => {
-    expect(bookingPolicyLines(null).join(" ")).not.toContain("valid until");
-    expect(bookingPolicyLines(null)).toHaveLength(2);
+    expect(quotationValidityLines(null)).toEqual([]);
   });
 });

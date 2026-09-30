@@ -1875,43 +1875,6 @@ export function createApp(options: AppOptions = {}) {
     return c.json({ ok: true, quotation: saved });
   });
 
-  /**
-   * Record that a guest's 50% deposit has been received (via BDO, GCash, wire transfer, etc.)
-   * or revert the deposit state if marked by mistake.
-   */
-  app.post("/v1/quotes/:id/deposit-payment", async (c) => {
-    if (!staffWriter(c)) {
-      return c.json({ error: "unauthorized" }, 401);
-    }
-    const id = c.req.param("id");
-    const existing = await getQuotationByIdOrSlug(id);
-    if (!existing) return c.json({ error: "not_found" }, 404);
-
-    let body: any = {};
-    try {
-      body = await c.req.json();
-    } catch {
-      // empty body
-    }
-
-    if (body.revert) {
-      existing.depositPayment = null;
-    } else {
-      const revenue = existing.pricing?.kpis?.revenue ?? existing.totalAmount;
-      const defaultDeposit = Math.round(revenue / 2);
-      existing.depositPayment = {
-        status: "received",
-        amount: typeof body.amount === "number" ? body.amount : defaultDeposit,
-        referenceNumber: typeof body.referenceNumber === "string" ? body.referenceNumber.trim() : "",
-        receivedAt: typeof body.receivedAt === "string" && body.receivedAt.trim() ? body.receivedAt.trim() : new Date().toISOString(),
-        note: typeof body.note === "string" ? body.note.trim() : undefined,
-      };
-    }
-    existing.updatedAt = new Date().toISOString();
-    const saved = await saveQuotationDraft(existing);
-    return c.json({ ok: true, quotation: saved, depositPayment: saved.depositPayment ?? null });
-  });
-
 
   /**
    * Remove the duplicate drafts the pre-`findOpenQuotationForPhone` bug left in the store.

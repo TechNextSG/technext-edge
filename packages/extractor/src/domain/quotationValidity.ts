@@ -13,7 +13,6 @@
  * holding your room") has to come from the resort, not from a constant in our code.
  */
 import type { HonoQuotationDraft } from "../application/quotationTool.js";
-import { DEPOSIT_PERCENT } from "./rates.js";
 
 /** Hours after the guest was sent the quotation. Timings are the resort's own, so they are config. */
 export interface FollowUpWindow {
@@ -81,8 +80,7 @@ export function followUpState(
 ): FollowUpState {
   if (draft.status === "cancelled") return "none";
   // A booking is the end of this question. `submission` is the folio the customer's app created, and
-  // `depositPayment` is staff-confirmed deposit receipt, so either means money moved.
-  if (draft.submission || draft.depositPayment?.status === "received") return "none";
+  if (draft.submission) return "none";
   const hours = hoursSinceSent(draft, now);
   if (hours === null) return "none";
   if (hours >= window.staleHours) return "stale";
@@ -119,33 +117,14 @@ export function formatManila(date: Date): string {
 }
 
 /**
- * What the resort's booking terms say, in the exact words a guest may be shown.
+ * The one sentence about the quotation's own deadline, or nothing when it was never sent.
  *
- * Every line here has a source, because these sentences go to a guest and a wrong term is a dispute:
- *
- *   * the deposit — `contracts/odoo/examples/rates.json` `terms.depositPct: 50`, and the resort's site
- *     in words ("50% non-refundable down payment required to confirm reservation");
- *   * the balance — the resort's site ("Full payment required at least 1 month prior to travel date");
- *   * the validity — ours, and only about the *quotation*: we know when we sent it, so we can say when
- *     it lapses. It is not a claim about inventory.
- *
- * NOT here, deliberately — both were in the first draft of this feature and both would have been our
- * words rather than the resort's:
- *
- *   * **"we are holding your room for 72 hours"** — nothing in this service holds inventory; rooms
- *     live in the customer's Odoo and are allocated by the front desk. Until Phillip confirms the desk
- *     really does hold a room on an unpaid quotation, promising it to a guest is a false statement
- *     about their booking, which is the one thing this whole flow exists to avoid;
- *   * **"rooms and dive boats are first-come, first-served"** — the resort's site does say
- *     "first-come, first-served", but it says it about *parking* ("free for the first 20 cars").
- *     Nothing published states it for rooms or boats, so it is a question for Phillip, not a line we
- *     may write: `docs/specs/resort-website-cross-check.md`.
+ * There used to be a deposit and a balance line here beside it. The customer's own quotation tool says
+ * nothing about a deposit — the front desk confirms availability and contacts the guest — so this
+ * service no longer states one either. What is left is ours and only about the *quotation*: we know when
+ * we sent it, so we can say when it lapses. It is not a claim about inventory, and it is not a promise to
+ * hold a room (nothing in this service holds one).
  */
-export function bookingPolicyLines(validUntil: Date | null): string[] {
-  const lines = [
-    `${DEPOSIT_PERCENT}% non-refundable down payment confirms your reservation.`,
-    "The balance is due at least 1 month before your travel date.",
-  ];
-  if (validUntil) lines.push(`This quotation is valid until ${formatManila(validUntil)} (Manila time).`);
-  return lines;
+export function quotationValidityLines(validUntil: Date | null): string[] {
+  return validUntil ? [`This quotation is valid until ${formatManila(validUntil)} (Manila time).`] : [];
 }

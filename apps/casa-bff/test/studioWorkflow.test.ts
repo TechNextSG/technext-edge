@@ -230,8 +230,7 @@ describe("chasing a guest who has not answered", () => {
     expect(html).toContain("Copy follow-up message");
     // The message quotes the terms the resort publishes, and invents no scarcity: "rooms are filling
     // up quickly" was in the first version of this and is not something this system can know.
-    expect(html).toContain("50% non-refundable down payment confirms your reservation");
-    expect(html).toContain("The balance is due at least 1 month before your travel date");
+    expect(html.toLowerCase()).not.toContain("down payment");
     expect(html).not.toContain("filling up");
     expect(html).not.toContain("secure your room");
   });
@@ -431,71 +430,38 @@ describe("one place for failures, and one action that sends", () => {
   });
 });
 
-describe("deposit payment recording, ops sheet & 5-tab queue", () => {
-  it("renders the 5 sidebar tabs, and no payment card until this deployment is configured with one", async () => {
+describe("the queue tabs, and no deposit anywhere in the studio", () => {
+  it("renders the four sidebar tabs, and nothing to record a payment against", async () => {
     const base = await seed();
     const html = await studioFor(base.quoteId);
 
     expect(html).toContain('id="tab-action-needed"');
-    expect(html).toContain('id="tab-waiting-deposit"');
-    expect(html).toContain('id="tab-deposit-received"');
+    expect(html).toContain('id="tab-waiting"');
     expect(html).toContain('id="tab-all"');
     expect(html).toContain('id="tab-cancelled"');
+    expect(html).not.toContain("tab-deposit-received");
 
-    // The card used to be drawn from constants in this repository — a bank account number and a
-    // mobile number nobody at Casa Escondida has confirmed — which is why it is now configuration
-    // (see `resortPaymentDetails.ts` and `test/paymentDetails.test.ts` for the configured case).
-    // Unconfigured, the card and its copy button are absent and the invented numbers are nowhere.
-    expect(html).not.toContain("Casa Escondida · Bank &amp; Payment Details");
-    // The function stays in the page's script (it is a no-op with no configured text); it is the
-    // BUTTON that must not exist, because a button with nothing behind it is what invites a guess.
-    expect(html).not.toContain('onclick="copyBankPaymentInfo()"');
-    expect(html).not.toContain("0012-3456-7890");
-    expect(html).not.toContain("0917-123-4567");
+    // The customer's tool takes no deposit and this studio only simulates it: no recording card, no
+    // modal, no bank details.
+    expect(html).not.toContain("deposit-section");
+    expect(html).not.toContain("deposit-modal");
+    expect(html).not.toContain("Bank &amp; Payment Details");
+    expect(html).not.toContain("copyBankPaymentInfo");
   });
 
-  it("records 50% deposit payment, updates status badge to Deposit Received and clears stale", async () => {
+  it("has no route to record a deposit, and the ops sheet carries no deposit badge", async () => {
     const app = createApp();
     const base = await seed();
-    const quote = await saveQuotationDraft(copyOf(base, "QT-STUDIO-PAID-TEST", {
-      status: "confirmed_by_hono",
-      sentToGuestAt: new Date(Date.now() - 80 * 3600 * 1000).toISOString(),
-    }));
+    const quote = await saveQuotationDraft(copyOf(base, "QT-STUDIO-PAID-TEST", { status: "confirmed_by_hono" }));
 
-    // Before deposit: it is past 72h, so it is marked stale
-    const beforeHtml = await (await app.request(`/quotes/${quote.quoteId}?token=${STAFF_TOKEN}`)).text();
-    expect(beforeHtml).toContain("Past its validity");
-
-    // Staff records deposit payment
     const res = await app.request(`/v1/quotes/${quote.quoteId}/deposit-payment?token=${STAFF_TOKEN}`, {
       method: "POST",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ referenceNumber: "BDO-998811", amount: 25000, receivedAt: "2026-10-01" }),
+      body: JSON.stringify({ referenceNumber: "BDO-998811", amount: 25000 }),
     });
-    expect(res.status).toBe(200);
-    const body = await res.json();
-    expect(body.ok).toBe(true);
-    expect(body.depositPayment.status).toBe("received");
-    expect(body.depositPayment.referenceNumber).toBe("BDO-998811");
+    expect(res.status).toBe(404);
 
-    // Studio page now shows Deposit Received and stale banner is cleared
-    const afterHtml = await (await app.request(`/quotes/${quote.quoteId}?token=${STAFF_TOKEN}`)).text();
-    expect(afterHtml).toContain("Deposit Received");
-    expect(afterHtml).toContain("Ref: <strong>BDO-998811</strong>");
-    expect(afterHtml).not.toContain("Past its validity");
-
-    // Ops sheet also displays Deposit 50% Paid badge
-    const opsHtml = await (await app.request(`/quotes/${quote.quoteId}/ops?token=${STAFF_TOKEN}`)).text();
-    expect(opsHtml).toContain("Deposit 50% Paid (Ref: BDO-998811)");
-
-    // Reverting deposit restores previous state
-    const revertRes = await app.request(`/v1/quotes/${quote.quoteId}/deposit-payment?token=${STAFF_TOKEN}`, {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({ revert: true }),
-    });
-    expect(revertRes.status).toBe(200);
-    const revertBody = await revertRes.json();
-    expect(revertBody.depositPayment).toBeNull();
+    const ops = await (await app.request(`/quotes/${quote.quoteId}/ops?token=${STAFF_TOKEN}`)).text();
+    expect(ops.toLowerCase()).not.toContain("deposit");
   });
 });

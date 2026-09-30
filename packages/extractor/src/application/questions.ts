@@ -375,6 +375,8 @@ const LABELS: Record<keyof Trip, Record<Lang, string>> = {
   divers: { en: "Divers", zh: "潜水人数" },
   diveNotes: { en: "Dive breakdown", zh: "潜水安排详情" },
   specialRequests: { en: "Special notes", zh: "特别要求" },
+  dietNotes: { en: "Diet / allergies", zh: "饮食／过敏" },
+  transferDirection: { en: "Airport transfer", zh: "机场接送" },
   guestNames: { en: "Guest names", zh: "客人名单" },
 };
 
@@ -727,6 +729,10 @@ function summaryLines(trip: Trip, lang: Lang): string[] {
   const special = trip.specialRequests?.value;
   if (special && trip.specialRequests?.state !== "missing") {
     lines.push(`• ${LABELS.specialRequests[lang]}: ${special}`);
+  }
+  const diet = trip.dietNotes?.value;
+  if (diet && trip.dietNotes?.state === "stated") {
+    lines.push(`• ${LABELS.dietNotes[lang]}: ${diet}`);
   }
 
   const guestNames = trip.guestNames?.value;

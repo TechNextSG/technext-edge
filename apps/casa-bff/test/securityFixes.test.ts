@@ -182,8 +182,9 @@ describe("the message a guest actually receives", () => {
 
     expect(body).toContain("valid until");
     expect(body).toContain("(Manila time)");
-    // The terms are the resort's own, and nothing about money this service invented.
-    expect(body).toContain("50% non-refundable down payment confirms your reservation");
+    // Nothing about money this service invented.
+    // No deposit: the customer's own tool states none, so this service states none either.
+    expect(body.toLowerCase()).not.toContain("down payment");
     expect(body).toContain("nothing is booked yet");
     expect(body).not.toContain("31,200");
     expect(body).not.toContain("15,600");

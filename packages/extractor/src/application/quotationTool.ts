@@ -5,7 +5,7 @@ import type { ExtractProvider } from "../ports/provider.js";
 import { getStaffAlerts, diveWindowIsGuessed } from "./questions.js";
 import { buildBffTrip, datesBetweenInclusive } from "./odooHandoff.js";
 import { verifyGuestFacingText, withBudget, type GuestFacingFacts } from "./synthesis.js";
-import { bookingPolicyLines, quotationValidUntil } from "../domain/quotationValidity.js";
+import { quotationValidityLines, quotationValidUntil } from "../domain/quotationValidity.js";
 import type { QuotationPricing } from "../domain/pricing.js";
 import {
   roomNightlyRate,
@@ -82,6 +82,10 @@ export interface HonoQuotationDraft {  quoteId: string;
   diver: boolean;
   divers: number | null;
   diveNotes: string | null;
+  /** The guest's own special requests, dietary needs and transfer direction: kept here for the desk, never sent to the engine. */
+  specialRequests?: string | null;
+  dietNotes?: string | null;
+  transferDirection?: "arrival" | "departure" | null;
   guestType: string | null;
   currency: "PHP" | "USD";
   discountPercent: number;
@@ -162,19 +166,8 @@ export interface HonoQuotationDraft {  quoteId: string;
    */
   sentToPhone?: string | null;
   estimator?: QuotationEstimatorState | null;
-  /**
-   * Record of deposit payment received (e.g. 50% down payment via BDO/GCash) to confirm reservation.
-   */
-  depositPayment?: DepositPayment | null;
 }
 
-export interface DepositPayment {
-  status: "received" | "pending";
-  amount: number;
-  referenceNumber: string;
-  receivedAt: string;
-  note?: string;
-}
 
 export interface QuotationEstimatorState {
   /** Their scenario id, from `POST /api/estimates`. */
@@ -507,6 +500,9 @@ export function buildHonoQuotationDraft(
     diver,
     divers,
     diveNotes,
+    specialRequests: trip.specialRequests?.value ?? null,
+    dietNotes: trip.dietNotes?.value ?? null,
+    transferDirection: trip.transferDirection?.value ?? null,
     guestType,
     currency: "PHP",
     discountPercent,
@@ -646,7 +642,7 @@ export async function synthesizeConfirmedQuotationReply(
     // The resort's booking terms, written by code rather than by the model: these are sentences a guest
     // may hold the desk to, so they come from `bookingPolicyLines` — sourced lines only. See it for
     // what is deliberately absent, and why "we are holding your room for 72 hours" is not among them.
-    `💡 Casa Escondida booking terms: ${bookingPolicyLines(quotationValidUntil(draft)).join(" ")}`,
+    ...quotationValidityLines(quotationValidUntil(draft)).map((line) => `💡 ${line}`),
   ]
     .filter(Boolean)
     .join("\n");

@@ -259,9 +259,10 @@ describe("an unknown quotation is a miss, not somebody's booking", () => {
       const app = createApp();
 
       const html = await (await app.request(`/q/${saved.slug}`)).text();
-      expect(html).toContain("Booking &amp; Deposit Policy");
-      expect(html).toContain("50% non-refundable down payment confirms your reservation");
-      expect(html).toContain("The balance is due at least 1 month before your travel date");
+      // The customer's tool says one thing here: the front desk confirms availability. No deposit.
+      expect(html).toContain("The front desk will confirm availability and contact you.");
+      expect(html).not.toContain("Deposit Policy");
+      expect(html.toLowerCase()).not.toContain("down payment");
       expect(html.toLowerCase()).not.toContain("first-come");
     });
 
@@ -656,7 +657,7 @@ describe("staff quotation routes require the staff token", () => {
       // …and the message is still the whole thing: the link, and the terms nobody may drop.
       expect(withModel).toContain("https://their-app.test/quote/live");
       expect(withModel).toContain("nothing is booked yet");
-      expect(withModel).toContain("50% non-refundable down payment confirms your reservation");
+      expect(withModel.toLowerCase()).not.toContain("down payment");
     });
   });
 

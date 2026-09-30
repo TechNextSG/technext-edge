@@ -71,7 +71,7 @@ export type { StaffTripEdit } from "./application/tripDiff.js";
 export { extractorFieldsForTripPath, pathsRestatedByGuest } from "./application/tripCorrections.js";
 export {
   DEFAULT_FOLLOW_UP_WINDOW,
-  bookingPolicyLines,
+  quotationValidityLines,
   followUpState,
   followUpWindowFromEnv,
   formatManila,
@@ -98,7 +98,6 @@ export type {
   QuotationSubmissionState,
   QuotationContact,
   QuotationEstimatorState,
-  DepositPayment,
 } from "./application/quotationTool.js";
 
 

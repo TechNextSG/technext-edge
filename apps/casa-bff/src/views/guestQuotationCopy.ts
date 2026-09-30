@@ -29,7 +29,7 @@
  *   4. shows nothing staff-facing: no phone number, no internal notes, no cost, no other guest.
  */
 import type { HonoQuotationDraft } from "../../../../packages/extractor/src/index.js";
-import { bookingPolicyLines, quotationValidUntil } from "../../../../packages/extractor/src/index.js";
+import { quotationValidityLines, quotationValidUntil } from "../../../../packages/extractor/src/index.js";
 import { escapeHtml } from "./html.js";
 import { themeCss } from "./theme.js";
 
@@ -212,7 +212,7 @@ export function renderGuestQuotationCopyHtml(
         // There was a "Provisional 72-Hour Hold Active" box here with a live countdown, and an
         // "Expired" state under it. It is a false statement about the guest's booking: nothing in this
         // service holds a room, rooms live in the customer's Odoo and are allocated by the front desk.
-        // `bookingPolicyLines` states the quotation's own deadline instead, which is ours to promise.
+        // `quotationValidityLines` states the quotation's own deadline instead, which is ours to promise.
         ""
       }
 
@@ -261,13 +261,11 @@ export function renderGuestQuotationCopyHtml(
         the reservations team — nothing is booked yet, and this page does not book anything. If anything here
         looks wrong, reply on WhatsApp and a member of the team will fix it.
       </div>
-      <div style="margin-top:18px;border-left:5px solid var(--accent);background:var(--surface-2);padding:16px 18px;border-radius:14px;">
-        <div style="font-size:12px;font-weight:800;letter-spacing:0.08em;text-transform:uppercase;color:var(--accent);margin-bottom:6px;">Casa Escondida Anilao · Booking &amp; Deposit Policy</div>
-        <ul style="margin:0;padding-left:18px;font-size:13.5px;color:var(--text);line-height:1.65;font-weight:600;">
-          ${bookingPolicyLines(validUntil)
-            .map((line) => `<li>${esc(line)}</li>`)
-            .join("\n          ")}
-        </ul>
+      <div style="margin-top:18px;border-left:5px solid var(--accent);background:var(--surface-2);padding:16px 18px;border-radius:14px;font-size:13.5px;color:var(--text);line-height:1.65;font-weight:600;">
+        The front desk will confirm availability and contact you.
+        ${quotationValidityLines(validUntil)
+          .map((line) => `<br>${esc(line)}`)
+          .join("")}
       </div>
     </div>
   </div>

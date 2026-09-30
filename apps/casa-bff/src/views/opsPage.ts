@@ -64,12 +64,8 @@ export function renderOpsSheetHtml(draft: HonoQuotationDraft): string {
   const ops = pricing?.ops ?? null;
 
   const backLink = `<a class="back no-print" href="/quotes/${encodeURIComponent(draft.quoteId)}">← Back to the quotation</a>`;
-  const depositPaid = draft.depositPayment?.status === "received";
-  const depositBadge = depositPaid
-    ? ` <span class="tag" style="background:var(--emerald-soft);color:var(--emerald);border-color:var(--emerald);font-weight:700;font-size:12px;padding:3px 10px;">Deposit 50% Paid (Ref: ${escapeHtml(draft.depositPayment?.referenceNumber || "Confirmed")})</span>`
-    : "";
   const heading = `<header>
-    <h1>Ops sheet${depositBadge}</h1>
+    <h1>Ops sheet</h1>
     <div class="sub">${escapeHtml(draft.guestName || "Guest")} · ${escapeHtml(draft.checkIn)} → ${escapeHtml(draft.checkOut)} · ${draft.stayingGuests} guest(s)</div>
   </header>`;
 
@@ -105,7 +101,11 @@ export function renderOpsSheetHtml(draft: HonoQuotationDraft): string {
       }
 
       const dive = ops.dayPlans.find((plan) => plan.date === date);
-      const transfers = ops.transfers.filter((run) => run.date === date);
+      // Only the direction the guest asked for. The engine's van runs come back for both ends of a
+      // return trip; a guest who wanted the pickup alone must not get a departure van on the sheet.
+      const transfers = ops.transfers.filter(
+        (run) => run.date === date && (!draft.transferDirection || run.dir === draft.transferDirection),
+      );
       const covers = ops.covers[date];
 
       return `<article class="day print-page">
@@ -138,7 +138,8 @@ export function renderOpsSheetHtml(draft: HonoQuotationDraft): string {
     </section>
     <section>
       <h3>Kitchen</h3>
-      <dl><dt>Covers</dt><dd>${typeof covers === "number" ? `${covers} covers` : "—"}</dd></dl>
+      <dl><dt>Covers</dt><dd>${typeof covers === "number" ? `${covers} covers` : "—"}</dd>
+      ${draft.dietNotes ? `<dt>Diet / allergies</dt><dd>${escapeHtml(draft.dietNotes)}</dd>` : ""}</dl>
     </section>
     <section>
       <h3>Transfers</h3>

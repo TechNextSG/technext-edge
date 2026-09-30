@@ -5,7 +5,7 @@ import {
   normalizePricing,
   recalculateQuotationTotals,
   guestLinkFor,
-  bookingPolicyLines,
+  quotationValidityLines,
   followUpState,
   followUpWindowFromEnv,
   quotationValidUntil,
@@ -16,7 +16,6 @@ import { buildSimulatedModel } from "../services/simulatedEstimator.js";
 import { createQuotationStoreFromEnv, type QuotationStore } from "./quotationStoreClient.js";
 import { type DemoRole } from "../auth/demoAuth.js";
 import { escapeHtml } from "../views/html.js";
-import { paymentDetailLines, paymentDetailsText, resortPaymentDetailsFromEnv } from "../config/resortPaymentDetails.js";
 
 /**
  * Lazily-built, so reading the env happens at first use rather than at import time. That keeps
@@ -415,13 +414,9 @@ export function renderHonoQuotationEditorHtml(
   const approved = draft.status === "confirmed_by_hono";
   const archived = draft.status === "cancelled";
 
-  const isDepositReceived = draft.depositPayment?.status === "received";
-  const defaultDepositAmount = Math.round((draft.pricing?.kpis.revenue ?? draft.totalAmount ?? 0) / 2);
   const statusLabel = archived
     ? "Archived"
-    : isDepositReceived
-      ? "Deposit Received"
-      : draft.status !== "confirmed_by_hono" && published
+    : draft.status !== "confirmed_by_hono" && published
         ? "Published — needs approval"
         : published
           ? // A link is not a delivery. "Create link only" publishes without sending, and reading that
@@ -439,7 +434,7 @@ export function renderHonoQuotationEditorHtml(
               : priced
                 ? "Priced — needs approval"
                 : "Needs review";
-  const statusTone = archived ? "rose" : isDepositReceived || published || approved ? "emerald" : "amber";
+  const statusTone = archived ? "rose" : published || approved ? "emerald" : "amber";
   /**
    * Whether the resort owes this guest a chase, and how urgently.
    *
@@ -469,7 +464,7 @@ export function renderHonoQuotationEditorHtml(
       : [
           `Hi ${draft.guestName || "there"}! Just checking in about your quotation for ${draft.checkIn} to ${draft.checkOut} at Casa Escondida Anilao.`,
           "",
-          ...bookingPolicyLines(validUntil),
+          ...quotationValidityLines(validUntil),
           guestLink ? `You can look at it here: ${guestLink}` : "",
           "",
           "If you would like to go ahead, just reply here and our front desk will take it from there.",
@@ -479,16 +474,6 @@ export function renderHonoQuotationEditorHtml(
   /** A JS string literal that cannot close the page's template literal, whatever the guest is called. */
   const followUpJsString = JSON.stringify(followUpText).replace(/`/g, "\\u0060");
 
-  /**
-   * The resort's payment details, if this deployment was ever given any.
-   *
-   * Null is the normal state and an honest one: the card used to be drawn from constants in this
-   * repository — a bank account number and a mobile number that nobody at Casa Escondida has ever
-   * confirmed. See `resortPaymentDetails.ts`. Nulled, the card and its copy button are absent from
-   * the page entirely, so there is nothing to read out to a guest and nothing to screenshot.
-   */
-  const paymentDetails = resortPaymentDetailsFromEnv();
-  const paymentDetailsJsString = JSON.stringify(paymentDetails ? paymentDetailsText(paymentDetails) : "");
 
   // A step is `done` when it is behind us, `current` when it is the next thing to do. "Get price"
   // counts as done only when the ENGINE priced it: a figure with no scenario behind it cannot become
@@ -569,7 +554,6 @@ export function renderHonoQuotationEditorHtml(
       // back to the last time anyone touched it.
       updatedAt: q.updatedAt ?? null,
       submission: Boolean(q.submission),
-      depositPayment: q.depositPayment ?? null,
     }))
   ).replace(/</g, "\\u003c");
   // There used to be an "AI reading check" scorecard computed here ("N of M quotations needed no
@@ -1280,8 +1264,7 @@ ${themeCss()}
         <input type="text" id="quote-search-input" oninput="filterQuotesList(this.value)" placeholder="Search name, quote ID or date…" class="cell-input" style="margin-bottom:10px;font-size:13.5px;padding:9px 12px;" />
         <div class="tab-row" style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:10px;">
           <button type="button" class="tab-btn" id="tab-action-needed" onclick="setQuoteFilter('action-needed')">Action Needed</button>
-          <button type="button" class="tab-btn" id="tab-waiting-deposit" onclick="setQuoteFilter('waiting-deposit')">Waiting</button>
-          <button type="button" class="tab-btn" id="tab-deposit-received" onclick="setQuoteFilter('deposit-received')">Paid</button>
+          <button type="button" class="tab-btn" id="tab-waiting" onclick="setQuoteFilter('waiting')">Waiting</button>
           <button type="button" class="tab-btn" id="tab-all" onclick="setQuoteFilter('all')">All</button>
           <button type="button" class="tab-btn" id="tab-cancelled" onclick="setQuoteFilter('cancelled')">Archived</button>
         </div>
@@ -1353,7 +1336,7 @@ ${themeCss()}
             <span id="quote-status-badge" class="status-pill status-${statusTone}">${statusLabel}</span>
             ${
               isStale
-                ? `<span class="status-pill status-amber" title="Sent over ${window.staleHours} hours ago, with no deposit recorded" style="font-size:12.5px;padding:4px 10px;">⚠️ Stale (&gt;${window.staleHours}h)</span>`
+                ? `<span class="status-pill status-amber" title="Sent over ${window.staleHours} hours ago, with no reservation made" style="font-size:12.5px;padding:4px 10px;">⚠️ Stale (&gt;${window.staleHours}h)</span>`
                 : isDueForNudge
                   ? `<span class="status-pill status-amber" title="Sent over ${window.nudgeHours} hours ago and no answer yet — a gentle chase is due" style="font-size:12.5px;padding:4px 10px;">⏳ Follow up (&gt;${window.nudgeHours}h)</span>`
                   : ""
@@ -1410,6 +1393,14 @@ ${themeCss()}
             <input class="cell-input" value="${draft.nights} nights · ${draft.rooms} rooms · ${draft.stayingGuests}/${draft.totalGroupSize} pax" readonly style="color:var(--muted);background:var(--surface-2);" />
           </div>
         </div>
+
+        ${draft.specialRequests || draft.dietNotes || draft.transferDirection ? `
+        <div style="margin-top:18px;padding:14px 16px;background:var(--surface-2);border:2px solid var(--border);border-radius:12px;font-size:14px;font-weight:600;">
+          <div style="font-size:13px;font-weight:800;color:var(--muted);margin-bottom:6px;">From the guest — for the desk, not sent to the engine</div>
+          ${draft.specialRequests ? `<div>Special requests: ${esc(draft.specialRequests)}</div>` : ''}
+          ${draft.dietNotes ? `<div>Diet / allergies: ${esc(draft.dietNotes)}</div>` : ''}
+          ${draft.transferDirection ? `<div>Transfer: ${draft.transferDirection === 'arrival' ? 'arrival only' : 'departure only'}</div>` : ''}
+        </div>` : ''}
 
         <div style="margin-top:18px;">
           <label style="display:block;font-size:15px;font-weight:800;color:var(--text);margin-bottom:8px;">Note for the guest (printed on their quotation page)</label>
@@ -1606,9 +1597,9 @@ ${themeCss()}
           // never sent is how a helpful follow-up reads as a mistake, and the box also stated a
           // scarcity nobody has checked: "rooms are filling up quickly" is not something this system
           // knows (availability lives in the customer's Odoo, and we never ask). What it says instead
-          // is what is true: the quotation's own deadline, the deposit that confirms it, and the link
+          // is what is true: the quotation's own deadline and the link
           // to look at. Whether the resort holds a room, and whether rooms are first-come, are
-          // questions for Phillip — see `bookingPolicyLines`.
+          // questions for Phillip — see `quotationValidityLines`.
           followUp === "none"
             ? ""
             : `<div style="margin-top:20px;padding:16px 18px;border:1px solid var(--border);border-radius:12px;background:var(--surface-2);">
@@ -1621,40 +1612,6 @@ ${themeCss()}
           <div id="followup-preview" style="font-size:13px;color:var(--muted);line-height:1.55;white-space:pre-line;">${esc(followUpText)}</div>
         </div>`
         }
-
-        <!-- Casa Bank Information for WhatsApp. Rendered only when this deployment was configured
-             with the resort's real details: the numbers that used to be here were invented, and an
-             invented account number is the one kind of wrong answer a guest can act on. -->
-        ${paymentDetails
-          ? `<div style="margin-top:20px;padding:16px 18px;border:1px solid var(--border);border-radius:12px;background:var(--surface-2);">
-          <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;margin-bottom:8px;">
-            <div style="font-size:14px;font-weight:800;color:var(--text);">Casa Escondida · Bank &amp; Payment Details</div>
-            <button type="button" class="btn btn-outline" onclick="copyBankPaymentInfo()" style="padding:6px 12px;font-size:12.5px;font-weight:700;">Copy Bank Details</button>
-          </div>
-          <div style="font-size:13px;color:var(--muted);line-height:1.55;">
-            ${paymentDetailLines(paymentDetails)
-              .map((line, i) => (i === 0 ? `<strong>${esc(line)}</strong>` : esc(line)))
-              .join("<br />")}
-          </div>
-        </div>`
-          : ""}
-
-        <!-- Deposit Payment Status & Recording -->
-        <div id="deposit-section" style="margin-top:20px;padding:16px 18px;border:1.5px solid ${isDepositReceived ? "var(--emerald)" : "var(--border)"};border-radius:12px;background:${isDepositReceived ? "var(--emerald-soft)" : "var(--surface-2)"};">
-          <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;">
-            <div>
-              <div style="font-size:14px;font-weight:800;color:${isDepositReceived ? "var(--emerald)" : "var(--text)"};">
-                ${isDepositReceived ? "✅ 50% Deposit Received (Reservation Confirmed)" : "Deposit Payment Recording"}
-              </div>
-              <div style="font-size:12.5px;color:var(--muted);margin-top:2px;">
-                ${isDepositReceived && draft.depositPayment ? `Ref: <strong>${esc(draft.depositPayment.referenceNumber || "Verified")}</strong> · Amount: <strong>₱${Number(draft.depositPayment.amount).toLocaleString("en-US")}</strong> · Date: <strong>${esc(draft.depositPayment.receivedAt.slice(0, 10))}</strong>` : "Once the guest transfers the 50% down payment, record it here to confirm their booking."}
-              </div>
-            </div>
-            ${isDepositReceived
-              ? `<button type="button" class="btn btn-outline" onclick="revertDepositPayment()" style="padding:6px 12px;font-size:12.5px;font-weight:700;color:var(--rose);border-color:var(--rose);">Undo Deposit</button>`
-              : `<button type="button" class="btn btn-primary" onclick="showDepositModal()" style="padding:6px 14px;font-size:13px;font-weight:800;background:var(--emerald);border-color:var(--emerald);">Mark 50% Deposit Received</button>`}
-          </div>
-        </div>
       </div>
 
       <!-- The wizard bar. One action finishes the screen it belongs to, and Back is always there:
@@ -1673,34 +1630,6 @@ ${themeCss()}
     </main>
   </div>
 
-  <!-- Modal for Deposit Recording -->
-  <div id="deposit-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:9999;align-items:center;justify-content:center;padding:16px;">
-    <div style="background:var(--card);border:2px solid var(--border);border-radius:18px;max-width:440px;width:100%;padding:24px;box-shadow:var(--shadow);">
-      <h3 style="margin:0 0 8px;font-size:18px;font-weight:800;">Record 50% Deposit Payment</h3>
-      <p style="font-size:13px;color:var(--muted);margin:0 0 16px;">Confirm receipt of the down payment to secure this reservation.</p>
-      
-      <div style="margin-bottom:12px;">
-        <label style="display:block;font-size:12.5px;font-weight:700;margin-bottom:4px;">Reference Number (BDO / GCash Ref):</label>
-        <input type="text" id="modal-deposit-ref" class="cell-input" placeholder="e.g. BDO-9823412 or GCASH-0012" style="width:100%;box-sizing:border-box;padding:8px 10px;font-size:13.5px;" />
-      </div>
-
-      <div style="margin-bottom:12px;">
-        <label style="display:block;font-size:12.5px;font-weight:700;margin-bottom:4px;">Amount Received (PHP):</label>
-        <input type="number" id="modal-deposit-amount" class="cell-input" value="${defaultDepositAmount}" style="width:100%;box-sizing:border-box;padding:8px 10px;font-size:13.5px;font-weight:700;" />
-      </div>
-
-      <div style="margin-bottom:16px;">
-        <label style="display:block;font-size:12.5px;font-weight:700;margin-bottom:4px;">Received Date:</label>
-        <input type="date" id="modal-deposit-date" class="cell-input" style="width:100%;box-sizing:border-box;padding:8px 10px;font-size:13.5px;" />
-      </div>
-
-      <div style="display:flex;justify-content:flex-end;gap:10px;">
-        <button type="button" class="btn btn-outline" onclick="closeDepositModal()" style="padding:8px 16px;font-size:13px;">Cancel</button>
-        <button type="button" class="btn btn-primary" onclick="submitDepositPayment()" style="padding:8px 18px;font-size:13px;background:var(--emerald);border-color:var(--emerald);">Save &amp; Confirm Deposit</button>
-      </div>
-    </div>
-  </div>
-
   <script>
     let state = ${initialJson};
     const allQuotes = ${allQuotesJson};
@@ -1708,8 +1637,6 @@ ${themeCss()}
     // record and the sentence in the guest's message cannot disagree about when a quotation lapses.
     const FOLLOW_UP_HOURS = { nudge: ${window.nudgeHours}, stale: ${window.staleHours} };
     const FOLLOW_UP_TEXT = ${followUpJsString};
-    // Empty when this deployment holds no payment details, in which case the card is not rendered.
-    const BANK_PAYMENT_TEXT = ${paymentDetailsJsString};
 
     // The same escaping the server does (html.ts), for the parts of this page the browser draws. A
     // line description and a guest name arrive from WhatsApp, so a less-than sign in either is not
@@ -2145,19 +2072,16 @@ ${themeCss()}
       const tabbed = allQuotes.filter(q => {
         const isApproved = q.status === 'confirmed_by_hono';
         const isCancelled = q.status === 'cancelled';
-        const isDepositPaid = Boolean(q.depositPayment && q.depositPayment.status === 'received');
         const sentTime = q.sentToGuestAt ? new Date(q.sentToGuestAt).getTime() : null;
         const hoursSince = (sentTime && Number.isFinite(sentTime)) ? (Date.now() - sentTime) / 3600000 : null;
-        const chasable = !isCancelled && !q.submission && !isDepositPaid && hoursSince !== null;
+        const chasable = !isCancelled && !q.submission && hoursSince !== null;
         const isStale = Boolean(chasable && hoursSince >= FOLLOW_UP_HOURS.stale);
         const isNeedsReview = !isCancelled && !isApproved;
 
         if (quoteFilter === 'action-needed') {
           if (!isNeedsReview && !isStale) return false;
-        } else if (quoteFilter === 'waiting-deposit') {
-          if (isCancelled || isDepositPaid || isNeedsReview || isStale) return false;
-        } else if (quoteFilter === 'deposit-received') {
-          if (!isDepositPaid) return false;
+        } else if (quoteFilter === 'waiting') {
+          if (isCancelled || isNeedsReview || isStale) return false;
         } else if (quoteFilter === 'cancelled') {
           if (!isCancelled) return false;
         } else if (quoteFilter === 'all') {
@@ -2210,35 +2134,26 @@ ${themeCss()}
       el.innerHTML = pageItems.map(q => {
         const isApproved = q.status === 'confirmed_by_hono';
         const isCancelled = q.status === 'cancelled';
-        const isDepositPaid = Boolean(q.depositPayment && q.depositPayment.status === 'received');
         const sentTime = q.sentToGuestAt ? new Date(q.sentToGuestAt).getTime() : null;
         const hoursSince = (sentTime && Number.isFinite(sentTime)) ? (Date.now() - sentTime) / 3600000 : null;
-        const chasable = !isCancelled && !q.submission && !isDepositPaid && hoursSince !== null;
+        const chasable = !isCancelled && !q.submission && hoursSince !== null;
         const isStale = Boolean(chasable && hoursSince >= FOLLOW_UP_HOURS.stale);
         const isNudge = Boolean(chasable && !isStale && hoursSince >= FOLLOW_UP_HOURS.nudge);
-        const statusLabel = isCancelled
-          ? 'Archived'
-          : (isDepositPaid
-            ? 'Deposit Paid'
-            : (isApproved ? 'Approved' : 'Needs Review'));
+        const statusLabel = isCancelled ? 'Archived' : (isApproved ? 'Approved' : 'Needs Review');
         const statusColor = isCancelled
           ? 'var(--rose, #f43f5e)'
-          : (isDepositPaid
-            ? 'var(--emerald)'
-            : (isApproved ? 'var(--emerald)' : 'var(--amber)'));
+          : (isApproved ? 'var(--emerald)' : 'var(--amber)');
         return \`
         <a class="quote-list-item \${q.quoteId === state.quoteId ? 'active' : ''}" href="/quotes/\${q.quoteId}\${qs}" title="\${escHtml(q.quoteId)}">
           <div class="ql-top">
             <span class="ql-name">\${escHtml(q.guestName)}</span>
             <span class="ql-status" style="color:\${statusColor};">
               \${statusLabel}
-              \${isDepositPaid
-                ? '<span style="font-size:10px;font-weight:800;color:var(--emerald);background:var(--emerald-soft);padding:1px 5px;border-radius:4px;border:1px solid var(--emerald);">Paid</span>'
-                : (isStale
-                  ? '<span style="font-size:10px;font-weight:800;color:var(--amber);background:var(--amber-soft);padding:1px 5px;border-radius:4px;border:1px solid var(--amber);">Stale</span>'
-                  : isNudge
-                    ? '<span style="font-size:10px;font-weight:800;color:var(--amber);background:var(--amber-soft);padding:1px 5px;border-radius:4px;border:1px solid var(--amber);">Follow up</span>'
-                    : '')}
+              \${isStale
+                ? '<span style="font-size:10px;font-weight:800;color:var(--amber);background:var(--amber-soft);padding:1px 5px;border-radius:4px;border:1px solid var(--amber);">Stale</span>'
+                : (isNudge
+                  ? '<span style="font-size:10px;font-weight:800;color:var(--amber);background:var(--amber-soft);padding:1px 5px;border-radius:4px;border:1px solid var(--amber);">Follow up</span>'
+                  : '')}
             </span>
           </div>
           <div class="ql-meta">\${escHtml(shortDate(q.checkIn))} · \${q.nights}n · <strong>\${q.engineRevenue == null ? 'not priced yet' : fmtMoney(q.engineRevenue, q.currency)}</strong> · <span class="ql-id">#\${escHtml(String(q.quoteId).split('-').pop())}</span></div>
@@ -2250,18 +2165,16 @@ ${themeCss()}
     (function initQuotePagination() {
       loadQueueView();
       syncQueueControls();
-      const isDepositPaid = Boolean(state && state.depositPayment && state.depositPayment.status === 'received');
       const isCancelled = state && state.status === 'cancelled';
       const isApproved = state && state.status === 'confirmed_by_hono';
       const sentTime = state && state.sentToGuestAt ? new Date(state.sentToGuestAt).getTime() : null;
       const hoursSince = (sentTime && Number.isFinite(sentTime)) ? (Date.now() - sentTime) / 3600000 : null;
-      const isStale = Boolean(!isCancelled && !state.submission && !isDepositPaid && hoursSince !== null && hoursSince >= FOLLOW_UP_HOURS.stale);
+      const isStale = Boolean(!isCancelled && !state.submission && hoursSince !== null && hoursSince >= FOLLOW_UP_HOURS.stale);
       const isNeedsReview = !isCancelled && !isApproved;
 
-      if (isDepositPaid) quoteFilter = 'deposit-received';
-      else if (isCancelled) quoteFilter = 'cancelled';
+      if (isCancelled) quoteFilter = 'cancelled';
       else if (isNeedsReview || isStale) quoteFilter = 'action-needed';
-      else quoteFilter = 'waiting-deposit';
+      else quoteFilter = 'waiting';
 
       document.querySelectorAll('.tab-btn').forEach(b => {
         if (b && b.classList) b.classList.remove('active');
@@ -2270,17 +2183,15 @@ ${themeCss()}
       if (activeBtn && activeBtn.classList) activeBtn.classList.add('active');
 
       const initialFiltered = allQuotes.filter(q => {
-        const qPaid = Boolean(q.depositPayment && q.depositPayment.status === 'received');
         const qCancelled = q.status === 'cancelled';
         const qApproved = q.status === 'confirmed_by_hono';
         const qSentTime = q.sentToGuestAt ? new Date(q.sentToGuestAt).getTime() : null;
         const qHoursSince = (qSentTime && Number.isFinite(qSentTime)) ? (Date.now() - qSentTime) / 3600000 : null;
-        const qStale = Boolean(!qCancelled && !q.submission && !qPaid && qHoursSince !== null && qHoursSince >= FOLLOW_UP_HOURS.stale);
+        const qStale = Boolean(!qCancelled && !q.submission && qHoursSince !== null && qHoursSince >= FOLLOW_UP_HOURS.stale);
         const qNeedsReview = !qCancelled && !qApproved;
 
         if (quoteFilter === 'action-needed') return qNeedsReview || qStale;
-        if (quoteFilter === 'waiting-deposit') return !qCancelled && !qPaid && !qNeedsReview && !qStale;
-        if (quoteFilter === 'deposit-received') return qPaid;
+        if (quoteFilter === 'waiting') return !qCancelled && !qNeedsReview && !qStale;
         if (quoteFilter === 'cancelled') return qCancelled;
         return true;
       });
@@ -2315,8 +2226,8 @@ ${themeCss()}
       }
 
       const ROOM_TYPES = ['standard', 'deluxe', 'suite'];
-      const COURSES = ['', 'dsd', 'ow', 'aow'];
-      const COURSE_LABELS = { '': '— none —', dsd: 'DSD (Discover Scuba)', ow: 'Open Water', aow: 'Advanced Open Water' };
+      const COURSES = ['dsd', 'refresher', 'ow', 'aow', 'rescue'];
+      const COURSE_LABELS = { dsd: 'DSD', refresher: 'Refresher', ow: 'Open Water', aow: 'Advanced OW', rescue: 'Rescue' };
       const stayDates = datesInStay(trip.checkIn, trip.checkOut);
       // Frozen once the guest is holding the link: their page resolves to the newest saved revision,
       // so a "correction" here would silently change what they were sent (their Q-005). The controls
@@ -2348,9 +2259,7 @@ ${themeCss()}
             </select>
           </td>
           <td>
-            <select class="cell-input" onchange="setGuestCourse('\${escHtml(guest.id)}', this.value)"\${ro}>
-              \${COURSES.map(c => \`<option value="\${c}" \${((guest.courses && guest.courses[0]) || '') === c ? 'selected' : ''}>\${COURSE_LABELS[c]}</option>\`).join('')}
-            </select>
+            \${COURSES.map(c => \`<label style="display:block;white-space:nowrap;font-size:12.5px;"><input type="checkbox" \${(guest.courses || []).includes(c) ? 'checked' : ''} onchange="setGuestCourse('\${escHtml(guest.id)}', '\${c}', this.checked)"\${ro} /> \${COURSE_LABELS[c]}</label>\`).join('')}
           </td>
           \${stayDates.map(d => {
             const day = (guest.days && guest.days[d]) || {};
@@ -2432,9 +2341,14 @@ ${themeCss()}
       markTripDirty();
     }
 
-    function setGuestCourse(guestId, course) {
+    // A course is added or removed on its own; ticking one never replaces another.
+    function setGuestCourse(guestId, course, on) {
       const guest = state.bffTrip.guests.find((g) => g.id === guestId);
-      if (guest) guest.courses = course ? [course] : [];
+      if (guest) {
+        const set = new Set(guest.courses || []);
+        if (on) set.add(course); else set.delete(course);
+        guest.courses = Array.from(set).slice(0, 5);
+      }
       renderTripReview();
       markTripDirty();
     }
@@ -2757,86 +2671,6 @@ ${themeCss()}
         }
         showInfo('Copy is blocked here — the message is selected below, press Ctrl+C.');
       });
-    }
-
-    function copyBankPaymentInfo() {
-      // Built server-side from the deployment's own configuration. Empty means the card is not on
-      // the page either, so there is no button to press — this guard is for a stale tab that was
-      // rendered before the configuration changed, where the right answer is to copy nothing rather
-      // than to fall back on a number baked into the source.
-      if (!BANK_PAYMENT_TEXT) return;
-      if (navigator.clipboard && navigator.clipboard.writeText) {
-        navigator.clipboard.writeText(BANK_PAYMENT_TEXT).then(function() {
-          showInfo('Casa bank payment details copied to clipboard.');
-        }).catch(function() {
-          showInfo('Copy is blocked here — the details are on screen, select them and press Ctrl+C.');
-        });
-      } else {
-        showInfo('Copy is blocked here — the details are on screen, select them and press Ctrl+C.');
-      }
-    }
-
-    function showDepositModal() {
-      const modal = document.getElementById('deposit-modal');
-      const dateInput = document.getElementById('modal-deposit-date');
-      if (dateInput && !dateInput.value) {
-        dateInput.value = new Date().toISOString().slice(0, 10);
-      }
-      if (modal) modal.style.display = 'flex';
-    }
-
-    function closeDepositModal() {
-      const modal = document.getElementById('deposit-modal');
-      if (modal) modal.style.display = 'none';
-    }
-
-    async function submitDepositPayment() {
-      const refInput = document.getElementById('modal-deposit-ref');
-      const amountInput = document.getElementById('modal-deposit-amount');
-      const dateInput = document.getElementById('modal-deposit-date');
-      const ref = (refInput && refInput.value) || '';
-      const amount = (amountInput && Number(amountInput.value)) || 0;
-      const date = (dateInput && dateInput.value) || new Date().toISOString().slice(0, 10);
-
-      try {
-        const res = await fetch('/v1/quotes/' + encodeURIComponent(state.quoteId) + '/deposit-payment?token=' + encodeURIComponent(staffToken()), {
-          method: 'POST',
-          headers: { 'content-type': 'application/json' },
-          body: JSON.stringify({ referenceNumber: ref, amount: amount, receivedAt: date })
-        });
-        const data = await safeJson(res);
-        if (res.ok && data.ok) {
-          state.depositPayment = data.depositPayment;
-          closeDepositModal();
-          showInfo('50% deposit payment recorded! Reservation confirmed.');
-          setTimeout(function() { window.location.reload(); }, 600);
-        } else {
-          showError('Failed to record deposit', { detail: data.error || data.detail || 'Server error' });
-        }
-      } catch (err) {
-        showError('Request failed', { detail: String(err) });
-      }
-    }
-
-    async function revertDepositPayment() {
-      if (!confirm('Revert deposit payment status? This will un-mark the reservation as paid.')) return;
-      try {
-        const res = await fetch('/v1/quotes/' + encodeURIComponent(state.quoteId) + '/deposit-payment?token=' + encodeURIComponent(staffToken()), {
-          method: 'POST',
-          headers: { 'content-type': 'application/json' },
-          body: JSON.stringify({ revert: true })
-        });
-        const data = await safeJson(res);
-        if (res.ok && data.ok) {
-          state.depositPayment = null;
-          showInfo('Deposit status reverted.');
-          setTimeout(function() { window.location.reload(); }, 600);
-        } else {
-          showError('Failed to revert deposit', { detail: data.error || data.detail || 'Server error' });
-        }
-      } catch (err) {
-        showError('Request failed', { detail: String(err) });
-      }
     }
 
     async function cancelQuotationAction() {

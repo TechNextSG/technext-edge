@@ -88,13 +88,31 @@ function addDaysIso(iso: string, deltaDays: number): string {
   return d.toISOString().slice(0, 10);
 }
 
+/**
+ * Which guests the courses in the notes belong to, or null when the notes do not say.
+ *
+ * The notes are one free-text string for the whole party, so "AOW course" says a course exists, not who
+ * takes it. It used to be stamped on every diver, which prices a course per diver. Assigned only where
+ * the words settle it — one diver, or "all / everyone / both / each" — and otherwise left off and sent to
+ * staff (`course_assignee_unclear`).
+ */
+export function courseAssignment(trip: Trip): { courses: BffCourseCode[]; assignable: boolean } {
+  const text = [trip.diveNotes?.value, trip.specialRequests?.value].filter(Boolean).join(" ");
+  const courses = detectCourseCodes(text);
+  if (courses.length === 0) return { courses, assignable: true };
+  const divers = trip.diver?.value ? Math.max(1, trip.divers?.value ?? 1) : 0;
+  const everyone = /\b(?:all|everyone|everybody|each|both|we\s+all|all\s+of\s+us)\b/i.test(text);
+  return { courses, assignable: divers === 1 || (divers > 0 && everyone) };
+}
+
 function detectCourseCodes(notes: string | null): BffCourseCode[] {
   if (!notes) return [];
   const lower = notes.toLowerCase();
   const codes: BffCourseCode[] = [];
   if (/\b(?:dsd|discover\s+scuba|intro\s+dive)\b/.test(lower)) codes.push("dsd");
   if (/\b(?:refresher|scuba\s+review)\b/.test(lower)) codes.push("refresher");
-  if (/\b(?:open\s+water|padi\s+ow|\bow\s+course)\b/.test(lower)) codes.push("ow");
+  // "advanced open water" contains "open water": without the lookbehind one sentence booked two courses.
+  if (/(?<!advanced\s)\b(?:open\s+water|padi\s+ow|ow\s+course)\b/.test(lower)) codes.push("ow");
   if (/\b(?:advanced\s+open\s+water|aow)\b/.test(lower)) codes.push("aow");
   if (/\b(?:rescue\s+diver|rescue\s+course)\b/.test(lower)) codes.push("rescue");
   return codes.slice(0, 5);
@@ -181,9 +199,8 @@ export function buildBffTrip(trip: Trip, caps: RoomCaps = DEFAULT_ROOM_CAPS): Bf
     (trip.meals?.value ?? "full_board") === "full_board" ||
     trip.meals?.value === "half_board";
   const hasTransport = transportType !== "none";
-  const courses = detectCourseCodes(
-    [trip.diveNotes?.value, trip.specialRequests?.value].filter(Boolean).join(" ")
-  );
+  const courseInfo = courseAssignment(trip);
+  const courses = courseInfo.assignable ? courseInfo.courses : [];
 
   // Unstated count: fill room after room in order, as the source's `splitRoomsByCapacity` does, so
   // what we store is what their POST would have made of it. Stated count: spread evenly.
@@ -430,6 +447,17 @@ export function buildOdooHandoffPayload(trip: Trip): OdooHandoffEnvelope {
 
   if (trip.specialRequests?.value) {
     manualReviewReasons.push("guest_special_requests_present");
+  }
+
+  // The engine's guests carry `meals` as true or false. Half board is neither, and the payload used to
+  // say true — priced as full board. It is a staff decision, not a value to send silently.
+  if (trip.meals?.value === "half_board") {
+    manualReviewReasons.push("meal_plan_needs_staff");
+  }
+
+  // A course named in the notes with no way to tell who takes it.
+  if (!courseAssignment(trip).assignable) {
+    manualReviewReasons.push("course_assignee_unclear");
   }
 
   const draft: OdooEstimateDraft = {
