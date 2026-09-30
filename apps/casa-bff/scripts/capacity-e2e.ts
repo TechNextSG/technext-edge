@@ -38,10 +38,14 @@ const { createEstimatorPortFromEnv } = await import("../src/services/estimatorPo
 const { buildHonoQuotationDraft } = await import("../../../packages/extractor/src/application/quotationTool.js");
 
 const f = (value: unknown, state = "stated") => ({ value, state, evidence: null });
+// A stay 60 days out, so the script keeps working as the calendar moves (a check-in in the past is a 422).
+const inDays = (n: number) => new Date(Date.now() + n * 86_400_000).toISOString().slice(0, 10);
+const STAY_IN = inDays(60);
+const STAY_OUT = inDays(62);
 function trip(rooms?: number) {
   return {
     language: f("en", "default"), contactName: f("TEST capacity 3pax"),
-    checkIn: f("2026-11-20"), checkOut: f("2026-11-22"), nights: f(2), guests: f(3),
+    checkIn: f(STAY_IN), checkOut: f(STAY_OUT), nights: f(2), guests: f(3),
     rooms: rooms ? f(rooms) : f(1, "default"), meals: f("full_board"), transport: f(false),
     guestType: f("retail", "default"), transportType: f("none"), diver: f(false),
     divers: f(null, "missing"), diveFrom: f(null, "missing"), diveTo: f(null, "missing"),

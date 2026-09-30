@@ -325,7 +325,7 @@ describe("an unknown quotation is a miss, not somebody's booking", () => {
       expect(html).not.toContain("0.018");
     });
 
-    it("says nothing about payment on a sample price", async () => {
+    it("says nothing about payment, on a sample price or a real one", async () => {
       // Every price on a simulated deployment is a sample. Asking a guest to pay against an example
       // figure is the failure this page exists to make impossible.
       const sample = await mirroredCopy({
@@ -339,12 +339,13 @@ describe("an unknown quotation is a miss, not somebody's booking", () => {
       expect(html).not.toContain("Payment is arranged by our reservations team");
       expect(html).not.toContain("Deposit Due");
 
-      // The same page with a real figure does tell the guest how payment happens — and that it does
-      // not happen here.
+      // Nor on a real figure: the customer's tool takes no payment and states no deposit, so this page says
+      // only what the front desk does next.
       const real = await mirroredCopy({ quoteId: "QT-0000-REAL-AAA" });
       const realHtml = await (await createApp().request(`/q/${real.slug}`)).text();
-      expect(realHtml).toContain("Payment is arranged by our reservations team");
-      expect(realHtml).toContain("This page does not take payment");
+      expect(realHtml).not.toContain("Payment is arranged by our reservations team");
+      expect(realHtml.toLowerCase()).not.toContain("account to use");
+      expect(realHtml).toContain("The front desk will confirm availability and contact you.");
     });
   });
 });

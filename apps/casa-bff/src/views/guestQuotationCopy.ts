@@ -224,22 +224,8 @@ export function renderGuestQuotationCopyHtml(
           <div class="sub">Total, from the resort's booking engine</div>
         </div>
       </div>
-      ${
-        // Payment guidance only when the figure is the engine's real answer.
-        //
-        // This block used to print "50% Deposit Due Now ₱15,600 · Secures room & dive boat reservation"
-        // and a "50% Balance Remaining ₱15,600 · Due 1 month prior: …" — a deposit this service
-        // computed by halving a total, in a currency it converted itself, with a due date derived from
-        // the check-in date on the server's clock. None of that is the engine's, and on a SAMPLE price
-        // (every price on a simulated deployment) it told a guest to transfer money against an example.
-        // The amount and the account come from the reservations team, not from arithmetic here.
-        pricing?.sample
-          ? ""
-          : `<div style="margin-top:14px;font-size:13px;color:var(--muted);font-weight:600;line-height:1.6;">
-        Payment is arranged by our reservations team — reply on WhatsApp and they will send you the amount
-        and the account to use. This page does not take payment.
-      </div>`
-      }`
+      <!-- No payment guidance of ours: the customer's tool takes no payment here and states no deposit; the front desk
+           confirms availability and contacts the guest (the note at the foot of the page). -->`
           : ""
       }
 
