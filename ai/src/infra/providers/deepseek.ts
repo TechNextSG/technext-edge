@@ -16,13 +16,11 @@ function withoutTrailingSlashes(url: string): string {
   return url.slice(0, end);
 }
 
-const GATEWAY_BASE_URL = withoutTrailingSlashes(process.env.DEEPSEEK_BASE_URL || process.env.DEEPSEEK_GATEWAY_URL || "https://litellm-production-7402.up.railway.app/v1");
 const TOOL_NAME = "extract_trip";
 
-// Keep timeout at 8,000ms so if the Railway LiteLLM gateway stalls or 502s,
-// createResilientProvider trips the 60s circuit-breaker to Gemini well before
-// Meta WhatsApp's 20,000ms webhook deadline.
-const TIMEOUT_MS = Number(process.env.DEEPSEEK_TIMEOUT_MS ?? 8_000);
+// Keep timeout at 8,000ms so if the gateway stalls or 502s, createResilientProvider trips the circuit-breaker to
+// the fallback well before Meta WhatsApp's 20,000ms webhook deadline. A caller may pass another (`timeoutMs`).
+const DEFAULT_TIMEOUT_MS = 8_000;
 
 // zod-to-json-schema with the OpenAPI target emits `exclusiveMinimum: true`
 // for positive numbers. DeepSeek's tool-schema validator expects the newer
@@ -133,20 +131,23 @@ const DIVE_WINDOW_TOOL_SCHEMA = {
 };
 
 export interface DeepSeekOptions {
-  /** Per-call timeout. Defaults to `DEEPSEEK_TIMEOUT_MS`, then 8s. */
-  timeoutMs?: number;
-  /** Gateway base URL. Defaults to `DEEPSEEK_BASE_URL`, then the team's LiteLLM gateway. */
-  baseUrl?: string;
+  /** Per-call timeout. Default 8s. */
+  timeoutMs?: number | undefined;
+  /**
+   * The gateway's base URL. **Required, and there is no default**: a provider must not send guest text to a
+   * host that is written into the source. The caller reads it from its own configuration (`DEEPSEEK_BASE_URL`).
+   */
+  baseUrl: string;
 }
 
 export function createDeepSeekProvider(
   apiKey: string,
-  model: "deepseek-flash" | "deepseek-pro" = (process.env.DEEPSEEK_MODEL as "deepseek-flash" | "deepseek-pro") ?? "deepseek-flash",
-  options: DeepSeekOptions = {},
+  model: "deepseek-flash" | "deepseek-pro" = "deepseek-flash",
+  options: DeepSeekOptions,
 ): ExtractProvider {
-  // Per provider rather than once at module load, so the admin dashboard's setting applies without a deploy.
-  const timeoutMs = options.timeoutMs ?? TIMEOUT_MS;
-  const gatewayBaseUrl = withoutTrailingSlashes(options.baseUrl ?? GATEWAY_BASE_URL);
+  if (!options?.baseUrl) throw new Error("DeepSeek is not configured: no gateway base URL (DEEPSEEK_BASE_URL)");
+  const timeoutMs = options.timeoutMs ?? DEFAULT_TIMEOUT_MS;
+  const gatewayBaseUrl = withoutTrailingSlashes(options.baseUrl);
   return {
     id: "deepseek-gateway:" + model,
     async extractGuests(text: string): Promise<GuestsReadResult> {

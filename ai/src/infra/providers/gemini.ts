@@ -17,7 +17,10 @@ const API_BASE = "https://generativelanguage.googleapis.com/v1beta/models";
 // ~3.2s (ADR-005a), so 8s leaves real headroom without masking a genuine
 // hang — a hung request would otherwise wait indefinitely, past Vercel's own
 // function timeout, with no chance for extract.ts's retry-once path to help.
-const TIMEOUT_MS = Number(process.env.GEMINI_TIMEOUT_MS ?? 15_000);
+const DEFAULT_TIMEOUT_MS = 15_000;
+
+/** The model used when nobody names one. One value, read by `providerFromEnv`'s table too. */
+export const DEFAULT_GEMINI_MODEL = "gemini-3.1-flash-lite";
 
 // Gemini's responseSchema is a constrained subset of JSON Schema: no $ref,
 // no $schema, no additionalProperties. zod-to-json-schema is told to inline
@@ -123,7 +126,7 @@ const DIVE_WINDOW_SCHEMA = {
 };
 
 export interface GeminiOptions {
-  /** Per-call timeout for the extraction passes. Defaults to `GEMINI_TIMEOUT_MS`, then 15s. */
+  /** Per-call timeout for the extraction passes. Default 15s. */
   timeoutMs?: number;
   /** Timeout for the written reply (`generateText`). Default 8s. */
   synthesisTimeoutMs?: number;
@@ -131,12 +134,12 @@ export interface GeminiOptions {
 
 export function createGeminiProvider(
   apiKey: string,
-  model = process.env.GEMINI_MODEL ?? "gemini-2.5-flash",
+  model = DEFAULT_GEMINI_MODEL,
   options: GeminiOptions = {},
 ): ExtractProvider {
   // Read per provider, not once when the module loads, so a setting changed in the admin dashboard applies to
   // the provider built from it without a deploy.
-  const timeoutMs = options.timeoutMs ?? TIMEOUT_MS;
+  const timeoutMs = options.timeoutMs ?? DEFAULT_TIMEOUT_MS;
   const synthesisTimeoutMs = options.synthesisTimeoutMs ?? 8_000;
   return {
     id: "google:" + model,

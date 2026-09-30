@@ -23,6 +23,7 @@ const base = (over: Partial<ProviderSettings> = {}): ProviderSettings => ({
   breaker: { cooldownMs: 60_000, authCooldownMs: 3_600_000 },
   synthesisEnabled: true,
   keys: {},
+  deepseekBaseUrl: "https://gateway.test/v1",
   ...over,
 });
 
@@ -96,7 +97,7 @@ describe("settings decide the provider", () => {
   });
 
   it("the environment alone still describes a working default, with the same backup pairing as before", () => {
-    const s = settingsFromEnv({ GEMINI_API_KEY: "g", DEEPSEEK_GATEWAY_KEY: "d" });
+    const s = settingsFromEnv({ GEMINI_API_KEY: "g", DEEPSEEK_GATEWAY_KEY: "d", DEEPSEEK_BASE_URL: "https://gateway.test/v1" });
     expect(s.primary).toEqual({ provider: "gemini", model: DEFAULT_MODELS.gemini });
     expect(s.fallback?.provider).toBe("deepseek");
     expect(settingsFromEnv({ EXTRACTOR_PROVIDER: "deepseek-pro", GEMINI_API_KEY: "g" }).primary).toEqual({
@@ -113,7 +114,7 @@ describe("settings decide the provider", () => {
     expect(isKnownModel("gemini", "gemini-9.9-flash")).toBe(true); // the gemini- family
     expect(isKnownModel("gemini", "gpt-5")).toBe(false);
     expect(isKnownModel("deepseek", "deepseek-flash")).toBe(true);
-    expect(choiceFromName("claude-sonnet-5-5")).toEqual({ provider: "anthropic", model: "claude-sonnet-5-5" });
+    expect(choiceFromName("claude-sonnet-5-5", {})).toEqual({ provider: "anthropic", model: "claude-sonnet-5-5" });
   });
 });
 

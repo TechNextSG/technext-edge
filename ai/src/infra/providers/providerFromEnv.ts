@@ -1,5 +1,5 @@
 import type { ExtractProvider } from "../../ports/provider.js";
-import { createGeminiProvider } from "./gemini.js";
+import { DEFAULT_GEMINI_MODEL, createGeminiProvider } from "./gemini.js";
 import { createDeepSeekProvider } from "./deepseek.js";
 import { ANTHROPIC_DEFAULT_MODEL, ANTHROPIC_MODELS, createAnthropicProvider } from "./anthropic.js";
 
@@ -27,8 +27,26 @@ export type ProviderName = (typeof KNOWN_PROVIDER_NAMES)[number];
 // ---------------------------------------------------------------------------------------------------------------
 export type ProviderKind = "gemini" | "deepseek" | "anthropic";
 
+/**
+ * The part of the environment this package reads — passed in, never read from the process. The caller owns
+ * parsing and validation; this package only says which names it looks at. Timeouts may arrive as numbers
+ * (already parsed) or strings (a raw environment).
+ */
+export interface AiEnv {
+  EXTRACTOR_PROVIDER?: string | undefined;
+  ANTHROPIC_API_KEY?: string | undefined;
+  ANTHROPIC_MODEL?: string | undefined;
+  GEMINI_API_KEY?: string | undefined;
+  GEMINI_MODEL?: string | undefined;
+  GEMINI_TIMEOUT_MS?: string | number | undefined;
+  DEEPSEEK_GATEWAY_KEY?: string | undefined;
+  DEEPSEEK_BASE_URL?: string | undefined;
+  DEEPSEEK_MODEL?: string | undefined;
+  DEEPSEEK_TIMEOUT_MS?: string | number | undefined;
+}
+
 export const DEFAULT_MODELS: Record<ProviderKind, string> = {
-  gemini: "gemini-3.1-flash-lite",
+  gemini: DEFAULT_GEMINI_MODEL,
   deepseek: "deepseek-flash",
   anthropic: ANTHROPIC_DEFAULT_MODEL,
 };
@@ -87,16 +105,16 @@ export interface ProviderOutcome {
 
 // Builds a provider from an explicit (name, key) pair. Kept separate so "which provider, which key" is decided
 // in exactly one place regardless of whether the answer came from env vars, a setting, or a request body.
-export function createProviderByName(name: string, apiKey: string): ExtractProvider {
-  const choice = choiceFromName(name);
+export function createProviderByName(name: string, apiKey: string, env: AiEnv): ExtractProvider {
+  const choice = choiceFromName(name, env);
   if (!choice) {
     throw new Error(`Unknown provider: "${name}" (expected ${KNOWN_PROVIDER_NAMES.join(", ")})`);
   }
-  return buildProvider(choice, apiKey, {});
+  return buildProvider(choice, apiKey, { deepseekBaseUrl: env.DEEPSEEK_BASE_URL });
 }
 
 /** `gemini-2.5-flash`, `deepseek-pro`, `anthropic`, `claude-sonnet-5-5`, `gemini:<model>` -> a choice, or null. */
-export function choiceFromName(name: string, env: NodeJS.ProcessEnv = process.env): ModelChoice | null {
+export function choiceFromName(name: string, env: AiEnv): ModelChoice | null {
   const lower = name.toLowerCase();
   if (lower === "gemini" || lower === "gemini-flash") {
     return { provider: "gemini", model: env.GEMINI_MODEL ?? DEFAULT_MODELS.gemini };
@@ -112,7 +130,9 @@ export function choiceFromName(name: string, env: NodeJS.ProcessEnv = process.en
     return { provider: "deepseek", model: env.DEEPSEEK_MODEL === "deepseek-pro" ? "deepseek-pro" : DEFAULT_MODELS.deepseek };
   }
   if (lower === "deepseek-flash" || lower === "deepseek-pro") return { provider: "deepseek", model: lower };
-  if (lower === "anthropic" || lower === "claude") return { provider: "anthropic", model: DEFAULT_MODELS.anthropic };
+  if (lower === "anthropic" || lower === "claude") {
+    return { provider: "anthropic", model: env.ANTHROPIC_MODEL || DEFAULT_MODELS.anthropic };
+  }
   if (lower.startsWith("anthropic:")) return { provider: "anthropic", model: name.slice(10).trim() };
   if ((ANTHROPIC_MODELS as readonly string[]).includes(lower)) return { provider: "anthropic", model: lower };
   return null;
@@ -135,6 +155,7 @@ export function buildProvider(choice: ModelChoice, apiKey: string, tuning: Build
     case "gemini":
       return createGeminiProvider(apiKey, choice.model, { timeoutMs, synthesisTimeoutMs });
     case "deepseek":
+      if (!tuning.deepseekBaseUrl) throw new Error("DeepSeek is not configured: no gateway base URL (DEEPSEEK_BASE_URL)");
       return createDeepSeekProvider(apiKey, choice.model as "deepseek-flash" | "deepseek-pro", {
         timeoutMs,
         baseUrl: tuning.deepseekBaseUrl,
@@ -146,13 +167,13 @@ export function buildProvider(choice: ModelChoice, apiKey: string, tuning: Build
 
 const DISPLAY_NAME: Record<ProviderKind, string> = { gemini: "Gemini", deepseek: "DeepSeek", anthropic: "Anthropic" };
 
-const ENV_KEY: Record<ProviderKind, string> = {
+const ENV_KEY: Record<ProviderKind, "GEMINI_API_KEY" | "DEEPSEEK_GATEWAY_KEY" | "ANTHROPIC_API_KEY"> = {
   gemini: "GEMINI_API_KEY",
   deepseek: "DEEPSEEK_GATEWAY_KEY",
   anthropic: "ANTHROPIC_API_KEY",
 };
 
-export function keyFor(kind: ProviderKind, settings: Pick<ProviderSettings, "keys">, env: NodeJS.ProcessEnv): string | undefined {
+export function keyFor(kind: ProviderKind, settings: Pick<ProviderSettings, "keys">, env: AiEnv): string | undefined {
   return settings.keys[kind] || env[ENV_KEY[kind]] || undefined;
 }
 
@@ -297,7 +318,7 @@ export function createResilientProvider(
  */
 export function createProviderFromSettings(
   settings: ProviderSettings,
-  env: NodeJS.ProcessEnv = process.env,
+  env: AiEnv,
   hooks: { onOutcome?: (outcome: ProviderOutcome) => void; fetch?: typeof fetch } = {},
 ): ExtractProvider {
   const tuning: BuildTuning = {
@@ -307,6 +328,8 @@ export function createProviderFromSettings(
   };
   const usable = (choice: ModelChoice | null): { choice: ModelChoice; key: string } | null => {
     if (!choice) return null;
+    // DeepSeek has no default host: without a configured gateway URL it is simply not configured.
+    if (choice.provider === "deepseek" && !settings.deepseekBaseUrl) return null;
     const key = keyFor(choice.provider, settings, env);
     return key ? { choice, key } : null;
   };
@@ -359,7 +382,7 @@ function withSynthesis(provider: ExtractProvider, settings: ProviderSettings): E
 }
 
 /** The settings the environment alone describes — what a deployment runs on before anyone opens the dashboard. */
-export function settingsFromEnv(env: NodeJS.ProcessEnv = process.env): ProviderSettings {
+export function settingsFromEnv(env: AiEnv): ProviderSettings {
   const name = (env.EXTRACTOR_PROVIDER ?? DEFAULT_MODELS.gemini).toLowerCase();
   const primary = choiceFromName(name, env);
   if (!primary) {
@@ -369,12 +392,12 @@ export function settingsFromEnv(env: NodeJS.ProcessEnv = process.env): ProviderS
   const others: ProviderKind[] = PROVIDER_KINDS.filter((kind) => kind !== primary.provider);
   const backupKind =
     primary.provider === "gemini"
-      ? env.DEEPSEEK_GATEWAY_KEY ? "deepseek" : null
+      ? env.DEEPSEEK_GATEWAY_KEY && env.DEEPSEEK_BASE_URL ? "deepseek" : null
       : primary.provider === "deepseek"
         ? env.GEMINI_API_KEY ? "gemini" : null
-        : others.find((kind) => env[ENV_KEY[kind]]) ?? null;
+        : others.find((kind) => env[ENV_KEY[kind]] && (kind !== "deepseek" || env.DEEPSEEK_BASE_URL)) ?? null;
   const fallback: ModelChoice | null = backupKind
-    ? { provider: backupKind, model: backupKind === "gemini" ? (env.GEMINI_MODEL ?? DEFAULT_MODELS.gemini) : DEFAULT_MODELS[backupKind] }
+    ? { provider: backupKind, model: backupKind === "gemini" ? (env.GEMINI_MODEL ?? DEFAULT_MODELS.gemini) : backupKind === "anthropic" ? (env.ANTHROPIC_MODEL || DEFAULT_MODELS.anthropic) : DEFAULT_MODELS[backupKind] }
     : null;
   return {
     primary,
@@ -387,11 +410,12 @@ export function settingsFromEnv(env: NodeJS.ProcessEnv = process.env): ProviderS
     breaker: { cooldownMs: 60_000, authCooldownMs: 3_600_000 },
     synthesisEnabled: true,
     keys: {},
+    ...(env.DEEPSEEK_BASE_URL ? { deepseekBaseUrl: env.DEEPSEEK_BASE_URL } : {}),
   };
 }
 
 // Policy: Gemini 3.1 Flash-Lite is the default for sub-4s latency, which keeps a slow gateway from running past
 // the 20s WhatsApp deadline.
-export function createProviderFromEnv(env: NodeJS.ProcessEnv = process.env): ExtractProvider {
+export function createProviderFromEnv(env: AiEnv): ExtractProvider {
   return createProviderFromSettings(settingsFromEnv(env), env);
 }

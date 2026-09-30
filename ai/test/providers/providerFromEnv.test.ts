@@ -13,6 +13,7 @@ describe("createProviderFromEnv", () => {
     const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
     const provider = createProviderFromEnv({
       DEEPSEEK_GATEWAY_KEY: "fake-deepseek-key",
+      DEEPSEEK_BASE_URL: "https://gateway.test/v1",
     });
     expect(provider.id).toContain("deepseek");
     expect(warnSpy).toHaveBeenCalledWith(expect.stringContaining("falling back to DeepSeek"));
@@ -25,8 +26,8 @@ describe("createProviderFromEnv", () => {
 
   it("creates newer Gemini providers by name", async () => {
     const { createProviderByName } = await import("../../src/infra/providers/providerFromEnv.js");
-    expect(createProviderByName("gemini-3-flash", "key").id).toBe("google:gemini-3.1-flash-lite");
-    expect(createProviderByName("gemini-2.5-pro", "key").id).toBe("google:gemini-2.5-pro");
-    expect(createProviderByName("gemini:gemini-custom", "key").id).toBe("google:gemini-custom");
+    expect(createProviderByName("gemini-3-flash", "key", {}).id).toBe("google:gemini-3.1-flash-lite");
+    expect(createProviderByName("gemini-2.5-pro", "key", {}).id).toBe("google:gemini-2.5-pro");
+    expect(createProviderByName("gemini:gemini-custom", "key", {}).id).toBe("google:gemini-custom");
   });
 });

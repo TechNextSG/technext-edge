@@ -25,7 +25,7 @@ export {
   PROVIDER_KINDS,
   KNOWN_PROVIDER_NAMES,
 } from "./infra/providers/providerFromEnv.js";
-export type { ProviderKind, ModelChoice, ProviderSettings, ProviderOutcome } from "./infra/providers/providerFromEnv.js";
+export type { AiEnv, ProviderKind, ModelChoice, ProviderSettings, ProviderOutcome } from "./infra/providers/providerFromEnv.js";
 export type { ExtractProvider, ExtractCall, ExtractResult } from "./ports/provider.js";
 export { resolveRelativeDate, deriveCheckOut, manilaToday } from "./domain/dates.js";
 // Exported for whoever logs raw guest text — the webhook in bff is

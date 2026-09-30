@@ -58,3 +58,14 @@ The customer's AI-channel flow `docs/flows/F08-ai-channel.md` (our channel's con
 
 Run `npm run upstream:check` before touching anything that prices a trip; after handling what it
 reports, update this snapshot and the pins.
+
+## Our `ai/` in the customer's repo (added 2026-09-30)
+
+The layered extractor lives in the customer's repo as `ai/` (PR #4, branch `feat/ai-layered`), carried onto
+`Stage1_Estimator_Tools@5fe2806` as `feat/ai-layered-fix@137fd39` with their review points applied. The
+generic part of those changes is mirrored here so the two copies of `ai/src/infra/providers/` do not drift:
+providers take their configuration as an argument (`AiEnv`, no `process.env`), and DeepSeek has no default
+host. What is **not** mirrored, on purpose, is the customer's data policy (Anthropic by default, non-Anthropic
+blocked in live mode) and the `/api/extract` gates — those belong to their `bff/`, and this repo's production
+keeps Gemini as its default. `npm run upstream:check` keeps watching their `ds/ai-room-type-required`; once PR #4
+merges, point the pin above at the merged commit.

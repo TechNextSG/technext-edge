@@ -478,7 +478,7 @@ export function createApp(options: AppOptions = {}) {
    * it makes this service spend the caller's tokens against the caller's choice of host.
    */
   async function providerFor(data: { provider?: string; apiKey?: string }): Promise<ExtractProvider> {
-    if (data.provider) return createProviderByName(data.provider, data.apiKey!);
+    if (data.provider) return createProviderByName(data.provider, data.apiKey!, process.env);
     return options.provider ?? (await providerHolder.get());
   }
 

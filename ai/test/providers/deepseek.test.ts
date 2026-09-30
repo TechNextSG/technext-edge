@@ -21,7 +21,7 @@ describe("createDeepSeekProvider schema compatibility", () => {
       );
     }) as unknown as typeof fetch;
 
-    await createDeepSeekProvider("fake-key").call({
+    await createDeepSeekProvider("fake-key", "deepseek-flash", { baseUrl: "https://gateway.test/v1" }).call({
       text: "hi",
       jsonSchema: {
         type: "object",
@@ -60,7 +60,7 @@ describe("createDeepSeekProvider prompt", () => {
       );
     }) as unknown as typeof fetch;
 
-    await createDeepSeekProvider("fake-key").call({
+    await createDeepSeekProvider("fake-key", "deepseek-flash", { baseUrl: "https://gateway.test/v1" }).call({
       text: "hi",
       jsonSchema: { type: "object", properties: {} },
       today: "2026-09-15",
@@ -96,7 +96,7 @@ describe("createDeepSeekProvider generateText", () => {
       );
     }) as unknown as typeof fetch;
 
-    const text = await createDeepSeekProvider("fake-key").generateText!("system prompt", "user prompt");
+    const text = await createDeepSeekProvider("fake-key", "deepseek-flash", { baseUrl: "https://gateway.test/v1" }).generateText!("system prompt", "user prompt");
 
     expect(text).toBe("Warm reply text.");
     expect(request?.messages).toEqual([
@@ -110,7 +110,7 @@ describe("createDeepSeekProvider generateText", () => {
   it("throws on a non-OK response so the resilient provider can fall back", async () => {
     global.fetch = vi.fn(async () => new Response("server error", { status: 500 })) as unknown as typeof fetch;
 
-    await expect(createDeepSeekProvider("fake-key").generateText!("sys", "user")).rejects.toThrow(
+    await expect(createDeepSeekProvider("fake-key", "deepseek-flash", { baseUrl: "https://gateway.test/v1" }).generateText!("sys", "user")).rejects.toThrow(
       "DeepSeek generateText failed: 500",
     );
   });
