@@ -17,6 +17,31 @@ decisions this build is actually based on — the [Blueprint](https://casa-escon
 and [Playbook](https://casa-escondida-estimator-tools.vercel.app/) sites hold
 the reasoning behind them.
 
+### Admin: đổi model AI (không cần vào Vercel)
+
+`/admin/ai` — chỉ tài khoản **admin** vào được (đăng nhập ở `/login` bằng `ADMIN_ACCESS_KEY`; key staff không vào được, và
+`POST /login` không bao giờ tự nâng thành admin). Admin làm được mọi việc của staff.
+
+| Khối | Làm gì |
+|---|---|
+| Model hiện tại | primary, fallback, và mỗi giá trị đến từ đâu (`kv` = đã lưu ở dashboard, `env` = biến môi trường, `default`) |
+| Đổi model | chọn provider + model cho primary/fallback, **Test** rồi **Save**. Save tự test trước; test lỗi thì không lưu, trừ khi bấm **Save anyway** |
+| API keys | đã có hay chưa, dạng `••••abcd`, Replace/Remove. Key được mã hoá AES-256-GCM trong KV; không bao giờ trả ra ngoài. Cần `SETTINGS_ENCRYPTION_KEY` |
+| Nâng cao | timeout, breaker, bật/tắt câu trả lời do model viết, URL gateway DeepSeek (https, hostname công khai) |
+| Tình trạng 7 ngày | số lần trả lời / lỗi / trả lời bằng fallback theo provider, thời gian trung bình (đếm trong KV, giữ 14 ngày) |
+| Lịch sử | 50 lần đổi gần nhất; không chứa key |
+
+Áp dụng từ tin nhắn kế tiếp, không deploy. Nếu KV không đọc được thì bot dùng provider đang chạy (hoặc env), không dừng. Key trong
+env vẫn là dự phòng khi dashboard chưa lưu key. Provider và circuit breaker giờ sống theo tiến trình (trước đây mỗi request dựng lại
+nên cooldown chỉ có tác dụng trong một request). `meta.provider` ghi provider **đã trả lời**, kể cả khi là fallback.
+
+**Trang `/test` công khai không còn nhận provider hay API key từ trình duyệt.** `/v1/extract` và `/v1/converse` chỉ nhận `provider`/`apiKey`
+kèm phiên staff (dùng cho eval); không có phiên thì 401.
+
+**Anthropic** đi qua SDK chính thức, mặc định `claude-opus-5-5` (theo skill claude-api). Adapter yêu cầu JSON thuần và parse, không dùng
+tool call bắt buộc (Opus 5.5 / Sonnet 5.5 trả 400 với forced `tool_choice`) và chưa dùng structured outputs vì chưa thử với key thật; xem
+đầu `ai/src/infra/providers/anthropic.ts`.
+
 ### Studio vs hệ thống của khách
 
 Hệ thống của khách (`tn-casa-quotation-estimator`) là bản gốc phải theo; `/quotes` và studio của mình chỉ dựng
@@ -162,7 +187,10 @@ repo's tsconfig and can be green while the deployment build is not.
 |---|---|---|---|
 | `GEMINI_API_KEY` | Production + Preview | if `EXTRACTOR_PROVIDER` is unset or `gemini` | Free tier is not enough for a real eval run — see ADR-005a. |
 | `GEMINI_MODEL` | optional | no | Defaults to `gemini-2.5-flash`. Verify against [ai.google.dev](https://ai.google.dev/gemini-api/docs/models) before changing — names in this family move fast. |
-| `EXTRACTOR_PROVIDER` | optional | no | `gemini` (default) \| `deepseek-flash` \| `deepseek-pro`. Picks the server's default provider. |
+| `EXTRACTOR_PROVIDER` | optional | no | `gemini` (default) \| `deepseek-flash` \| `deepseek-pro` \| `anthropic` (or a `claude-…` id). Picks the server's default provider **until something is saved in the admin dashboard**, which then takes over. |
+| `ANTHROPIC_API_KEY` | optional | only for the Anthropic provider | Can be saved in the dashboard instead. |
+| `ADMIN_ACCESS_KEY` | Production + Preview | to switch the dashboard on | The key typed on `/login` to open `/admin/ai`. Unset = no dashboard (it answers 404). Must differ from `STAFF_ACCESS_KEY`. |
+| `SETTINGS_ENCRYPTION_KEY` | Production + Preview | to save keys from the dashboard | 32 random bytes, base64 (`node -e "console.log(require('crypto').randomBytes(32).toString('base64'))"`). Encrypts keys in KV. Keep it in Vercel only. |
 | `DEEPSEEK_GATEWAY_KEY` | optional | if `EXTRACTOR_PROVIDER` is a DeepSeek value | Your personal LiteLLM gateway key (Railway) — ask Anthony for one. $12 budget per person, shared across everything you use it for, not just this repo. |
 | `DEBUG_EXTRACT` | optional, dev only | no | `1` includes zod issues / stack traces in error responses. Remove after debugging — don't leave it on. |
 | `WHATSAPP_VERIFY_TOKEN` | Production + Preview | only for the WhatsApp channel | A string you invent, then paste into the Meta app dashboard *and* here. Meta never issues it — it just echoes it back on the one-time GET handshake. It is **not** the staff key any more: that is `STAFF_ACCESS_KEY` (below). |

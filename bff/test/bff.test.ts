@@ -32,8 +32,10 @@ describe("BFF Endpoints", () => {
     expect(res.status).toBe(200);
     expect(res.headers.get("content-type")).toContain("text/html");
     const html = await res.text();
-    expect(html).toContain("DeepSeek Flash");
-    expect(html).toContain("Gemini 2.5 Flash");
+    // The console uses the server's model; it neither offers a provider list nor takes a key from the browser.
+    expect(html).toContain("admin dashboard");
+    expect(html).not.toContain('id="api-key"');
+    expect(html).not.toContain('id="provider-select"');
   });
 
   it("serves benchmark report on GET /benchmark and scenarios on /scenarios", async () => {

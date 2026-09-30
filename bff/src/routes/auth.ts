@@ -1,6 +1,7 @@
 import type { Context, Hono } from "hono";
 import { deleteCookie } from "hono/cookie";
 import {
+  adminAccessKey,
   DEMO_SESSION_COOKIE,
   renderLoginHtml,
   staffAccessKey,
@@ -51,14 +52,19 @@ export function registerAuthRoutes(app: Hono, deps: AuthRouteDeps): void {
       }
     }
 
-    if (!sameSecret(password, staffAccessKey())) {
+    // Which key was typed is the only thing that decides the role; the form's `role` field is ignored. The
+    // staff key is checked first, so a deployment that gave both keys the same value has no admin rather than
+    // an admin that everyone with the staff key can be.
+    const isStaff = sameSecret(password, staffAccessKey());
+    const adminKey = adminAccessKey();
+    const isAdmin = !isStaff && adminKey !== "" && sameSecret(password, adminKey);
+    if (!isStaff && !isAdmin) {
       if (ip) loginLimiter.fail(ip);
       return c.html(renderLoginHtml(true, nextPath), 401);
     }
     if (ip) loginLimiter.reset(ip);
-    // The form's `role` field is ignored: a role is not something the client gets to pick.
-    setSession(c, "staff");
-    return c.redirect(nextPath);
+    setSession(c, isAdmin ? "admin" : "staff");
+    return c.redirect(isAdmin && nextPath === "/quotes" ? "/admin/ai" : nextPath);
   });
 
   // Signing out clears the cookie. There is no server-side session to revoke — the demo session is

@@ -23,7 +23,6 @@ import {
   ASK_LIMIT,
   STALL_LIMIT,
   ExtractionValidationError,
-  createProviderFromEnv,
   createProviderByName,
   KNOWN_PROVIDER_NAMES,
   maskForLogging,
@@ -50,6 +49,9 @@ import { BffTrip } from "../../ai/src/domain/schema.js";
 import { renderGuestQuotationCopyHtml } from "./views/guestQuotationCopy.js";
 // Route groups that need none of the state this function builds — see each file's header.
 import { registerAuthRoutes } from "./routes/auth.js";
+import { registerAdminRoutes } from "./routes/admin.js";
+import { createProviderHolder } from "./services/aiProvider.js";
+import { createSettingsStore, type SettingsStore } from "./stores/settingsStore.js";
 import { registerHealthRoutes } from "./routes/health.js";
 import { registerPageRoutes } from "./routes/pages.js";
 import {
@@ -80,6 +82,7 @@ import {
   issueSession,
   verifySession,
   type DemoRole,
+  adminAccessKey,
 } from "./auth/demoAuth.js";
 import {
   checkSenderCredentials,
@@ -142,10 +145,6 @@ const ConverseRequest = z
 // `fallback` is the seam the app is constructed with (see AppOptions): the
 // WhatsApp webhook has no request body to carry an override, so without it that
 // path could only ever be tested against a real vendor.
-function resolveProvider(data: { provider?: string; apiKey?: string }, fallback?: ExtractProvider): ExtractProvider {
-  if (data.provider) return createProviderByName(data.provider, data.apiKey!);
-  return fallback ?? createProviderFromEnv();
-}
 
 // Shared between /v1/extract and /v1/converse — both call into the same
 // extract() underneath and can fail in exactly the same two ways: the
@@ -378,6 +377,10 @@ export interface AppOptions {
   /** Injectable so a test can drive the sign-in brake without waiting out its window. */
   loginLimiter?: LoginAttemptLimiter;
   provider?: ExtractProvider;
+  /** The admin-editable AI settings. Injectable so a test can run the dashboard without a KV. */
+  settings?: SettingsStore;
+  /** Answers the dashboard's test-call, so a test never reaches a real provider. */
+  adminFetch?: typeof fetch;
   store?: ConversationStore;
   sendWhatsApp?: WhatsAppSendText;
   /**
@@ -463,16 +466,33 @@ export function createApp(options: AppOptions = {}) {
   const store = options.store ?? createConversationStoreFromEnv();
   const estimator = options.estimator ?? createEstimatorPortFromEnv();
 
+  // The AI provider is built from the saved settings (admin dashboard) over the environment, and kept for the life
+  // of the process — so its circuit breaker remembers a failing primary between requests.
+  const aiSettings = options.settings ?? createSettingsStore();
+  const providerHolder = createProviderHolder(aiSettings);
+  /**
+   * The provider for one request. A provider named in the request body (with its own key) is an override for the
+   * eval harness and a staff member comparing models; it is not offered to anyone without a staff session, because
+   * it makes this service spend the caller's tokens against the caller's choice of host.
+   */
+  async function providerFor(data: { provider?: string; apiKey?: string }): Promise<ExtractProvider> {
+    if (data.provider) return createProviderByName(data.provider, data.apiKey!);
+    return options.provider ?? (await providerHolder.get());
+  }
+
   app.post("/v1/extract", async (c) => {
     const body = await c.req.json().catch(() => null);
     const parsed = ExtractRequest.safeParse(body);
     if (!parsed.success) {
       return c.json({ error: "invalid_request", issues: parsed.error.issues }, 422);
     }
+    if (parsed.data.provider && !staffWriter(c)) {
+      return c.json({ error: "unauthorized", detail: "choosing a provider or sending an API key needs a staff session" }, 401);
+    }
 
     let provider: ExtractProvider;
     try {
-      provider = resolveProvider(parsed.data, options.provider);
+      provider = await providerFor(parsed.data);
     } catch (err) {
       return c.json({ error: "server_misconfigured", detail: err instanceof Error ? err.message : String(err) }, 500);
     }
@@ -491,10 +511,13 @@ export function createApp(options: AppOptions = {}) {
     if (!parsed.success) {
       return c.json({ error: "invalid_request", issues: parsed.error.issues }, 422);
     }
+    if (parsed.data.provider && !staffWriter(c)) {
+      return c.json({ error: "unauthorized", detail: "choosing a provider or sending an API key needs a staff session" }, 401);
+    }
 
     let provider: ExtractProvider;
     try {
-      provider = resolveProvider(parsed.data, options.provider);
+      provider = await providerFor(parsed.data);
     } catch (err) {
       return c.json({ error: "server_misconfigured", detail: err instanceof Error ? err.message : String(err) }, 500);
     }
@@ -599,7 +622,7 @@ export function createApp(options: AppOptions = {}) {
     let provider: ExtractProvider;
     let sendText: WhatsAppSendText;
     try {
-      provider = resolveProvider({}, options.provider);
+      provider = await providerFor({});
       sendText = options.sendWhatsApp ?? createWhatsAppSender(config);
     } catch (err) {
       return c.json({ error: "server_misconfigured", detail: err instanceof Error ? err.message : String(err) }, 500);
@@ -1105,7 +1128,7 @@ export function createApp(options: AppOptions = {}) {
   app.post("/handoff/:phone/resume", async (c) => {
     const auth = staffSession(c);
     if (!auth.ok) return c.json({ error: "unauthorized" }, 401);
-    if (auth.role !== "staff") return c.json({ error: "forbidden", detail: "only staff may hand a thread back" }, 403);
+    if (!staffWriter(c)) return c.json({ error: "forbidden", detail: "only staff may hand a thread back" }, 403);
     await store.resume(c.req.param("phone"));
     return c.redirect("/handoff");
   });
@@ -1113,7 +1136,7 @@ export function createApp(options: AppOptions = {}) {
   app.post("/handoff/:phone/reset", async (c) => {
     const auth = staffSession(c);
     if (!auth.ok) return c.json({ error: "unauthorized" }, 401);
-    if (auth.role !== "staff") return c.json({ error: "forbidden", detail: "only staff may clear a thread" }, 403);
+    if (!staffWriter(c)) return c.json({ error: "forbidden", detail: "only staff may clear a thread" }, 403);
     await closeEnquiryQuotation(c.req.param("phone"));
     await store.clear(c.req.param("phone"));
     return c.redirect("/handoff");
@@ -1202,7 +1225,7 @@ export function createApp(options: AppOptions = {}) {
    */
   function staffWriter(c: Context): boolean {
     const auth = staffSession(c);
-    return auth.ok && auth.role === "staff";
+    return auth.ok && (auth.role === "staff" || auth.role === "admin");
   }
 
   function setDemoSession(c: Context, role: DemoRole): void {
@@ -1236,6 +1259,27 @@ export function createApp(options: AppOptions = {}) {
   const loginLimiter = options.loginLimiter ?? createLoginAttemptLimiter();
 
   registerAuthRoutes(app, { loginLimiter, setSession: setDemoSession });
+
+  /**
+   * Who may open `/admin`: an admin session, or a script holding the admin key in `x-admin-key`. Unset
+   * `ADMIN_ACCESS_KEY` means there is no dashboard at all (404, the same as any other path that does not exist);
+   * a staff session is a valid session that may not come in (403); nobody is 401, or a sign-in page for the page.
+   */
+  function adminGuard(c: Context, kind: "page" | "api"): Response | null {
+    const key = adminAccessKey();
+    if (!key) return c.json({ error: "not_found" }, 404);
+    const header = c.req.header("x-admin-key");
+    if (header && sameSecret(header, key)) return null;
+    const auth = staffSession(c);
+    if (auth.ok && auth.role === "admin") return null;
+    if (auth.ok) {
+      return kind === "page"
+        ? c.html("<!doctype html><title>Admin only</title><p>This page is for the admin account. Sign in with the admin key.</p>", 403)
+        : c.json({ error: "forbidden", detail: "the admin dashboard needs the admin key" }, 403);
+    }
+    return kind === "page" ? c.redirect("/login?next=%2Fadmin%2Fai") : c.json({ error: "unauthorized" }, 401);
+  }
+  registerAdminRoutes(app, { settings: aiSettings, guard: adminGuard, fetch: options.adminFetch });
 
   app.get("/quotes", async (c) => {
     const auth = staffSession(c);
@@ -1839,7 +1883,7 @@ export function createApp(options: AppOptions = {}) {
     const saved = await saveQuotationDraft(merged);
     let provider: ExtractProvider | undefined;
     try {
-      provider = options.provider ?? createProviderFromEnv();
+      provider = options.provider ?? (await providerHolder.get());
     } catch {}
     const aiReply = await synthesizeConfirmedQuotationReply(saved, provider);
     saved.aiConfirmedReply = aiReply;
@@ -2783,7 +2827,7 @@ export function createApp(options: AppOptions = {}) {
       // self-computed table and no link.
       let provider: ExtractProvider | undefined;
       try {
-        provider = options.provider ?? createProviderFromEnv();
+        provider = options.provider ?? (await providerHolder.get());
       } catch {
         // No provider configured: the deterministic message is complete on its own.
       }

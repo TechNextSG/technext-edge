@@ -13,6 +13,7 @@
  * WhatsApp window.
  */
 import type { HonoQuotationDraft } from "../../../ai/src/index.js";
+import { kvCommand } from "./kv.js";
 
 export interface QuotationStore {
   get(idOrSlug: string): Promise<HonoQuotationDraft | undefined>;
@@ -86,23 +87,7 @@ export function createInMemoryQuotationStore(): QuotationStore {
  *   quotes:all             -> a SET of every quote id, so `list` never needs KEYS/SCAN
  */
 export function createRedisQuotationStore(config: RedisConfig): QuotationStore {
-  async function command<T = unknown>(args: (string | number)[]): Promise<T> {
-    const res = await fetch(config.url, {
-      method: "POST",
-      headers: {
-        authorization: `Bearer ${config.token}`,
-        "content-type": "application/json",
-      },
-      body: JSON.stringify(args),
-    });
-    if (!res.ok) {
-      const errText = await res.text().catch(() => "");
-      throw new Error(`Redis command [${args[0]}] failed (${res.status}): ${errText.slice(0, 200)}`);
-    }
-    const json = (await res.json()) as { result: T; error?: string };
-    if (json.error) throw new Error(`Redis command error [${args[0]}]: ${json.error}`);
-    return json.result;
-  }
+  const command = <T = unknown>(args: (string | number)[]): Promise<T> => kvCommand<T>(config, args);
 
   async function read(id: string): Promise<HonoQuotationDraft | undefined> {
     const raw = await command<string | null>(["GET", `quote:${id}`]);

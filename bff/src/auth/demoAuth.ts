@@ -29,9 +29,15 @@ import { createHmac, timingSafeEqual } from "node:crypto";
  * customer's own tool — so there is one role here. A cookie signed with an older role ("guest",
  * "agent") is no longer a session at all: `verifySession` returns null for it.
  */
-export type DemoRole = "staff";
+export type DemoRole = "staff" | "admin";
 
-export const DEMO_ROLES: readonly DemoRole[] = ["staff"];
+export const DEMO_ROLES: readonly DemoRole[] = ["staff", "admin"];
+
+/**
+ * `admin` exists for one thing: the AI settings dashboard (`/admin`). It can do everything `staff` can; `staff`
+ * cannot open `/admin`. The role comes from *which key was typed* at sign-in — never from a form field — and only
+ * when `ADMIN_ACCESS_KEY` is set: unset, there is no admin and the dashboard does not exist.
+ */
 
 /** Cookie the demo session rides in. HttpOnly: script on the page never reads it. */
 export const DEMO_SESSION_COOKIE = "casa_gais_session";
@@ -44,7 +50,7 @@ const SESSION_TTL_MS = 8 * 60 * 60 * 1000;
  * anything not on it falls back to the studio. The single source of truth for both the page's
  * hidden field and the POST handler, so the two cannot disagree about what is allowed.
  */
-export const SAFE_NEXT_PREFIXES = ["/quotes", "/handoff"] as const;
+export const SAFE_NEXT_PREFIXES = ["/quotes", "/handoff", "/admin"] as const;
 
 export const DEMO_GAIS_BANNER =
   "DEMO AUTH — staff sign-in here is a stand-in for GAIS. Real GAIS_API_KEY + Odoo roles land when Phillip issues keys.";
@@ -68,6 +74,11 @@ export function isDemoRole(value: unknown): value is DemoRole {
  */
 export function staffAccessKey(env: NodeJS.ProcessEnv = process.env): string {
   return env.STAFF_ACCESS_KEY || env.WHATSAPP_VERIFY_TOKEN || "";
+}
+
+/** The key that opens the admin dashboard. Empty = the dashboard is off. Must differ from the staff key to mean anything. */
+export function adminAccessKey(env: NodeJS.ProcessEnv = process.env): string {
+  return env.ADMIN_ACCESS_KEY || "";
 }
 
 export interface LoginAttemptLimiter {

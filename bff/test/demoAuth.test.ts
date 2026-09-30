@@ -85,11 +85,12 @@ describe("demo GAIS session tokens", () => {
     }
   });
 
-  it("has one role: the studio is a staff tool, and agents use the customer's own tool", () => {
+  it("has two roles: staff, and admin for the AI settings dashboard; agents use the customer's own tool", () => {
     expect(isDemoRole("staff")).toBe(true);
+    expect(isDemoRole("admin")).toBe(true);
     expect(isDemoRole("agent")).toBe(false);
     expect(isDemoRole("guest")).toBe(false);
-    expect(isDemoRole("admin")).toBe(false);
+    expect(isDemoRole("root")).toBe(false);
     expect(isDemoRole(null)).toBe(false);
   });
 });
@@ -134,7 +135,7 @@ describe("the studio behind the demo sign-in", () => {
     // else falls back to the studio list rather than becoming an open redirect.
     it("refuses a destination that is not an in-app /quotes path", async () => {
       const app = createApp();
-      for (const hostile of ["https://evil.example/steal", "//evil.example", "/admin", "/q/slug"]) {
+      for (const hostile of ["https://evil.example/steal", "//evil.example", "/v1/quotes", "/q/slug"]) {
         const res = await app.request("/login", {
           method: "POST",
           headers: { "content-type": "application/x-www-form-urlencoded" },

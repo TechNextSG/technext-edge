@@ -152,29 +152,12 @@ details pre{background:var(--card2);border:1px solid var(--hairline);padding:12p
   </div>
 
   <div class="wrap">
-    <p class="lede">Wired to the live provider (see the badge in the result meta line below). Not the real estimator UI — that belongs to the Edge UI pod.</p>
+    <p class="lede">Wired to the live provider (see the badge in the result meta line below; the model is chosen in the admin dashboard). Not the real estimator UI — that belongs to the Edge UI pod.</p>
 
     <div class="tabs" role="tablist">
       <button class="tab-btn" id="tab-chat" role="tab" aria-selected="true">💬 Chat</button>
       <button class="tab-btn" id="tab-single" role="tab" aria-selected="false">📝 Single message</button>
     </div>
-
-    <details id="override">
-      <summary>Provider override (bring your own key — sent straight from your browser to this server, never through anything else)</summary>
-      <div class="override-row">
-        <select id="provider-select">
-          <option value="">Server default (DeepSeek Flash — primary)</option>
-          <option value="deepseek-flash">DeepSeek Flash (Primary)</option>
-          <option value="deepseek-pro">DeepSeek Pro</option>
-          <option value="gemini-3.1-flash-lite">Gemini 3.1 Flash-Lite (Google 2026 - Fast SLA)</option>
-          <option value="gemini-3.5-flash">Gemini 3.5 Flash (Extended Reasoning)</option>
-          <option value="gemini-2.5-flash">Gemini 2.5 Flash</option>
-          <option value="gemini">Gemini (Default GEMINI_MODEL env)</option>
-        </select>
-        <input id="api-key" type="password" placeholder="API key override (optional)" autocomplete="off" spellcheck="false">
-      </div>
-      <p class="override-note">Kept only in this tab's session storage — cleared when the tab closes, never sent anywhere except this server, never logged.</p>
-    </details>
 
     <!-- ================= CHAT MODE ================= -->
     <div class="card mode active" id="mode-chat">
@@ -259,25 +242,10 @@ document.querySelectorAll('.chip-btn').forEach(btn => {
   btn.addEventListener('click', () => { textEl.value = btn.dataset.text; });
 });
 
-const providerSelect = document.getElementById('provider-select');
-const apiKeyInput = document.getElementById('api-key');
-
-// Session-only convenience — never written to localStorage or sent anywhere
-// but this server, and only for as long as this tab stays open.
-function keyStorageKey(provider) { return 'extractor-test-key:' + provider; }
-providerSelect.addEventListener('change', () => {
-  apiKeyInput.value = providerSelect.value ? (sessionStorage.getItem(keyStorageKey(providerSelect.value)) || '') : '';
-});
-apiKeyInput.addEventListener('input', () => {
-  if (providerSelect.value) {
-    try { sessionStorage.setItem(keyStorageKey(providerSelect.value), apiKeyInput.value); } catch {}
-  }
-});
-
+// The page always uses the server's configured model. Choosing one, or sending a key, is an admin-dashboard job
+// (/admin/ai) — the public console no longer accepts a key from the browser.
 function currentProviderOverride() {
-  const provider = providerSelect.value || undefined;
-  const apiKey = provider ? apiKeyInput.value.trim() : undefined;
-  return { provider, apiKey };
+  return { provider: undefined, apiKey: undefined };
 }
 
 function describeError(data) {
