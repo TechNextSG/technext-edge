@@ -381,7 +381,7 @@ Ngoài `validate.ts`: `half_board` không có trong engine (`meals` chỉ true/f
 
 `npm run upstream:check` (chỉ đọc) liệt kê commit mới chạm `contracts/`, `bff/src/{routes,trip,model,odoo,auth}`,
 `ai/`, `docs/integration/`, `customer-questions.md` kể từ mốc ghim trong
-`ai/bff-contract/PROVENANCE.md`, và in `TripIssueCode` hiện tại. Test
+`contracts/bff-contract/PROVENANCE.md`, và in `TripIssueCode` hiện tại. Test
 `bffContractParity` (sức chứa) và `refusalCopy` (mọi issue code có câu tiếng Anh) là tripwire.
 
 ## 9. Liên kết

@@ -27,7 +27,7 @@
  * `/quote/<token>` link is noted at the bottom of this file; it is deliberately not implemented
  * because those endpoints are not on their `main`.
  */
-import type { BffTrip } from "../../../ai/src/domain/schema.js";
+import type { BffTrip } from "../../../contracts/src/index.js";
 import { describeRefusal, refusalCode, refusalIssues } from "./refusalCopy.js";
 import type {
   CommitResult,

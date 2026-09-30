@@ -97,7 +97,7 @@ const CHECKIN_TOOL_SCHEMA = {
 };
 
 // Isolated dive-window prompt/schema (2026-09-21, ADR-005a) — same pattern
-// as CHECKIN_ONLY_PROMPT, found via scripts/test-anilao-real-matrix.ts's
+// as CHECKIN_ONLY_PROMPT, found via tools/live-eval/test-anilao-real-matrix.ts's
 // AN-01 scenario: a guest confirming "diving on Oct 11th" in a follow-up
 // turn came back diveFrom:null 4/4 in the full multi-field prompt, isolated
 // 5/5 correct. diveFrom/diveTo travel together (one day mention sets both).

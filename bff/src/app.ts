@@ -11,7 +11,6 @@ import { z } from "zod";
 // that resolution entirely — plain files, nothing symlink-based to trace.
 import {
   extract,
-  converse,
   detectLanguage,
   fallbackReply,
   stalledHandoffReply,
@@ -26,26 +25,29 @@ import {
   createProviderByName,
   KNOWN_PROVIDER_NAMES,
   maskForLogging,
+  pathsRestatedByGuest,
+  verifyGuestFacingText,
+  type ConversationTurn,
+  type ExtractProvider,
+  type GuestLanguage,
+  type Trip,
+} from "../../ai/src/index.js";
+import {
+  converseWithQuotation,
   buildHonoQuotationDraft,
   recalculateQuotationTotals,
   validateBffTripPrecheck,
   normalizePricing,
   diffBffTrip,
   pricedFactsChanged,
-  pathsRestatedByGuest,
   guestLinkFor,
   synthesizeConfirmedQuotationReply,
   guestFacingFactsFor,
   isPartnerEnquiry,
-  verifyGuestFacingText,
-  type ConversationTurn,
-  type ExtractProvider,
-  type GuestLanguage,
   type HonoQuotationDraft,
   type QuotationSubmission,
-  type Trip,
-} from "../../ai/src/index.js";
-import { BffTrip } from "../../ai/src/domain/schema.js";
+} from "../../quotation/src/index.js";
+import { BffTrip } from "../../contracts/src/index.js";
 import { renderGuestQuotationCopyHtml } from "./views/guestQuotationCopy.js";
 // Route groups that need none of the state this function builds — see each file's header.
 import { registerAuthRoutes } from "./routes/auth.js";
@@ -524,7 +526,7 @@ export function createApp(options: AppOptions = {}) {
 
     try {
       const outcome = parsed.data.message
-        ? await converse(
+        ? await converseWithQuotation(
           {
             message: parsed.data.message,
             history: parsed.data.history as ConversationTurn[] | undefined,
@@ -533,7 +535,7 @@ export function createApp(options: AppOptions = {}) {
           },
           provider,
         )
-        : await converse(parsed.data.history as ConversationTurn[], provider);
+        : await converseWithQuotation(parsed.data.history as ConversationTurn[], provider);
       if (outcome.quotationDraft) {
         // Creating a quotation is a staff action.
         //
@@ -783,7 +785,7 @@ export function createApp(options: AppOptions = {}) {
             // provider's own timeout, which is longer than the whole turn is allowed to be.
             const elapsedMs = Date.now() - turnStartedAt;
             const synthesisBudgetMs = Math.max(1_500, config.turnTimeoutMs - elapsedMs - 1_000);
-            const outcome = await converse(history, model, { synthesisBudgetMs });
+            const outcome = await converseWithQuotation(history, model, { synthesisBudgetMs });
             // Abandoned while the provider was still thinking: Meta already has its
             // answer for this wamid, so stop here rather than appending and sending
             // behind the redelivery's back. This is what keeps "one guest message,

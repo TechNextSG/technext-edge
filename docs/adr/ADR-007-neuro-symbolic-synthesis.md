@@ -40,7 +40,7 @@ We adopt a **2-Layer Neuro-Symbolic (Hybrid AI) Architecture** for turn-by-turn 
   3. **Exact Integer Consistency:** Rejects any reply whose stated night count (`nights`) or room count (`rooms`) contradicts the validated `Trip` object (`mismatched_nights_count`, `mismatched_rooms_count`).
   4. **Instant Deterministic Rollback:** Any rejection or timeout immediately falls back to `renderReply()` (`fallbackText`).
 
-### Decision 4 — Objective Naturalness Scoring & Tri-State Odoo Handoff ([`naturalness.ts`](../../ai/src/application/naturalness.ts), [`odooHandoff.ts`](../../ai/src/application/odooHandoff.ts))
+### Decision 4 — Objective Naturalness Scoring & Tri-State Odoo Handoff ([`naturalness.ts`](../../ai/src/application/naturalness.ts), [`odooHandoff.ts`](../../quotation/src/application/odooHandoff.ts))
 - Every reply is measurable on a 0–100 rubric (`scoreReplyNaturalness`: 35% Non-Redundancy, 25% Nuance Acknowledgment, 25% Fact Gate Safety, 15% Concierge Warmth).
 - Every completed `Trip` maps via `buildOdooHandoffPayload(trip)` into either `auto_estimate_ready` (standard retail booking) or `manual_staff_review` (partner/agency 30% discount or custom split-day dive schedule).
 

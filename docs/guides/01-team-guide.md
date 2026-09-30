@@ -986,7 +986,7 @@ node ai/eval/runner.mjs --provider deepseek-flash
 ## 9. Before this becomes the real Extractor pod deliverable
 
 1. `ai/src/schema.ts` is no longer a guess about the *shape* of the Odoo
-   payload — the BFF contract is vendored in `ai/bff-contract/` at commit
+   payload — the BFF contract is vendored in `contracts/bff-contract/` at commit
    `4c48918` and `test/bffContractParity.test.ts` fails if the two copies drift. What is
    still missing is the same thing this item was always about: nobody has confirmed the
    values that go *into* it. Two placeholder flags remain in the file —

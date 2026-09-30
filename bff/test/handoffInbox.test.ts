@@ -10,7 +10,7 @@ import {
   createInMemoryConversationStore,
   type ConversationStore,
 } from "../src/stores/conversationStore.js";
-import type { ExtractProvider } from "../../ai/src/ports/provider.js";
+import type { ExtractProvider } from "../../ai/src/index.js";
 
 const VERIFY_TOKEN = "handoff-inbox-token";
 const APP_SECRET = "handoff-app-secret";

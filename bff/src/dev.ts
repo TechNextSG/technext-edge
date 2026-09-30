@@ -2,7 +2,7 @@ import { serve } from "@hono/node-server";
 import { createApp } from "./app.js";
 
 try { process.loadEnvFile(".env.local"); } catch {}
-try { process.loadEnvFile("../../.env.local"); } catch {}
+try { process.loadEnvFile("../.env.local"); } catch {}
 
 const port = Number(process.env.PORT ?? 8787);
 serve({ fetch: createApp().fetch, port }, (info) => {

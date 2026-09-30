@@ -10,8 +10,8 @@ import {
   whatsAppConfig,
 } from "../src/services/whatsapp.js";
 import { createInMemoryConversationStore, type ConversationStore } from "../src/stores/conversationStore.js";
-import { ASK_LIMIT, STALL_LIMIT } from "../../ai/src/application/questions.js";
-import type { ExtractProvider } from "../../ai/src/ports/provider.js";
+import { ASK_LIMIT, STALL_LIMIT } from "../../ai/src/index.js";
+import type { ExtractProvider } from "../../ai/src/index.js";
 import { listQuotations } from "../src/stores/quotationStore.js";
 
 const VERIFY_TOKEN = "casa-verify-token";

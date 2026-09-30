@@ -3,5 +3,5 @@
   "compilerOptions": {
     "outDir": "dist"
   },
-  "include": ["src", "../ai/src"]
+  "include": ["src", "../ai/src", "../quotation/src", "../contracts/src"]
 }

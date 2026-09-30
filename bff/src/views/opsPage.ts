@@ -15,7 +15,7 @@
  * inventing an empty day.
  */
 import { themeCss } from "./theme.js";
-import type { HonoQuotationDraft } from "../../../ai/src/index.js";
+import type { HonoQuotationDraft } from "../../../quotation/src/index.js";
 import { escapeHtml } from "./html.js";
 
 const SHORT_MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];

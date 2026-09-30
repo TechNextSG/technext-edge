@@ -26,8 +26,9 @@ import {
   estimatorModeFromEnv,
   type SubmitInput,
 } from "../src/services/estimatorPort.js";
-import { buildBffTrip } from "../../ai/src/application/odooHandoff.js";
-import type { BffTrip, Trip } from "../../ai/src/domain/schema.js";
+import { buildBffTrip } from "../../quotation/src/index.js";
+import type { BffTrip } from "../../contracts/src/index.js";
+import type { Trip } from "../../ai/src/index.js";
 
 /** The couple in the captured fixture: Ana dives one day, Ben does not, both full board. */
 function retailCoupleSource(overrides: Partial<Record<keyof Trip, unknown>> = {}): Trip {

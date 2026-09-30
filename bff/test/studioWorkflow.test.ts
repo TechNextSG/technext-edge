@@ -13,7 +13,7 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { createApp } from "../src/app.js";
 import { listQuotations, renderHonoQuotationEditorHtml, saveQuotationDraft } from "../src/stores/quotationStore.js";
-import type { HonoQuotationDraft } from "../../ai/src/index.js";
+import type { HonoQuotationDraft } from "../../quotation/src/index.js";
 
 const STAFF_TOKEN = "studio-workflow-token";
 

@@ -103,7 +103,7 @@ export interface ExtractProvider {
   // already 'stated'), same merge discipline as extractGuests.
   extractCheckIn?(text: string, today: string): Promise<CheckInReadResult>;
   // Same pattern, same day, for the dive window: found via the pre-existing
-  // scripts/test-anilao-real-matrix.ts scenario matrix (AN-01) — a guest
+  // tools/live-eval/test-anilao-real-matrix.ts scenario matrix (AN-01) — a guest
   // confirming "diving on Oct 11th" in a follow-up turn came back
   // diveFrom:null 4/4 times in the full multi-field prompt, isolated 5/5
   // correct. diveFrom/diveTo travel together (a single day mention sets

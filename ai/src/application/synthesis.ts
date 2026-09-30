@@ -2,7 +2,7 @@ import type { Trip } from "../domain/schema.js";
 import type { GuestQuestion, ReplyKind } from "./questions.js";
 import { diveWindowIsGuessed } from "./questions.js";
 import type { ExtractProvider } from "../ports/provider.js";
-import type { ConversationTurn } from "./converse.js";
+import type { ConversationTurn } from "../domain/conversation.js";
 
 export interface SynthesisInput {
   turns: ConversationTurn[];

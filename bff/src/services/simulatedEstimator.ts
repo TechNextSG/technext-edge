@@ -34,12 +34,12 @@
  *   * no partner discount: a partner rate comes from the partner's own Odoo key, not from the trip.
  */
 import { randomUUID } from "node:crypto";
-import type { BffGuest, BffTrip } from "../../../ai/src/domain/schema.js";
+import type { BffGuest, BffTrip } from "../../../contracts/src/index.js";
 import {
   datesBetweenInclusive,
   validateBffTripPrecheck,
-} from "../../../ai/src/application/odooHandoff.js";
-import { DEFAULT_ROOM_CAPS, type RoomCaps } from "../../../ai/src/domain/houseNorms.js";
+} from "../../../quotation/src/index.js";
+import { DEFAULT_ROOM_CAPS, type RoomCaps } from "../../../ai/src/index.js";
 import {
   COURSE_RATES,
   diveTierPrice,
@@ -49,7 +49,7 @@ import {
   vanLoads,
   vansForGuests,
   type RoomType,
-} from "../../../ai/src/domain/rates.js";
+} from "../../../quotation/src/index.js";
 import { describeRefusal, refusalIssues } from "./refusalCopy.js";
 import type {
   CommitResult,

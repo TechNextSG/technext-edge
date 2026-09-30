@@ -15,7 +15,6 @@ import {
 } from "../src/application/questions.js";
 import { synthesizeHospitalityReply, verifySynthesizedReply } from "../src/application/synthesis.js";
 import { scoreReplyNaturalness } from "../src/application/naturalness.js";
-import { buildOdooHandoffPayload } from "../src/application/odooHandoff.js";
 import type { ConversationTurn } from "../src/application/converse.js";
 import type { ExtractProvider } from "../src/ports/provider.js";
 import type { Trip } from "../src/domain/schema.js";
@@ -828,49 +827,6 @@ describe("Phase 1 Hybrid AI Guardrails: NEVER RE-ASK, Fact Gate & Staff Alerts",
     expect(badScore.noReAskScore).toBe(0.0);
     expect(badScore.overallScore).toBeLessThan(50);
   });
-
-  it("Phase 2 Odoo Handoff Adapter: distinguishes auto_estimate_ready vs manual_staff_review", () => {
-    const retailTrip: Trip = {
-      ...(BLANK_RAW as unknown as Trip),
-      language: { value: "en", state: "inferred", evidence: null },
-      guestType: { value: "retail", state: "default", evidence: null },
-      checkIn: { value: "2026-10-10", state: "stated", evidence: "Oct 10" },
-      checkOut: { value: "2026-10-12", state: "derived", evidence: null },
-      nights: { value: 2, state: "stated", evidence: "2 nights" },
-      guests: { value: 2, state: "stated", evidence: "2 guests" },
-      rooms: { value: 1, state: "default", evidence: null },
-      roomType: { value: "standard", state: "stated", evidence: "standard room" },
-      meals: { value: "full_board", state: "default", evidence: null },
-      transport: { value: false, state: "stated", evidence: "no transfer" },
-      transportType: { value: "none", state: "derived", evidence: null },
-      diver: { value: false, state: "stated", evidence: "no diving" },
-      contactName: { value: "Nhat", state: "stated", evidence: "Nhat" },
-    };
-
-    const retailHandoff = buildOdooHandoffPayload(retailTrip);
-    expect(retailHandoff.mode).toBe("auto_estimate_ready");
-    expect(retailHandoff.readyForAutoQuote).toBe(true);
-    expect(retailHandoff.manualReviewReasons).toEqual([]);
-
-    // Agency trip with split-day diveNotes -> manual_staff_review
-    const complexAgentTrip: Trip = {
-      ...retailTrip,
-      guestType: { value: "agent", state: "inferred", evidence: null },
-      diver: { value: true, state: "stated", evidence: "dives" },
-      divers: { value: null, state: "missing", evidence: null },
-      diveNotes: {
-        value: "1 person dives day 1, 5 people dive both days",
-        state: "stated",
-        evidence: "1 person dives day 1, 5 people dive both days",
-      },
-    };
-
-    const manualHandoff = buildOdooHandoffPayload(complexAgentTrip);
-    expect(manualHandoff.mode).toBe("manual_staff_review");
-    expect(manualHandoff.readyForAutoQuote).toBe(false);
-    expect(manualHandoff.manualReviewReasons).toContain("partner_rate_confirmation_required:agent");
-    expect(manualHandoff.manualReviewReasons).toContain("custom_split_day_dive_schedule");
-  });
 });
 
 /**
@@ -964,18 +920,6 @@ describe("a dive window the guest never gave", () => {
   it("raises no alert when the guest gave the dive dates", () => {
     const alerts = getStaffAlerts(tripWithDiveWindow({ value: "2026-11-26", state: "stated" }, { value: "2026-11-28", state: "stated" }), "en");
     expect(alerts.some((a) => a.includes("Dive Days To Confirm"))).toBe(false);
-  });
-
-  it("is not auto-priced: the handoff envelope routes it to manual review", () => {
-    const guessed = buildOdooHandoffPayload(tripWithDiveWindow({ value: null, state: "missing" }, { value: null, state: "missing" }));
-    expect(guessed.mode).toBe("manual_staff_review");
-    expect(guessed.readyForAutoQuote).toBe(false);
-    expect(guessed.manualReviewReasons).toContain("dive_window_not_stated");
-  });
-
-  it("leaves a guest-stated window on the auto path", () => {
-    const stated = buildOdooHandoffPayload(tripWithDiveWindow({ value: "2026-11-26", state: "stated" }, { value: "2026-11-28", state: "stated" }));
-    expect(stated.manualReviewReasons).not.toContain("dive_window_not_stated");
   });
 
   it("reaches the guest summary as a confirmation, not as a stated fact", () => {

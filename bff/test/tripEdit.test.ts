@@ -12,10 +12,11 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { createApp } from "../src/app.js";
 import { createEstimatorClient } from "../src/services/estimatorClient.js";
-import { buildHonoQuotationDraft } from "../../ai/src/application/quotationTool.js";
+import { buildHonoQuotationDraft } from "../../quotation/src/index.js";
 import { listQuotations, saveQuotationDraft } from "../src/stores/quotationStore.js";
-import { buildBffTrip } from "../../ai/src/application/odooHandoff.js";
-import type { BffTrip, Trip } from "../../ai/src/domain/schema.js";
+import { buildBffTrip } from "../../quotation/src/index.js";
+import type { BffTrip } from "../../contracts/src/index.js";
+import type { Trip } from "../../ai/src/index.js";
 
 const VERIFY_TOKEN = "trip-edit-token";
 

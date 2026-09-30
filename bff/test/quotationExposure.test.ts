@@ -21,13 +21,13 @@ import {
   getQuotationByIdOrSlug,
   saveQuotationDraft,
 } from "../src/stores/quotationStore.js";
-import { buildHonoQuotationDraft, recalculateQuotationTotals, synthesizeConfirmedQuotationReply } from "../../ai/src/application/quotationTool.js";
+import { buildHonoQuotationDraft, recalculateQuotationTotals, synthesizeConfirmedQuotationReply } from "../../quotation/src/index.js";
 import {
   validateBffTripPrecheck,
   buildBffTrip,
-} from "../../ai/src/application/odooHandoff.js";
-import type { Trip } from "../../ai/src/domain/schema.js";
-import type { HonoQuotationDraft } from "../../ai/src/application/quotationTool.js";
+} from "../../quotation/src/index.js";
+import type { Trip } from "../../ai/src/index.js";
+import type { HonoQuotationDraft } from "../../quotation/src/index.js";
 
 const STAFF_TOKEN = "test-staff-token";
 const savedToken = process.env.WHATSAPP_VERIFY_TOKEN;

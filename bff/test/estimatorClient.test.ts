@@ -12,8 +12,9 @@ import {
   DEFAULT_ESTIMATOR_BASE_URL,
   ESTIMATE_PATH,
 } from "../src/services/estimatorClient.js";
-import { buildBffTrip } from "../../ai/src/application/odooHandoff.js";
-import type { BffTrip, Trip } from "../../ai/src/domain/schema.js";
+import { buildBffTrip } from "../../quotation/src/index.js";
+import type { BffTrip } from "../../contracts/src/index.js";
+import type { Trip } from "../../ai/src/index.js";
 
 afterEach(() => {
   vi.restoreAllMocks();

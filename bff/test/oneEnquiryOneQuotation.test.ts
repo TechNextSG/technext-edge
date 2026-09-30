@@ -21,8 +21,8 @@ import { createHmac } from "node:crypto";
 import { createApp } from "../src/app.js";
 import { createInMemoryConversationStore } from "../src/stores/conversationStore.js";
 import { listQuotations, saveQuotationDraft } from "../src/stores/quotationStore.js";
-import type { ExtractProvider } from "../../ai/src/ports/provider.js";
-import type { HonoQuotationDraft } from "../../ai/src/application/quotationTool.js";
+import type { ExtractProvider } from "../../ai/src/index.js";
+import type { HonoQuotationDraft } from "../../quotation/src/index.js";
 
 const VERIFY_TOKEN = "enquiry-token";
 const APP_SECRET = "enquiry-secret";

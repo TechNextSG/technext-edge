@@ -4,10 +4,10 @@
 //   - the message that carries the link goes through the same fact gate as a chat reply.
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { createApp } from "../src/app.js";
-import { buildHonoQuotationDraft } from "../../ai/src/application/quotationTool.js";
-import { buildBffTrip } from "../../ai/src/application/odooHandoff.js";
+import { buildHonoQuotationDraft } from "../../quotation/src/index.js";
+import { buildBffTrip } from "../../quotation/src/index.js";
 import { saveQuotationDraft } from "../src/stores/quotationStore.js";
-import type { Trip } from "../../ai/src/domain/schema.js";
+import type { Trip } from "../../ai/src/index.js";
 
 const TOKEN = "f08-token";
 const STAFF = `?token=${TOKEN}`;

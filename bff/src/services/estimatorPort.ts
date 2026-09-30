@@ -18,7 +18,7 @@
  * Safety invariant, unchanged in both modes: nothing here holds an Odoo credential, and nothing
  * here calls Odoo directly. `remote` posts to a BFF; `simulated` does not leave the process.
  */
-import type { BffTrip } from "../../../ai/src/domain/schema.js";
+import type { BffTrip } from "../../../contracts/src/index.js";
 import type { RefusalIssue } from "./refusalCopy.js";
 import { createEstimatorClient, estimatorAppUrl, estimatorBaseUrl } from "./estimatorClient.js";
 import { createSimulatedEstimator } from "./simulatedEstimator.js";

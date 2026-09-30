@@ -72,7 +72,7 @@ export async function extract(rawText: string, provider: ExtractProvider): Promi
     : Promise.resolve(null);
 
   // Same pattern, same day, for the dive window (diveFrom/diveTo) — found
-  // via scripts/test-anilao-real-matrix.ts's AN-01 scenario: "diving on
+  // via tools/live-eval/test-anilao-real-matrix.ts's AN-01 scenario: "diving on
   // Oct 11th" in a follow-up turn came back diveFrom:null 4/4 in the full
   // prompt, isolated 5/5 correct.
   const diveWindowPromise: Promise<Awaited<ReturnType<NonNullable<ExtractProvider["extractDiveWindow"]>>> | null> = provider.extractDiveWindow

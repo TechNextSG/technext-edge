@@ -2,9 +2,9 @@ import { describe, it, expect, vi } from "vitest";
 import { ISSUE_COPY, KNOWN_ISSUE_CODES, describeRefusal } from "../src/services/refusalCopy.js";
 import { createEstimatorClient } from "../src/services/estimatorClient.js";
 import { createSimulatedEstimator } from "../src/services/simulatedEstimator.js";
-import { buildBffTrip } from "../../ai/src/application/odooHandoff.js";
-import type { Trip } from "../../ai/src/domain/schema.js";
-import * as spec from "../../ai/bff-contract/contract-spec.mjs";
+import { buildBffTrip } from "../../quotation/src/index.js";
+import type { Trip } from "../../ai/src/index.js";
+import * as spec from "../../contracts/bff-contract/contract-spec.mjs";
 
 const f = <T,>(value: T | null, state = "stated") => ({ value, state, evidence: null });
 

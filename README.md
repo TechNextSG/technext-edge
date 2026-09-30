@@ -26,40 +26,61 @@ vars, the eval harness, and the gotchas that already cost an afternoon once.
 
 ## Layout
 
+Four workspaces, one dependency direction:
+
 ```text
-bff/
-  src/
-    app.ts        the Hono app: wires config, middleware and routes
-    routes/       HTTP routes (health, pages, auth) — registered by app.ts
-    services/     use-cases: extract, converse, quotation, whatsapp
-    stores/       persistence and thread state (sqlite, file, in-process)
-    auth/         demo and guest-link authentication
-    config/       env parsing, typed config
-    views/        HTML documents the BFF serves
-  test/           24 vitest suites, incl. those driving ai/src
-ai/
-  src/
-    domain/           trip schema (zod), rates, pricing, counts, dates — no I/O
-    application/      pipeline steps that orchestrate the domain
-    ports/            the provider interface
-    infra/providers/  DeepSeek and Gemini adapters, env factory
-    index.ts          the package's only public import surface
-  test/           vitest suite        eval/   Playbook threshold harness
-public/           the only directory the deployment publishes
-docs/             adr | guides | specs | notes | diagrams | demo
-tools/            repo scripts; tools/scratch/ is git-ignored scratch space
+contracts  <-  ai  <-  quotation  <-  bff
 ```
 
-Imports flow downward — `routes → services → stores/config → domain`, and in
-the `ai/` package `application → domain`. The one documented exception is
-`domain/quotationValidity.ts` reading `HonoQuotationDraft`: that edge is a
-`import type` only, so nothing in `domain/` pulls application code into the
-runtime.
+```text
+contracts/        @casa/contracts — the BFF / Odoo estimator contract, mirrored from upstream
+  src/trip.zod.ts   Bff* schemas, GuestType, TransportType
+  bff-contract/     the vendored upstream spec + PROVENANCE.md (pinned commit and hashes)
+ai/               @casa/ai — guest message in, Trip and reply out. No pricing, no Odoo.
+  src/
+    domain/           Trip schema, dates, counts, house norms, conversation — no I/O
+    application/      extract, normalize, intent, questions, synthesis, naturalness, converse
+    ports/            the provider interface
+    infra/providers/  Anthropic, DeepSeek and Gemini adapters, env/settings factory
+    index.ts          the package's only public import surface
+  test/             vitest suite      eval/   Playbook threshold harness
+quotation/        @casa/quotation — from a finished Trip to a priced, editable draft
+  src/
+    domain/           pricing, rates, quotation draft types, validity window, trip diff
+    application/      quotationTool (build/reprice), odooHandoff (BffTrip, precheck),
+                      inquiryLead, converseWithQuotation
+    index.ts          public import surface
+  test/
+bff/              @casa/bff — the Hono app: routes, services, stores, auth, views
+  src/  test/  scripts/ (WhatsApp and journey scripts, run from bff/)
+api/index.ts      Vercel entry point; imports bff/src/app.ts
+public/           the only directory the deployment publishes
+docs/             adr | guides | specs | notes | diagrams | demo
+tools/
+  ops/              upstream-check, check-boundaries, cleanup-quotations
+  live-eval/        scenario runs against a live provider key (not in CI)
+  site/             generators for the pages in public/
+  scratch/          git-ignored scratch space
+```
+
+Rules, enforced by `npm run check:boundaries` (part of `npm run verify` and CI):
+
+- A package imports only the packages to its left in the chain above.
+- Across packages, import the barrel `<pkg>/src/index.js`, never a file inside it. The one other
+  public entry is `contracts/bff-contract/contract-spec.mjs`.
+- Imports stay relative (`../../ai/src/index.js`), not `@casa/*`: the workspace symlink did not
+  resolve in the Vercel bundle (see the note at the top of `bff/src/app.ts`).
+
+Inside a package, imports flow `infra → application → domain`; nothing in `domain/` imports
+`application/`.
 
 ## 30-second version
 
 - `ai/` — Trip schema (zod), date/house-norm post-processing,
-  provider adapters (Gemini, DeepSeek), eval-ready pipeline. Real and tested.
+  provider adapters (Anthropic, Gemini, DeepSeek), eval-ready pipeline. Real and tested.
+- `quotation/` — the priced draft the studio edits and the `BffTrip` the
+  customer's estimator accepts. A simulation of their numbers, never the source of truth.
+- `contracts/` — the upstream BFF schema we mirror, pinned by commit.
 - `bff/` — Hono app: `POST /v1/extract`, `POST /v1/converse`, the
   WhatsApp inbound webhook at `/v1/channels/whatsapp/webhook`, plus a test
   console at `/`. Deployed at **https://technext-edge-casa-bff.vercel.app**.

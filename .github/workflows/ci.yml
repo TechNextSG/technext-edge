@@ -26,6 +26,6 @@ jobs:
 
       - run: npm ci
 
-      # typecheck: both workspaces (bff also pulls in ai/src)
-      # tests: vitest in ai
+      # package boundaries, then typecheck + vitest in every workspace
+      # (contracts, ai, quotation, bff) — see "Layout" in README.md
       - run: npm run verify
