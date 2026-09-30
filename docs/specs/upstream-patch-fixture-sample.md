@@ -76,7 +76,7 @@ so nothing new is introduced.
 
 ## What it changes for us
 
-Nothing breaks either way — our client (`apps/casa-bff/src/estimatorClient.ts`) treats `sample` as
+Nothing breaks either way — our client (`bff/src/estimatorClient.ts`) treats `sample` as
 `their flag OR our own probe`, so it is correct before and after this patch. It flags a price as
 sample when either:
 

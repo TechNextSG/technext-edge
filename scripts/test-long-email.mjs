@@ -1,4 +1,4 @@
-import { converse, extract } from "../packages/extractor/src/index.ts";
+import { converse, extract } from "../ai/src/index.ts";
 
 const emailText = `Dear Casa Escondida Team,
 
@@ -16,7 +16,7 @@ Warm regards,
 Dr. Christopher Vance
 WhatsApp: +65 9876 5432`;
 
-import { createProviderFromEnv } from "../packages/extractor/src/providerFromEnv.js";
+import { createProviderFromEnv } from "../ai/src/providerFromEnv.js";
 
 async function main() {
   console.log("=== Testing Long Email Inquiry ===");

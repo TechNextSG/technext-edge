@@ -1,5 +1,5 @@
-import { converse } from "../packages/extractor/src/converse.js";
-import { createProviderFromEnv } from "../packages/extractor/src/providerFromEnv.js";
+import { converse } from "../ai/src/converse.js";
+import { createProviderFromEnv } from "../ai/src/providerFromEnv.js";
 
 async function testMichaelScenario() {
   const provider = createProviderFromEnv();

@@ -27,7 +27,7 @@ vars, the eval harness, and the gotchas that already cost an afternoon once.
 ## Layout
 
 ```text
-apps/casa-bff/
+bff/
   src/
     app.ts        the Hono app: wires config, middleware and routes
     routes/       HTTP routes (health, pages, auth) — registered by app.ts
@@ -36,8 +36,8 @@ apps/casa-bff/
     auth/         demo and guest-link authentication
     config/       env parsing, typed config
     views/        HTML documents the BFF serves
-  test/           24 vitest suites, incl. those driving packages/extractor/src
-packages/extractor/
+  test/           24 vitest suites, incl. those driving ai/src
+ai/
   src/
     domain/           trip schema (zod), rates, pricing, counts, dates — no I/O
     application/      pipeline steps that orchestrate the domain
@@ -51,19 +51,19 @@ tools/            repo scripts; tools/scratch/ is git-ignored scratch space
 ```
 
 Imports flow downward — `routes → services → stores/config → domain`, and in
-the extractor `application → domain`. The one documented exception is
+the `ai/` package `application → domain`. The one documented exception is
 `domain/quotationValidity.ts` reading `HonoQuotationDraft`: that edge is a
 `import type` only, so nothing in `domain/` pulls application code into the
 runtime.
 
 ## 30-second version
 
-- `packages/extractor/` — Trip schema (zod), date/house-norm post-processing,
+- `ai/` — Trip schema (zod), date/house-norm post-processing,
   provider adapters (Gemini, DeepSeek), eval-ready pipeline. Real and tested.
-- `apps/casa-bff/` — Hono app: `POST /v1/extract`, `POST /v1/converse`, the
+- `bff/` — Hono app: `POST /v1/extract`, `POST /v1/converse`, the
   WhatsApp inbound webhook at `/v1/channels/whatsapp/webhook`, plus a test
   console at `/`. Deployed at **https://technext-edge-casa-bff.vercel.app**.
-- `packages/extractor/eval/` — scores against the Playbook's 5 thresholds.
+- `ai/eval/` — scores against the Playbook's 5 thresholds.
   Ships with a researched-but-synthetic dataset; real decisions wait for
   Eloa's 30 real messages.
 - [`docs/adr/ADR-005a-extractor-model.md`](docs/adr/ADR-005a-extractor-model.md)
@@ -83,11 +83,11 @@ npm install
 npm test                     # extractor unit tests, no API key needed
 cp .env.example .env.local   # fill in GEMINI_API_KEY
 npm run dev:bff              # http://localhost:8787
-npm run whatsapp:sim --workspace apps/casa-bff   # fake a signed Meta webhook at it
-npm run whatsapp:check --workspace apps/casa-bff # with real WHATSAPP_* creds: verify them against Graph
-npm run whatsapp:check --workspace apps/casa-bff -- --exchange-token  # 24h dashboard token in, ~60 day token written to .env.local
-npm run whatsapp:threads --workspace apps/casa-bff  # threads waiting on a person; -- --resume <phone> hands one back to the bot
-npm run whatsapp:webhook --workspace apps/casa-bff  # what Meta calls today; -- --url <https://…> points it there (tunnel or prod)
+npm run whatsapp:sim --workspace bff   # fake a signed Meta webhook at it
+npm run whatsapp:check --workspace bff # with real WHATSAPP_* creds: verify them against Graph
+npm run whatsapp:check --workspace bff -- --exchange-token  # 24h dashboard token in, ~60 day token written to .env.local
+npm run whatsapp:threads --workspace bff  # threads waiting on a person; -- --resume <phone> hands one back to the bot
+npm run whatsapp:webhook --workspace bff  # what Meta calls today; -- --url <https://…> points it there (tunnel or prod)
 ```
 
 ## Deploy

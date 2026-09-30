@@ -1,4 +1,4 @@
-import { createProviderFromEnv, converse, extract } from "../packages/extractor/src/index.js";
+import { createProviderFromEnv, converse, extract } from "../ai/src/index.js";
 
 const ENGLISH_SCENARIOS = [
   {

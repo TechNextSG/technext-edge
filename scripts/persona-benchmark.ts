@@ -1,5 +1,5 @@
-import { createProviderFromEnv, converse, type ConversationTurn } from "../packages/extractor/src/index.js";
-import { wantsHuman } from "../packages/extractor/src/questions.js";
+import { createProviderFromEnv, converse, type ConversationTurn } from "../ai/src/index.js";
+import { wantsHuman } from "../ai/src/questions.js";
 
 interface PersonaTest {
   id: string;

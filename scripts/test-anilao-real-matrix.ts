@@ -2,8 +2,8 @@
 // Evaluates real-world guest scenarios, PADI/DAN safety rules, staying vs day visitors,
 // adults+children sums, self-driving transport negation, and B2B agent discounts.
 
-import { converse, type ConversationTurn } from "../packages/extractor/src/converse.js";
-import { createProviderFromEnv } from "../packages/extractor/src/providerFromEnv.js";
+import { converse, type ConversationTurn } from "../ai/src/converse.js";
+import { createProviderFromEnv } from "../ai/src/providerFromEnv.js";
 
 interface TestCase {
   id: string;

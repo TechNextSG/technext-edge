@@ -10,9 +10,9 @@
 >
 > ```powershell
 > # terminal 1 — BFF cục bộ, trỏ sender về máy mình để bắt được tin gửi đi
-> $env:PORT="8799"; $env:WHATSAPP_GRAPH_BASE_URL="http://127.0.0.1:8899"; npx tsx apps/casa-bff/src/dev.ts
+> $env:PORT="8799"; $env:WHATSAPP_GRAPH_BASE_URL="http://127.0.0.1:8899"; npx tsx bff/src/dev.ts
 > # terminal 2
-> node apps/casa-bff/scripts/whatsapp-manual-run.mjs --port 8799 --capture 8899 --delay 4000 --verbose
+> node bff/scripts/whatsapp-manual-run.mjs --port 8799 --capture 8899 --delay 4000 --verbose
 > ```
 >
 > Kết quả lần chạy 27/09: **22/22 check xanh** (KB1–KB10); 28/09 thêm **KB11** (reset là hết một
@@ -29,9 +29,9 @@ Muốn xem **cả hành trình trong một lần chạy**, in ra đúng những 
 # terminal 1 — BFF nối đúng như khi demo (engine của khách + bắt tin gửi đi ở máy mình)
 $env:PORT="8799"; $env:ESTIMATOR_MODE="remote"
 $env:ESTIMATOR_BASE_URL="https://tn-casa-estimator-fixture.vercel.app"
-$env:WHATSAPP_GRAPH_BASE_URL="http://127.0.0.1:8899"; npx tsx apps/casa-bff/src/dev.ts
+$env:WHATSAPP_GRAPH_BASE_URL="http://127.0.0.1:8899"; npx tsx bff/src/dev.ts
 # terminal 2
-node apps/casa-bff/scripts/journey-walkthrough.mjs --port 8799 --capture 8899
+node bff/scripts/journey-walkthrough.mjs --port 8799 --capture 8899
 ```
 
 Sáu bước, đúng thứ tự một khách thật đi: guest hỏi (thiếu loại phòng) → bot hỏi đúng một câu → guest
@@ -227,7 +227,7 @@ Mong đợi:
 Đây là assert cho lỗi đo được trên production: `QT-1120-MIGU-2E430478` được duyệt và định giá cho một
 enquiry rồi hiển thị **tên của khách ở enquiry sau** bên cạnh con số duyệt cũ — vì
 `findOpenQuotationForPhone` đưa cùng một record cho bất kỳ ai nhắn từ số đó. Chạy riêng:
-`node apps/casa-bff/scripts/whatsapp-manual-run.mjs --port 8799 --capture 8899 --only KB11`.
+`node bff/scripts/whatsapp-manual-run.mjs --port 8799 --capture 8899 --only KB11`.
 
 ---
 

@@ -61,5 +61,5 @@ from. Pages that used to sit in this folder's root now live there.
   the resort's published rates) goes in `specs/`, so "what we decided" and
   "what we were told" never mix.
 - **Published pages** are built into [`public/`](../public/). Do not add a
-  second copy here; `apps/casa-bff/test/publicAssets.test.ts` fails the build if
+  second copy here; `bff/test/publicAssets.test.ts` fails the build if
   a document served from `public/` has a duplicate anywhere else.

@@ -12,7 +12,7 @@
  *   - commits since the pinned contract commit that touch the paths that reach the chatbot, each
  *     marked [handled] (already in the behaviour snapshot) or [NEW];
  *   - the `TripIssueCode` union at the branch tip, diffed against `ISSUE_CODES` in
- *     `packages/extractor/bff-contract/contract-spec.mjs`.
+ *     `ai/bff-contract/contract-spec.mjs`.
  *
  * Env: UPSTREAM_REPO — path of the source checkout (default E:\tn-casa-quotation-estimator).
  */
@@ -49,12 +49,12 @@ if (!existsSync(path.join(repo, ".git"))) {
 }
 
 // The pins, from PROVENANCE.md: the contract commit, and the behaviour snapshot's Stage 1 commit.
-const provenance = readFileSync(path.join(root, "packages/extractor/bff-contract/PROVENANCE.md"), "utf8");
+const provenance = readFileSync(path.join(root, "ai/bff-contract/PROVENANCE.md"), "utf8");
 const contractPin = /\| Commit \| `([0-9a-f]{7,40})`/.exec(provenance)?.[1];
 const behaviourPin = /transcribed from `Stage1_Estimator_Tools@([0-9a-f]{7,40})`/.exec(provenance)?.[1];
 const dsPin = /pinned at\s+`ds\/ai-room-type-required@([0-9a-f]{7,40})`/.exec(provenance)?.[1];
 if (!contractPin || !behaviourPin || !dsPin) {
-  console.error("Could not read the pinned commits from packages/extractor/bff-contract/PROVENANCE.md.");
+  console.error("Could not read the pinned commits from ai/bff-contract/PROVENANCE.md.");
   process.exit(2);
 }
 
@@ -64,7 +64,7 @@ try {
   console.error(`git fetch failed (${err.stderr?.toString().trim() || err.message}); reporting from what is already local.`);
 }
 
-const spec = await import(new URL("../packages/extractor/bff-contract/contract-spec.mjs", import.meta.url));
+const spec = await import(new URL("../ai/bff-contract/contract-spec.mjs", import.meta.url));
 const known = new Set(spec.ISSUE_CODES);
 
 console.log(`Source repo   ${repo}`);

@@ -31,7 +31,7 @@ the "not valid or has expired" message. Two related facts worth knowing when rea
 
 **What this means for a demo:** a link published against this deployment may or may not open for the
 guest, at random. Our side now refuses to call a link published (or to send it) until a check of
-`GET /api/share/<token>` answers 200 — see `verifyGuestLink` in `apps/casa-bff/src/estimatorClient.ts`
+`GET /api/share/<token>` answers 200 — see `verifyGuestLink` in `bff/src/estimatorClient.ts`
 — so the studio fails loudly instead of messaging a dead link, but a coin-flip link is still a
 coin-flip link.
 
