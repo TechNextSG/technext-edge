@@ -420,9 +420,8 @@ export function createEstimatorClient(options: EstimatorClientOptions = {}) {
     } catch {
       // Leave `parsed` empty; `refusalDetail` decides what a person is told about the body.
     }
-    const detail = refusalDetail(parsed, text, res.status);
-
     if (res.status === 200 || res.status === 201) return { ok: true, parsed };
+    const detail = refusalDetail(parsed, text, res.status);
     if (res.status === 409) return { ok: false, reason: "no_snapshot", detail };
     if (res.status === 422) return { ok: false, reason: "rejected", detail };
     return { ok: false, reason: "unexpected", detail };
