@@ -184,3 +184,36 @@ export const STRICTNESS_GAPS = Object.freeze({
       "Requiring a non-null string here makes that unrepresentable.",
   }),
 });
+
+/**
+ * Behaviour the source engine enforces beyond the zod shape, transcribed from
+ * `Stage1_Estimator_Tools@5fe2806` (2026-09-30). Two consumers:
+ *
+ *  - `ISSUE_CODES` — every `TripIssueCode` in `bff/src/trip/validate.ts`. `refusalCopy.test.ts` (casa-bff)
+ *    fails when one has no English sentence for staff, so a new rule cannot reach the studio as an
+ *    unexplained 422.
+ *  - `ROOM_RATE_TIERS` / `ROOM_CAPS` — the tier keys of `contracts/odoo/examples/rates.json` and the
+ *    capacity `roomCaps()` derives from them (largest pax number in a type's keys).
+ *    `bffContractParity.test.ts` fails when our `DEFAULT_ROOM_CAPS` differs.
+ *
+ * `divers-over-guests` (`09b1b6d`) is on Stage 1 but not in the deployed build (`dac70e6`).
+ */
+export const ISSUE_CODES = Object.freeze([
+  "checkout-not-after-checkin",
+  "checkin-in-past",
+  "dive-window-reversed",
+  "dive-window-outside-stay",
+  "dive-days-outside-window",
+  "arrive-depart-outside-stay",
+  "room-over-capacity",
+  "room-empty",
+  "divers-over-guests",
+]);
+
+export const ROOM_RATE_TIERS = Object.freeze({
+  standard: Object.freeze(["1pax", "2pax"]),
+  deluxe: Object.freeze(["1-2pax", "3-4pax"]),
+  suite: Object.freeze(["1-2pax", "3-4pax"]),
+});
+
+export const ROOM_CAPS = Object.freeze({ standard: 2, deluxe: 4, suite: 4 });

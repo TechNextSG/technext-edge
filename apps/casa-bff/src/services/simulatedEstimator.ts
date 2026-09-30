@@ -35,7 +35,11 @@
  */
 import { randomUUID } from "node:crypto";
 import type { BffGuest, BffTrip } from "../../../../packages/extractor/src/domain/schema.js";
-import { datesBetweenInclusive } from "../../../../packages/extractor/src/application/odooHandoff.js";
+import {
+  datesBetweenInclusive,
+  validateBffTripPrecheck,
+} from "../../../../packages/extractor/src/application/odooHandoff.js";
+import { DEFAULT_ROOM_CAPS, type RoomCaps } from "../../../../packages/extractor/src/domain/houseNorms.js";
 import {
   COURSE_RATES,
   diveTierPrice,
@@ -47,6 +51,7 @@ import {
   vansForGuests,
   type RoomType,
 } from "../../../../packages/extractor/src/domain/rates.js";
+import { describeRefusal, refusalIssues } from "./refusalCopy.js";
 import type {
   CommitResult,
   EstimateSendResult,
@@ -452,9 +457,10 @@ export function buildSimulatedModel(trip: BffTrip, asRole?: SimulatedRole): SimM
 export function buildSimulatedEnvelope(trip: BffTrip, asRole?: SimulatedRole): SimEnvelope {
   const role = asRole ?? roleOf(trip);
   const model = buildSimulatedModel(trip, role);
-  // A retail quote has nothing to compare against, so the second model is genuinely absent
-  // rather than a copy — their own fixture returns `retail_model: null` for a guest session.
-  const retailModel = role === "guest" ? null : buildSimulatedModel(trip, "guest");
+  // Only an agent (or staff) session gets the retail comparison — their B-039. A guest has nothing
+  // to compare against and an instructor is not shown what a retail guest would have paid, so for
+  // both the second model is genuinely absent rather than a copy, as in their own fixture.
+  const retailModel = role === "agent" ? buildSimulatedModel(trip, "guest") : null;
   return { ok: true, role, model, retail_model: retailModel, assumptions: null };
 }
 
@@ -464,6 +470,54 @@ export function buildSimulatedEnvelope(trip: BffTrip, asRole?: SimulatedRole): S
  * failure branches are reachable on demand — in a test, or in a demo of what a rejected booking
  * looks like — without a network.
  */
+/**
+ * Their POST-only room split (`splitRoomsByCapacity`): exactly one room holding more guests than its
+ * type allows becomes `ceil(n / cap)` rooms of that type, filled in order. Anything else is returned
+ * as it came — a person who arranged several rooms has arranged them.
+ */
+export function splitRoomsByCapacity(trip: BffTrip, caps: RoomCaps): BffTrip {
+  if (trip.rooms.length !== 1) return trip;
+  const room = trip.rooms[0]!;
+  const cap = caps[room.type];
+  if (!room.id || cap === undefined || cap < 1) return trip;
+  const n = trip.guests.filter((g) => g.roomId === room.id).length;
+  if (n <= cap) return trip;
+
+  const ids = [room.id];
+  for (let k = 2; ids.length < Math.ceil(n / cap); k += 1) if (`r${k}` !== room.id) ids.push(`r${k}`);
+  let seen = 0;
+  return {
+    ...trip,
+    rooms: ids.map((id, i) => (i === 0 ? { ...room } : { id, type: room.type, name: null })),
+    guests: trip.guests.map((g) => {
+      if (g.roomId !== room.id) return g;
+      const roomId = ids[Math.floor(seen / cap)]!;
+      seen += 1;
+      return { ...g, roomId };
+    }),
+  };
+}
+
+/** Their 422 body for a trip with blocking issues: `{ error, code, fields, issues }`. */
+function refusalOf(trip: BffTrip, stage: "plan" | "edit"): EstimateSendResult | null {
+  const found = validateBffTripPrecheck(trip, DEFAULT_ROOM_CAPS).map((i) =>
+    // Plan my trip never blocks on capacity — it splits, and a group it cannot split only gets a warning.
+    stage === "plan" && i.code === "room-over-capacity" ? { ...i, level: "warn" as const } : i,
+  );
+  const errors = found.filter((i) => i.level === "error");
+  if (errors.length === 0) return null;
+  const body = { error: "Chuyến không hợp lệ", code: errors[0]!.code, fields: [...new Set(errors.flatMap((i) => i.fields))], issues: found };
+  return {
+    ok: false,
+    reason: "rejected",
+    status: 422,
+    detail: describeRefusal(body) ?? body.error,
+    fields: body.fields,
+    code: body.code,
+    issues: refusalIssues(body),
+  };
+}
+
 export type SimulatedSubmitBehaviour = "confirmed" | "rejected" | "busy" | "unknown";
 
 export interface SimulatedEstimatorOptions {
@@ -481,6 +535,9 @@ export function createSimulatedEstimator(options: SimulatedEstimatorOptions = {}
   // scope for a simulation — it exists so the commit → share *sequence* can be exercised, including
   // the `no-snapshot` refusal a share gets for a quotation nobody has saved.
   const committed = new Map<string, number>();
+  // The trip each scenario last priced. Their commit freezes what is stored, not what the caller
+  // sends, and refuses it if it would not pass validation now.
+  const saved = new Map<string, BffTrip>();
 
   async function sendEstimate(trip: BffTrip | null | undefined, session?: EstimatorSession): Promise<EstimateSendResult> {
     if (!trip) {
@@ -492,16 +549,24 @@ export function createSimulatedEstimator(options: SimulatedEstimatorOptions = {}
         fields: [],
       };
     }
-    const envelope = buildSimulatedEnvelope(trip);
+    // A session id means their PATCH: the person arranged the rooms, so nothing is split for them and
+    // a room over capacity is refused. Without one it is their POST, which splits and only warns.
+    const isEdit = Boolean(session?.id);
+    const priced = isEdit ? trip : splitRoomsByCapacity(trip, DEFAULT_ROOM_CAPS);
+    const refused = refusalOf(priced, isEdit ? "edit" : "plan");
+    if (refused) return refused;
+    const warnings = validateBffTripPrecheck(priced, DEFAULT_ROOM_CAPS).filter((i) => i.level === "warn");
+    const envelope = buildSimulatedEnvelope(priced);
     // Re-pricing an existing scenario keeps its id and its session, which is what their BFF does:
     // the draft is the session's, and a second compute is a PATCH of it, not a new enquiry.
     const id = session?.id ?? `sim-${randomUUID()}`;
+    saved.set(id, priced);
     return {
       ok: true,
       status: 201,
       id,
       role: envelope.role,
-      issues: [],
+      issues: warnings,
       computedAt: now().toISOString(),
       model: envelope.model,
       // Present for a partner session, null for retail — the same rule their fixture follows.
@@ -519,6 +584,9 @@ export function createSimulatedEstimator(options: SimulatedEstimatorOptions = {}
     if (!session.id) {
       return { ok: false, reason: "rejected", detail: "no scenario id on this quotation to commit" };
     }
+    const stored = saved.get(session.id);
+    const refused = stored ? refusalOf(stored, "edit") : null;
+    if (refused && !refused.ok) return { ok: false, reason: "rejected", detail: refused.detail };
     const seq = (committed.get(session.id) ?? 0) + 1;
     committed.set(session.id, seq);
     return { ok: true, seq, computedAt: now().toISOString() };

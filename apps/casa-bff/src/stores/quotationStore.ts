@@ -1761,6 +1761,7 @@ ${themeCss()}
       sample_not_acknowledged: 'Tick the sample-price box before sending.',
       no_trip: 'This quotation has no trip to price.',
       seeded_fixture: 'This record is the cold-start example in this studio. Take a real enquiry through the flow and publish that one.',
+      rejected: 'The booking engine refused this trip. The line below says what to change; fix it in the trip review and save again.',
       trip_not_priceable: 'The engine cannot price this trip yet — check the fields it named.',
       invalid_trip: 'The trip is not in the shape the engine accepts.',
       phone_missing: "Enter the guest's WhatsApp number, including the country code.",
@@ -1780,7 +1781,7 @@ ${themeCss()}
       if (typeof d.detail === 'string' && d.detail && d.detail !== help) lines.push(d.detail);
       else if (typeof d.error === 'string' && d.error && d.error !== help) lines.push(d.error);
       if (Array.isArray(d.fields) && d.fields.length) lines.push('Fields: ' + d.fields.join(', '));
-      if (Array.isArray(d.issues) && d.issues.length) {
+      if (Array.isArray(d.issues) && d.issues.length && !(typeof d.detail === 'string' && d.detail)) {
         lines.push('Notes: ' + d.issues.map(function (i) { return (i && (i.code || i.detail)) || String(i); }).join(', '));
       }
       if (!box) return lines.join('\\n');

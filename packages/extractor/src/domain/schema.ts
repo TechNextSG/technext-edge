@@ -210,6 +210,7 @@ export const BffValidationCode = z.enum([
   "dive-window-outside-stay",
   "dive-days-outside-window",
   "arrive-depart-outside-stay",
+  "room-over-capacity",
   "room-empty",
   "missing-mandatory-field",
 ]);
@@ -227,6 +228,8 @@ export interface BffValidationIssue {
   code: BffValidationCode;
   fields: string[];
   level: "error" | "warn";
+  /** `room-over-capacity` only: which room, the busiest night, how many, and the cap. */
+  params?: { roomId: string; date: string; n: number; cap: number };
 }
 
 

@@ -28,6 +28,7 @@
  * because those endpoints are not on their `main`.
  */
 import type { BffTrip } from "../../../../packages/extractor/src/domain/schema.js";
+import { describeRefusal, refusalCode, refusalIssues } from "./refusalCopy.js";
 import type {
   CommitResult,
   EstimateSendResult,
@@ -73,6 +74,10 @@ const DEFAULT_TIMEOUT_MS = Number(process.env.ESTIMATOR_TIMEOUT_MS ?? 12_000);
  * person selling the room. A refusal without an explanation is still a refusal, so it never throws.
  */
 function refusalDetail(parsed: Record<string, unknown>, text: string, status: number): string {
+  // Their `error` sentence is in Vietnamese, but their `code` and `issues` are stable: say those in English first.
+  const translated = describeRefusal(parsed);
+  if (translated) return translated;
+
   const said = typeof parsed.error === "string" ? parsed.error.trim() : "";
   // Their own error sentence, as long as it is a sentence: no markup, no JSON, nothing huge.
   if (said && said.length <= 300 && !/[<>{}]/.test(said)) return said;
@@ -309,6 +314,8 @@ export function createEstimatorClient(options: EstimatorClientOptions = {}) {
       status: res.status,
       detail,
       fields,
+      code: refusalCode(parsed),
+      issues: refusalIssues(parsed),
     };
   }
 

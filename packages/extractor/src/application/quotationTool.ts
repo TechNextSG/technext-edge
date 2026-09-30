@@ -498,7 +498,8 @@ export function buildHonoQuotationDraft(
     nights,
     stayingGuests,
     totalGroupSize,
-    rooms,
+    // The rooms the payload actually carries; a stated count is kept as stated.
+    rooms: trip.rooms.state === "stated" ? rooms : bffTrip.rooms.length,
     mealPlan,
     diver,
     divers,

@@ -42,3 +42,15 @@ From the handover doc, §3: the extractor sets a field to "missing" and asks the
 rather than filling a default, and it writes `diver: false` explicitly for a non-diver.
 Their schema defaults `diver` to `true`, so an absent `diver` is read as "this guest
 dives" and is priced accordingly.
+
+## Behaviour snapshot (added 2026-09-30)
+
+The pin above covers the *shape* of a Trip. What the engine does with one — its validation
+codes and room capacity — is pinned separately in `contract-spec.mjs` (`ISSUE_CODES`,
+`ROOM_RATE_TIERS`, `ROOM_CAPS`), transcribed from `Stage1_Estimator_Tools@5fe2806`. The deployed
+fixture (`tn-casa-estimator-fixture`) builds from `Stage1@dac70e6`, which has the capacity rules
+(`85e1e20`, `6bb725e`, `0d3b0cd`), `retailFor` (`188d451`) and `label` (`e0c4173`), and lacks the
+share gate 403 (`97dd313`) and `divers-over-guests` (`09b1b6d`).
+
+Run `npm run upstream:check` before touching anything that prices a trip; after handling what it
+reports, update this snapshot and the pins.

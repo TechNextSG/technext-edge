@@ -304,28 +304,59 @@ Tài liệu này là bản chụp một lần ở commit `4419916` (25/09). Đ�
 repo nguồn (`TechNextSG/tn-casa-quotation-estimator`, 108 commit) cho thấy `contracts/src/trip.zod.ts`
 và `contracts/odoo/estimate-api.v1.json` **không đổi** — shape `Trip` ở mục 2 vẫn đúng. Nhưng
 `bff/src/routes/estimates.ts`, `bff/src/trip/derive.ts`, `bff/src/trip/validate.ts`,
-`bff/src/model/redact.ts` đã đổi, mang theo hai hành vi mới:
+`bff/src/model/redact.ts` đã đổi, mang theo các hành vi mới:
 
-1. **Tự động chia phòng theo sức chứa** (`splitRoomsByCapacity`, plan 26/09 Task 5). Mục 2.4 ghi
-   buildTrip dồn toàn bộ khách vào một phòng (`rooms: [{id:"r1", ...}]`) — extractor bên mình theo
-   đúng hình đó. Từ commit này, nếu số khách trong phòng đó vượt sức chứa thật của loại phòng
-   (`roomCaps(rates)`, đọc từ `/rates` tại lúc gọi), `POST /api/estimates` **tự chia lại thành
-   `ceil(n/cap)` phòng cùng loại (`r1`, `r2`, …) trước khi tính giá** — không trả lỗi, không cần
-   sửa gì phía mình. `quotes[]` theo từng khách vẫn đúng vì Odoo tính theo khách, không theo phòng.
-   Rủi ro duy nhất: nếu Studio sau này hiển thị "khách nào ở phòng nào" bằng đúng `rooms[]` mình đã
-   gửi, số phòng trả về (N phòng) sẽ không khớp Trip đã gửi (1 phòng) — cần biết trước để không
-   tưởng nhầm là lỗi. Áp dụng cả khi gọi vào bản fixture của khách (logic nằm ở tầng BFF của họ,
-   chạy trước khi tới `gateway.compute`, kể cả gateway đang là fixture hay Odoo thật).
-2. **`retailModel` bị khoá chặt hơn** (B-039): giờ chỉ vai `agent`/`staff` mới nhận, `guest` luôn
-   `null`. Kênh AI của mình luôn gọi ở vai `guest` (mục 4, hướng (a): nháp ẩn danh) — `retailModel`
-   vốn đã `null` với guest từ trước, nên **không ảnh hưởng gì**.
+1. **Sức chứa phòng** (standard 2, deluxe 4, suite 4 — đọc từ `rates.roomRates`, `roomCaps(rates)`).
+   - **POST** `/api/estimates` tự chia một phòng quá tải thành `ceil(n/cap)` phòng cùng loại
+     (`splitRoomsByCapacity`), chỉ khi trip có **đúng một** phòng. Với POST, quá sức chứa chỉ là cảnh báo.
+   - **PATCH và commit KHÔNG chia và chặn cứng**: phòng quá tải trả 422 `room-over-capacity`
+     (`{error, code, fields, issues[].params = {roomId, date, n, cap}}`). Q-019: không kê giường phụ.
+   - Bản trước của mục này ghi "không trả lỗi, không cần sửa gì phía mình" — **chỉ đúng cho POST**. Trip
+     mình lưu là bản chưa chia, nên khi nhân viên sửa rồi Save & get price (PATCH) thì bị 422.
+   - **Đã vá bên mình (30/09):** `buildBffTrip` tự lấp phòng theo sức chứa khi khách không nói số phòng;
+     khách nói rõ "1 room" cho 3 người thì giữ nguyên và `validateBffTripPrecheck` báo
+     `room-over-capacity` (không tự tăng số phòng). `refusalDetail` giữ `code`/`issues`/`params` và
+     dịch sang câu tiếng Anh; `simulatedEstimator` chạy cùng luật (POST chia, PATCH/commit 422).
+2. **`retailModel` bị khoá chặt hơn** (B-039): chỉ vai `agent`/`staff` mới nhận, các vai khác `null`.
+   Kênh AI của mình luôn gọi ở vai `guest` — **không ảnh hưởng**. `simulatedEstimator` từng vẫn trả cho
+   `instructor`; đã sửa cho khớp.
+3. **Field `label`** (tên chuyến, optional, ≤120 ký tự) trên POST/PATCH: mình **đã gửi** từ trước
+   (`buildBffTrip` → `label`). Bản trước ghi "mình chưa gửi" là sai.
 
-Cũng có thêm field `label` (tên chuyến, optional, ≤120 ký tự) trên `POST /api/estimates` — mình
-chưa gửi, không bắt buộc, không breaking.
+Chưa kiểm chứng bằng request thật đối với luồng đầy đủ (chỉ đọc code + test); xem checklist chạy tay trong
+kế hoạch theo kịp nguồn.
 
-Chưa kiểm chứng bằng request thật (chỉ đọc code). Muốn chắc, gửi thử `POST /api/estimates` với
-nhóm đông hơn sức chứa một phòng standard vào bản fixture của khách và xem `model`/`issues` trả về
-có phản ánh đúng việc chia phòng không.
+### Bản đang deploy `dac70e6` có gì / chưa có gì
+
+`tn-casa-estimator-fixture.vercel.app` build từ `Stage1_Estimator_Tools@dac70e6` (kiểm bằng `git merge-base`).
+
+| Thay đổi phía nguồn | Commit | Trên bản deploy |
+|---|---|---|
+| Chặn phòng quá sức chứa ở hai đầu (PATCH/commit 422) | `85e1e20` | có |
+| Capacity check lúc save; commit 422 hiện issue | `6bb725e` | có |
+| POST chia phòng theo sức chứa | `0d3b0cd` | có |
+| Agent view chỉ cho agent/staff (`retailFor`) | `188d451` | có |
+| `label` lưu trên scenario | `e0c4173` | có |
+| Share gate: link của agent chỉ chủ + staff mở được (403 `not_owner`) | `97dd313` | **chưa** |
+| `divers-over-guests` (cần `ui.diverCount`), `room-empty` thêm `params` | `09b1b6d` | **chưa** |
+
+### Theo dõi (chưa phải sửa code)
+
+- **Share gate 403.** Link khách của mình thuộc chủ `guest` nên vẫn mở công khai; không đổi gì hôm nay. Nếu
+  sau này link do agent/staff tạo thì phải xem lại.
+- **`divers-over-guests`.** Mình không gửi `ui`, nên luật không bắn. `ISSUE_CODES` và `refusalCopy.ts`
+  đã có sẵn code này để khi bản deploy nâng lên thì không thành 422 khó hiểu.
+- **Hai bản extractor song song (báo Lead).** Nhánh `ds/ai-room-type-required` (chưa merge) port extractor
+  của mình vào `ai/` phía họ, kèm `POST /api/extract` và `verifyGuestFacingText`. Buổi họp 28/09: Sky muốn
+  khách đặt qua WhatsApp + AI chatbot, trang khách ẩn danh có thể bị bỏ; P5 ghi "parked, owner Nhật".
+  Không phá gì hôm nay, nhưng cần Lead quyết bản nào là gốc (ghi chú ở `docs/notes/lead-extractor-duplication.md`).
+
+### Cơ chế bám nguồn
+
+`npm run upstream:check` (chỉ đọc) liệt kê commit mới chạm `contracts/`, `bff/src/{routes,trip,model,odoo,auth}`,
+`ai/`, `docs/integration/`, `customer-questions.md` kể từ mốc ghim trong
+`packages/extractor/bff-contract/PROVENANCE.md`, và in `TripIssueCode` hiện tại. Test
+`bffContractParity` (sức chứa) và `refusalCopy` (mọi issue code có câu tiếng Anh) là tripwire.
 
 ## 9. Liên kết
 

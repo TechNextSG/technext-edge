@@ -19,6 +19,7 @@
  * here calls Odoo directly. `remote` posts to a BFF; `simulated` does not leave the process.
  */
 import type { BffTrip } from "../../../../packages/extractor/src/domain/schema.js";
+import type { RefusalIssue } from "./refusalCopy.js";
 import { createEstimatorClient, estimatorAppUrl, estimatorBaseUrl } from "./estimatorClient.js";
 import { createSimulatedEstimator } from "./simulatedEstimator.js";
 
@@ -69,6 +70,9 @@ export type EstimateSendResult =
       detail: string;
       /** Field names their `fillTrip` named as missing or invalid, when it named any. */
       fields: string[];
+      /** Their top-level 422 `code` and `issues[]` (with `params`), kept rather than flattened into `detail`. */
+      code?: string | null;
+      issues?: RefusalIssue[];
     };
 
 /** Who the reservation is for. Sent to the booking engine; never logged. */

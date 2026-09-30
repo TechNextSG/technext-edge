@@ -14,6 +14,7 @@ import {
   BffSaneIssueCode,
 } from "../src/domain/schema.js";
 import { buildBffTrip } from "../src/application/odooHandoff.js";
+import { DEFAULT_ROOM_CAPS, roomCapsFromRates } from "../src/domain/houseNorms.js";
 import * as spec from "../bff-contract/contract-spec.mjs";
 
 /**
@@ -180,6 +181,25 @@ describe("BFF contract parity (vendored @ 4c48918)", () => {
     it("local pre-flight issue codes are present", () => {
       expect(BffValidationCode.options).toContain("missing-mandatory-field");
       expect(BffSaneIssueCode.options).toContain("dive-revenue-zero");
+    });
+  });
+
+  describe("room capacity matches the source engine", () => {
+    // Their `roomCaps(rates)` reads the capacity out of the tier keys; ours is a fallback table.
+    // If Casa changes the rate card, the vendored tiers change, and this fails before a staff PATCH does.
+    it("DEFAULT_ROOM_CAPS equals the capacity their rule derives from the vendored rate tiers", () => {
+      const roomRates = Object.fromEntries(
+        Object.entries(spec.ROOM_RATE_TIERS).map(([type, keys]) => [type, Object.fromEntries(keys.map((k) => [k, 0]))]),
+      );
+      expect(roomCapsFromRates({ roomRates })).toEqual(spec.ROOM_CAPS);
+      expect({ ...DEFAULT_ROOM_CAPS }).toEqual(spec.ROOM_CAPS);
+    });
+
+    it("reads capacity from a live /rates payload the same way, and ignores what it cannot read", () => {
+      expect(roomCapsFromRates({ roomRates: { standard: { "1pax": 1, "2pax": 2 }, deluxe: "nope", suite: {} } })).toEqual({
+        standard: 2,
+      });
+      expect(roomCapsFromRates(null)).toEqual({});
     });
   });
 

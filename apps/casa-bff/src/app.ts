@@ -2233,7 +2233,10 @@ export function createApp(options: AppOptions = {}) {
     }
     if (!result.ok) {
       const status = result.reason === "rejected" ? 422 : result.reason === "not_configured" ? 503 : 502;
-      return c.json({ ok: false, reason: result.reason, detail: result.detail, fields: result.fields }, status);
+      return c.json(
+        { ok: false, reason: result.reason, detail: result.detail, fields: result.fields, code: result.code ?? null, issues: result.issues ?? [] },
+        status,
+      );
     }
 
     const recorded = estimateToRecord(existing, result);

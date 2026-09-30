@@ -7,6 +7,7 @@ import type {
   BffCourseCode,
   BffValidationIssue,
 } from "../domain/schema.js";
+import { DEFAULT_ROOM_CAPS, type RoomCaps } from "../domain/houseNorms.js";
 import { generateQuestions, getStaffAlerts, diveWindowIsGuessed } from "./questions.js";
 
 export type OdooHandoffMode =
@@ -109,7 +110,7 @@ function detectCourseCodes(notes: string | null): BffCourseCode[] {
  * 5. `guests[i].roomId` (always references a valid `rooms[].id`)
  * 6. `guests[i].days` (populated across `[diveFrom, diveTo]` when `diver: true`; `{}` when `diver: false`)
  */
-export function buildBffTrip(trip: Trip): BffTrip {
+export function buildBffTrip(trip: Trip, caps: RoomCaps = DEFAULT_ROOM_CAPS): BffTrip {
   const contactName = trip.contactName?.value ?? "Guest";
   // Normalized at the boundary that feeds Odoo, not trusted from the caller. The extraction
   // schema constrains this to the same three values, so today this only ever passes through —
@@ -132,9 +133,20 @@ export function buildBffTrip(trip: Trip): BffTrip {
   const checkOut = trip.checkOut?.value ?? null;
   const nights = trip.nights?.value ?? 1;
   const guestCount = Math.max(1, Math.min(40, trip.guests?.value ?? 1));
-  const rawRoomCount = Math.max(1, Math.min(30, trip.rooms?.value ?? 1));
-  // Avoid `room-empty` warnings by ensuring room count never exceeds guestCount
-  const roomCount = Math.min(rawRoomCount, guestCount);
+  // The type the guest actually named, when they named one. `standard` remains the fallback
+  // because a room type nobody stated is a gap for staff to fill in the studio, not a reason to
+  // refuse the enquiry — but sending `standard` over a stated `deluxe` was simply the wrong room.
+  const roomType = trip.roomType?.value ?? "standard";
+  const cap = Math.max(1, caps[roomType] ?? DEFAULT_ROOM_CAPS[roomType]);
+  // A room count the guest said stays what they said, even when it cannot hold the group: raising it
+  // would invent a fact, and the source engine offers no extra beds (its Q-019). The shortfall is
+  // surfaced by `validateBffTripPrecheck` as `room-over-capacity`. A count nobody stated is only the
+  // house-norm default, and *that* one must hold the group — the source splits an over-full single
+  // room on POST but refuses it on PATCH/commit, so the trip we keep has to be split already.
+  const statedRooms = trip.rooms?.state === "stated" && typeof trip.rooms.value === "number";
+  const roomCount = statedRooms
+    ? Math.max(1, Math.min(30, Math.min(trip.rooms!.value!, guestCount)))
+    : Math.max(1, Math.min(30, guestCount, Math.ceil(guestCount / cap)));
 
   const hasDiving = Boolean(trip.diver?.value);
   const diverCount = hasDiving
@@ -155,10 +167,6 @@ export function buildBffTrip(trip: Trip): BffTrip {
     if (diveTo < diveFrom) diveTo = diveFrom;
   }
 
-  // The type the guest actually named, when they named one. `standard` remains the fallback
-  // because a room type nobody stated is a gap for staff to fill in the studio, not a reason to
-  // refuse the enquiry — but sending `standard` over a stated `deluxe` was simply the wrong room.
-  const roomType = trip.roomType?.value ?? "standard";
   const rooms: BffRoom[] = Array.from({ length: roomCount }, (_, idx) => ({
     id: `r${idx + 1}`,
     type: roomType,
@@ -176,10 +184,15 @@ export function buildBffTrip(trip: Trip): BffTrip {
     [trip.diveNotes?.value, trip.specialRequests?.value].filter(Boolean).join(" ")
   );
 
+  // Unstated count: fill room after room in order, as the source's `splitRoomsByCapacity` does, so
+  // what we store is what their POST would have made of it. Stated count: spread evenly.
+  const roomIndexFor = (idx: number): number =>
+    statedRooms ? idx % rooms.length : Math.min(Math.floor(idx / cap), rooms.length - 1);
+
   const providedNames = trip.guestNames?.value ?? [];
   const guests: BffGuest[] = Array.from({ length: guestCount }, (_, idx) => {
     const isDiver = idx < diverCount;
-    const assignedRoom = rooms[idx % rooms.length]!;
+    const assignedRoom = rooms[roomIndexFor(idx)]!;
     const guestName =
       providedNames[idx] ?? (idx === 0 && contactName ? contactName : `Guest ${idx + 1}`);
 
@@ -238,7 +251,10 @@ export function buildBffTrip(trip: Trip): BffTrip {
 /**
  * Pre-flight validator matching `bff/src/trip/validate.ts` (`schema.md` §3).
  */
-export function validateBffTripPrecheck(bffTrip: BffTrip): BffValidationIssue[] {
+export function validateBffTripPrecheck(
+  bffTrip: BffTrip,
+  caps: RoomCaps = DEFAULT_ROOM_CAPS,
+): BffValidationIssue[] {
   const issues: BffValidationIssue[] = [];
 
   if (!bffTrip.checkIn || !bffTrip.checkOut) {
@@ -314,6 +330,34 @@ export function validateBffTripPrecheck(bffTrip: BffTrip): BffValidationIssue[] 
       });
     } else {
       occupiedRoomIds.add(g.roomId);
+    }
+  }
+
+  // Capacity (source Q-019: no extra beds). Their POST splits an over-full room; PATCH and commit
+  // refuse it with 422 `room-over-capacity`, so the studio has to show it before that call. The peak
+  // night is counted the way they count it: a guest is in the room on nights [arrive, depart).
+  for (const room of bffTrip.rooms) {
+    const cap = caps[room.type];
+    if (!room.id || cap === undefined) continue;
+    const stays: { index: number; start: string; end: string }[] = [];
+    bffTrip.guests.forEach((g, index) => {
+      if (g.roomId !== room.id) return;
+      const start = g.arrive && g.arrive > bffTrip.checkIn! ? g.arrive : bffTrip.checkIn!;
+      const end = g.depart && g.depart < bffTrip.checkOut! ? g.depart : bffTrip.checkOut!;
+      if (start < end) stays.push({ index, start, end });
+    });
+    let peak: { date: string; present: number[] } | null = null;
+    for (const date of [...new Set(stays.map((x) => x.start))].sort()) {
+      const present = stays.filter((x) => x.start <= date && date < x.end).map((x) => x.index);
+      if (peak === null || present.length > peak.present.length) peak = { date, present };
+    }
+    if (peak && peak.present.length > cap) {
+      issues.push({
+        code: "room-over-capacity",
+        fields: peak.present.map((i) => `guests[${i}].roomId`),
+        level: "error",
+        params: { roomId: room.id, date: peak.date, n: peak.present.length, cap },
+      });
     }
   }
 
