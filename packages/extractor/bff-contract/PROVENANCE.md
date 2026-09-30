@@ -52,5 +52,9 @@ fixture (`tn-casa-estimator-fixture`) builds from `Stage1@dac70e6`, which has th
 (`85e1e20`, `6bb725e`, `0d3b0cd`), `retailFor` (`188d451`) and `label` (`e0c4173`), and lacks the
 share gate 403 (`97dd313`) and `divers-over-guests` (`09b1b6d`).
 
+The customer's AI-channel flow `docs/flows/F08-ai-channel.md` (our channel's contract) is pinned at
+`ds/ai-room-type-required@17209ea` (2026-09-28, not merged yet); its sample label is
+"Sample data — not a live quote". The branch stays watched until it merges.
+
 Run `npm run upstream:check` before touching anything that prices a trip; after handling what it
 reports, update this snapshot and the pins.

@@ -52,7 +52,8 @@ if (!existsSync(path.join(repo, ".git"))) {
 const provenance = readFileSync(path.join(root, "packages/extractor/bff-contract/PROVENANCE.md"), "utf8");
 const contractPin = /\| Commit \| `([0-9a-f]{7,40})`/.exec(provenance)?.[1];
 const behaviourPin = /transcribed from `Stage1_Estimator_Tools@([0-9a-f]{7,40})`/.exec(provenance)?.[1];
-if (!contractPin || !behaviourPin) {
+const dsPin = /pinned at\s+`ds\/ai-room-type-required@([0-9a-f]{7,40})`/.exec(provenance)?.[1];
+if (!contractPin || !behaviourPin || !dsPin) {
   console.error("Could not read the pinned commits from packages/extractor/bff-contract/PROVENANCE.md.");
   process.exit(2);
 }
@@ -67,7 +68,7 @@ const spec = await import(new URL("../packages/extractor/bff-contract/contract-s
 const known = new Set(spec.ISSUE_CODES);
 
 console.log(`Source repo   ${repo}`);
-console.log(`Contract pin  ${contractPin.slice(0, 7)}   Behaviour snapshot  Stage1@${behaviourPin.slice(0, 7)}`);
+console.log(`Contract pin  ${contractPin.slice(0, 7)}   Behaviour snapshot  Stage1@${behaviourPin.slice(0, 7)}   ds pin  ${dsPin.slice(0, 7)}`);
 
 let newCommits = 0;
 let codeDrift = false;
@@ -87,9 +88,11 @@ for (const ref of BRANCHES) {
     .filter(Boolean);
   for (const line of lines) {
     const [hash, date, subject] = line.split("\t");
+    // Each branch is judged against the snapshot that covers it: the ds branch has its own pin.
+    const pin = ref.includes("ds/") ? dsPin : behaviourPin;
     let handled = false;
     try {
-      git("merge-base", "--is-ancestor", hash, behaviourPin);
+      git("merge-base", "--is-ancestor", hash, pin);
       handled = true;
     } catch {
       handled = false;

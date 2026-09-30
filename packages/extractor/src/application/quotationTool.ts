@@ -635,7 +635,7 @@ export async function synthesizeConfirmedQuotationReply(
     // question is not whether a link exists but whether the guest should get one.
     guestLink ?? "(the guest's own link is added when you send this)",
     sample
-      ? `\n⚠️ Sample prices — these are example figures from our booking engine while it is being set up, not a final quote.`
+      ? `\n⚠️ Sample data — not a live quote. These are example figures from our booking engine while it is being set up.`
       : ``,
     note ? `\n📝 ${note}` : ``,
     ``,

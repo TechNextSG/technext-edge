@@ -106,7 +106,7 @@ Mở báo giá mới nhất của Ana trong sidebar (mã dạng `QT-1120-ANA-…
 > thấy trên production 2026-09-28 và đã sửa.
 
 **Trên điện thoại:** tin nhắn thứ ba từ resort, chứa **link báo giá**. Kiểm tra: tin đó **không có giá**
-của mình, có nhãn "Sample prices", và câu *"nothing is booked yet"*.
+của mình, có nhãn "Sample data — not a live quote", và câu *"nothing is booked yet"*.
 
 ### Mở link — làm NGAY, đừng để lâu
 

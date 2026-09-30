@@ -103,7 +103,7 @@ describe("the message that carries the link goes through the fact gate", () => {
     });
     expect(res.status).toBe(200);
     expect(sent).toHaveLength(1);
-    expect(sent[0]!.body).toContain("Sample prices");
+    expect(sent[0]!.body).toContain("Sample data — not a live quote");
   });
 
   it("a plain message passes the gate untouched", async () => {
