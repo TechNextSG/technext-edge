@@ -5,16 +5,19 @@
   "type": "module",
   "description": "Casa Escondida Edge: BFF (Hono) + AI Extractor. Odoo is the brain; this is the edge.",
   "workspaces": [
-    "packages/*",
-    "apps/*"
+    "contracts",
+    "ai",
+    "quotation",
+    "bff"
   ],
   "scripts": {
     "test": "npm run test --workspaces --if-present",
-    "test:anilao": "node --env-file=.env.local --import tsx scripts/test-anilao-real-matrix.ts",
+    "test:anilao": "node --env-file=.env.local --import tsx tools/live-eval/test-anilao-real-matrix.ts",
     "typecheck": "npm run typecheck --workspaces --if-present",
-    "verify": "npm run typecheck && npm test",
-    "dev:bff": "npm run dev --workspace apps/casa-bff",
-    "upstream:check": "node scripts/upstream-check.mjs"
+    "verify": "npm run check:boundaries && npm run typecheck && npm test",
+    "dev:bff": "npm run dev --workspace bff",
+    "upstream:check": "node tools/ops/upstream-check.mjs",
+    "check:boundaries": "node tools/ops/check-boundaries.mjs"
   },
   "engines": {
     "node": ">=18"

@@ -26,6 +26,6 @@ jobs:
 
       - run: npm ci
 
-      # typecheck: both workspaces (apps/casa-bff also pulls in packages/extractor/src)
-      # tests: vitest in packages/extractor
+      # package boundaries, then typecheck + vitest in every workspace
+      # (contracts, ai, quotation, bff) — see "Layout" in README.md
       - run: npm run verify

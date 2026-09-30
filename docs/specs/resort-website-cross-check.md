@@ -2,7 +2,7 @@
 
 Ngày 28/09/2026. Nguồn: website thật của khách (`https://www.casaescondida-anilao.com`, các trang
 `/rooms`, `/book-now`, `/location`) đối chiếu với rate card mẫu của mình
-(`packages/extractor/src/rates.ts`) và các bản compute đã chụp của engine khách
+(`ai/src/rates.ts`) và các bản compute đã chụp của engine khách
 (`contracts/odoo/examples/compute.*.json` trong repo `tn-casa-quotation-estimator`).
 
 Mục đích: biết chỗ nào ba bên **khớp**, chỗ nào **lệch**, để không hứa sai với lead và để hỏi Phillip

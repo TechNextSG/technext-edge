@@ -25,11 +25,11 @@ Two gates were applied before comparing on merit:
 
 **Not deciding a default yet.** Deciding the architecture instead: `zod` is the
 single source of truth for the `Trip` schema; the provider boundary is the
-`ExtractProvider` interface in `packages/extractor/src/provider.ts`; switching
+`ExtractProvider` interface in `ai/src/provider.ts`; switching
 providers is an environment variable, never a code change to `extract.ts`.
 
 **Gemini is the demo default** (`createGeminiProvider`, see
-`packages/extractor/src/providers/gemini.ts`) — cheapest provider that clears
+`ai/src/providers/gemini.ts`) — cheapest provider that clears
 both gates, and deliberately not Claude, since a Claude-made tool defaulting to
 its own maker's model is the one choice this pod should not make by default.
 This is a starting point for wiring the pipeline end to end, not a conclusion.
@@ -56,7 +56,7 @@ skip it.
 
 ## Update 2026-09-16: a real blocker found via the eval dry run
 
-Built `packages/extractor/eval/` (runner + a researched, synthetic dataset —
+Built `ai/eval/` (runner + a researched, synthetic dataset —
 never Eloa's real messages, see the eval README) as a rehearsal of the
 mechanism before real data arrives. Two real bugs surfaced and were fixed the
 same day: the scorer itself was miscounting a house-norm `default` as

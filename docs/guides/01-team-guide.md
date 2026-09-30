@@ -9,13 +9,38 @@ first if you just want the repo running in 5 minutes.
 
 This is the **Edge** layer from the [Core & Edge Blueprint](https://casa-escondida-estimator-tools.vercel.app/):
 Odoo owns prices, folios, invoices; this repo is everything outside that. Today
-it holds exactly one working piece — the **AI Extractor** (`packages/extractor/`)
-behind a minimal BFF (`apps/casa-bff/`), exposed as `POST /v1/extract`. The
+it holds exactly one working piece — the **AI Extractor** (`ai/`)
+behind a minimal BFF (`bff/`), exposed as `POST /v1/extract`. The
 Draft store, the Contract pod's generated Odoo client, and the rest of the BFF
 endpoints from the Playbook do not exist here yet. See `docs/adr/` for the
 decisions this build is actually based on — the [Blueprint](https://casa-escondida-estimator-tools.vercel.app/)
 and [Playbook](https://casa-escondida-estimator-tools.vercel.app/) sites hold
 the reasoning behind them.
+
+### Admin: đổi model AI (không cần vào Vercel)
+
+`/admin/ai` — chỉ tài khoản **admin** vào được (đăng nhập ở `/login` bằng `ADMIN_ACCESS_KEY`; key staff không vào được, và
+`POST /login` không bao giờ tự nâng thành admin). Admin làm được mọi việc của staff.
+
+| Khối | Làm gì |
+|---|---|
+| Model hiện tại | primary, fallback, và mỗi giá trị đến từ đâu (`kv` = đã lưu ở dashboard, `env` = biến môi trường, `default`) |
+| Đổi model | chọn provider + model cho primary/fallback, **Test** rồi **Save**. Save tự test trước; test lỗi thì không lưu, trừ khi bấm **Save anyway** |
+| API keys | đã có hay chưa, dạng `••••abcd`, Replace/Remove. Key được mã hoá AES-256-GCM trong KV; không bao giờ trả ra ngoài. Cần `SETTINGS_ENCRYPTION_KEY` |
+| Nâng cao | timeout, breaker, bật/tắt câu trả lời do model viết, URL gateway DeepSeek (https, hostname công khai) |
+| Tình trạng 7 ngày | số lần trả lời / lỗi / trả lời bằng fallback theo provider, thời gian trung bình (đếm trong KV, giữ 14 ngày) |
+| Lịch sử | 50 lần đổi gần nhất; không chứa key |
+
+Áp dụng từ tin nhắn kế tiếp, không deploy. Nếu KV không đọc được thì bot dùng provider đang chạy (hoặc env), không dừng. Key trong
+env vẫn là dự phòng khi dashboard chưa lưu key. Provider và circuit breaker giờ sống theo tiến trình (trước đây mỗi request dựng lại
+nên cooldown chỉ có tác dụng trong một request). `meta.provider` ghi provider **đã trả lời**, kể cả khi là fallback.
+
+**Trang `/test` công khai không còn nhận provider hay API key từ trình duyệt.** `/v1/extract` và `/v1/converse` chỉ nhận `provider`/`apiKey`
+kèm phiên staff (dùng cho eval); không có phiên thì 401.
+
+**Anthropic** đi qua SDK chính thức, mặc định `claude-opus-5-5` (theo skill claude-api). Adapter yêu cầu JSON thuần và parse, không dùng
+tool call bắt buộc (Opus 5.5 / Sonnet 5.5 trả 400 với forced `tool_choice`) và chưa dùng structured outputs vì chưa thử với key thật; xem
+đầu `ai/src/infra/providers/anthropic.ts`.
 
 ### Studio vs hệ thống của khách
 
@@ -106,10 +131,10 @@ only, cleared when the tab closes.
 
 ## 5. Deploying
 
-**Always run Vercel commands from the repo root**, never from `apps/casa-bff/`.
+**Always run Vercel commands from the repo root**, never from `bff/`.
 The deploy entry point is `api/index.ts` at the root — it imports
-`packages/extractor` by relative path, so a deploy triggered from inside
-`apps/casa-bff/` uploads only that subtree and 404s on the extractor package
+`ai` by relative path, so a deploy triggered from inside
+`bff/` uploads only that subtree and 404s on the extractor package
 during install (this happened; see the commit history around 2026-09-16 if
 you want the play-by-play).
 
@@ -162,7 +187,10 @@ repo's tsconfig and can be green while the deployment build is not.
 |---|---|---|---|
 | `GEMINI_API_KEY` | Production + Preview | if `EXTRACTOR_PROVIDER` is unset or `gemini` | Free tier is not enough for a real eval run — see ADR-005a. |
 | `GEMINI_MODEL` | optional | no | Defaults to `gemini-2.5-flash`. Verify against [ai.google.dev](https://ai.google.dev/gemini-api/docs/models) before changing — names in this family move fast. |
-| `EXTRACTOR_PROVIDER` | optional | no | `gemini` (default) \| `deepseek-flash` \| `deepseek-pro`. Picks the server's default provider. |
+| `EXTRACTOR_PROVIDER` | optional | no | `gemini` (default) \| `deepseek-flash` \| `deepseek-pro` \| `anthropic` (or a `claude-…` id). Picks the server's default provider **until something is saved in the admin dashboard**, which then takes over. |
+| `ANTHROPIC_API_KEY` | optional | only for the Anthropic provider | Can be saved in the dashboard instead. |
+| `ADMIN_ACCESS_KEY` | Production + Preview | to switch the dashboard on | The key typed on `/login` to open `/admin/ai`. Unset = no dashboard (it answers 404). Must differ from `STAFF_ACCESS_KEY`. |
+| `SETTINGS_ENCRYPTION_KEY` | Production + Preview | to save keys from the dashboard | 32 random bytes, base64 (`node -e "console.log(require('crypto').randomBytes(32).toString('base64'))"`). Encrypts keys in KV. Keep it in Vercel only. |
 | `DEEPSEEK_GATEWAY_KEY` | optional | if `EXTRACTOR_PROVIDER` is a DeepSeek value | Your personal LiteLLM gateway key (Railway) — ask Anthony for one. $12 budget per person, shared across everything you use it for, not just this repo. |
 | `DEBUG_EXTRACT` | optional, dev only | no | `1` includes zod issues / stack traces in error responses. Remove after debugging — don't leave it on. |
 | `WHATSAPP_VERIFY_TOKEN` | Production + Preview | only for the WhatsApp channel | A string you invent, then paste into the Meta app dashboard *and* here. Meta never issues it — it just echoes it back on the one-time GET handshake. It is **not** the staff key any more: that is `STAFF_ACCESS_KEY` (below). |
@@ -178,7 +206,7 @@ request — see the per-request override in §4 and §7.
 
 ### The WhatsApp webhook (`/v1/channels/whatsapp/webhook`)
 
-`apps/casa-bff/src/whatsapp.ts` is the entire Meta Cloud API integration — no
+`bff/src/whatsapp.ts` is the entire Meta Cloud API integration — no
 SDK, one HMAC check on the way in and one POST to `graph.facebook.com` on the way
 out. Configuring it is **three** things in the dashboard, and the third is easy to
 leave off because nothing complains until a guest is already waiting:
@@ -193,13 +221,13 @@ Both halves are wired to production now (2026-09-18): `vercel env ls production`
 the four `WHATSAPP_*` variables, the URL above answers the handshake, and
 `whatsapp:sim --url https://technext-edge-casa-bff.vercel.app` ends 8/8. Meta is
 pointed there, so a phone test needs no laptop and no tunnel; reach for the tunnel
-only while iterating on `apps/casa-bff/src/`, then point Meta back. Three commands
+only while iterating on `bff/src/`, then point Meta back. Three commands
 cover both directions:
 
 ```bash
-npm run whatsapp:webhook --workspace apps/casa-bff                                        # what Meta calls today
-npm run whatsapp:webhook --workspace apps/casa-bff -- --url https://abc.trycloudflare.com  # a tunnel, for local work
-npm run whatsapp:webhook --workspace apps/casa-bff -- --url https://technext-edge-casa-bff.vercel.app
+npm run whatsapp:webhook --workspace bff                                        # what Meta calls today
+npm run whatsapp:webhook --workspace bff -- --url https://abc.trycloudflare.com  # a tunnel, for local work
+npm run whatsapp:webhook --workspace bff -- --url https://technext-edge-casa-bff.vercel.app
 ```
 
 That script is the API behind the three dashboard fields below, and it exists because
@@ -259,7 +287,7 @@ and "never subscribed" without waiting for a guest to be ignored — `whatsapp:c
 reads them when it is handed the ids to look them up with:
 
 ```bash
-npm run whatsapp:check --workspace apps/casa-bff -- --app-id <app id> --app-secret <32 hex> --waba-id <waba id>
+npm run whatsapp:check --workspace bff -- --app-id <app id> --app-secret <32 hex> --waba-id <waba id>
 # FAIL the app has a whatsapp_business_account webhook subscription  -> callback URL/verify token never saved, or client credentials left off
 # FAIL the app is subscribed to WABA <id> (inbound messages reach this server)  -> the POST above
 ```
@@ -293,8 +321,8 @@ Four things worth knowing before you demo it:
   Read the list and hand one back with:
 
   ```bash
-  npm run whatsapp:threads --workspace apps/casa-bff                     # who is waiting
-  npm run whatsapp:threads --workspace apps/casa-bff -- --resume 639171234567
+  npm run whatsapp:threads --workspace bff                     # who is waiting
+  npm run whatsapp:threads --workspace bff -- --resume 639171234567
   ```
 
   The same two things over HTTP are `GET /v1/channels/whatsapp/threads` and
@@ -304,13 +332,13 @@ Four things worth knowing before you demo it:
   whether *this deployment's* credentials can still read the phone number back from
   Graph, which is a different question from whether the values are present.
 
-To exercise all of that without a Meta app, `apps/casa-bff/scripts/whatsapp-sim.mjs`
+To exercise all of that without a Meta app, `bff/scripts/whatsapp-sim.mjs`
 signs requests exactly like Meta does — start the server with any dummy values,
 then run the simulator:
 
 ```powershell
 $env:WHATSAPP_APP_SECRET='local-app-secret'; $env:WHATSAPP_VERIFY_TOKEN='local-verify-token'; npm run dev:bff
-npm run whatsapp:sim --workspace apps/casa-bff      # 8 checks, exit 0 when all pass
+npm run whatsapp:sim --workspace bff      # 8 checks, exit 0 when all pass
 ```
 
 It asserts the handshake (right and wrong verify token), a missing signature, a
@@ -337,7 +365,7 @@ because the free URL changes on every restart, which is the whole reason the nex
 command exists:
 
 ```bash
-npm run whatsapp:webhook --workspace apps/casa-bff -- --url https://<tunnel>
+npm run whatsapp:webhook --workspace bff -- --url https://<tunnel>
 ```
 
 It sets the callback URL, reads it back, and finishes with the subscription in the
@@ -395,7 +423,7 @@ it carries `whatsapp_business_messaging`, and that it is actually scoped to the
 WhatsApp account:
 
 ```bash
-npm run whatsapp:check --workspace apps/casa-bff -- --app-id <App ID> --app-secret <app secret>
+npm run whatsapp:check --workspace bff -- --app-id <App ID> --app-secret <app secret>
 ```
 
 Exit code 0 means the sending half will work; each failure prints Meta's own error
@@ -414,7 +442,7 @@ date.
 Put all four values — plus `WHATSAPP_APP_ID`, which `whatsapp:check` wants for
 `debug_token` and `--exchange-token` cannot run without — in the **repo-root**
 `.env.local`. `npm run dev` loads
-`apps/casa-bff/.env.local` first and the root one second, and the app-local file is the
+`bff/.env.local` first and the root one second, and the app-local file is the
 one `vercel env pull` rewrites — it has already wiped this block once.
 
 A system user token has no expiry date but is not immortal: resetting the app
@@ -427,19 +455,19 @@ In this order, because each step is what makes the next one meaningful:
 
 1. All four values, plus `WHATSAPP_APP_ID`, in the **repo-root** `.env.local` —
    step 2 cannot exchange anything without the App ID.
-2. `npm run whatsapp:check --workspace apps/casa-bff -- --exchange-token` — expect
+2. `npm run whatsapp:check --workspace bff -- --exchange-token` — expect
    `~60 days` plus the line naming the file it wrote. The *never expires* line failing
    here is expected, not a bug.
 3. **Restart the dev server.** `tsx watch` reloads on `src/` changes but reads
    `.env.local` exactly once, at boot, so a token written after it started is invisible
-   to the running process; saving any file in `apps/casa-bff/src/` restarts it for free.
+   to the running process; saving any file in `bff/src/` restarts it for free.
 4. **Register the number for Cloud API — this one is API-only.** There is no button for
    it in WhatsApp Manager, and a healthy token says nothing about it: until the number
    is registered every send answers `400 (#133010) Account not registered`, which looks
    exactly like a credentials problem and is not one.
 
    ```bash
-   npm run whatsapp:check --workspace apps/casa-bff -- --register --pin 202609
+   npm run whatsapp:check --workspace bff -- --register --pin 202609
    ```
 
    That flag *is* the documented `POST /<phone-number-id>/register` call, run with the
@@ -466,7 +494,7 @@ In this order, because each step is what makes the next one meaningful:
    separate call), so both halves get read back before anything is demoed:
 
    ```bash
-   npm run whatsapp:check --workspace apps/casa-bff -- --app-id <app id> --app-secret <32 hex> --waba-id <waba id>
+   npm run whatsapp:check --workspace bff -- --app-id <app id> --app-secret <32 hex> --waba-id <waba id>
    ```
 
    The free tunnel URL changes on every restart and Meta keeps pointing at the dead one,
@@ -551,7 +579,7 @@ In this order, because each step is what makes the next one meaningful:
    (`Số điện thoại của người nhận không nằm trong danh sách cho phép`).
 7. **Only then the simulator**, once the window above is open — it tests the send path
    and nothing else:
-   `npm run whatsapp:sim --workspace apps/casa-bff -- --from <your number> --text "..."`
+   `npm run whatsapp:sim --workspace bff -- --from <your number> --text "..."`
    — 8/8 with `replied: 2, failed: 0` means Meta **accepted** both replies, and the
    simulator's closing line stops short of claiming more for exactly that reason.
    Delivery is a second verdict, arriving a second or two later as another `statuses`
@@ -570,7 +598,7 @@ beats the file (`process.loadEnvFile` never overwrites one already set) — so a
 server with a throwaway secret exercises the whole inbound path on its own port:
 
 ```powershell
-cd apps/casa-bff
+cd bff
 $env:WHATSAPP_APP_SECRET='sim-app-secret'; $env:WHATSAPP_VERIFY_TOKEN='sim-verify-token'; $env:PORT=8791
 npm run dev                                                                          # second terminal; leaves 8787 alone
 npm run whatsapp:sim -- --url http://localhost:8791 --secret sim-app-secret --verify-token sim-verify-token
@@ -582,10 +610,10 @@ port proves the extractor and its provider key are alive independently of Meta.
 
 ## 7. Running the eval harness
 
-`packages/extractor/eval/` scores against the Playbook's five thresholds
+`ai/eval/` scores against the Playbook's five thresholds
 (fabrication, required-field accuracy, verbatim evidence, latency; question-
 targeting needs a human pass, not wired up). Full details in
-[`eval/README.md`](../../packages/extractor/eval/README.md) — the two rules that
+[`eval/README.md`](../../ai/eval/README.md) — the two rules that
 matter most:
 
 - **`dataset.synthetic.json` decides nothing.** It's researched but made up.
@@ -597,11 +625,11 @@ matter most:
 
 ```bash
 export EVAL_BYPASS_SECRET=<bypass secret from §4>
-node packages/extractor/eval/runner.mjs                    # server's default provider
+node ai/eval/runner.mjs                    # server's default provider
 
 # test a specific provider without touching Vercel config:
 export EVAL_PROVIDER_API_KEY=<your key for that provider>
-node packages/extractor/eval/runner.mjs --provider deepseek-flash
+node ai/eval/runner.mjs --provider deepseek-flash
 ```
 
 (PowerShell: `$env:EVAL_BYPASS_SECRET="..."` instead of `export`.)
@@ -619,8 +647,8 @@ node packages/extractor/eval/runner.mjs --provider deepseek-flash
 - **Vercel's function bundler doesn't reliably resolve the npm-workspace
   symlink at runtime.** `@technext-edge/extractor` typechecks and builds
   fine locally, then 404s at runtime with `ERR_MODULE_NOT_FOUND` in the
-  deployed Lambda. `apps/casa-bff/src/app.ts` imports the package by
-  relative path into `packages/extractor/src` instead — sidesteps the
+  deployed Lambda. `bff/src/app.ts` imports the package by
+  relative path into `ai/src` instead — sidesteps the
   symlink resolution entirely.
 - **The git commit's author matters, even for a plain `vercel deploy`
   (no GitHub integration configured).** Vercel checks commit-author
@@ -845,7 +873,7 @@ node packages/extractor/eval/runner.mjs --provider deepseek-flash
   Odoo, that is the bug.**
 
 - **A 422 from their BFF is a bug in what THIS service produces, not an infrastructure error.**
-  `apps/casa-bff/src/estimatorClient.ts` maps their 422 to our 422 and carries their `fields`
+  `bff/src/estimatorClient.ts` maps their 422 to our 422 and carries their `fields`
   array through, because their `fillTrip` is the authority on the contract and our
   `validateBffTripPrecheck()` is only a mirror of it — and a mirror is the thing that disagrees
   silently. Everything else (unreachable, timeout, non-JSON gateway error) is 502.
@@ -946,7 +974,7 @@ node packages/extractor/eval/runner.mjs --provider deepseek-flash
   `NO KV CONFIGURED IN PRODUCTION` after any deploy.**
 
 - **Local quotation prices are a COPY of the customer's rate card, and a copy drifts.** The
-  draft prices in `packages/extractor/src/rates.ts` come from the three sources the lead pointed
+  draft prices in `ai/src/rates.ts` come from the three sources the lead pointed
   at — `https://casa-escondida-estimator-tools.vercel.app/casa-api-guide`,
   `contracts/odoo/examples/rates.json` in the cloned `tn-casa-quotation-estimator`, and the
   `compute.*.json` examples — and they are a local estimate only. The authoritative price is
@@ -957,8 +985,8 @@ node packages/extractor/eval/runner.mjs --provider deepseek-flash
 
 ## 9. Before this becomes the real Extractor pod deliverable
 
-1. `packages/extractor/src/schema.ts` is no longer a guess about the *shape* of the Odoo
-   payload — the BFF contract is vendored in `packages/extractor/bff-contract/` at commit
+1. `ai/src/schema.ts` is no longer a guess about the *shape* of the Odoo
+   payload — the BFF contract is vendored in `contracts/bff-contract/` at commit
    `4c48918` and `test/bffContractParity.test.ts` fails if the two copies drift. What is
    still missing is the same thing this item was always about: nobody has confirmed the
    values that go *into* it. Two placeholder flags remain in the file —
@@ -975,7 +1003,7 @@ node packages/extractor/eval/runner.mjs --provider deepseek-flash
 3. Get billing enabled on the Gemini API key (see §2, ADR-005a) — the free
    tier cannot run a 30-message × multiple-provider bake-off at all.
 4. Once Eloa's 30 real messages exist, drop them into
-   `packages/extractor/eval/dataset.real.json` and run the same harness —
+   `ai/eval/dataset.real.json` and run the same harness —
    the result becomes ADR-005b.
 5. Set `KV_REST_API_URL` + `KV_REST_API_TOKEN` (or the `UPSTASH_*` names) in the Vercel
    project. Without them production runs the in-memory store, which loses threads on cold

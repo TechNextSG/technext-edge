@@ -13,9 +13,9 @@
   },
   "components": [
     { "id": "root", "type": "backend", "label": "technext-edge", "sublabel": "repo root · npm workspaces", "pos": [20, 260], "size": [140, 64] },
-    { "id": "extractor", "type": "backend", "label": "packages/extractor", "sublabel": "Trip schema, extract(), providers", "pos": [230, 260], "size": [160, 64] },
+    { "id": "extractor", "type": "backend", "label": "ai", "sublabel": "Trip schema, extract(), providers", "pos": [230, 260], "size": [160, 64] },
     { "id": "eval", "type": "database", "label": "extractor/eval", "sublabel": "dataset, runner, scorer", "pos": [230, 410], "size": [150, 64] },
-    { "id": "bff", "type": "backend", "label": "apps/casa-bff", "sublabel": "Hono: webhook, test console", "pos": [460, 260], "size": [160, 64] },
+    { "id": "bff", "type": "backend", "label": "bff", "sublabel": "Hono: webhook, test console", "pos": [460, 260], "size": [160, 64] },
     { "id": "scripts", "type": "backend", "label": "scripts/", "sublabel": "sim webhook, test-anilao-*", "pos": [460, 110], "size": [150, 64] },
     { "id": "apientry", "type": "backend", "label": "api/index.ts", "sublabel": "entry point Vercel function", "pos": [680, 260], "size": [150, 64] },
     { "id": "vercel", "type": "cloud", "label": "Vercel", "sublabel": "serverless deploy", "pos": [890, 260], "size": [130, 64] },
@@ -36,8 +36,8 @@
     { "id": "apientry-to-vercel", "from": "apientry", "to": "vercel", "label": "deploy", "labelDy": -26 }
   ],
   "cards": [
-    { "dot": "cyan", "title": "packages/extractor — bộ não AI", "items": ["Trip schema (zod), extract() + postProcess(), providers Gemini/DeepSeek", "Không phụ thuộc apps/casa-bff — có thể test độc lập"] },
-    { "dot": "emerald", "title": "apps/casa-bff — máy chủ webhook", "items": ["Import extractor bằng đường dẫn tương đối (../../../packages/extractor/src), không phải tên package workspace", "1 file app.ts, dùng Hono, deploy qua api/index.ts"] },
+    { "dot": "cyan", "title": "ai — bộ não AI", "items": ["Trip schema (zod), extract() + postProcess(), providers Gemini/DeepSeek", "Không phụ thuộc bff — có thể test độc lập"] },
+    { "dot": "emerald", "title": "bff — máy chủ webhook", "items": ["Import extractor bằng đường dẫn tương đối (../../../ai/src), không phải tên package workspace", "1 file app.ts, dùng Hono, deploy qua api/index.ts"] },
     { "dot": "rose", "title": "Không phải code chạy", "items": ["docs/ chỉ là văn bản — ADR, roadmap, sơ đồ, báo cáo benchmark", "scripts/ và eval/ là công cụ dev/test, không nằm trong đường deploy production"] }
   ]
 }

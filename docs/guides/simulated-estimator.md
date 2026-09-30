@@ -6,12 +6,12 @@ chạy được **không cần một credential Odoo nào**, và hôm có key th
 
 ## Một cổng, hai đầu
 
-`apps/casa-bff/src/estimatorPort.ts` là cổng duy nhất tới engine giá/đặt chỗ:
+`bff/src/estimatorPort.ts` là cổng duy nhất tới engine giá/đặt chỗ:
 
 | `ESTIMATOR_MODE` | Đầu nào | File |
 |---|---|---|
-| không đặt, hoặc `simulated` (**mặc định**) | Máy tính giá chạy trong tiến trình | `apps/casa-bff/src/simulatedEstimator.ts` |
-| `remote` | BFF của khách (rồi tới Odoo) | `apps/casa-bff/src/estimatorClient.ts` |
+| không đặt, hoặc `simulated` (**mặc định**) | Máy tính giá chạy trong tiến trình | `bff/src/simulatedEstimator.ts` |
+| `remote` | BFF của khách (rồi tới Odoo) | `bff/src/estimatorClient.ts` |
 
 Mặc định là `simulated`, và đó là chủ ý: một deployment quên đặt biến môi trường **không** được
 phép vô tình gọi vào một host có Odoo mà không có credential. Muốn dùng engine thật là một hành
@@ -27,7 +27,7 @@ Odoo thật vào thì chỉ đổi nơi ra số, không đổi cách hiển th�
 Và nó **tái tạo chính xác bản ghi đã chụp**: cặp đôi trong `compute.retail-couple.json` ra đúng
 ₱31,200 — phòng ₱15,200 / ăn ₱6,000 / lặn ₱10,000, `rpgn` 7,800, `covers` giống, cảnh báo
 "Sat, Nov 21: no boat picked yet for Ana." giống. Đó là test hợp đồng
-(`packages/extractor/test/simulatedEstimator.test.ts`), và là thứ khiến giá local đủ tin để demo:
+(`ai/test/simulatedEstimator.test.ts`), và là thứ khiến giá local đủ tin để demo:
 đó là **số học của khách**, không phải của mình.
 
 Các luật đã cài (nguồn: `rates.ts`, field guide + compute đã chụp):
@@ -70,7 +70,7 @@ và phía khách bật `FIXTURE_MODE=0` + key Odoo. Sau đó:
 
 ## Câu trả lời được lưu trên quotation
 
-`packages/extractor/src/pricing.ts` (`normalizePricing`) đọc câu trả lời của engine thành dạng
+`ai/src/pricing.ts` (`normalizePricing`) đọc câu trả lời của engine thành dạng
 trang vẽ được, và `POST /v1/quotes/:id/sync-estimate` **lưu nó vào draft** (`quotation.pricing`)
 chứ không chỉ hiển thị. Hai lý do:
 

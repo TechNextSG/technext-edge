@@ -37,7 +37,7 @@
 > in `app.ts`. It contradicted spec §1 and was never reachable in any environment we can deploy,
 > so it was deleted rather than kept alongside the BFF client. The sections below that describe
 > the GAIS envelope and its `sale.order` payload are kept only as a record of what was built;
-> they are **not** the current contract. Current contract: `apps/casa-bff/src/estimatorClient.ts`.
+> they are **not** the current contract. Current contract: `bff/src/estimatorClient.ts`.
 
 ---
 
