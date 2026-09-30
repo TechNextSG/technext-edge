@@ -56,6 +56,8 @@ import { createProviderHolder } from "./services/aiProvider.js";
 import { createSettingsStore, type SettingsStore } from "./stores/settingsStore.js";
 import { registerHealthRoutes } from "./routes/health.js";
 import { registerPageRoutes } from "./routes/pages.js";
+import { registerExtractorRoutes } from "./routes/extractor.js";
+import { registerHandoffRoutes } from "./routes/handoff.js";
 import {
   saveQuotationDraft,
   getQuotationByIdOrSlug,
@@ -74,7 +76,7 @@ import {
 } from "./services/estimatorClient.js";
 import { createEstimatorPortFromEnv, type EstimatorPort } from "./services/estimatorPort.js";
 import { createConversationStoreFromEnv, type ConversationStore } from "./stores/conversationStore.js";
-import { renderHandoffPageHtml } from "./views/handoffPage.js";
+
 import { renderOpsSheetHtml } from "./views/opsPage.js";
 import {
   DEMO_SESSION_COOKIE,
@@ -109,70 +111,7 @@ function canonicalOrigin(c: Context): string {
   return new URL(c.req.url).origin;
 }
 
-// `provider`/`apiKey` are an optional per-request override for the test
-// console and the eval harness — bring your own key for a quick bake-off
-// comparison without touching Vercel env vars or redeploying. Omit both to
-// use the server's configured default (createProviderFromEnv).
-const ProviderOverride = {
-  provider: z.enum(KNOWN_PROVIDER_NAMES).optional(),
-  apiKey: z.string().min(1).max(500).optional(),
-};
 
-// Gate G3 (Contract, Playbook Figure B): unknown field = 422, body cap enforced
-// upstream at the edge (G1) — this schema is the app-level half of that gate.
-const ExtractRequest = z
-  .object({ text: z.string().min(1).max(4000), ...ProviderOverride })
-  .strict()
-  .refine((v) => !v.provider || v.apiKey, { message: "apiKey is required when provider is set" });
-
-// A conversation is still exactly one extraction re-run on the whole
-// transcript each turn — see ai/src/converse.ts. Capped at
-// 20 turns and 4000 chars/turn; a real conversation stays far under both.
-const ConverseRequest = z
-  .object({
-    history: z
-      .array(z.object({ role: z.enum(["guest", "assistant"]), text: z.string().min(1).max(4000) }))
-      .min(1)
-      .max(20)
-      .optional(),
-    message: z.string().min(1).max(4000).optional(),
-    channel: z.enum(["web", "email", "whatsapp"]).optional(),
-    conversationId: z.string().min(1).max(200).optional(),
-    ...ProviderOverride,
-  })
-  .strict()
-  .refine((v) => v.message || v.history?.length, { message: "message or history is required" })
-  .refine((v) => !v.provider || v.apiKey, { message: "apiKey is required when provider is set" });
-
-// `fallback` is the seam the app is constructed with (see AppOptions): the
-// WhatsApp webhook has no request body to carry an override, so without it that
-// path could only ever be tested against a real vendor.
-
-// Shared between /v1/extract and /v1/converse — both call into the same
-// extract() underneath and can fail in exactly the same two ways: the
-// model's output didn't validate (422), or the provider itself failed
-// (429 rate-limited, or 502 for anything else). See extract.ts's comment on
-// why those two failure modes must not collapse into one generic error.
-function handleExtractError(err: unknown): Response {
-  if (err instanceof ExtractionValidationError) {
-    const cause = err.zodIssues;
-    const causeDescription = cause instanceof Error ? { message: cause.message, stack: cause.stack } : cause;
-    // eslint-disable-next-line no-console
-    console.error("extraction validation failed twice", JSON.stringify(causeDescription), err.sample);
-    const debug = process.env.DEBUG_EXTRACT === "1" ? { cause: causeDescription, sample: err.sample } : undefined;
-    return Response.json({ error: "extraction_failed", detail: "model output did not match the Trip schema twice", debug }, { status: 422 });
-  }
-  // eslint-disable-next-line no-console
-  console.error("extract failed", err);
-  const message = err instanceof Error ? err.message : String(err);
-  if (/\b429\b|RESOURCE_EXHAUSTED|rate.?limit/i.test(message)) {
-    return Response.json(
-      { error: "provider_rate_limited", detail: process.env.DEBUG_EXTRACT === "1" ? message : "the AI provider is rate-limited — try again shortly" },
-      { status: 429 },
-    );
-  }
-  return Response.json({ error: "extract_error", detail: process.env.DEBUG_EXTRACT === "1" ? message : undefined }, { status: 502 });
-}
 
 // How long a parked thread stays quiet after the guest was told a person is on it.
 // Long enough that three messages typed in a row get one holding reply instead of
@@ -482,90 +421,11 @@ export function createApp(options: AppOptions = {}) {
     return options.provider ?? (await providerHolder.get());
   }
 
-  app.post("/v1/extract", async (c) => {
-    const body = await c.req.json().catch(() => null);
-    const parsed = ExtractRequest.safeParse(body);
-    if (!parsed.success) {
-      return c.json({ error: "invalid_request", issues: parsed.error.issues }, 422);
-    }
-    if (parsed.data.provider && !staffWriter(c)) {
-      return c.json({ error: "unauthorized", detail: "choosing a provider or sending an API key needs a staff session" }, 401);
-    }
-
-    let provider: ExtractProvider;
-    try {
-      provider = await providerFor(parsed.data);
-    } catch (err) {
-      return c.json({ error: "server_misconfigured", detail: err instanceof Error ? err.message : String(err) }, 500);
-    }
-
-    try {
-      const outcome = await extract(parsed.data.text, provider);
-      return c.json(outcome);
-    } catch (err) {
-      return handleExtractError(err);
-    }
-  });
-
-  app.post("/v1/converse", async (c) => {
-    const body = await c.req.json().catch(() => null);
-    const parsed = ConverseRequest.safeParse(body);
-    if (!parsed.success) {
-      return c.json({ error: "invalid_request", issues: parsed.error.issues }, 422);
-    }
-    if (parsed.data.provider && !staffWriter(c)) {
-      return c.json({ error: "unauthorized", detail: "choosing a provider or sending an API key needs a staff session" }, 401);
-    }
-
-    let provider: ExtractProvider;
-    try {
-      provider = await providerFor(parsed.data);
-    } catch (err) {
-      return c.json({ error: "server_misconfigured", detail: err instanceof Error ? err.message : String(err) }, 500);
-    }
-
-    try {
-      const outcome = parsed.data.message
-        ? await converseWithQuotation(
-          {
-            message: parsed.data.message,
-            history: parsed.data.history as ConversationTurn[] | undefined,
-            channel: parsed.data.channel,
-            conversationId: parsed.data.conversationId,
-          },
-          provider,
-        )
-        : await converseWithQuotation(parsed.data.history as ConversationTurn[], provider);
-      if (outcome.quotationDraft) {
-        // Creating a quotation is a staff action.
-        //
-        // This route is reachable without a credential — the public test console and the HTTP smoke
-        // script both call it — and it used to take the draft the tool built and write it straight
-        // into the studio's queue, then hand the caller the record back: `slug`, `quoteId`,
-        // `lineItems` and `totalAmount`, i.e. an internal id, a guest-facing link and a price, for an
-        // anonymous POST (measured on production, 2026-09-28: one unsigned request created
-        // QT-1121-ANAR-… and answered 200 with its price).
-        //
-        // The extraction itself stays open, because that is the model reading text and is what the
-        // console exists to show. What an anonymous caller does not get is a record, or the fields
-        // that identify and price one — a quotation is something staff make, and the guest's own
-        // price comes from the customer's app, never from here.
-        if (staffSession(c).ok) {
-          await saveQuotationDraft(outcome.quotationDraft);
-          return c.json({ ...outcome, quotationSaved: true });
-        }
-        const { quotationDraft: _withheld, ...rest } = outcome;
-        return c.json({
-          ...rest,
-          quotationSaved: false,
-          quotationNote:
-            "this enquiry is complete, but a quotation was not created: sign in to the staff studio to open one",
-        });
-      }
-      return c.json(outcome);
-    } catch (err) {
-      return handleExtractError(err);
-    }
+  registerExtractorRoutes(app, {
+    providerFor,
+    staffWriter,
+    staffSession,
+    saveQuotationDraft,
   });
 
   // ---- WhatsApp inbound channel (Meta Cloud API) ---------------------------
@@ -1117,31 +977,14 @@ export function createApp(options: AppOptions = {}) {
   // parked thread the team never sees is a guest who was told "a person is on it" and then
   // waited — so the list has to be a page reachable from the studio, not a curl command.
   //
-  // Guarded by the same demo session as the studio: whoever can read quotations can read this,
-  // because it is the same job.
-  app.get("/handoff", async (c) => {
-    const auth = staffSession(c);
-    if (!auth.ok) return c.redirect("/login?next=%2Fhandoff");
-    return c.html(renderHandoffPageHtml(await store.pausedThreads(), auth.role ?? "staff"));
-  });
-
-  // Handing a thread back. A write, so it is guard-checked here rather than only hidden in the
-  // page: a form post with the right path must not be able to un-park a thread without a session.
-  app.post("/handoff/:phone/resume", async (c) => {
-    const auth = staffSession(c);
-    if (!auth.ok) return c.json({ error: "unauthorized" }, 401);
-    if (!staffWriter(c)) return c.json({ error: "forbidden", detail: "only staff may hand a thread back" }, 403);
-    await store.resume(c.req.param("phone"));
-    return c.redirect("/handoff");
-  });
-
-  app.post("/handoff/:phone/reset", async (c) => {
-    const auth = staffSession(c);
-    if (!auth.ok) return c.json({ error: "unauthorized" }, 401);
-    if (!staffWriter(c)) return c.json({ error: "forbidden", detail: "only staff may clear a thread" }, 403);
-    await closeEnquiryQuotation(c.req.param("phone"));
-    await store.clear(c.req.param("phone"));
-    return c.redirect("/handoff");
+  registerHandoffRoutes(app, {
+    store,
+    staffSession,
+    staffWriter,
+    closeEnquiryQuotation: async (phone: string) => {
+      const id = await closeEnquiryQuotation(phone);
+      return id ?? undefined;
+    },
   });
 
   registerHealthRoutes(app);
