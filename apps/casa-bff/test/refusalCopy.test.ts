@@ -112,3 +112,33 @@ describe("the simulated estimator is no more lenient than the engine", () => {
     expect(instructor.retailModel).toBeNull();
   });
 });
+
+describe("the simulated estimator refuses what the engine refuses, with their codes", () => {
+  it("PATCH with a check-out that is not after the check-in -> 422 checkout-not-after-checkin", async () => {
+    const port = createSimulatedEstimator();
+    const first = await port.sendEstimate(tripOf(2));
+    if (!first.ok) throw new Error("setup");
+    const session = { id: first.id!, cookie: first.sessionCookie! };
+    const reversed = { ...tripOf(2), checkIn: "2026-11-22", checkOut: "2026-11-20" };
+    const res = await port.sendEstimate(reversed, session);
+    if (res.ok) throw new Error("expected a refusal");
+    expect(res.status).toBe(422);
+    expect(res.code).toBe("checkout-not-after-checkin");
+    expect(res.detail).toBe("Check-out must be after check-in");
+  });
+
+  it("POST for a guest whose check-in has passed -> 422 checkin-in-past", async () => {
+    const past = { ...tripOf(2), checkIn: "2026-01-10", checkOut: "2026-01-12" };
+    const res = await createSimulatedEstimator().sendEstimate(past);
+    if (res.ok) throw new Error("expected a refusal");
+    expect(res.code).toBe("checkin-in-past");
+  });
+
+  it("a dive window outside the stay -> 422 dive-window-outside-stay", async () => {
+    const t = tripOf(2);
+    const bad = { ...t, diveFrom: "2026-11-25", diveTo: "2026-11-26", guests: t.guests.map((g, i) => (i === 0 ? { ...g, diver: true, days: { "2026-11-25": { dive: true, third: false, night: false, boatId: null } } } : g)) };
+    const res = await createSimulatedEstimator().sendEstimate(bad);
+    if (res.ok) throw new Error("expected a refusal");
+    expect(res.code).toBe("dive-window-outside-stay");
+  });
+});

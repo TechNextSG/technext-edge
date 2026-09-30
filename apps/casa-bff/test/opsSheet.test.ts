@@ -188,3 +188,20 @@ describe("the studio draws the engine's answer", () => {
     expect(asStaff).toContain('data-role="staff"');
   });
 });
+
+describe("what the guest said about food and transfers reaches the desks", () => {
+  it("prints diet and allergies under Kitchen, and only the transfer direction the guest asked for", async () => {
+    const t = { ...sampleTrip(), dietNotes: { value: "one guest is vegetarian, nut allergy", state: "stated", evidence: null }, transferDirection: { value: "arrival", state: "stated", evidence: null }, transport: { value: true, state: "stated", evidence: null }, transportType: { value: "roundtrip", state: "stated", evidence: null } } as unknown as Trip;
+    const draft = buildHonoQuotationDraft(t, "https://example.test", "QT-OPS-DIET");
+    await saveQuotationDraft({ ...draft, bffTrip: buildBffTrip(t) });
+    const app = createApp();
+    const res = await app.request(`/v1/quotes/QT-OPS-DIET/sync-estimate?token=${VERIFY_TOKEN}`, { method: "POST" });
+    expect(res.status).toBe(200);
+
+    const html = await (await app.request(`/quotes/QT-OPS-DIET/ops?token=${VERIFY_TOKEN}`)).text();
+    expect(html).toContain("Diet / allergies");
+    expect(html).toContain("one guest is vegetarian, nut allergy");
+    expect(html).toContain("Arrival");
+    expect(html).not.toContain("<dt>Departure</dt>");
+  });
+});

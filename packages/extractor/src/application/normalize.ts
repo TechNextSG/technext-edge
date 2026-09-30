@@ -72,6 +72,10 @@ export function maskForLogging(text: string): string {
 // It is not meant to run over a whole transcript: callers pass guest text only, so the
 // assistant's own wording cannot vote on the guest's language. See guestTextOf below.
 const CJK_RE = /[\u4e00-\u9fff]/;
+// Kana and hangul: Japanese and Korean share the Han block with Chinese, so a Han character alone does not
+// make a message Chinese. The customer's tool answers in English or Simplified Chinese only; a Japanese or
+// Korean guest is answered in English, not in a language they did not write.
+const KANA_HANGUL_RE = /[\u3040-\u30ff\u31f0-\u31ff\u1100-\u11ff\u3130-\u318f\uac00-\ud7af]/;
 
 /**
  * The languages the resort actually receives. A named type rather than a bare union
@@ -84,7 +88,7 @@ const CJK_RE = /[\u4e00-\u9fff]/;
 export type { GuestLanguage };
 
 export function detectLanguage(text: string): GuestLanguage {
-  return CJK_RE.test(text) ? "zh" : "en";
+  return CJK_RE.test(text) && !KANA_HANGUL_RE.test(text) ? "zh" : "en";
 }
 
 /**

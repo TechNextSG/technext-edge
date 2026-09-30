@@ -25,10 +25,18 @@ lên để **mô phỏng lúc kết nối hai bên**. Chỗ nào bot mâu thuẫ
 
 | Theo đúng F08 | Chỉ mô phỏng, không phải nghiệp vụ của khách |
 |---|---|
-| Nhân viên review trip | Ghi tiền cọc |
-| Get price qua engine của khách | Ops sheet của mình |
-| Approve | Submit ở chế độ simulated |
-| Publish (`commit` + `share`) rồi gửi WhatsApp | Bản sao `/q/:slug` (chỉ là đường lùi khi link fixture chết) |
+| Nhân viên review trip | Ops sheet của mình |
+| Get price qua engine của khách | Submit ở chế độ simulated |
+| Approve | Bản sao `/q/:slug` (chỉ là đường lùi khi link fixture chết) |
+| Publish (`commit` + `share`) rồi gửi WhatsApp | |
+
+**Tiền cọc: không có trong tool của khách** (họ ghi "front desk sẽ xác nhận chỗ và liên hệ"), nên studio đã bỏ phần ghi
+cọc, thẻ ngân hàng, thẻ "Booking & Deposit Policy" và tab "Paid". Trang khách chỉ còn câu của front desk và hạn hiệu lực
+của báo giá.
+
+**Vai.** Studio chỉ dành cho nhân viên: `POST /login` bỏ qua trường `role` (vai không do client chọn) và luôn là `staff`;
+cookie ký với vai cũ (`guest`, `agent`) không còn là phiên. Agent và instructor dùng tool của khách. Mọi route ghi đổi đi qua
+`staffWriter`, kể cả `POST /v1/quotes/compute` (trước đây không có kiểm tra quyền).
 
 Hai cổng F08 mà studio giữ: enquiry của agent/instructor **không** được publish hay gửi (409
 `partner_needs_own_login` — họ báo giá trong tool của khách sau khi đăng nhập, vì chỉ phiên đó mới có giá đại lý),
@@ -778,12 +786,13 @@ node packages/extractor/eval/runner.mjs --provider deepseek-flash
   `/v1/quotes/cleanup-duplicates` additionally require the **staff** role, because a cancelled
   quotation answers 410 on a guest's link and a deleted record is gone.
 
-  `POST /v1/quotes/compute` is the exception that cannot take a credential, because
-  `docs/specs/ai-hono-odoo-architecture-spec.md` has the AI tool calling it in production. It used to
-  accept a `draft.quoteId`, look it up and return it, which made the unauthenticated route a way
-  to read any quotation. It is now stateless. **When you add a quotation route, decide which of
-  the two audiences it serves** — guest link or staff — and if it must stay open, keep it
-  stateless.
+  `POST /v1/quotes/compute` used to be the one open route, because
+  `docs/specs/ai-hono-odoo-architecture-spec.md` has the AI tool calling it. It was stateless (it stopped
+  accepting a `draft.quoteId` after it turned out to be a way to read any quotation), but it still priced
+  and drafted for anyone who could reach the URL, and nothing in this repo calls it. It now needs a staff
+  session (30/09/2026). If the tool-calling design in that spec is ever built, it needs a credential of its
+  own — the customer's system has no service identity for a bot yet (their schema.md §4).
+  **When you add a quotation route, decide which of the two audiences it serves**: guest link or staff.
 
 - **The BFF contract was validated but never sent anywhere.** `buildBffTrip()` and
   `validateBffTripPrecheck()` were correct and tested, yet every Odoo-bound request carried only

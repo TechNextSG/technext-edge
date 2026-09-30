@@ -67,7 +67,7 @@ Mỗi mục là một lỗi **đã biết, chưa sửa** (chi tiết và `file:d
   thích được. Cũng đừng sửa bản seed rồi để nguyên: nó giữ nguyên chỗ sửa cho tới khi đổi phiên bản seed.
 - **Viết ngày `dd/mm/yyyy`** trong tin mẫu — luôn dùng `2026-11-20` như trên (C1.8).
 - **Gửi ảnh hoặc voice** trong lúc demo — bot sẽ im lặng (C1.6).
-- **Ghi nhận tiền cọc, huỷ báo giá, đổi ngày ở ô thông tin liên hệ** (C2.7, C2.10, C2.11).
+- **Huỷ báo giá, đổi ngày ở ô thông tin liên hệ** (C2.7, C2.10).
 - **Nhắc chữ "agency"/"agent" trong tin mẫu** — bot nhận ra đại lý và mời họ tự đăng nhập; bản nháp bị giữ cho nhân
   viên và Publish/Send bị chặn (409 `partner_needs_own_login`). Không còn giảm giá 30%, nhưng khán giả sẽ thấy lỗi
   chặn mà không có link — chỉ dùng khi có chủ đích để trình bày đúng luồng đại lý.
@@ -102,7 +102,7 @@ Trả lời đúng sự thật. Những điều dưới đây **chưa** làm đ�
 | "Khách viết tiếng Nhật, Hàn, Tagalog?" | Hiện hỗ trợ tiếng Anh và tiếng Trung. Bộ nhận diện chỉ tìm chữ Hán, nên câu tiếng Nhật có chữ Hán (gần như mọi câu) bị trả lời bằng tiếng Trung; các tiếng khác trả bằng tiếng Anh |
 | "Hai nhân viên cùng sửa một báo giá?" | Chưa có khoá — người lưu sau đè người lưu trước, không cảnh báo |
 | "Đại lý (agent) thì báo giá thế nào?" | Bot nhận ra và mời họ tự đăng nhập trên app báo giá của khách để thấy giá đại lý — đúng luồng thủ công. Đường dẫn đăng nhập đó **chưa được kiểm với app thật** |
-| "Khách trả tiền cọc thế nào?" | Chưa làm trong sản phẩm này. Điều khoản cọc là của resort; sẽ lấy từ engine khi Odoo được nối, không do bot tự nêu |
+| "Khách trả tiền cọc thế nào?" | Tool của khách không có bước cọc; front desk xác nhận chỗ và liên hệ khách. Studio này không ghi và không nêu tiền cọc |
 | "Giá này có đúng không?" | Là **sample**. Đúng/sai chỉ kiểm được khi có Odoo thật — nên trang ghi nhãn sample thay vì trình bày như báo giá thật |
 
 ---

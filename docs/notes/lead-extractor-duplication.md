@@ -23,3 +23,10 @@ P5 đang ghi "parked, owner Nhật".
 3. Nếu giữ bản của mình: nhờ họ không merge `/api/extract` song song, hoặc chỉ gọi sang mình.
 
 Mình đang theo dõi bằng `npm run upstream:check`; sẽ báo lại nếu nhánh đó merge.
+
+## F10 — đề xuất đường bàn giao (30/09)
+
+`toInquiryLead(trip)` trong extractor của mình đã chuẩn bị dữ liệu theo shape `InquiryLead` của họ (F10). Mình **không** gọi
+`POST /v1/inquiry/submit`: luật của khách là không gọi Odoo trực tiếp, và route BFF của họ cho việc này chưa có. Nếu Lead chọn
+hướng "bot chuyển ca chưa đủ điều kiện sang nhân viên qua inquiry", đây là chỗ nối. Cần họ mở route và chốt shape (đang
+"chờ Phillip", B-043).

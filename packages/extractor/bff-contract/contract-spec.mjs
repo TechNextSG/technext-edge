@@ -217,3 +217,18 @@ export const ROOM_RATE_TIERS = Object.freeze({
 });
 
 export const ROOM_CAPS = Object.freeze({ standard: 2, deluxe: 4, suite: 4 });
+
+/**
+ * F10 — the customer's website enquiry, as `toInquiryLead` prepares it. Transcribed from their plan
+ * `docs/superpowers/plans/2026-09-28-profile-certs-inquiry.md` (Task 7, `InquiryLead`), on
+ * `Stage1_Estimator_Tools@5fe2806`. They mark it "assumed = InquiryRequest (OpenAPI Odoo)…; waiting for
+ * Phillip (B-043)", so it can change. Only the columns this side prepares; `leadId`, `createdAt`, `name`,
+ * `email`, `phone`, `nights`, `travelMonth`, `checkin`, `sameStayLength` are theirs or are not collected here.
+ */
+export const INQUIRY_LEAD = Object.freeze({
+  fields: Object.freeze(["totalGuests", "rooms", "mealPlan", "airportTransfer", "divers", "coursesInterest", "message"]),
+  roomTypes: Object.freeze(["standard", "deluxe", "suite"]),
+  mealPlan: Object.freeze(["full_board", "room_only"]),
+  airportTransfer: Object.freeze(["yes", "no"]),
+  coursesInterest: Object.freeze(["yes", "no"]),
+});

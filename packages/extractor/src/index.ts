@@ -64,6 +64,8 @@ export {
   datesBetweenInclusive,
 } from "./application/odooHandoff.js";
 export type { OdooHandoffMode, OdooEstimateDraft, OdooHandoffEnvelope } from "./application/odooHandoff.js";
+export { toInquiryLead } from "./application/inquiryLead.js";
+export type { InquiryLead } from "./application/inquiryLead.js";
 export { converse } from "./application/converse.js";
 export type { ConversationChannel, ConversationInput, ConversationTurn, ConverseOutcome } from "./application/converse.js";
 export { diffBffTrip, pricedFactsChanged, pricedFactsKey } from "./application/tripDiff.js";

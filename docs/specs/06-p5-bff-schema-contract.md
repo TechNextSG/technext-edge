@@ -356,6 +356,27 @@ kế hoạch theo kịp nguồn.
 - 30/09/2026: vá sức chứa (commit `077bfe6`) đã push lên `origin/main`, Vercel production build từ commit này. Smoke test tay trên production và `-sim` do người dùng chạy theo runbook; ghi kết quả vào đây khi xong.
 - 30/09/2026: production (`dcaj8ot4o`) và `-sim` (`pej0tn81i`, alias `technext-edge-casa-bff-sim`) đều build từ `a03ddf2` (sức chứa + F08 partner gate + fact gate link). Đã kiểm sha qua Vercel API. Chưa smoke test tay bằng WhatsApp thật.
 
+### Luật hợp lệ: bên mình giờ khớp `validate.ts` của khách (30/09/2026)
+
+Nguyên tắc: bot **không tự điền hay tự kẹp** giá trị khi khách nói sai; hỏi lại khách hoặc báo đúng mã của khách.
+
+| Mã của khách | Bên mình |
+|---|---|
+| `checkin-in-past` | trích xuất hỏi lại ngày quá khứ (giờ Manila); precheck phát mã cho khách, staff được miễn (Q-012) |
+| `checkout-not-after-checkin` | khoảng đảo hoặc 0 đêm bị hỏi lại (số đêm); bỏ mặc định 10–12/10 |
+| `dive-window-reversed`, `dive-window-outside-stay`, `dive-days-outside-window` | `buildBffTrip` không còn kẹp cửa sổ lặn vào kỳ ở; precheck báo, extractor hỏi lại |
+| `divers-over-guests` | số thợ lặn > số khách bị hỏi lại; handoff báo `divers-over-guests` (engine cần `ui.diverCount`, mình không gửi) |
+| `room-over-capacity`, `room-empty` | đã có (xem trên) |
+| `arrive-depart-outside-stay` | chưa hỗ trợ đến muộn/về sớm; `arrive`/`depart` luôn null |
+| giới hạn (khách ≤40, phòng ≤30) | vượt thì chuyển nhân viên `group_exceeds_engine_limit`, không báo giá như 40 |
+
+Ngoài `validate.ts`: `half_board` không có trong engine (`meals` chỉ true/false) nên chuyển nhân viên
+`meal_plan_needs_staff`; khoá học chỉ gán cho người khách nói (một thợ lặn, hoặc "all/everyone"), không rõ thì
+`course_assignee_unclear`; ăn kiêng và chiều đưa đón lưu ở bản ghi (`scenario.extras` phía họ), **không gửi engine**.
+
+**F10** (`toInquiryLead`, `X/application/inquiryLead.ts`): chuẩn bị dữ liệu đúng shape `InquiryLead` của khách (vendored trong
+`contract-spec.mjs`, pin bằng `customerRules.test.ts`). **Chưa gọi Odoo** và route BFF của họ chưa có (B-043, chờ Phillip).
+
 ### Cơ chế bám nguồn
 
 `npm run upstream:check` (chỉ đọc) liệt kê commit mới chạm `contracts/`, `bff/src/{routes,trip,model,odoo,auth}`,

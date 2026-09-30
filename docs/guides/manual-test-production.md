@@ -127,9 +127,9 @@ mất token sau vài giờ):
 - **Hello <tên khách>, here is your quotation** — đúng **một** lời chào
 - **₱31.200 · Total, from the resort's booking engine**
 - hai thẻ per-guest (Ana ₱20.600 · Ben ₱10.600)
-- khối *Booking & Deposit Policy*: chỉ **3 dòng** — 50% không hoàn lại, số còn lại trước ngày đi 1 tháng,
-  và hạn hiệu lực giờ Manila
-- **được kiểm là KHÔNG có**: hộp "giữ phòng 72 giờ", đồng hồ đếm ngược, phép chia 50% tiền cọc/số còn lại,
+- khối cuối trang: câu *"The front desk will confirm availability and contact you."* và hạn hiệu lực giờ Manila
+  (không còn tiền cọc — tool của khách không có)
+- **được kiểm là KHÔNG có**: hộp "giữ phòng 72 giờ", đồng hồ đếm ngược, bất kỳ chữ "deposit"/"down payment"/số tiền cọc nào,
   ô chọn tiền tệ (USD/EUR/VND)
 
 > Thẻ per-guest ghi **"Standard A"** dù mình đặt deluxe: đó là **bản chụp** của fixture, không phải lỗi
@@ -226,9 +226,9 @@ ghi kết quả và ngày vào bảng ở cuối mục 2b.
 | C1.5 | Cho lịch lặn nằm ngoài kỳ ở (ở 20–22/11, nói lặn 25/11) | ✅ bot hỏi lại, kèm khoảng ngày ở |
 | C1.6 | Gửi **ảnh**, rồi **voice note**, rồi sticker | ⚠️ **im lặng hoàn toàn**: webhook trả 200, không trả lời, không chuyển người, nhân viên không thấy dấu vết nào (`whatsapp.ts:269-292`). Khách Philippines hay gửi voice/ảnh chụp màn hình — đây là lỗi thật, không phải chuyện hiếm |
 | C1.7 | **Sau khi đã nhận link**, nhắn `actually we are 3 now` — hoặc chỉ `thanks!` | ⚠️ tạo thêm **một báo giá mới trùng**; link cũ vẫn sống ở giá cũ; khách lại nghe *"preparing your quotation"*, không ai nói link cũ đã hết giá trị; studio có thêm một dòng không liên kết với bản đã publish (`quotationStore.ts:366-369`, `app.ts:838-842`). Tin nhân viên gửi từ studio **không** được ghi vào lịch sử bot, nên bot không biết có báo giá đã đi |
-| C1.8 | Viết ngày kiểu tháng/ngày của Philippines: `10/12/2026`; rồi `October 10, 2027`; rồi một ngày đầy đủ đã qua như `01/09/2026`; rồi check-out **trước** check-in | ⚠️ có năm thì luôn đọc **ngày trước** (`10/12` thành 10 tháng 12); tên tháng đi kèm năm thì bỏ năm; ngày đầy đủ đã qua vẫn được nhận; khoảng ngược không tính được đêm nên bị tính mặc định 2 đêm mà enquiry vẫn coi là đủ (`dates.ts:128-176`, `quotationTool.ts:334`). **Đọc dòng tóm tắt bot đọc lại** — khách cũng chỉ có dòng đó để bắt lỗi |
+| C1.8 | Viết ngày kiểu Philippines: `10/12/2026`; rồi `October 10, 2027`; rồi một ngày đầy đủ đã qua như `01/09/2026`; rồi check-out **trước** check-in | ✅ `10/12/2026` hiểu được hai cách nên **bot hỏi lại**; `October 10, 2027` giữ năm 2027; ngày đã qua và khoảng ngược bị hỏi lại (số đêm hoặc ngày trả phòng), không còn tự điền 10–12/10. **Đọc dòng tóm tắt bot đọc lại** |
 | C1.9 | Mở link sau khi nhân viên huỷ; mở link **chưa publish**; mở một link bịa | ⚠️ trang "đã huỷ" không có số hay nút liên hệ; trang "đang chuẩn bị" có nút `wa.me/?text=` **không số** và còn hiện nút *Staff sign-in* cho khách; link bịa ra JSON thô `{"error":"not_found"}` (`app.ts:1330, 1357-1563`) |
-| C1.10 | Nhắn bằng tiếng Nhật, rồi tiếng Hàn | ⚠️ tiếng Nhật được trả lời bằng **tiếng Trung** (bộ dò chỉ tìm chữ Hán); tiếng Hàn/Tagalog trả bằng tiếng Anh và ngày không đọc được nên bị hỏi lại đến khi dừng (`normalize.ts:72-84`, `dates.ts`) |
+| C1.10 | Nhắn bằng tiếng Nhật (có kana), rồi tiếng Hàn | ✅ cả hai được trả lời bằng **tiếng Anh** (tool của khách chỉ có en + zh). Chỉ có chữ Hán mà không có kana thì vẫn bị coi là tiếng Trung |
 | C1.11 | Từ một số **không phải số test**, nhắn đúng `start over` hoặc `restart` | ⚠️ xoá thread và **đóng báo giá đang mở, kể cả bản nhân viên đã duyệt**, và gỡ thread khỏi `/handoff`; sau đó `/confirm` còn "hồi sinh" được bản đã đóng (`app.ts:241, 345-369`). Hướng sửa: chỉ nhận `reset` ở số nằm trong danh sách dev |
 
 ### C2. Phía nhân viên (studio)
@@ -245,7 +245,7 @@ ghi kết quả và ngày vào bảng ở cuối mục 2b.
 | C2.8 | **Bấm đúp** *Create link & send* | ⚠️ nút của bước 4 chỉ bị khoá sau khi lệnh publish chạy xong, nên click thứ hai bắt đầu một publish nữa: có thể có 2 bản đóng băng phía khách và **2 tin nhắn** (`quotationStore.ts:2709-2712`, `app.ts:2414`). **Bấm một lần và chờ** |
 | C2.9 | Mở **cùng một báo giá ở hai tab**, sửa ở cả hai, lưu lần lượt | ⚠️ tab lưu sau đè tab trước, không cảnh báo; bấm Approve ở tab cũ có thể duyệt một giá mà tab kia mới tính |
 | C2.10 | **Huỷ** một báo giá đã publish; rồi thử bấm *Save & get price* trên một báo giá chưa publish đã huỷ | ⚠️ link phía app khách **vẫn sống và đặt được** (chỉ trang `/q/` của mình trả 410); bản chưa publish đã huỷ bị **hồi sinh** vì Save/Approve không kiểm trạng thái huỷ |
-| C2.11 | Ghi nhận tiền cọc với số `0`, hoặc trên báo giá đã huỷ / chưa từng gửi | ⚠️ nhận hết, còn báo *"Reservation confirmed"* dù chưa có folio nào (`app.ts:1946-1977`) |
+| C2.11 | Gọi `POST /v1/quotes/:id/deposit-payment` | ✅ 404 — route đã bỏ; studio không còn ô ghi tiền cọc |
 | C2.12 | Để phiên đăng nhập hết hạn (8 giờ) giữa lúc đang sửa chuyến | ⚠️ không chuyển trang, không nhắc lưu; đăng nhập lại là mất phần chưa lưu. Có lỗi máy chủ 500/504 thì màn hình hiện dòng phân tích JSON thô thay vì câu tiếng Anh |
 
 ### C3. Phía hệ thống — chỉ đọc, **đừng phá thử trên production**
