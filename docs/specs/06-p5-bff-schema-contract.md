@@ -298,6 +298,35 @@ Hai giới hạn của fixture:
 | Q-008..Q-012 | Luật hợp lệ ở mục 3 có thể đổi | chờ khách |
 | Phía Odoo còn nợ | Key vai staff (spec §10, cost còn `null`), `commission` cho agent (B-012), bản chụp `boats` (B-018), bản chụp `submit` thật (B-033), `rates_version`, `/v1/auth/*` và `/v1/estimate/boats` chưa có trong spec đã pin | chờ |
 
+## 8b. Lệch so với bản đóng băng 25/09 (đối chiếu 30/09/2026)
+
+Tài liệu này là bản chụp một lần ở commit `4419916` (25/09). Đối chiếu `4419916..origin/main` phía
+repo nguồn (`TechNextSG/tn-casa-quotation-estimator`, 108 commit) cho thấy `contracts/src/trip.zod.ts`
+và `contracts/odoo/estimate-api.v1.json` **không đổi** — shape `Trip` ở mục 2 vẫn đúng. Nhưng
+`bff/src/routes/estimates.ts`, `bff/src/trip/derive.ts`, `bff/src/trip/validate.ts`,
+`bff/src/model/redact.ts` đã đổi, mang theo hai hành vi mới:
+
+1. **Tự động chia phòng theo sức chứa** (`splitRoomsByCapacity`, plan 26/09 Task 5). Mục 2.4 ghi
+   buildTrip dồn toàn bộ khách vào một phòng (`rooms: [{id:"r1", ...}]`) — extractor bên mình theo
+   đúng hình đó. Từ commit này, nếu số khách trong phòng đó vượt sức chứa thật của loại phòng
+   (`roomCaps(rates)`, đọc từ `/rates` tại lúc gọi), `POST /api/estimates` **tự chia lại thành
+   `ceil(n/cap)` phòng cùng loại (`r1`, `r2`, …) trước khi tính giá** — không trả lỗi, không cần
+   sửa gì phía mình. `quotes[]` theo từng khách vẫn đúng vì Odoo tính theo khách, không theo phòng.
+   Rủi ro duy nhất: nếu Studio sau này hiển thị "khách nào ở phòng nào" bằng đúng `rooms[]` mình đã
+   gửi, số phòng trả về (N phòng) sẽ không khớp Trip đã gửi (1 phòng) — cần biết trước để không
+   tưởng nhầm là lỗi. Áp dụng cả khi gọi vào bản fixture của khách (logic nằm ở tầng BFF của họ,
+   chạy trước khi tới `gateway.compute`, kể cả gateway đang là fixture hay Odoo thật).
+2. **`retailModel` bị khoá chặt hơn** (B-039): giờ chỉ vai `agent`/`staff` mới nhận, `guest` luôn
+   `null`. Kênh AI của mình luôn gọi ở vai `guest` (mục 4, hướng (a): nháp ẩn danh) — `retailModel`
+   vốn đã `null` với guest từ trước, nên **không ảnh hưởng gì**.
+
+Cũng có thêm field `label` (tên chuyến, optional, ≤120 ký tự) trên `POST /api/estimates` — mình
+chưa gửi, không bắt buộc, không breaking.
+
+Chưa kiểm chứng bằng request thật (chỉ đọc code). Muốn chắc, gửi thử `POST /api/estimates` với
+nhóm đông hơn sức chứa một phòng standard vào bản fixture của khách và xem `model`/`issues` trả về
+có phản ánh đúng việc chia phòng không.
+
 ## 9. Liên kết
 
 - Spec: `superpowers/specs/2026-09-18-uibaogia-wizard-design.md` (upstream handover repo — not

@@ -1,0 +1,251 @@
+{
+  "schema_version": 2,
+  "diagram_type": "workflow",
+  "meta": {
+    "title": "technext-edge — WhatsApp to Quotation Flow",
+    "animation": "trace",
+    "visual_preset": "signal-flow",
+    "quality_profile": "showcase"
+  },
+  "lanes": [
+    {
+      "id": "guest",
+      "label": "Guest (WhatsApp)"
+    },
+    {
+      "id": "system",
+      "label": "Casa BFF · Vercel"
+    },
+    {
+      "id": "staff",
+      "label": "Staff Studio"
+    },
+    {
+      "id": "exceptions",
+      "label": "Known Edges",
+      "variant": "exception"
+    }
+  ],
+  "phases": [
+    {
+      "id": "intake",
+      "label": "Read the message",
+      "fromCol": 0,
+      "toCol": 1
+    },
+    {
+      "id": "review",
+      "label": "Store + review",
+      "fromCol": 2,
+      "toCol": 2
+    },
+    {
+      "id": "price",
+      "label": "Price + approve",
+      "fromCol": 3,
+      "toCol": 3,
+      "variant": "emphasis"
+    },
+    {
+      "id": "deliver",
+      "label": "Send + view",
+      "fromCol": 4,
+      "toCol": 5,
+      "variant": "dashed"
+    }
+  ],
+  "mainPath": [
+    "guest_msg",
+    "webhook",
+    "extract",
+    "store",
+    "studio_open",
+    "get_price",
+    "approve",
+    "send_link",
+    "guest_view"
+  ],
+  "nodes": [
+    {
+      "id": "guest_msg",
+      "lane": "guest",
+      "col": 0,
+      "type": "external",
+      "label": "Guest Message",
+      "sublabel": "free-text, WhatsApp",
+      "width": 130,
+      "height": 56
+    },
+    {
+      "id": "webhook",
+      "lane": "system",
+      "col": 1,
+      "type": "backend",
+      "label": "Webhook Intake",
+      "sublabel": "verifies signature",
+      "tag": "WHATSAPP_APP_SECRET",
+      "width": 148,
+      "height": 56
+    },
+    {
+      "id": "extract",
+      "lane": "system",
+      "col": 2,
+      "type": "backend",
+      "label": "Extract Facts",
+      "sublabel": "DeepSeek → Gemini fallback",
+      "tag": "DEEPSEEK_GATEWAY_KEY",
+      "width": 160,
+      "height": 56
+    },
+    {
+      "id": "store",
+      "lane": "system",
+      "col": 3,
+      "type": "database",
+      "label": "Save Draft",
+      "sublabel": "not sent to guest yet",
+      "tag": "Vercel KV",
+      "width": 140,
+      "height": 56
+    },
+    {
+      "id": "studio_open",
+      "lane": "staff",
+      "col": 3,
+      "type": "frontend",
+      "label": "Studio Queue",
+      "sublabel": "staff opens enquiry",
+      "tag": "STAFF_ACCESS_KEY",
+      "width": 140,
+      "height": 56
+    },
+    {
+      "id": "get_price",
+      "lane": "staff",
+      "col": 4,
+      "type": "cloud",
+      "label": "Get Price",
+      "sublabel": "simulated or remote fixture",
+      "tag": "ESTIMATOR_MODE",
+      "width": 160,
+      "height": 56
+    },
+    {
+      "id": "approve",
+      "lane": "staff",
+      "col": 5,
+      "type": "security",
+      "label": "Approve",
+      "sublabel": "human sign-off, freezes price",
+      "width": 140,
+      "height": 56
+    },
+    {
+      "id": "send_link",
+      "lane": "system",
+      "col": 5,
+      "type": "backend",
+      "label": "Create Link & Send",
+      "sublabel": "reply on WhatsApp",
+      "tag": "WHATSAPP_ACCESS_TOKEN",
+      "width": 160,
+      "height": 56
+    },
+    {
+      "id": "guest_view",
+      "lane": "guest",
+      "col": 5,
+      "type": "frontend",
+      "label": "Guest Opens Link",
+      "sublabel": "own quotation page",
+      "width": 140,
+      "height": 56
+    },
+    {
+      "id": "silent_drop",
+      "lane": "exceptions",
+      "col": 1,
+      "type": "external",
+      "label": "Image / Voice / Sticker",
+      "sublabel": "silently ignored today",
+      "width": 168,
+      "height": 56
+    },
+    {
+      "id": "seed_block",
+      "lane": "exceptions",
+      "col": 5,
+      "type": "security",
+      "label": "Seed Record",
+      "sublabel": "publish refused by design",
+      "width": 140,
+      "height": 56
+    }
+  ],
+  "edges": [
+    {
+      "from": "guest_msg",
+      "to": "webhook",
+      "variant": "emphasis"
+    },
+    {
+      "from": "webhook",
+      "to": "extract",
+      "variant": "emphasis"
+    },
+    {
+      "from": "extract",
+      "to": "store",
+      "variant": "emphasis"
+    },
+    {
+      "from": "store",
+      "to": "studio_open",
+      "variant": "emphasis"
+    },
+    {
+      "from": "studio_open",
+      "to": "get_price",
+      "variant": "emphasis"
+    },
+    {
+      "from": "get_price",
+      "to": "approve",
+      "variant": "emphasis"
+    },
+    {
+      "from": "approve",
+      "to": "send_link",
+      "variant": "emphasis"
+    },
+    {
+      "from": "send_link",
+      "to": "guest_view",
+      "variant": "emphasis"
+    },
+    {
+      "from": "webhook",
+      "to": "silent_drop",
+      "variant": "dashed",
+      "role": "error"
+    },
+    {
+      "from": "approve",
+      "to": "seed_block",
+      "variant": "security",
+      "role": "error"
+    }
+  ],
+  "cards": [
+    {
+      "dot": "cyan",
+      "title": "Hosting, Keys & Known Edges",
+      "items": [
+        "Hosting: prod = ESTIMATOR_MODE=remote; -sim = simulated; share one Vercel KV",
+        "Keys: WHATSAPP_ACCESS_TOKEN/APP_SECRET/VERIFY_TOKEN, DEEPSEEK_GATEWAY_KEY + GEMINI_API_KEY, STAFF_ACCESS_KEY",
+        "Edges: photo/voice ignored; seed record blocked; re-message after send makes a 2nd draft"
+      ]
+    }
+  ]
+}
