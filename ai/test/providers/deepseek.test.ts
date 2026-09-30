@@ -115,3 +115,35 @@ describe("createDeepSeekProvider generateText", () => {
     );
   });
 });
+
+describe("createDeepSeekProvider base URL", () => {
+  async function urlCalledFor(baseUrl: string): Promise<string> {
+    let called = "";
+    global.fetch = vi.fn(async (url: string) => {
+      called = url;
+      return new Response(
+        JSON.stringify({ usage: {}, choices: [{ message: { tool_calls: [{ function: { arguments: "{}" } }] } }] }),
+        { status: 200, headers: { "content-type": "application/json" } },
+      );
+    }) as unknown as typeof fetch;
+    await createDeepSeekProvider("fake-key", "deepseek-flash", { baseUrl }).call({
+      text: "hi",
+      jsonSchema: { type: "object", properties: {} },
+      today: "2026-09-15",
+    });
+    return called;
+  }
+
+  it("drops trailing slashes from a base URL typed in the admin settings", async () => {
+    expect(await urlCalledFor("https://gw.example/v1///")).toBe("https://gw.example/v1/chat/completions");
+    expect(await urlCalledFor("https://gw.example/v1")).toBe("https://gw.example/v1/chat/completions");
+  });
+
+  it("stays linear on a long run of slashes that is not at the end", async () => {
+    // The shape that made the old /\/+$/ backtrack: many '/' followed by something else.
+    const hostile = "https://gw.example/" + "/".repeat(100_000) + "x";
+    const started = Date.now();
+    expect(await urlCalledFor(hostile)).toBe(hostile + "/chat/completions");
+    expect(Date.now() - started).toBeLessThan(1_000);
+  });
+});

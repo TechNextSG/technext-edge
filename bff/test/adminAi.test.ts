@@ -404,7 +404,7 @@ describe("the dashboard page", () => {
   it("carries a script that parses, and puts no saved key or secret in the markup", async () => {
     const { app } = setup();
     const html = await (await app.request("/admin/ai", { headers: asAdmin })).text();
-    const script = /<script>([\s\S]*?)<\/script>/.exec(html)?.[1];
+    const script = /<script>([\s\S]*?)<\/script\s*>/i.exec(html)?.[1];
     expect(script).toBeTruthy();
     const { Script } = await import("node:vm");
     expect(() => new Script(script!)).not.toThrow();

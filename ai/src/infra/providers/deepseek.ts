@@ -8,7 +8,15 @@
 import type { ExtractCall, ExtractProvider, ExtractResult, GuestsReadResult, CheckInReadResult, DiveWindowReadResult } from "../../ports/provider.js";
 import { MalformedArgumentsError } from "../../ports/provider.js";
 
-const GATEWAY_BASE_URL = (process.env.DEEPSEEK_BASE_URL || process.env.DEEPSEEK_GATEWAY_URL || "https://litellm-production-7402.up.railway.app/v1").replace(/\/+$/, "");
+// Trims trailing slashes with a loop rather than `/\/+$/`: the base URL is settings input, and that
+// regex backtracks polynomially on a long run of '/' (CodeQL js/polynomial-redos).
+function withoutTrailingSlashes(url: string): string {
+  let end = url.length;
+  while (end > 0 && url[end - 1] === "/") end--;
+  return url.slice(0, end);
+}
+
+const GATEWAY_BASE_URL = withoutTrailingSlashes(process.env.DEEPSEEK_BASE_URL || process.env.DEEPSEEK_GATEWAY_URL || "https://litellm-production-7402.up.railway.app/v1");
 const TOOL_NAME = "extract_trip";
 
 // Keep timeout at 8,000ms so if the Railway LiteLLM gateway stalls or 502s,
@@ -138,7 +146,7 @@ export function createDeepSeekProvider(
 ): ExtractProvider {
   // Per provider rather than once at module load, so the admin dashboard's setting applies without a deploy.
   const timeoutMs = options.timeoutMs ?? TIMEOUT_MS;
-  const gatewayBaseUrl = (options.baseUrl ?? GATEWAY_BASE_URL).replace(/\/+$/, "");
+  const gatewayBaseUrl = withoutTrailingSlashes(options.baseUrl ?? GATEWAY_BASE_URL);
   return {
     id: "deepseek-gateway:" + model,
     async extractGuests(text: string): Promise<GuestsReadResult> {
