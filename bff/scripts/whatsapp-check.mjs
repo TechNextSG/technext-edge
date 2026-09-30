@@ -36,6 +36,7 @@
 // Env:   WHATSAPP_ACCESS_TOKEN, WHATSAPP_PHONE_NUMBER_ID, WHATSAPP_APP_SECRET,
 //        WHATSAPP_APP_ID, WHATSAPP_API_VERSION
 // Exit:  0 all green, 1 a real problem, 2 credentials missing
+import { createHash } from "node:crypto";
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { relative, resolve } from "node:path";
 
@@ -60,7 +61,9 @@ const appSecret = flag("app-secret", process.env.WHATSAPP_APP_SECRET);
 const GRAPH = "https://graph.facebook.com";
 // Never print a credential, not even a working one: the length plus a few
 // characters is enough to tell two tokens apart in a transcript or a screenshot.
-const fingerprint = (s) => `${s.slice(0, 6)}…(${s.length} chars)`;
+// A short hash, not the token's first characters: enough to tell two tokens apart in the output
+// ("was X, now Y") without printing any part of a live credential.
+const fingerprint = (s) => `sha256:${createHash("sha256").update(s).digest("hex").slice(0, 10)} (${s.length} chars)`;
 
 const checks = [];
 function check(label, ok, detail) {

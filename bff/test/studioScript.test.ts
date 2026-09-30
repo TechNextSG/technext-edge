@@ -80,7 +80,7 @@ async function loadStudio(): Promise<Studio> {
   });
   const html = await (await app.request(`/quotes/${priced.quoteId}?token=${STAFF_TOKEN}`)).text();
 
-  const scripts = [...html.matchAll(/<script>([\s\S]*?)<\/script>/g)];
+  const scripts = [...html.matchAll(/<script>([\s\S]*?)<\/script\s*>/gi)];
   const code = scripts[scripts.length - 1]![1]!;
 
   const elements = new Map<string, StubElement>();

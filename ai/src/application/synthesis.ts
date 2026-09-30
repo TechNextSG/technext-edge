@@ -89,7 +89,11 @@ export interface FactGateResult {
 // removed: the fact gate exists to catch a model quoting money, and a guest or model can
 // still name any currency. Only the Vietnamese words ("đồng", "triệu") were dropped.
 const PRICE_QUOTE_RE =
-  /(?:\$\s*\d|₱\s*\d|\b(?:PHP|USD|VND|EUR)\s*\d|\d[\d,.]*\s*(?:PHP|USD|VND|pesos?|dollars?)\b)/i;
+  // The last branch starts only at the beginning of a run of digits/separators, at its first digit.
+  // `\d[\d,.]*` could start anywhere inside a long run and re-scan it each time (quadratic; CodeQL
+  // js/polynomial-redos). Same verdict: the run is consumed to its end either way, so what follows it
+  // decides, and the run matches iff it contains a digit.
+  /(?:\$\s*\d|₱\s*\d|\b(?:PHP|USD|VND|EUR)\s*\d|(?<![\d,.])[,.]*\d[\d,.]*\s*(?:PHP|USD|VND|pesos?|dollars?)\b)/i;
 
 /**
  * Phrases that promise something the product does not do.
@@ -247,7 +251,8 @@ export function verifyGuestFacingText(text: string, facts: GuestFacingFacts): Fa
   if (facts.roomTypes && facts.roomTypes.size > 0) {
     const named = [
       ...text.matchAll(/\b(standard|deluxe|suite)\s+(?:rooms?|suites?)\b/gi),
-      ...text.matchAll(/\broom\s+type\s*:?\s*(standard|deluxe|suite)\b/gi),
+      // `\s*(?::\s*)?` rather than `\s*:?\s*`: two adjacent \s* split a run of spaces every possible way.
+      ...text.matchAll(/\broom\s+type\s*(?::\s*)?(standard|deluxe|suite)\b/gi),
     ].map((m) => m[1]!.toLowerCase());
     if (named.some((type) => !facts.roomTypes!.has(type))) {
       return { ok: false, reason: "mismatched_room_type" };

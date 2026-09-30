@@ -25,7 +25,7 @@ afterAll(() => {
 
 /** Every inline script body on a page. */
 function inlineScripts(html: string): string[] {
-  return [...html.matchAll(/<script\b[^>]*>([\s\S]*?)<\/script>/gi)]
+  return [...html.matchAll(/<script\b[^>]*>([\s\S]*?)<\/script\s*>/gi)]
     .map((m) => m[1] ?? "")
     .filter((code) => code.trim() !== "");
 }

@@ -7,7 +7,11 @@ import type { GuestLanguage } from "../domain/schema.js";
 // `extract.ts`'s ExtractOptions.maskBeforeSend and .scratch-measure/pii-mask.ts. The short
 // version of that measurement: masking changes nothing extraction reads on the corpus, but
 // this regex had to be fixed first, because as written it ate dates.
-const EMAIL_RE = /[\w.+-]+@[\w-]+\.[\w.-]+/g;
+// The local part is capped at 64 characters, the RFC 5321 limit. Unbounded, a long run of
+// local-part characters with no '@' is re-scanned from every position in it (quadratic; CodeQL
+// js/polynomial-redos). A lookbehind anchor would also be linear but stops masking the second of two
+// addresses written back to back, which is exactly what a log mask must not miss.
+const EMAIL_RE = /[\w.+-]{1,64}@[\w-]+\.[\w.-]+/g;
 
 /**
  * A digit run that looks like a phone number, and specifically NOT like an ISO date.
