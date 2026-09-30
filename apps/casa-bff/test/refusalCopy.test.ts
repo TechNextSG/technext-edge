@@ -102,12 +102,13 @@ describe("the simulated estimator is no more lenient than the engine", () => {
     expect((await port.commit(session, tripOf(3))).ok).toBe(true);
   });
 
-  it("hands the retail comparison to an agent only", async () => {
+  it("prices a trip that claims to be a partner as a guest, with no retail comparison", async () => {
     const port = createSimulatedEstimator();
     const agent = await port.sendEstimate({ ...tripOf(2), guestType: "agent" });
     const instructor = await port.sendEstimate({ ...tripOf(2), guestType: "instructor" });
     if (!agent.ok || !instructor.ok) throw new Error("setup");
-    expect(agent.retailModel).not.toBeNull();
+    expect(agent.role).toBe("guest");
+    expect(agent.retailModel).toBeNull();
     expect(instructor.retailModel).toBeNull();
   });
 });

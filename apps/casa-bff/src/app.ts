@@ -36,6 +36,9 @@ import {
   pathsRestatedByGuest,
   guestLinkFor,
   synthesizeConfirmedQuotationReply,
+  guestFacingFactsFor,
+  isPartnerEnquiry,
+  verifyGuestFacingText,
   type ConversationTurn,
   type ExtractProvider,
   type GuestLanguage,
@@ -419,6 +422,24 @@ export interface AppOptions {
  */
 export function guestPendingQuotationNote(): string {
   return "\n\nOur reservations team is preparing your quotation now, and will send it to you here shortly.";
+}
+
+/**
+ * F08: a partner is quoted in the customer's own tool after signing in, not by our guest-session bot.
+ * The engine prices whatever we send at the retail rate (it takes the role from the session, never the
+ * payload), so publishing or sending that to an agent would hand them the wrong number.
+ */
+function partnerRefusalFor(draft: HonoQuotationDraft): Response | null {
+  if (!isPartnerEnquiry(draft)) return null;
+  return new Response(
+    JSON.stringify({
+      ok: false,
+      reason: "partner_needs_own_login",
+      detail:
+        "This enquiry is from an agent — they quote in the customer's tool after signing in. Reply to them instead of publishing.",
+    }),
+    { status: 409, headers: { "content-type": "application/json" } },
+  );
 }
 
 export function createApp(options: AppOptions = {}) {
@@ -2375,6 +2396,8 @@ export function createApp(options: AppOptions = {}) {
     if (!existing.bffTrip) {
       return c.json({ ok: false, reason: "no_trip", detail: "this quotation has no trip to send" }, 409);
     }
+    const partnerRefusal = partnerRefusalFor(existing);
+    if (partnerRefusal) return partnerRefusal;
     if (existing.status !== "confirmed_by_hono") {
       return c.json({ ok: false, reason: "not_approved", detail: "approve the quotation before publishing it" }, 409);
     }
@@ -2730,6 +2753,8 @@ export function createApp(options: AppOptions = {}) {
           409,
         );
       }
+      const partnerRefusalOnSend = partnerRefusalFor(existing);
+      if (partnerRefusalOnSend) return partnerRefusalOnSend;
       // The link the guest will actually hold: our copy when their app lost the one it issued.
       const guestUrl = guestLinkFor(existing);
       if (!existing.estimator?.sharedAt || !guestUrl) {
@@ -2807,6 +2832,24 @@ export function createApp(options: AppOptions = {}) {
         draft.sentToGuestAt ? draft : { ...draft, sentToGuestAt: new Date().toISOString() },
         provider,
       );
+
+      // The same fact gate a chat reply goes through, run on the message that carries the link. It
+      // exists because a TechNext quotation once said "Standard Room" to a guest who booked a suite;
+      // checked against the trip the engine priced, so a wrong room type, night count, head count or
+      // date stops here rather than reaching the guest.
+      const factGate = verifyGuestFacingText(text, guestFacingFactsFor(draft));
+      if (!factGate.ok) {
+        // eslint-disable-next-line no-console
+        console.warn(`[casa-bff] send ${id}: message stopped by the fact gate (${factGate.reason})`);
+        return c.json(
+          {
+            ok: false,
+            reason: "guest_text_failed_fact_gate",
+            detail: `the message does not match this trip (${factGate.reason}), so it was not sent — check the trip and the message before sending`,
+          },
+          422,
+        );
+      }
 
       let send: WhatsAppSendText;
       try {

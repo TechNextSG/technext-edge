@@ -68,8 +68,9 @@ Mỗi mục là một lỗi **đã biết, chưa sửa** (chi tiết và `file:d
 - **Viết ngày `dd/mm/yyyy`** trong tin mẫu — luôn dùng `2026-11-20` như trên (C1.8).
 - **Gửi ảnh hoặc voice** trong lúc demo — bot sẽ im lặng (C1.6).
 - **Ghi nhận tiền cọc, huỷ báo giá, đổi ngày ở ô thông tin liên hệ** (C2.7, C2.10, C2.11).
-- **Nhắc chữ "agency"/"agent" trong tin mẫu** — bộ nhận diện đại lý quá rộng; ở cửa sổ Preview nó giảm 30% tiền
-  phòng thật.
+- **Nhắc chữ "agency"/"agent" trong tin mẫu** — bot nhận ra đại lý và mời họ tự đăng nhập; bản nháp bị giữ cho nhân
+  viên và Publish/Send bị chặn (409 `partner_needs_own_login`). Không còn giảm giá 30%, nhưng khán giả sẽ thấy lỗi
+  chặn mà không có link — chỉ dùng khi có chủ đích để trình bày đúng luồng đại lý.
 - **Đọc lệnh có khoá lên màn hình chiếu.** Khoá đi bằng header, không nằm trên URL, và không dán vào chat.
 
 ---

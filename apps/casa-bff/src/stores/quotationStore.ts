@@ -1761,6 +1761,8 @@ ${themeCss()}
       sample_not_acknowledged: 'Tick the sample-price box before sending.',
       no_trip: 'This quotation has no trip to price.',
       seeded_fixture: 'This record is the cold-start example in this studio. Take a real enquiry through the flow and publish that one.',
+      partner_needs_own_login: 'This enquiry is from an agent. They quote in the customer system after signing in, so there is nothing to publish here — reply to them instead.',
+      guest_text_failed_fact_gate: 'The message does not match the trip, so it was not sent. Check the trip and the message, then send again.',
       rejected: 'The booking engine refused this trip. The line below says what to change; fix it in the trip review and save again.',
       trip_not_priceable: 'The engine cannot price this trip yet — check the fields it named.',
       invalid_trip: 'The trip is not in the shape the engine accepts.',

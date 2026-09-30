@@ -249,35 +249,29 @@ describe("buildSimulatedModel — the room type the guest named", () => {
   });
 });
 
-describe("buildSimulatedModel — partner pricing", () => {  it("takes 30% off rooms only, never off meals", () => {
-    const model = buildSimulatedModel(agentCoupleTrip());
-    const ana = model.quotes[0]!;
-    const room = ana.lines.find((l) => l.cat === "room")!;
-    const meals = ana.lines.find((l) => l.cat === "meals")!;
-
-    expect(room.gross).toBe(7600);
-    expect(room.discs).toEqual([{ label: "Partner rate 30% (rooms)", amount: 2280 }]);
-    expect(room.net).toBe(5320);
-    // Meals carry no discount row at all — the field guide is explicit that they never do.
-    expect(meals.discs).toEqual([]);
-    expect(meals.net).toBe(3000);
-    expect(model.kpis.discounts).toBe(4560);
+describe("buildSimulatedModel — a trip that calls itself a partner", () => {
+  // Their engine takes the role from the session's Odoo key, never from the payload, and the bot only
+  // holds a guest session — so "we are a travel agency" in an enquiry is still priced at retail.
+  it("prices an agent trip at retail: no partner line, no discount", () => {
+    const agent = buildSimulatedModel(agentCoupleTrip());
+    const retail = buildSimulatedModel(retailCoupleTrip());
+    expect(agent.kpis.revenue).toBe(retail.kpis.revenue);
+    expect(agent.kpis.revenue).toBe(31200);
+    expect(agent.kpis.discounts).toBe(0);
+    for (const q of agent.quotes) for (const l of q.lines) expect(l.discs).toEqual([]);
+    expect(JSON.stringify(agent)).not.toMatch(/Partner rate/);
   });
 
-  it("returns a retail comparison model for a partner session and none for a retail one", () => {
+  it("still labels a session that IS an agent, and hands the retail comparison to it alone", () => {
     const partner = buildSimulatedEnvelope(agentCoupleTrip(), "agent");
     expect(partner.role).toBe("agent");
     expect(partner.retail_model).not.toBeNull();
-    expect(partner.retail_model!.kpis.revenue).toBe(31200);
-    // The partner's own model is cheaper, and only because of the room discount.
-    expect(partner.model.kpis.revenue).toBe(31200 - 4560);
-
     const retail = buildSimulatedEnvelope(retailCoupleTrip(), "guest");
     expect(retail.retail_model).toBeNull();
   });
 
-  it("labels an agency trip as such on the envelope, which is what Odoo's own role field reports", () => {
-    expect(buildSimulatedEnvelope(agentCoupleTrip()).role).toBe("agent");
+  it("reports the guest role for a trip that only claims to be a partner", () => {
+    expect(buildSimulatedEnvelope(agentCoupleTrip()).role).toBe("guest");
     expect(buildSimulatedEnvelope(retailCoupleTrip()).role).toBe("guest");
   });
 });

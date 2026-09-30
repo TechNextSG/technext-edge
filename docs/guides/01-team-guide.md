@@ -17,6 +17,23 @@ decisions this build is actually based on — the [Blueprint](https://casa-escon
 and [Playbook](https://casa-escondida-estimator-tools.vercel.app/) sites hold
 the reasoning behind them.
 
+### Studio vs hệ thống của khách
+
+Hệ thống của khách (`tn-casa-quotation-estimator`) là bản gốc phải theo; `/quotes` và studio của mình chỉ dựng
+lên để **mô phỏng lúc kết nối hai bên**. Chỗ nào bot mâu thuẫn với hệ thống của khách thì làm theo khách. Hợp
+đồng của kênh WhatsApp là `docs/flows/F08-ai-channel.md` bên khách.
+
+| Theo đúng F08 | Chỉ mô phỏng, không phải nghiệp vụ của khách |
+|---|---|
+| Nhân viên review trip | Ghi tiền cọc |
+| Get price qua engine của khách | Ops sheet của mình |
+| Approve | Submit ở chế độ simulated |
+| Publish (`commit` + `share`) rồi gửi WhatsApp | Bản sao `/q/:slug` (chỉ là đường lùi khi link fixture chết) |
+
+Hai cổng F08 mà studio giữ: enquiry của agent/instructor **không** được publish hay gửi (409
+`partner_needs_own_login` — họ báo giá trong tool của khách sau khi đăng nhập, vì chỉ phiên đó mới có giá đại lý),
+và tin kèm link đi qua fact gate như câu trả lời của bot (422 `guest_text_failed_fact_gate`).
+
 ## 2. Prerequisites
 
 - Node ≥ 18 (developed against Node 22)

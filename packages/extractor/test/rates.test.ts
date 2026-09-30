@@ -90,13 +90,12 @@ describe("buildHonoQuotationDraft prices with the real model", () => {
     expect(draft.totalAmount).toBe(92400);
   });
 
-  it("applies the partner discount to ROOMS only, never meals or diving", () => {
+  it("gives an agent no discount: a partner rate comes from their own login, not from the message", () => {
     const draft = buildHonoQuotationDraft(anaTrip({ guestType: f("agent") }));
 
-    // room subtotal 45,600 × 30% = 13,680 — not 92,400 × 30%.
-    expect(draft.discountPercent).toBe(30);
-    expect(draft.discountAmount).toBe(13680);
-    expect(draft.totalAmount).toBe(92400 - 13680);
+    expect(draft.discountPercent).toBe(0);
+    expect(draft.discountAmount).toBe(0);
+    expect(draft.totalAmount).toBe(92400);
   });
 
   it("does not invent a dive price for a split-day plan routed to staff", () => {

@@ -53,7 +53,7 @@ export type {
   PricedKpis,
   NormalizePricingInput,
 } from "./domain/pricing.js";
-export { verifySynthesizedReply, synthesizeHospitalityReply } from "./application/synthesis.js";
+export { verifyGuestFacingText, verifySynthesizedReply, synthesizeHospitalityReply } from "./application/synthesis.js";
 export type { FactGateResult, SynthesisInput } from "./application/synthesis.js";
 export { scoreReplyNaturalness } from "./application/naturalness.js";
 export type { NaturalnessScoreBreakdown } from "./application/naturalness.js";
@@ -85,6 +85,8 @@ export {
   buildHonoQuotationDraft,
   recalculateQuotationTotals,
   synthesizeConfirmedQuotationReply,
+  guestFacingFactsFor,
+  isPartnerEnquiry,
   guestSafeStaffNotes,
   guestLinkFor,
 } from "./application/quotationTool.js";

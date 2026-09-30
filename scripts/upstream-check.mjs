@@ -23,7 +23,8 @@ import path from "node:path";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const repo = process.env.UPSTREAM_REPO ?? "E:\\tn-casa-quotation-estimator";
-const BRANCHES = ["origin/main", "origin/Stage1_Estimator_Tools"];
+// `ds/ai-room-type-required` is watched until it merges: it carries F08, the contract of our channel.
+const BRANCHES = ["origin/main", "origin/Stage1_Estimator_Tools", "origin/ds/ai-room-type-required"];
 const WATCHED = [
   "contracts/",
   "bff/src/routes/",
@@ -33,6 +34,8 @@ const WATCHED = [
   "bff/src/auth/",
   "ai/",
   "docs/integration/",
+  "docs/flows/",
+  "docs/product/",
   "docs/ledgers/customer-questions.md",
 ];
 

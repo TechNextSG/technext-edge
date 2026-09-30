@@ -12,7 +12,6 @@ import {
   diveTierPrice,
   MEAL_RATE,
   TRANSPORT_RATE,
-  PARTNER_DISCOUNT_PCT,
   ROOM_TYPE_LABELS,
   vansForGuests,
   type RoomType,
@@ -481,8 +480,10 @@ export function buildHonoQuotationDraft(
     });
   }
 
-  const isPartner = guestType === "agent" || guestType === "instructor";
-  const discountPercent = isPartner ? PARTNER_DISCOUNT_PCT : 0;
+  // No discount from what the guest typed. A partner rate is the customer's engine answering an agent
+  // who signed in with their own key; "we are a travel agency" in a WhatsApp message is not that. The
+  // enquiry is held for staff instead (`partner_rate_confirmation_required`).
+  const discountPercent = 0;
   const now = new Date().toISOString();
 
   const draft: HonoQuotationDraft = {
@@ -541,6 +542,45 @@ export function buildHonoQuotationDraft(
  * already know what the message says. Losing the polish costs nothing; making somebody wait does.
  */
 const CONFIRMED_GREETING_BUDGET_MS = 3_500;
+
+/**
+ * True when this enquiry came from an agent or instructor.
+ *
+ * F08 (the customer's AI-channel flow): a partner is quoted in the customer's own tool after signing in
+ * with their own key, because only that session gets a partner rate. Our bot holds a guest session, so
+ * whatever it prices is the retail figure — publishing that to an agent would quote them the wrong
+ * number. Read from the trip that was priced, and from the draft in case the trip is absent.
+ */
+export function isPartnerEnquiry(draft: Pick<HonoQuotationDraft, "guestType" | "bffTrip">): boolean {
+  const type = draft.bffTrip?.guestType ?? draft.guestType;
+  return type === "agent" || type === "instructor";
+}
+
+/**
+ * The facts a guest-facing message must not contradict, read from the trip the engine priced
+ * (`bffTrip`), falling back to the draft's own columns when there is none. Feeds `verifyGuestFacingText`.
+ * Rooms are left out on purpose: a room *count* in prose is the one figure the studio lets staff change
+ * after the fact, and the room *type* is the check that has actually caught a wrong message.
+ */
+export function guestFacingFactsFor(draft: HonoQuotationDraft): GuestFacingFacts {
+  const trip = draft.bffTrip;
+  if (!trip) {
+    return {
+      nights: draft.nights,
+      guests: draft.stayingGuests,
+      ...(typeof draft.divers === "number" ? { divers: draft.divers } : {}),
+      knownDates: new Set([draft.checkIn, draft.checkOut].filter((d) => typeof d === "string" && d !== "")),
+    };
+  }
+  const dates = [trip.checkIn, trip.checkOut].filter((d): d is string => typeof d === "string" && d !== "");
+  return {
+    ...(trip.checkIn && trip.checkOut ? { nights: datesBetweenInclusive(trip.checkIn, trip.checkOut).length - 1 } : {}),
+    guests: trip.guests.length,
+    divers: trip.guests.filter((g) => g.diver).length,
+    roomTypes: new Set(trip.rooms.map((r) => r.type)),
+    knownDates: new Set(dates),
+  };
+}
 
 /**
  * The message a staff member sends to the guest once the quotation is published.

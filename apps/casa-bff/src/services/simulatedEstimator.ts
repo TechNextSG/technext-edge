@@ -31,7 +31,7 @@
  *     roommates — so the guest's room line is "nightly rate ÷ that night's roommates, summed";
  *   * dives are charged per diver per day at the tier for the number of divers out that day;
  *   * meals are per person per day and are NEVER guest-type discounted;
- *   * the partner discount is 30% off ROOMS ONLY.
+ *   * no partner discount: a partner rate comes from the partner's own Odoo key, not from the trip.
  */
 import { randomUUID } from "node:crypto";
 import type { BffGuest, BffTrip } from "../../../../packages/extractor/src/domain/schema.js";
@@ -44,7 +44,6 @@ import {
   COURSE_RATES,
   diveTierPrice,
   MEAL_RATE,
-  PARTNER_DISCOUNT_PCT,
   roomNightlyRate,
   TRANSPORT_RATE,
   vanLoads,
@@ -215,9 +214,16 @@ function displayRoomName(trip: BffTrip, roomId: string | null): string {
   return ALL_ROOM_NAMES[room.type]?.[slot] ?? `${room.type} ${slot + 1}`;
 }
 
-function roleOf(trip: BffTrip): SimulatedRole {
-  if (trip.guestType === "agent") return "agent";
-  if (trip.guestType === "instructor") return "instructor";
+/**
+ * The role a price is computed for. Always `guest`, whatever the trip says.
+ *
+ * Their engine takes the role from the *session* — the Odoo key behind the login — and never from the
+ * payload: `deriveGuestType(sessionRole, trip.guestType)` overrides what the trip claims. Our bot only
+ * ever holds a guest session (`ubg_sid`), so an enquiry that says "travel agency" is still priced at
+ * retail; a partner rate exists only for a partner who signs in on their own system. A simulation that
+ * read the role off the trip would hand out a discount the real engine cannot.
+ */
+function roleOf(_trip: BffTrip): SimulatedRole {
   return "guest";
 }
 
@@ -254,18 +260,10 @@ export function buildSimulatedModel(trip: BffTrip, asRole?: SimulatedRole): SimM
   // this simulation could not be trusted to price. See `vansForGuests`.
   const vanCount = transportRequested ? vansForGuests(transportGuests) : 0;
 
-  const partner = role === "agent" || role === "instructor";
-
   const quotes: SimQuote[] = guests.map((guest) => {
     const lines: SimLine[] = [];
-    const push = (line: Omit<SimLine, "discs" | "net">, discount = 0) => {
-      const net = r2(line.gross - discount);
-      lines.push({
-        ...line,
-        gross: r2(line.gross),
-        discs: discount > 0 ? [{ label: `Partner rate ${PARTNER_DISCOUNT_PCT}% (rooms)`, amount: r2(discount) }] : [],
-        net,
-      });
+    const push = (line: Omit<SimLine, "discs" | "net">) => {
+      lines.push({ ...line, gross: r2(line.gross), discs: [], net: r2(line.gross) });
     };
 
     // 1. Room — nightly rate for that room's occupancy ÷ its roommates, summed over the stay.
@@ -276,16 +274,12 @@ export function buildSimulatedModel(trip: BffTrip, asRole?: SimulatedRole): SimM
         occupancy,
       );
       const gross = r2((nightly / occupancy) * stayDates.length);
-      // The discount applies to the room line alone — "30% off rooms", never on meals.
-      push(
-        {
-          cat: "room",
-          label: `${displayRoomName(trip, guest.roomId)} — ${nights} night${nights === 1 ? "" : "s"}`,
-          sub: "nightly rate ÷ that night’s roommates, summed over your stay",
-          gross,
-        },
-        partner ? gross * (PARTNER_DISCOUNT_PCT / 100) : 0,
-      );
+      push({
+        cat: "room",
+        label: `${displayRoomName(trip, guest.roomId)} — ${nights} night${nights === 1 ? "" : "s"}`,
+        sub: "nightly rate ÷ that night’s roommates, summed over your stay",
+        gross,
+      });
     }
 
     // 2. Meals — per person per day, never discounted.
@@ -556,7 +550,7 @@ export function createSimulatedEstimator(options: SimulatedEstimatorOptions = {}
     const refused = refusalOf(priced, isEdit ? "edit" : "plan");
     if (refused) return refused;
     const warnings = validateBffTripPrecheck(priced, DEFAULT_ROOM_CAPS).filter((i) => i.level === "warn");
-    const envelope = buildSimulatedEnvelope(priced);
+    const envelope = buildSimulatedEnvelope(priced, "guest");
     // Re-pricing an existing scenario keeps its id and its session, which is what their BFF does:
     // the draft is the session's, and a second compute is a PATCH of it, not a new enquiry.
     const id = session?.id ?? `sim-${randomUUID()}`;

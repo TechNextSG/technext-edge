@@ -116,7 +116,6 @@ export const TRANSPORT_RATE = { roundtrip: 13000, oneway: 6500 } as const;
 export const VAN_CAPACITY = 6;
 
 export const COURSE_RATES = { dsd: 5500, ow: 22000, aow: 18000 } as const;
-export const PARTNER_DISCOUNT_PCT = 30;
 
 /**
  * The deposit that confirms a reservation, from the customer's own rate card.

@@ -212,7 +212,7 @@ details pre{background:var(--card2);border:1px solid var(--hairline);padding:12p
       <div class="examples">
         <button class="chip-btn" data-text="Hi, we are 4 people, want to come next Saturday for 3 nights. Full board please, no need airport transfer.">EN basic</button>
         <button class="chip-btn" data-text="3 certified rescue divers coming for 5 nights starting Nov 2, planning fun diving every day, full board please, we will arrange our own car">EN fun diving</button>
-        <button class="chip-btn" data-text="Booking on behalf of a travel agency: 8 guests, need 4 rooms, checking in this Friday, staying 2 nights, half board only, we'll arrange our own transport">EN agency (30% off)</button>
+        <button class="chip-btn" data-text="Booking on behalf of a travel agency: 8 guests, need 4 rooms, checking in this Friday, staying 2 nights, half board only, we'll arrange our own transport">EN agency (held for staff)</button>
         <button class="chip-btn" data-text="Are you running an Open Water diving course? 4 of us would like to start on Oct 15, staying 4 nights, full board, and we need a pickup from Manila airport.">EN Open Water course</button>
         <button class="chip-btn" data-text="Our travel company needs 5 rooms for 10 guests from Nov 20 to Nov 23 (3 nights). Half board, own transport.">EN group booking</button>
         <button class="chip-btn" data-text="你好，我们2个人想考OW潜水证，计划11月5号入住，住4晚，需要全包餐和马尼拉机场接送。">ZH 考潜水证+接送</button>
