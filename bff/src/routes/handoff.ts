@@ -7,7 +7,7 @@ export interface HandoffRouteDeps {
   store: ConversationStore;
   staffSession: (c: Context) => { ok: boolean; role: DemoRole | null };
   staffWriter: (c: Context) => boolean;
-  closeEnquiryQuotation: (phone: string) => Promise<string | undefined>;
+  closeEnquiryQuotation: (phone: string) => Promise<string | null | undefined>;
 }
 
 /**
