@@ -16,7 +16,22 @@ export {
 export type { Field, BffValidationIssue } from "./domain/schema.js";
 export { createGeminiProvider } from "./infra/providers/gemini.js";
 export { createDeepSeekProvider } from "./infra/providers/deepseek.js";
-export { createProviderFromEnv, createProviderByName, KNOWN_PROVIDER_NAMES } from "./infra/providers/providerFromEnv.js";
+export {
+  createProviderFromEnv,
+  createProviderByName,
+  createProviderFromSettings,
+  createResilientProvider,
+  settingsFromEnv,
+  choiceFromName,
+  isKnownModel,
+  keyFor,
+  buildProvider,
+  DEFAULT_MODELS,
+  MODEL_CATALOG,
+  PROVIDER_KINDS,
+  KNOWN_PROVIDER_NAMES,
+} from "./infra/providers/providerFromEnv.js";
+export type { ProviderKind, ModelChoice, ProviderSettings, ProviderOutcome } from "./infra/providers/providerFromEnv.js";
 export type { ExtractProvider, ExtractCall, ExtractResult } from "./ports/provider.js";
 export { resolveRelativeDate, deriveCheckOut, manilaToday } from "./domain/dates.js";
 // Exported for whoever logs raw guest text — the webhook in bff is

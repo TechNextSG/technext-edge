@@ -124,18 +124,29 @@ const DIVE_WINDOW_TOOL_SCHEMA = {
   required: ["diveFromValue", "diveFromState", "diveFromEvidence", "diveToValue", "diveToState", "diveToEvidence"],
 };
 
+export interface DeepSeekOptions {
+  /** Per-call timeout. Defaults to `DEEPSEEK_TIMEOUT_MS`, then 8s. */
+  timeoutMs?: number;
+  /** Gateway base URL. Defaults to `DEEPSEEK_BASE_URL`, then the team's LiteLLM gateway. */
+  baseUrl?: string;
+}
+
 export function createDeepSeekProvider(
   apiKey: string,
   model: "deepseek-flash" | "deepseek-pro" = (process.env.DEEPSEEK_MODEL as "deepseek-flash" | "deepseek-pro") ?? "deepseek-flash",
+  options: DeepSeekOptions = {},
 ): ExtractProvider {
+  // Per provider rather than once at module load, so the admin dashboard's setting applies without a deploy.
+  const timeoutMs = options.timeoutMs ?? TIMEOUT_MS;
+  const gatewayBaseUrl = (options.baseUrl ?? GATEWAY_BASE_URL).replace(/\/+$/, "");
   return {
     id: "deepseek-gateway:" + model,
     async extractGuests(text: string): Promise<GuestsReadResult> {
       const started = Date.now();
       const controller = new AbortController();
-      const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
+      const timer = setTimeout(() => controller.abort(), timeoutMs);
       try {
-        const res = await fetch(`${GATEWAY_BASE_URL}/chat/completions`, {
+        const res = await fetch(`${gatewayBaseUrl}/chat/completions`, {
           method: "POST",
           headers: { "content-type": "application/json", authorization: `Bearer ${apiKey}` },
           signal: controller.signal,
@@ -171,9 +182,9 @@ export function createDeepSeekProvider(
     async extractCheckIn(text: string, today: string): Promise<CheckInReadResult> {
       const started = Date.now();
       const controller = new AbortController();
-      const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
+      const timer = setTimeout(() => controller.abort(), timeoutMs);
       try {
-        const res = await fetch(`${GATEWAY_BASE_URL}/chat/completions`, {
+        const res = await fetch(`${gatewayBaseUrl}/chat/completions`, {
           method: "POST",
           headers: { "content-type": "application/json", authorization: `Bearer ${apiKey}` },
           signal: controller.signal,
@@ -209,9 +220,9 @@ export function createDeepSeekProvider(
     async extractDiveWindow(text: string, today: string): Promise<DiveWindowReadResult> {
       const started = Date.now();
       const controller = new AbortController();
-      const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
+      const timer = setTimeout(() => controller.abort(), timeoutMs);
       try {
-        const res = await fetch(`${GATEWAY_BASE_URL}/chat/completions`, {
+        const res = await fetch(`${gatewayBaseUrl}/chat/completions`, {
           method: "POST",
           headers: { "content-type": "application/json", authorization: `Bearer ${apiKey}` },
           signal: controller.signal,
@@ -261,9 +272,9 @@ export function createDeepSeekProvider(
     // generateText — it just had nothing on the DeepSeek side to try first).
     async generateText(systemPrompt: string, userPrompt: string): Promise<string> {
       const controller = new AbortController();
-      const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
+      const timer = setTimeout(() => controller.abort(), timeoutMs);
       try {
-        const res = await fetch(`${GATEWAY_BASE_URL}/chat/completions`, {
+        const res = await fetch(`${gatewayBaseUrl}/chat/completions`, {
           method: "POST",
           headers: { "content-type": "application/json", authorization: `Bearer ${apiKey}` },
           signal: controller.signal,
@@ -334,10 +345,10 @@ export function createDeepSeekProvider(
       }
 
       const controller = new AbortController();
-      const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
+      const timer = setTimeout(() => controller.abort(), timeoutMs);
       let res: Response;
       try {
-        res = await fetch(`${GATEWAY_BASE_URL}/chat/completions`, {
+        res = await fetch(`${gatewayBaseUrl}/chat/completions`, {
           method: "POST",
           headers: {
             "content-type": "application/json",
@@ -372,7 +383,7 @@ export function createDeepSeekProvider(
         // that extract.ts's retry/error-classification logic handles this
         // like any other transport failure, never as a validation error.
         if (err instanceof Error && err.name === "AbortError") {
-          throw new Error(`DeepSeek extract timed out after ${TIMEOUT_MS}ms`);
+          throw new Error(`DeepSeek extract timed out after ${timeoutMs}ms`);
         }
         throw err;
       } finally {

@@ -78,6 +78,11 @@ export interface DiveWindowReadResult {
 
 export interface ExtractProvider {
   id: string;
+  /**
+   * The provider that answered the most recent extraction `call()`, when it differs from `id` — i.e. a fallback
+   * stood in for the primary. Absent on a plain provider, whose `id` is always the one that answered.
+   */
+  answeredBy?(): string;
   call(input: ExtractCall): Promise<ExtractResult>;
   // Optional, isolated pass added 2026-09-21 (ADR-005a): 'guests' alone, with
   // a prompt carrying only the guests rule — no dates/transport/diver noise.

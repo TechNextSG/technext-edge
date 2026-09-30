@@ -233,7 +233,7 @@ export async function extract(rawText: string, provider: ExtractProvider): Promi
     trip: outcome.parsed,
     questions,
     meta: {
-      provider: provider.id,
+      provider: provider.answeredBy?.() ?? provider.id,
       tokensIn: outcome.result.tokensIn + guestsTokensIn + checkInTokensIn + diveWindowTokensIn,
       tokensOut: outcome.result.tokensOut + guestsTokensOut + checkInTokensOut + diveWindowTokensOut,
       cacheReadTokens: outcome.result.cacheReadTokens,
