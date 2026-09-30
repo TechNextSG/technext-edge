@@ -449,6 +449,16 @@ export function corroborateDatePhrase(
   if (!isPlausibleStayDate(iso, today)) return "contradicted";
 
   const p = phrase.toLowerCase();
+
+  // A full numeric date that reads two ways ("10/12/2026") is one the guest has to settle: a model that
+  // picked a reading has not been corroborated by the phrase, which supports both. Without this the
+  // resolver's refusal was undone here, one step later, by whichever month the model happened to choose
+  // (seen on production: "10/12/2026" came back as 12 October, stated).
+  const full = p.match(/(?<!\d)(\d{1,2})[/.\-](\d{1,2})[/.\-](\d{4})(?!\d)/);
+  if (full && full[1] !== full[2]) {
+    const [a, b, y] = [Number(full[1]), Number(full[2]), Number(full[3])];
+    if (calendarIso(y, b, a) !== null && calendarIso(y, a, b) !== null) return "no-opinion";
+  }
   const isoDow = new Date(`${iso}T00:00:00Z`).getUTCDay();
   const isoDay = Number(iso.slice(8, 10));
   const isoMonth = Number(iso.slice(5, 7));

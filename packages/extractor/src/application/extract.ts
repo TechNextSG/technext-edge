@@ -402,6 +402,12 @@ function postProcess(raw: unknown, today: string, sourceText: string): unknown {
   if (trip.checkIn?.state === "stated" && typeof trip.checkIn.value === "string" && isPastDate(trip.checkIn.value, today)) {
     trip.checkIn = { value: null, state: "missing", evidence: null };
   }
+  // A check-out the model worked out from a check-in that has just been thrown away has nothing left to stand
+  // on (seen on production: a past check-in was asked again, but its "inferred" check-out stayed on the trip).
+  // One the guest wrote themselves is theirs and stays.
+  if (trip.checkIn?.state === "missing" && trip.checkOut && trip.checkOut.state !== "stated") {
+    trip.checkOut = { value: null, state: "missing", evidence: null };
+  }
 
   for (const key of HOUSE_NORM_FIELDS) {
     const f = trip[key];

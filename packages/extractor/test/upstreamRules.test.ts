@@ -121,3 +121,36 @@ describe("hand-off", () => {
     expect(out.readyForAutoQuote).toBe(false);
   });
 });
+
+describe("what production showed after the first deploy", () => {
+  it("a model's pick for '10/12/2026' is not accepted: the phrase supports both months, so the guest is asked", async () => {
+    const out = await extract(
+      "I am Ana, 2 guests, 2 nights, check in 10/12/2026",
+      provider({ checkIn: stated("2026-10-12", "10/12/2026"), nights: stated(2, "2 nights"), guests: stated(2, "2 guests") }),
+    );
+    expect(out.trip.checkIn.state).toBe("missing");
+    expect(asked(out)).toContain("checkIn");
+  });
+
+  it("an unambiguous full date is still taken as written", async () => {
+    const out = await extract(
+      "I am Ana, 2 guests, 2 nights, check in 19/12/2026",
+      provider({ checkIn: stated("2026-12-19", "19/12/2026"), nights: stated(2, "2 nights"), guests: stated(2, "2 guests") }),
+    );
+    expect(out.trip.checkIn.value).toBe("2026-12-19");
+  });
+
+  it("a past check-in that is asked again takes the model's worked-out check-out with it", async () => {
+    const out = await extract(
+      "I am Ana, 2 guests, 2 nights from 2026-08-01",
+      provider({
+        checkIn: stated("2026-08-01", "2026-08-01"),
+        checkOut: { value: "2026-08-03", state: "inferred", evidence: null },
+        nights: stated(2, "2 nights"),
+        guests: stated(2, "2 guests"),
+      }),
+    );
+    expect(out.trip.checkIn.state).toBe("missing");
+    expect(out.trip.checkOut.value).toBeNull();
+  });
+});
