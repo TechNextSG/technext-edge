@@ -354,6 +354,7 @@ kế hoạch theo kịp nguồn.
 ### Mốc đã deploy
 
 - 30/09/2026: vá sức chứa (commit `077bfe6`) đã push lên `origin/main`, Vercel production build từ commit này. Smoke test tay trên production và `-sim` do người dùng chạy theo runbook; ghi kết quả vào đây khi xong.
+- 30/09/2026: production (`dcaj8ot4o`) và `-sim` (`pej0tn81i`, alias `technext-edge-casa-bff-sim`) đều build từ `a03ddf2` (sức chứa + F08 partner gate + fact gate link). Đã kiểm sha qua Vercel API. Chưa smoke test tay bằng WhatsApp thật.
 
 ### Cơ chế bám nguồn
 
