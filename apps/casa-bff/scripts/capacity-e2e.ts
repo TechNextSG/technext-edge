@@ -95,6 +95,47 @@ const patched = await port.updateEstimate({ id: first.id, cookie: first.sessionC
 console.log(patched.ok ? "PATCH accepted (engine has no capacity rule)" : `PATCH ${patched.status} ${patched.reason}: ${patched.detail}  code=${patched.code ?? "-"}`);
 expect(!patched.ok && patched.reason === "rejected", "engine refuses the over-full PATCH with 422");
 
+console.log("\n-- F08: an enquiry that says it is an agent");
+{
+  const agentTrip = { ...(trip() as unknown as Record<string, unknown>), guestType: f("agent") } as never;
+  const q = await saveQuotationDraft(buildHonoQuotationDraft(agentTrip, undefined, undefined, "639000000004"));
+  expect(q.discountPercent === 0, "no 30% discount on the draft");
+  const priced = await call("Save & get price", "POST", `/v1/quotes/${q.quoteId}/sync-estimate`);
+  const stored2 = (await getQuotationByIdOrSlug(q.quoteId))!;
+  console.log(`   priced as role=${String(stored2.pricing?.role)} retailModelPresent=${String(Boolean(stored2.pricing?.retail))}`);
+  expect(priced.status < 300 && stored2.pricing?.role === "guest", "engine prices it as guest (retail)");
+  await call("Approve", "POST", `/v1/quotes/${q.quoteId}/confirm`, {});
+  const pub = await call("Create link", "POST", `/v1/quotes/${q.quoteId}/publish`, { acknowledgeSample: true });
+  expect(pub.status === 409 && pub.json.reason === "partner_needs_own_login", "publish refused: partner_needs_own_login");
+  await call("archive", "POST", `/v1/quotes/${q.quoteId}/cancel`, {});
+}
+
+console.log("\n-- F08: the link message goes through the fact gate");
+{
+  const sent: unknown[] = [];
+  const sendApp = createApp({ sendWhatsApp: async (m) => void sent.push(m) });
+  const go = async (staffNotes: string | undefined, t = trip()) => {
+    const q = await saveQuotationDraft({ ...buildHonoQuotationDraft(t, undefined, undefined, "639000000005"), ...(staffNotes ? { staffNotes } : {}) });
+    await call("Save & get price", "POST", `/v1/quotes/${q.quoteId}/sync-estimate`);
+    await call("Approve", "POST", `/v1/quotes/${q.quoteId}/confirm`, {});
+    await call("Create link", "POST", `/v1/quotes/${q.quoteId}/publish`, { acknowledgeSample: true });
+    const res = await sendApp.request(`/v1/quotes/${q.quoteId}/send-whatsapp`, { method: "POST", headers: auth, body: JSON.stringify({ phone: "639171234567" }) });
+    const json = (await res.json().catch(() => ({}))) as Record<string, unknown>;
+    console.log(`${res.status} send-whatsapp               reason=${String(json.reason ?? "ok")} ${String(json.detail ?? "")}`);
+    await call("archive", "POST", `/v1/quotes/${q.quoteId}/cancel`, {});
+    return { status: res.status, json, body: String(json.body ?? "") };
+  };
+  const before = sent.length;
+  const ok = await go(undefined);
+  expect(ok.status === 200 && sent.length === before + 1, "matching message is sent");
+  expect(ok.body.includes("Sample data — not a live quote") || !ok.body.includes("Sample"), "sample label uses F08 wording when present");
+  console.log(`   message mentions sample label: ${ok.body.includes("Sample data")}`);
+  const suite = { ...(trip() as unknown as Record<string, unknown>), roomType: f("suite") } as never;
+  const n1 = sent.length;
+  const bad = await go("Your Standard Room is being prepared.", suite);
+  expect(bad.status === 422 && bad.json.reason === "guest_text_failed_fact_gate" && sent.length === n1, "wrong room type stopped, nothing sent");
+}
+
 console.log(failed === 0 ? "\nALL EXPECTATIONS MET" : `\n${failed} EXPECTATION(S) FAILED`);
 void randomUUID;
 process.exit(failed === 0 ? 0 : 1);
