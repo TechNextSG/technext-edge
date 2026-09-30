@@ -2,8 +2,8 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { readFile } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 import path from "node:path";
-import { extract } from "../src/extract.js";
-import type { ExtractProvider } from "../src/provider.js";
+import { extract } from "../src/application/extract.js";
+import type { ExtractProvider } from "../src/ports/provider.js";
 import { checkEvidence, scoreCase, checkPricedFields, REQUIRED_FIELDS } from "../eval/score.mjs";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));

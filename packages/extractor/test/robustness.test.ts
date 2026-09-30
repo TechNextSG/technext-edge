@@ -1,11 +1,11 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { extract, ExtractionValidationError } from "../src/extract.js";
-import { corroborateDatePhrase, isPlausibleStayDate, resolveRelativeDate } from "../src/dates.js";
-import { corroborateCount } from "../src/counts.js";
-import { detectLanguage, guestTextOf, maskForLogging, normalize } from "../src/normalize.js";
-import { HOUSE_NORMS } from "../src/houseNorms.js";
-import { FieldState, Trip, type Field } from "../src/schema.js";
-import type { ExtractProvider } from "../src/provider.js";
+import { extract, ExtractionValidationError } from "../src/application/extract.js";
+import { corroborateDatePhrase, isPlausibleStayDate, resolveRelativeDate } from "../src/domain/dates.js";
+import { corroborateCount } from "../src/domain/counts.js";
+import { detectLanguage, guestTextOf, maskForLogging, normalize } from "../src/application/normalize.js";
+import { HOUSE_NORMS } from "../src/domain/houseNorms.js";
+import { FieldState, Trip, type Field } from "../src/domain/schema.js";
+import type { ExtractProvider } from "../src/ports/provider.js";
 
 // The robustness layer, beside the two that already exist:
 //   * test/extract.test.ts, questions.test.ts, converse.test.ts — expected values, one

@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, afterEach } from "vitest";
-import { createDeepSeekProvider } from "../../src/providers/deepseek.js";
+import { createDeepSeekProvider } from "../../src/infra/providers/deepseek.js";
 
 const REAL_FETCH = global.fetch;
 

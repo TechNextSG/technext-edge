@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * Runs the manual script (docs/whatsapp-manual-test.md) against a local casa-bff, and reads the
+ * Runs the manual script (docs/guides/whatsapp-manual-test.md) against a local casa-bff, and reads the
  * replies the GUEST would have received.
  *
  * Why this exists rather than "click through it by hand": the webhook answers `{replied: 1}` whether
@@ -161,10 +161,10 @@ async function scenario(kb, title, fn) {
   await fn();
 }
 
-// ---- the scenarios (mirroring docs/whatsapp-manual-test.md) -----------------
+// ---- the scenarios (mirroring docs/guides/whatsapp-manual-test.md) -----------------
 await scenario("KB1", "complete in one turn, and no link", async () => {
   // Deliberately the same SHAPE as their captured fixture (2 guests, 20–22 Nov 2026, 2 nights) —
-  // see the note in docs/whatsapp-manual-test.md. In fixture mode their gateway does not compute a
+  // see the note in docs/guides/whatsapp-manual-test.md. In fixture mode their gateway does not compute a
   // price, it picks a captured response by trip shape, so a 4-guest chat would make the guest's link
   // show 2 strangers on other dates: the screen contradicting the conversation at the exact moment
   // the conversation is what is being demonstrated.

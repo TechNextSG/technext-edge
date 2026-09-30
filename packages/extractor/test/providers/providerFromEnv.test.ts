@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from "vitest";
-import { createProviderFromEnv } from "../../src/providerFromEnv.js";
+import { createProviderFromEnv } from "../../src/infra/providers/providerFromEnv.js";
 
 describe("createProviderFromEnv", () => {
   it("defaults to Gemini 3.1 Flash-Lite when GEMINI_API_KEY is set", () => {
@@ -24,7 +24,7 @@ describe("createProviderFromEnv", () => {
   });
 
   it("creates newer Gemini providers by name", async () => {
-    const { createProviderByName } = await import("../../src/providerFromEnv.js");
+    const { createProviderByName } = await import("../../src/infra/providers/providerFromEnv.js");
     expect(createProviderByName("gemini-3-flash", "key").id).toBe("google:gemini-3.1-flash-lite");
     expect(createProviderByName("gemini-2.5-pro", "key").id).toBe("google:gemini-2.5-pro");
     expect(createProviderByName("gemini:gemini-custom", "key").id).toBe("google:gemini-custom");

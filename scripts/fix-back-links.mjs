@@ -1,28 +1,21 @@
 import { readFileSync, writeFileSync, existsSync } from "node:fs";
 import { resolve } from "node:path";
 
+// public/ only — see add-back-buttons.mjs: the docs/ copies of these pages are gone,
+// because a second copy that the server never reads is a copy that drifts unnoticed.
 const rootFiles = [
   "public/benchmark-report.html",
-  "docs/benchmark-report.html",
   "public/casa-anilao-test-scenarios.html",
-  "docs/casa-anilao-test-scenarios.html",
   "public/extractor-pod-status.html",
-  "docs/extractor-pod-status.html",
   "public/roadmap-next.html",
-  "docs/roadmap-next.html",
   "public/demo-checklist.html",
-  "docs/demo-checklist.html",
   "public/team-guide.html",
-  "docs/team-guide.html",
 ];
 
 const diagramFiles = [
   "public/diagrams/extractor-pod.html",
-  "docs/diagrams/extractor-pod.html",
   "public/diagrams/extractor-pod.vi.html",
-  "docs/diagrams/extractor-pod.vi.html",
   "public/diagrams/extractor-pod.viewer.html",
-  "docs/diagrams/extractor-pod.viewer.html",
 ];
 
 for (const f of rootFiles) {

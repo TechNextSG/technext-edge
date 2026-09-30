@@ -34,7 +34,7 @@ function makeCompleteSarahTrip(): Trip {
   };
 }
 
-describe("P5 BFF & Odoo Estimate Schema Contract (docs/06-p5-bff-schema-contract.md)", () => {
+describe("P5 BFF & Odoo Estimate Schema Contract (docs/specs/06-p5-bff-schema-contract.md)", () => {
   it("validates the canonical retail couple example from schema.md §2.4", () => {
     const canonicalPayload = {
       label: "Retail couple — 2 nights",

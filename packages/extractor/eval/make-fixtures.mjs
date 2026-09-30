@@ -53,7 +53,11 @@ import path from "node:path";
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 const DATASET_PATH = path.join(__dirname, "dataset.mock-30.json");
-const DEFAULT_RECORDING = path.join(__dirname, "results.1789702974010.json");
+// Run output lives in eval/results/ (git-ignored): one file per live run, named by the
+// runner, so the harness sources and its outputs stop sharing a directory. This default
+// is the recording the committed fixtures were derived from; pass a path as argv[2] to
+// rebuild from a different run.
+const DEFAULT_RECORDING = path.join(__dirname, "results", "results.1789702974010.json");
 const FIXTURES_PATH = path.join(__dirname, "fixtures.mock-30.json");
 const BASELINE_PATH = path.join(__dirname, "baseline.deepseek-flash.json");
 // manilaToday() at the moment that run happened. Every relative date in LOST_CHECKINS

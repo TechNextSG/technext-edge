@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { converse } from "../src/converse.js";
-import type { ExtractProvider } from "../src/provider.js";
+import { converse } from "../src/application/converse.js";
+import type { ExtractProvider } from "../src/ports/provider.js";
 
 beforeEach(() => {
   vi.useFakeTimers();

@@ -5,7 +5,7 @@ import {
   deriveNightsFromRange,
   isPlausibleStayDate,
   corroborateDatePhrase,
-} from "../src/dates.js";
+} from "../src/domain/dates.js";
 
 // Anchor: Tuesday 2026-09-15 (Manila) — matches the date these docs were written.
 const TODAY = "2026-09-15";

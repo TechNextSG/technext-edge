@@ -1,5 +1,5 @@
-export { extract, ExtractionValidationError } from "./extract.js";
-export type { ExtractionOutcome } from "./extract.js";
+export { extract, ExtractionValidationError } from "./application/extract.js";
+export type { ExtractionOutcome } from "./application/extract.js";
 export {
   Trip,
   FieldState,
@@ -12,17 +12,17 @@ export {
   BffCourseCode,
   BffValidationCode,
   BffSaneIssueCode,
-} from "./schema.js";
-export type { Field, BffValidationIssue } from "./schema.js";
-export { createGeminiProvider } from "./providers/gemini.js";
-export { createDeepSeekProvider } from "./providers/deepseek.js";
-export { createProviderFromEnv, createProviderByName, KNOWN_PROVIDER_NAMES } from "./providerFromEnv.js";
-export type { ExtractProvider, ExtractCall, ExtractResult } from "./provider.js";
-export { resolveRelativeDate, deriveCheckOut, manilaToday } from "./dates.js";
+} from "./domain/schema.js";
+export type { Field, BffValidationIssue } from "./domain/schema.js";
+export { createGeminiProvider } from "./infra/providers/gemini.js";
+export { createDeepSeekProvider } from "./infra/providers/deepseek.js";
+export { createProviderFromEnv, createProviderByName, KNOWN_PROVIDER_NAMES } from "./infra/providers/providerFromEnv.js";
+export type { ExtractProvider, ExtractCall, ExtractResult } from "./ports/provider.js";
+export { resolveRelativeDate, deriveCheckOut, manilaToday } from "./domain/dates.js";
 // Exported for whoever logs raw guest text — the webhook in apps/casa-bff is
 // the first such caller. extract() itself deliberately does not mask what it
 // sends to the provider (see normalize.ts).
-export { maskForLogging, detectLanguage, guestTextOf } from "./normalize.js";
+export { maskForLogging, detectLanguage, guestTextOf } from "./application/normalize.js";
 export {
   generateQuestions,
   renderReply,
@@ -39,12 +39,12 @@ export {
   diveWindowIsGuessed,
   HANDOFF_REQUIRED_FIELDS,
   NEVER_ASKED_FIELDS,
-} from "./questions.js";
-export type { ReplyKind, RenderedReply, FallbackKind, GuestLanguage } from "./questions.js";
-export type { StatedValueChange } from "./questions.js";
-export { classifyEnquiry } from "./intent.js";
-export type { EnquiryIntent } from "./intent.js";
-export { normalizePricing, readWarnings } from "./pricing.js";
+} from "./application/questions.js";
+export type { ReplyKind, RenderedReply, FallbackKind, GuestLanguage } from "./application/questions.js";
+export type { StatedValueChange } from "./application/questions.js";
+export { classifyEnquiry } from "./application/intent.js";
+export type { EnquiryIntent } from "./application/intent.js";
+export { normalizePricing, readWarnings } from "./domain/pricing.js";
 export type {
   QuotationPricing,
   PricedGuest,
@@ -52,23 +52,23 @@ export type {
   PricedOps,
   PricedKpis,
   NormalizePricingInput,
-} from "./pricing.js";
-export { verifySynthesizedReply, synthesizeHospitalityReply } from "./synthesis.js";
-export type { FactGateResult, SynthesisInput } from "./synthesis.js";
-export { scoreReplyNaturalness } from "./naturalness.js";
-export type { NaturalnessScoreBreakdown } from "./naturalness.js";
+} from "./domain/pricing.js";
+export { verifySynthesizedReply, synthesizeHospitalityReply } from "./application/synthesis.js";
+export type { FactGateResult, SynthesisInput } from "./application/synthesis.js";
+export { scoreReplyNaturalness } from "./application/naturalness.js";
+export type { NaturalnessScoreBreakdown } from "./application/naturalness.js";
 export {
   buildOdooHandoffPayload,
   buildBffTrip,
   validateBffTripPrecheck,
   datesBetweenInclusive,
-} from "./odooHandoff.js";
-export type { OdooHandoffMode, OdooEstimateDraft, OdooHandoffEnvelope } from "./odooHandoff.js";
-export { converse } from "./converse.js";
-export type { ConversationChannel, ConversationInput, ConversationTurn, ConverseOutcome } from "./converse.js";
-export { diffBffTrip, pricedFactsChanged, pricedFactsKey } from "./tripDiff.js";
-export type { StaffTripEdit } from "./tripDiff.js";
-export { extractorFieldsForTripPath, pathsRestatedByGuest } from "./tripCorrections.js";
+} from "./application/odooHandoff.js";
+export type { OdooHandoffMode, OdooEstimateDraft, OdooHandoffEnvelope } from "./application/odooHandoff.js";
+export { converse } from "./application/converse.js";
+export type { ConversationChannel, ConversationInput, ConversationTurn, ConverseOutcome } from "./application/converse.js";
+export { diffBffTrip, pricedFactsChanged, pricedFactsKey } from "./application/tripDiff.js";
+export type { StaffTripEdit } from "./application/tripDiff.js";
+export { extractorFieldsForTripPath, pathsRestatedByGuest } from "./application/tripCorrections.js";
 export {
   DEFAULT_FOLLOW_UP_WINDOW,
   bookingPolicyLines,
@@ -78,8 +78,8 @@ export {
   hoursSinceSent,
   quotationValidUntil,
   sentAtMs,
-} from "./quotationValidity.js";
-export type { FollowUpState, FollowUpWindow } from "./quotationValidity.js";
+} from "./domain/quotationValidity.js";
+export type { FollowUpState, FollowUpWindow } from "./domain/quotationValidity.js";
 export {
   SUBMIT_QUOTATION_TO_HONO_DECLARATION,
   buildHonoQuotationDraft,
@@ -87,7 +87,7 @@ export {
   synthesizeConfirmedQuotationReply,
   guestSafeStaffNotes,
   guestLinkFor,
-} from "./quotationTool.js";
+} from "./application/quotationTool.js";
 export type {
   QuotationLineItem,
   HonoQuotationDraft,
@@ -97,7 +97,7 @@ export type {
   QuotationContact,
   QuotationEstimatorState,
   DepositPayment,
-} from "./quotationTool.js";
+} from "./application/quotationTool.js";
 
 
 

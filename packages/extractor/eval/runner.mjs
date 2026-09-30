@@ -6,7 +6,7 @@
 // model. When Eloa's 30 real, name-masked messages arrive, point this same
 // script at dataset.real.json instead — nothing else about it should need
 // to change.
-import { readFile, writeFile } from "node:fs/promises";
+import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 import path from "node:path";
 import { checkEvidence, scoreCase, checkPricedFields } from "./score.mjs";
@@ -167,6 +167,10 @@ console.log(`Question targeting        : not scored — needs a human/judge pass
 console.log(`Total tokens              : ${totalTokensIn} in / ${totalTokensOut} out`);
 console.log(`Failed calls              : ${results.length - ok.length}/${results.length}`);
 
-const outPath = path.join(__dirname, `results.${Date.now()}.json`);
+// Every run's output goes to eval/results/ — one directory, git-ignored, created on
+// demand, so a fresh clone can run the harness with nothing committed in the way.
+const resultsDir = path.join(__dirname, "results");
+await mkdir(resultsDir, { recursive: true });
+const outPath = path.join(resultsDir, `results.${Date.now()}.json`);
 await writeFile(outPath, JSON.stringify({ baseUrl: BASE_URL, dataset: DATASET_PATH, ranAt: new Date().toISOString(), results }, null, 2));
 console.log(`\nFull results written to ${outPath}`);

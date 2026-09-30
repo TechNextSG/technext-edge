@@ -3,7 +3,7 @@
 - **Status:** Proposed (Ready for Lead / Anthony Sign-Off)
 - **Date:** 2026-09-23
 - **Deciders:** Sky (Lead), Anthony, TechNext Edge Pod (`aidev1-technext`)
-- **Supersedes / Extends:** [ADR-005a](file:///e:/technext-edge/docs/adr/ADR-005a-extractor-model.md), [ADR-006](file:///e:/technext-edge/docs/adr/ADR-006-reply-contract.md)
+- **Supersedes / Extends:** [ADR-005a](./ADR-005a-extractor-model.md), [ADR-006](./ADR-006-reply-contract.md)
 
 ---
 
@@ -25,14 +25,14 @@ During live WhatsApp testing of the Casa Escondida Booking Assistant on 2026-09-
 
 We adopt a **2-Layer Neuro-Symbolic (Hybrid AI) Architecture** for turn-by-turn WhatsApp replies:
 
-### Decision 1 — The `NEVER RE-ASK` Rule for Nuanced Schedules ([`questions.ts`](file:///e:/technext-edge/packages/extractor/src/questions.ts))
+### Decision 1 — The `NEVER RE-ASK` Rule for Nuanced Schedules ([`questions.ts`](../../packages/extractor/src/application/questions.ts))
 - Whenever `diveNotes` contains a stated or inferred arrangement (`notedValue(trip, "diveNotes") !== null`), the question generator **must never ask** `divers`, `diveFrom`, or `diveTo`.
 - Instead, the system acknowledges the verbatim `diveNotes` arrangement, completes any remaining non-diving fields, and attaches a structured staff alert (`getStaffAlerts`) routing the enquiry to `manual_staff_review` (`buildOdooHandoffPayload`).
 
-### Decision 2 — Diver-Clause Lookahead in Count Corroboration ([`counts.ts`](file:///e:/technext-edge/packages/extractor/src/counts.ts))
+### Decision 2 — Diver-Clause Lookahead in Count Corroboration ([`counts.ts`](../../packages/extractor/src/domain/counts.ts))
 - `patternFor("guests")` applies a negative lookahead (`DIVE_CLAUSE_AFTER_NOUN`) so that count nouns immediately followed by diving verbs (`dive`, `dives`, `diving`, `lặn`, `潜水`) are never misclassified as conflicting total guest counts.
 
-### Decision 3 — Neuro Concierge Synthesis + Post-Generation Symbolic Fact Gate ([`synthesis.ts`](file:///e:/technext-edge/packages/extractor/src/synthesis.ts))
+### Decision 3 — Neuro Concierge Synthesis + Post-Generation Symbolic Fact Gate ([`synthesis.ts`](../../packages/extractor/src/application/synthesis.ts))
 - **Neuro Layer (`synthesizeHospitalityReply`):** Generates a warm 5-star resort concierge reply in the guest's language (`en`, `vi`, `zh`) grounded strictly on the verified `Trip` object and conversation history.
 - **Symbolic Layer (`verifySynthesizedReply`):** Every LLM-generated reply must pass a deterministic post-generation verifier before reaching WhatsApp:
   1. **Zero Unauthorized Currency/Price Quotes:** Rejects any message containing `$`, `₱`, `PHP`, `USD`, `VND`, `EUR`, or monetary quotes (`unauthorized_price_quote`).
@@ -40,7 +40,7 @@ We adopt a **2-Layer Neuro-Symbolic (Hybrid AI) Architecture** for turn-by-turn 
   3. **Exact Integer Consistency:** Rejects any reply whose stated night count (`nights`) or room count (`rooms`) contradicts the validated `Trip` object (`mismatched_nights_count`, `mismatched_rooms_count`).
   4. **Instant Deterministic Rollback:** Any rejection or timeout immediately falls back to `renderReply()` (`fallbackText`).
 
-### Decision 4 — Objective Naturalness Scoring & Tri-State Odoo Handoff ([`naturalness.ts`](file:///e:/technext-edge/packages/extractor/src/naturalness.ts), [`odooHandoff.ts`](file:///e:/technext-edge/packages/extractor/src/odooHandoff.ts))
+### Decision 4 — Objective Naturalness Scoring & Tri-State Odoo Handoff ([`naturalness.ts`](../../packages/extractor/src/application/naturalness.ts), [`odooHandoff.ts`](../../packages/extractor/src/application/odooHandoff.ts))
 - Every reply is measurable on a 0–100 rubric (`scoreReplyNaturalness`: 35% Non-Redundancy, 25% Nuance Acknowledgment, 25% Fact Gate Safety, 15% Concierge Warmth).
 - Every completed `Trip` maps via `buildOdooHandoffPayload(trip)` into either `auto_estimate_ready` (standard retail booking) or `manual_staff_review` (partner/agency 30% discount or custom split-day dive schedule).
 

@@ -21,3 +21,7 @@ docs/.web-demo-voice-tmp
 
 # Frame dumps written by the older one-video recorder.
 docs/.demo-frames
+
+# One-off measurement scripts, moved out of the repo root by the structure cleanup.
+# Nothing in the app imports them, so they must not reach the bundle either.
+tools/scratch/

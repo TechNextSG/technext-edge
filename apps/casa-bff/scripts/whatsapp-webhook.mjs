@@ -3,7 +3,7 @@
 // account — so a tunnel or a deployment can be wired up without the dashboard.
 //
 // Why it exists: the receiving half of this channel is three dashboard fields (see
-// docs/01-team-guide.md §6) and the local one changes on every restart, because a
+// docs/guides/01-team-guide.md §6) and the local one changes on every restart, because a
 // free tunnel URL does. Redoing three fields by hand each session is how a demo
 // morning dies. The calls below are the API behind those fields, and the POST makes
 // Meta *call our callback URL's handshake* — so a rejected URL fails here, while the

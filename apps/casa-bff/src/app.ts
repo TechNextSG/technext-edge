@@ -1,7 +1,7 @@
-import { themeCss } from "./theme.js";
+import { themeCss } from "./views/theme.js";
 import { randomUUID } from "node:crypto";
 import { Hono, type Context } from "hono";
-import { deleteCookie, getCookie, setCookie } from "hono/cookie";
+import { getCookie, setCookie } from "hono/cookie";
 import { secureHeaders } from "hono/secure-headers";
 import { z } from "zod";
 // Relative import, not the "@technext-edge/extractor" package name: Vercel's
@@ -43,27 +43,12 @@ import {
   type QuotationSubmission,
   type Trip,
 } from "../../../packages/extractor/src/index.js";
-import { BffTrip } from "../../../packages/extractor/src/schema.js";
-import { TEST_PAGE_HTML } from "./testPage.js";
-import { renderGuestQuotationCopyHtml } from "./guestQuotationCopy.js";
-import {
-  getIndexHtml,
-  getBenchmarkHtml,
-  getScenariosHtml,
-  getStatusHtml,
-  getRoadmapHtml,
-  getChecklistHtml,
-  getTeamGuideHtml,
-  getDiagramHtml,
-  getDiagramViewerHtml,
-  getDiagramViHtml,
-  getPlanShowcaseHtml,
-  getExtractorShowcaseHtml,
-  getConversationFlowHtml,
-  getProjectArchitectureHtml,
-  getInboundMessageFlowHtml,
-  getDemoTheatreHtml,
-} from "./reportsHtml.js";
+import { BffTrip } from "../../../packages/extractor/src/domain/schema.js";
+import { renderGuestQuotationCopyHtml } from "./views/guestQuotationCopy.js";
+// Route groups that need none of the state this function builds — see each file's header.
+import { registerAuthRoutes } from "./routes/auth.js";
+import { registerHealthRoutes } from "./routes/health.js";
+import { registerPageRoutes } from "./routes/pages.js";
 import {
   saveQuotationDraft,
   getQuotationByIdOrSlug,
@@ -74,28 +59,25 @@ import {
   protectedFromCleanup,
   removeQuotation,
   renderHonoQuotationEditorHtml,
-} from "./quotationStore.js";
+} from "./stores/quotationStore.js";
 import {
   buildEstimateRequest,
   DEFAULT_ESTIMATOR_BASE_URL,
   ESTIMATE_PATH,
-} from "./estimatorClient.js";
-import { createEstimatorPortFromEnv, type EstimatorPort } from "./estimatorPort.js";
-import { createConversationStoreFromEnv, type ConversationStore } from "./conversationStore.js";
-import { renderHandoffPageHtml } from "./handoffPage.js";
-import { renderOpsSheetHtml } from "./opsPage.js";
+} from "./services/estimatorClient.js";
+import { createEstimatorPortFromEnv, type EstimatorPort } from "./services/estimatorPort.js";
+import { createConversationStoreFromEnv, type ConversationStore } from "./stores/conversationStore.js";
+import { renderHandoffPageHtml } from "./views/handoffPage.js";
+import { renderOpsSheetHtml } from "./views/opsPage.js";
 import {
   DEMO_SESSION_COOKIE,
   createLoginAttemptLimiter,
-  isDemoRole,
   staffAccessKey,
   type LoginAttemptLimiter,
   issueSession,
-  renderLoginHtml,
   verifySession,
-  SAFE_NEXT_PREFIXES,
   type DemoRole,
-} from "./demoAuth.js";
+} from "./auth/demoAuth.js";
 import {
   checkSenderCredentials,
   createWhatsAppSender,
@@ -108,7 +90,7 @@ import {
   whatsAppConfig,
   type InboundTextMessage,
   type WhatsAppSendText,
-} from "./whatsapp.js";
+} from "./services/whatsapp.js";
 
 // Returns the canonical public origin for this deployment.
 // Prefers the `PUBLIC_BASE_URL` env var so that preview/sim aliases never leak
@@ -1116,58 +1098,9 @@ export function createApp(options: AppOptions = {}) {
     return c.redirect("/handoff");
   });
 
-  // Health check endpoints: /v1/health is canonical per Delivery Plan (Figure 3)
-  // and Odoo API Guide; /healthz is kept for backward compatibility.
-  app.get("/v1/health", (c) => c.json({ ok: true }));
-  app.get("/healthz", (c) => c.json({ ok: true }));
+  registerHealthRoutes(app);
 
-  // Central documentation & architecture hub
-  app.get("/", (c) => c.html(getIndexHtml()));
-  app.get("/index.html", (c) => c.html(getIndexHtml()));
-  app.get("/hub", (c) => c.html(getIndexHtml()));
-  app.get("/docs", (c) => c.html(getIndexHtml()));
-
-  // Interactive AI Extractor Test Console
-  app.get("/test", (c) => c.html(TEST_PAGE_HTML));
-  app.get("/test-console", (c) => c.html(TEST_PAGE_HTML));
-  app.get("/console", (c) => c.html(TEST_PAGE_HTML));
-
-  // Corporate reports, status briefing & test scenario matrix
-  app.get("/benchmark-report.html", (c) => c.html(getBenchmarkHtml()));
-  app.get("/benchmark", (c) => c.html(getBenchmarkHtml()));
-  app.get("/casa-anilao-test-scenarios.html", (c) => c.html(getScenariosHtml()));
-  app.get("/scenarios", (c) => c.html(getScenariosHtml()));
-  app.get("/extractor-pod-status.html", (c) => c.html(getStatusHtml()));
-  app.get("/status", (c) => c.html(getStatusHtml()));
-  app.get("/roadmap-next.html", (c) => c.html(getRoadmapHtml()));
-  app.get("/roadmap", (c) => c.html(getRoadmapHtml()));
-  app.get("/demo-checklist.html", (c) => c.html(getChecklistHtml()));
-  app.get("/checklist", (c) => c.html(getChecklistHtml()));
-  app.get("/team-guide.html", (c) => c.html(getTeamGuideHtml()));
-  app.get("/guide", (c) => c.html(getTeamGuideHtml()));
-
-  // Architecture diagrams (Archify interactive view)
-  app.get("/diagrams/extractor-pod.viewer.html", (c) => c.html(getDiagramViewerHtml()));
-  app.get("/diagrams/extractor-pod.vi.html", (c) => c.html(getDiagramViHtml()));
-  app.get("/diagrams/extractor-pod.html", (c) => c.html(getDiagramHtml()));
-  app.get("/diagrams/extractor-pod", (c) => c.html(getDiagramViewerHtml()));
-  app.get("/diagrams", (c) => c.html(getDiagramViewerHtml()));
-  app.get("/architecture", (c) => c.html(getDiagramViewerHtml()));
-
-  // Executive Showcase & 2-Slide Plan for Lead
-  app.get("/casa-escondida-plan-showcase.html", (c) => c.html(getPlanShowcaseHtml()));
-  app.get("/plan", (c) => c.html(getPlanShowcaseHtml()));
-  app.get("/extractor-pod-showcase.html", (c) => c.html(getExtractorShowcaseHtml()));
-  app.get("/showcase", (c) => c.html(getExtractorShowcaseHtml()));
-  app.get("/diagrams/conversation-flow-plain.html", (c) => c.html(getConversationFlowHtml()));
-  app.get("/conversation-flow-plain.html", (c) => c.html(getConversationFlowHtml()));
-  app.get("/flow", (c) => c.html(getConversationFlowHtml()));
-  app.get("/diagrams/casa-project-architecture.html", (c) => c.html(getProjectArchitectureHtml()));
-  app.get("/project-architecture", (c) => c.html(getProjectArchitectureHtml()));
-  app.get("/diagrams/casa-inbound-message-flow.html", (c) => c.html(getInboundMessageFlowHtml()));
-  app.get("/message-flow", (c) => c.html(getInboundMessageFlowHtml()));
-  app.get("/demo-theatre.html", (c) => c.html(getDemoTheatreHtml()));
-  app.get("/demo", (c) => c.html(getDemoTheatreHtml()));
+  registerPageRoutes(app);
 
   // ---- Hono Tool-Calling Quotation Studio & Editable Quotation Links -------
   //
@@ -1282,49 +1215,7 @@ export function createApp(options: AppOptions = {}) {
 
   const loginLimiter = options.loginLimiter ?? createLoginAttemptLimiter();
 
-  app.get("/login", (c) => c.html(renderLoginHtml(false, c.req.query("next") || "/quotes")));
-
-  app.post("/login", async (c) => {
-    const body = await c.req.parseBody().catch(() => ({}) as Record<string, unknown>);
-    const password = typeof body.password === "string" ? body.password : "";
-    const rawNext = typeof body.next === "string" ? body.next : "";
-    const nextPath = SAFE_NEXT_PREFIXES.some((prefix) => rawNext.startsWith(prefix)) ? rawNext : "/quotes";
-
-    // Checked before the comparison, so a brute force is answered the same way however the key is
-    // guessed. The address is the one the platform forwards; without a proxy header there is no
-    // useful key and the limiter simply does nothing rather than lumping every caller together.
-    const ip = c.req.header("x-forwarded-for")?.split(",")[0]?.trim() || c.req.header("x-real-ip") || "";
-    if (ip) {
-      const verdict = loginLimiter.check(ip);
-      if (!verdict.allowed) {
-        return c.html(renderLoginHtml(true, nextPath), 429, {
-          "retry-after": String(verdict.retryAfterSeconds),
-        });
-      }
-    }
-
-    if (!sameSecret(password, staffAccessKey())) {
-      if (ip) loginLimiter.fail(ip);
-      return c.html(renderLoginHtml(true, nextPath), 401);
-    }
-    if (ip) loginLimiter.reset(ip);
-    setDemoSession(c, isDemoRole(body.role) ? body.role : "staff");
-    return c.redirect(nextPath);
-  });
-
-  // Signing out clears the cookie. There is no server-side session to revoke — the demo session is
-  // a signed cookie and nothing else — so this is the whole of it, and saying so here is cheaper
-  // than someone later assuming a revocation that does not exist.
-  app.post("/logout", (c) => {
-    deleteCookie(c, DEMO_SESSION_COOKIE, { path: "/" });
-    return c.redirect("/login");
-  });
-
-  // `/login/role` used to live here: it re-issued the demo cookie with another role, and its only
-  // caller was the role picker in the studio header. The picker is gone — the studio is a staff
-  // tool, the guest's own view is the customer's `/quote/:token` page, and a "guest view" of the
-  // studio is a screen no guest can ever reach — so the route went with it. The role is chosen at
-  // sign-in (`POST /login` reads `role`), which is the one place it means anything.
+  registerAuthRoutes(app, { loginLimiter, setSession: setDemoSession });
 
   app.get("/quotes", async (c) => {
     const auth = staffSession(c);
@@ -1692,7 +1583,7 @@ export function createApp(options: AppOptions = {}) {
 
   // Hop 1A: Deterministic Pricing Compute Endpoint (AI -> Hono Compute)
   //
-  // Stateless, and it has to stay that way. `docs/ai-hono-odoo-architecture-spec.md` has the
+  // Stateless, and it has to stay that way. `docs/specs/ai-hono-odoo-architecture-spec.md` has the
   // AI tool calling this in production while `GET`/`PUT`/`confirm` are staff-only, so this is
   // the one quotation route that cannot simply take a credential. It used to accept a
   // `draft.quoteId`, look that quotation up in the store and return it — which made the
@@ -2554,7 +2445,7 @@ export function createApp(options: AppOptions = {}) {
       // was measured: thirty seconds of an unreachable engine left staff with a quotation that could
       // not be sent, could not be edited and could not be cleaned up, and the next attempt was a new
       // enquiry. The copy exists for one failure only — their app minted a link and then could not find
-      // it (see the check further down, and `docs/upstream-note-bff-vercel-deploy.md`), which is a
+      // it (see the check further down, and `docs/specs/upstream-note-bff-vercel-deploy.md`), which is a
       // failure of their *link*, not of the price.
       const status = committed.reason === "not_configured" ? 503 : 502;
       return c.json({ ok: false, reason: committed.reason, detail: committed.detail }, status);

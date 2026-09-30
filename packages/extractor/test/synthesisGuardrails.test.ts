@@ -6,10 +6,10 @@
 // NOT be — a gate that rejects correct replies is worse than no gate, because it silently replaces
 // every answer with the deterministic fallback.
 import { describe, it, expect, vi } from "vitest";
-import { synthesizeHospitalityReply, verifySynthesizedReply, verifyGuestFacingText } from "../src/synthesis.js";
-import { renderReply, generateQuestions, getStaffAlerts } from "../src/questions.js";
-import type { Trip } from "../src/schema.js";
-import type { ExtractProvider } from "../src/provider.js";
+import { synthesizeHospitalityReply, verifySynthesizedReply, verifyGuestFacingText } from "../src/application/synthesis.js";
+import { renderReply, generateQuestions, getStaffAlerts } from "../src/application/questions.js";
+import type { Trip } from "../src/domain/schema.js";
+import type { ExtractProvider } from "../src/ports/provider.js";
 
 function blank(): Trip {
   const f = <T,>(value: T | null, state = "missing") => ({ value, state, evidence: null });

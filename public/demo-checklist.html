@@ -102,13 +102,14 @@ h1,h2,h3{font-family:var(--font-d);font-weight:600;text-wrap:balance;margin:0;}
     <div class="item good"><div class="dot">✓</div><div class="body"><strong>ĐÃ SỬA 21/09 — bug guests (group-of-N, baby/thêm người, email gia đình có con)</strong><span>Cả 3 kiểu câu từng làm <code>guests</code> bị bỏ về <code>missing</code> — đã sửa bằng cách cô lập trường <code>guests</code> ra 1 cuộc gọi model riêng, chạy song song với cuộc gọi chính, không cộng dồn độ trễ. Verify: 35/35 (100%) eval, 0 fabrication, test tay nhiều lần trên cả API lẫn WhatsApp thật. Không còn cần né loại câu này trong demo nữa.</span></div></div>
     <div class="item good"><div class="dot">✓</div><div class="body"><strong>ĐÃ SỬA 21/09 — ngày tương đối tiếng Anh trên DeepSeek ("in 5 days")</strong><span>DeepSeek (giờ là provider chính) từng đôi khi hạ <code>checkIn</code> xuống <code>inferred</code>/<code>missing</code> dù tính đúng ngày. Sửa bằng cùng kỹ thuật cô lập. Verify 5/5 ổn định, không fabricate case ngày mơ hồ ("chưa chốt ngày, cuối tháng này" vẫn đúng <code>missing</code>).</span></div></div>
     <div class="item warn"><div class="dot">!</div><div class="body"><strong>Khoảng dừng dài (&gt;15 phút) vẫn chưa được test</strong><span>Đã xác nhận sống sót qua 7 phút (xem banner phía trên). Vercel có thể tái sử dụng instance khác nhau tuỳ tải thực tế, nên không có gì tuyệt đối — nếu demo có đoạn dừng rất dài để thuyết trình, tốt nhất nhắn 1 tin "giữ chỗ" trong lúc nói để giữ instance ấm.</span></div></div>
+    <div class="item good"><div class="dot">✓</div><div class="body"><strong>ĐÃ SỬA 21/09 — <code>diveFrom</code>/<code>diveTo</code> mất ngày lặn xác nhận ở lượt sau</strong><span>Phát hiện qua <code>scripts/test-anilao-real-matrix.ts</code> (kịch bản AN-01): khách xác nhận "diving on Oct 11th" ở lượt 2 → <code>diveFrom</code> bị bỏ về <code>missing</code> dù <code>diver</code> đúng. Sửa bằng đúng kỹ thuật cô lập (chạy song song, không cộng dồn độ trễ). Verify: script chạy lại 8/8 kịch bản, 14/14 lượt, ổn định 3/3 lần.</span></div></div>
   </div>
 
   <div class="card">
-    <h2>🗣️ Câu mẫu an toàn cho demo (né cả 2 landmine trên)</h2>
+    <h2>🗣️ Câu mẫu an toàn cho demo</h2>
     <div class="script">Turn 1 (guest): "Hi, checking in this Saturday for 2 nights, 2 guests, no airport transfer."</div>
     <div class="script">Turn 2 (guest, sau khi bot trả lời): "We'd like to dive, and put the booking under Alex."</div>
-    <div class="avoid">Tránh: bất kỳ câu nào có 2 số khách cạnh nhau ("group of N ... only M"), và đừng gửi 2 tin cách nhau dưới 2 giây.</div>
+    <div class="avoid">Landmine còn thật duy nhất: <b>đừng gửi 2 tin cách nhau dưới ~2 giây</b> (race condition, chưa sửa). Câu "group of N ... only M"/baby-guest-count <b>không còn cần né</b> — đã sửa 21/09, xem mục phía trên.</div>
   </div>
 
   <div class="card">

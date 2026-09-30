@@ -8,13 +8,16 @@ dist/
 
 # Eval run artifacts (may echo real guest text back) and the real dataset
 # itself — this must never be committed once Eloa's 30 messages exist here.
-packages/extractor/eval/results.*.json
-packages/extractor/eval/results-*.json
-packages/extractor/eval/results*.log
+# One directory, so one rule covers every shape a run writes: results.<ts>.json,
+# results-<provider>.log, and whatever a future scorer adds. The runner creates
+# the directory on demand, so nothing has to be committed for this to work.
+packages/extractor/eval/results/
 packages/extractor/eval/dataset.real.json
 
-.vercel
 .env*
+# .env.example is the template every clone copies. It carries placeholders, never
+# a secret, so it has to stay committable even though .env* hides its siblings.
+!.env.example
 ~$*.xlsx
 
 # Scratch files from a one-off investigation: a probe script, a dump of a live response, a
@@ -23,9 +26,10 @@ packages/extractor/eval/dataset.real.json
 # hand before a commit, which is exactly the step somebody forgets at the end of a long session.
 tmp-*
 
-# One-off measurement scripts run by hand against a live provider key. Keeping them here
-# also keeps them out of the deployment bundle, because .vercelignore defaults to this file.
-.scratch-measure/
+# One-off measurement scripts run by hand against a live provider key. They live under
+# tools/ now so the repo root stops collecting scratch directories; .vercelignore repeats
+# the path, because the deployment bundle is filtered from the other direction.
+tools/scratch/
 
 # Archify visual-check artifacts. They are regenerated on every pass — several MB of PNGs per
 # diagram — and the pass/fail verdict is what matters, not the images, for the same reason a build

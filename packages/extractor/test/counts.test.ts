@@ -2,7 +2,7 @@ import { describe, it, expect } from "vitest";
 import { readFile } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 import path from "node:path";
-import { corroborateCount, countNumbersIn, type CountField } from "../src/counts.js";
+import { corroborateCount, countNumbersIn, type CountField } from "../src/domain/counts.js";
 
 // The reader that decides whether a count the model stated came from the guest's own words.
 // Two things are asserted here, and they pull in opposite directions on purpose:
@@ -131,7 +131,7 @@ describe("corroborateCount — what keeps a model's number", () => {
   it("reads divers as its own count, separate from guests", () => {
     // "2 divers" must not also read as a guest count: a family of 5 with 2 divers has two
     // different, real numbers, and conflating them is the EN-LONG-02 bug (guests=5, divers
-    // vanished — see docs/casa-anilao-test-scenarios.html).
+    // vanished — see public/casa-anilao-test-scenarios.html).
     const text = "We have 2 divers in our group, staying 3 nights";
     expect(countNumbersIn(text, "divers")).toEqual([2]);
     expect(countNumbersIn(text, "guests")).toEqual([]);

@@ -690,6 +690,7 @@ const html = `<!doctype html>
 </html>
 `;
 
-fs.writeFileSync('docs/casa-escondida-plan-showcase.html', html, 'utf8');
+// public/ only: the docs/ copy was deleted in the structure cleanup, since a second
+// copy of a served page is a copy that drifts from the one Vercel actually serves.
 fs.writeFileSync('public/casa-escondida-plan-showcase.html', html, 'utf8');
 console.log('Successfully generated concise 2-slide Executive Plan in English default for Lead!');

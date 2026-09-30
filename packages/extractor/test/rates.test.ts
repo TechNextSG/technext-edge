@@ -10,9 +10,9 @@ import {
   TRANSPORT_RATE,
   vanLoads,
   vansForGuests,
-} from "../src/rates.js";
-import { buildHonoQuotationDraft } from "../src/quotationTool.js";
-import type { Trip } from "../src/schema.js";
+} from "../src/domain/rates.js";
+import { buildHonoQuotationDraft } from "../src/application/quotationTool.js";
+import type { Trip } from "../src/domain/schema.js";
 
 function f<T>(value: T | null, state = "stated") {
   return { value, state, evidence: null };
@@ -135,7 +135,7 @@ describe("the airport transfer", () => {
   // round trip / 6,500 one way, and their engine's captured runs bill 6,500 per van RUN — so a round
   // trip is 13,000 in both. The resort's public site advertises 14,000: a page disagreeing with the
   // engine that actually charges the guest, and the page is what should be corrected.
-  // `docs/resort-website-cross-check.md` §2.1.
+  // `docs/specs/resort-website-cross-check.md` §2.1.
   it("matches the customer's own rate card and engine, not the marketing page", () => {
     expect(TRANSPORT_RATE.roundtrip).toBe(13000);
     expect(TRANSPORT_RATE.oneway).toBe(6500);

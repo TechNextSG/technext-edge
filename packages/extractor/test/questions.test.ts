@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { converse } from "../src/converse.js";
+import { converse } from "../src/application/converse.js";
 import {
   fallbackReply,
   diveWindowIsGuessed,
@@ -12,13 +12,13 @@ import {
   partnerInvitationReply,
   HANDOFF_REQUIRED_FIELDS,
   NEVER_ASKED_FIELDS,
-} from "../src/questions.js";
-import { synthesizeHospitalityReply, verifySynthesizedReply } from "../src/synthesis.js";
-import { scoreReplyNaturalness } from "../src/naturalness.js";
-import { buildOdooHandoffPayload } from "../src/odooHandoff.js";
-import type { ConversationTurn } from "../src/converse.js";
-import type { ExtractProvider } from "../src/provider.js";
-import type { Trip } from "../src/schema.js";
+} from "../src/application/questions.js";
+import { synthesizeHospitalityReply, verifySynthesizedReply } from "../src/application/synthesis.js";
+import { scoreReplyNaturalness } from "../src/application/naturalness.js";
+import { buildOdooHandoffPayload } from "../src/application/odooHandoff.js";
+import type { ConversationTurn } from "../src/application/converse.js";
+import type { ExtractProvider } from "../src/ports/provider.js";
+import type { Trip } from "../src/domain/schema.js";
 
 beforeEach(() => {
   vi.useFakeTimers();

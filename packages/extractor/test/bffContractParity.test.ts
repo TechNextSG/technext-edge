@@ -12,8 +12,8 @@ import {
   BffCourseCode,
   BffValidationCode,
   BffSaneIssueCode,
-} from "../src/schema.js";
-import { buildBffTrip } from "../src/odooHandoff.js";
+} from "../src/domain/schema.js";
+import { buildBffTrip } from "../src/application/odooHandoff.js";
 import * as spec from "../bff-contract/contract-spec.mjs";
 
 /**

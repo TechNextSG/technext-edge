@@ -13,27 +13,21 @@ function replaceInFile(filePath, search, replacement) {
 }
 
 // Replace any "Edge Docs Hub" with "technext-edge"
+//
+// public/ only: it is the single home for the published pages (the docs/ mirror was
+// deleted in the structure cleanup), so listing docs/ here would only produce writes
+// that the deployment never serves.
 const files = [
   "public/index.html",
-  "docs/index.html",
   "public/benchmark-report.html",
-  "docs/benchmark-report.html",
   "public/casa-anilao-test-scenarios.html",
-  "docs/casa-anilao-test-scenarios.html",
   "public/extractor-pod-status.html",
-  "docs/extractor-pod-status.html",
   "public/roadmap-next.html",
-  "docs/roadmap-next.html",
   "public/demo-checklist.html",
-  "docs/demo-checklist.html",
   "public/team-guide.html",
-  "docs/team-guide.html",
   "public/diagrams/extractor-pod.html",
-  "docs/diagrams/extractor-pod.html",
   "public/diagrams/extractor-pod.vi.html",
-  "docs/diagrams/extractor-pod.vi.html",
   "public/diagrams/extractor-pod.viewer.html",
-  "docs/diagrams/extractor-pod.viewer.html",
 ];
 
 for (const f of files) {
@@ -43,7 +37,7 @@ for (const f of files) {
 }
 
 // Add back button into extractor-pod.viewer.html if not present
-for (const p of ["public/diagrams/extractor-pod.viewer.html", "docs/diagrams/extractor-pod.viewer.html"]) {
+for (const p of ["public/diagrams/extractor-pod.viewer.html"]) {
   const fullPath = resolve(p);
   if (existsSync(fullPath)) {
     let s = readFileSync(fullPath, "utf8");

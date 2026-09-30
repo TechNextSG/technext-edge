@@ -20,8 +20,8 @@ import {
   formatManila,
   hoursSinceSent,
   quotationValidUntil,
-} from "../src/quotationValidity.js";
-import type { HonoQuotationDraft } from "../src/quotationTool.js";
+} from "../src/domain/quotationValidity.js";
+import type { HonoQuotationDraft } from "../src/application/quotationTool.js";
 
 const HOUR = 3_600_000;
 const NOW = Date.parse("2026-10-01T12:00:00Z");

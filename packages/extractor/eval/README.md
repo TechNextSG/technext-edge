@@ -50,7 +50,7 @@ Scored automatically:
   recorded run has that mistake twice (vi-07's "xe tụi mình tự đi" and
   zh-09's "自己开车过去", both recorded as `transport: true` with the guest's
   own sentence as the evidence). Kept separate from the required-field
-  number so a live run stays comparable with `results-deepseek.log`'s 63/87.
+  number so a live run stays comparable with `results/results-deepseek.log`'s 63/87.
   The transcript rule that fixes it is in both providers' system prompts
   (`packages/extractor/src/providers/deepseek.ts`, and `gemini.ts` for the
   configured fallback): `true` only when the guest asks for an airport pickup,
@@ -59,7 +59,7 @@ Scored automatically:
   negation ("xe tụi mình tự đi") is the one thing a keyword rule gets wrong.
   This score is what shows whether the prompt change landed, and it has: a
   re-run on 19/09 through a local bff on deepseek-flash
-  (`results.1789801957609.json`, git-ignored) scored it **20/20**, with vi-07
+  (`results/results.1789801957609.json`, git-ignored) scored it **20/20**, with vi-07
   and zh-09 both answering `false` off the guest's own sentence. The fixture
   still replays the old wrong answers on purpose, so the offline replay keeps
   pinning the mistake and only a live run moves this number.
@@ -99,7 +99,7 @@ node eval/runner.mjs eval/dataset.real.json  # once Eloa's data exists
 
 Calls the live deployed endpoint (`EVAL_BASE_URL`, defaults to production) —
 this spends real provider tokens, not a mock. Full results (including every
-field of every response) are written to `eval/results.<timestamp>.json` for
+field of every response) are written to `eval/results/results.<timestamp>.json` for
 later comparison across providers; those files are git-ignored.
 
 ### Testing a specific provider without touching Vercel env vars
@@ -126,8 +126,8 @@ answers are on disk they can be re-run on every `npm test`. That is what
 `test/evalReplay.test.ts` does, and it is the gate a date regression has to get past.
 
 Two generated files make that possible, both written by `eval/make-fixtures.mjs` from a
-recording of a live run — `results.1789702974010.json`, deepseek-flash through the local
-bff on 2026-09-18, whose own report is `results-deepseek.log`:
+recording of a live run — `results/results.1789702974010.json`, deepseek-flash through the
+local bff on 2026-09-18, whose own report is `results/results-deepseek.log`:
 
 | file | what it is |
 | --- | --- |
@@ -160,7 +160,7 @@ Regenerate them from the same recording or a newer one:
 
 ```bash
 node eval/make-fixtures.mjs                       # default recording
-node eval/make-fixtures.mjs results.<timestamp>.json
+node eval/make-fixtures.mjs eval/results/results.<timestamp>.json
 ```
 
 With the recorded answers, the replay asserts offline that the current pipeline:

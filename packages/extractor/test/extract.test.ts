@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { extract, ExtractionValidationError } from "../src/extract.js";
-import type { ExtractProvider } from "../src/provider.js";
-import { MalformedArgumentsError } from "../src/provider.js";
+import { extract, ExtractionValidationError } from "../src/application/extract.js";
+import type { ExtractProvider } from "../src/ports/provider.js";
+import { MalformedArgumentsError } from "../src/ports/provider.js";
 
 // Pins "today" to 2026-09-15 Manila time, matching dates.test.ts's anchor, so
 // the resolved check-in date below is predictable.
@@ -545,7 +545,7 @@ describe("extract", () => {
 
   // Money-bug regression: the dive line is priced per head, and `diver` alone only says
   // someone dives — a family of 5 with 2 certified divers used to report `divers` nowhere,
-  // leaving the estimate to guess between 2 and 5. This is docs/casa-anilao-test-scenarios.html's
+  // leaving the estimate to guess between 2 and 5. This is public/casa-anilao-test-scenarios.html's
   // EN-LONG-02 shape, previously marked PASS while silently dropping this number.
   it("keeps the diver head count separate from the guest count", async () => {
     const message =

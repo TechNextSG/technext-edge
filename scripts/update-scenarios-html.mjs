@@ -1,7 +1,9 @@
 import fs from "fs";
-import path from "path";
 
-const htmlPath = "docs/casa-anilao-test-scenarios.html";
+// public/ only. This script used to read the docs/ copy and write both it and the
+// public/ one, which is exactly how the two files drifted apart: the page Vercel
+// serves was a day older than the one being edited.
+const htmlPath = "public/casa-anilao-test-scenarios.html";
 let html = fs.readFileSync(htmlPath, "utf8");
 
 // 1. Update Hero tags and counts
@@ -554,15 +556,8 @@ const newCheckKeys = `    const CHECK_KEYS = [
 
 html = html.replace(oldCheckKeys, newCheckKeys);
 
-// Save to docs/
-fs.writeFileSync("docs/casa-anilao-test-scenarios.html", html, "utf8");
-console.log("Updated docs/casa-anilao-test-scenarios.html");
-
-// Save to public/
+// One destination. The docs/ mirror and the author-specific local artifact path this
+// script used to write are gone: three copies, two of them never read by the server,
+// is how a page ends up showing last week's scenarios.
 fs.writeFileSync("public/casa-anilao-test-scenarios.html", html, "utf8");
 console.log("Updated public/casa-anilao-test-scenarios.html");
-
-// Save to artifacts
-const artifactHtmlPath = path.join("C:/Users/nguye/.gemini/antigravity/brain/e9b77ff0-72ed-4734-a7ad-66020f185ba7", "casa-anilao-test-scenarios.html");
-fs.writeFileSync(artifactHtmlPath, html, "utf8");
-console.log("Updated artifact HTML:", artifactHtmlPath);

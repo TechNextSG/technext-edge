@@ -18,9 +18,43 @@ source plan as authoritative and record the implementation decision in
 premise: Odoo is the brain, this is the edge. Drafts never enter Odoo — see
 `docs/adr/` for the decisions this build is based on.
 
-**New here? Read [docs/01-team-guide.md](docs/01-team-guide.md)** — full
+**New here? Read [docs/guides/01-team-guide.md](docs/guides/01-team-guide.md)** — full
 handoff: prerequisites, running locally, the test console, deploying, env
 vars, the eval harness, and the gotchas that already cost an afternoon once.
+[docs/README.md](docs/README.md) indexes the rest of `docs/` (`adr/`, `guides/`,
+`specs/`, `notes/`, `diagrams/`, `demo/`).
+
+## Layout
+
+```text
+apps/casa-bff/
+  src/
+    app.ts        the Hono app: wires config, middleware and routes
+    routes/       HTTP routes (health, pages, auth) — registered by app.ts
+    services/     use-cases: extract, converse, quotation, whatsapp
+    stores/       persistence and thread state (sqlite, file, in-process)
+    auth/         demo and guest-link authentication
+    config/       env parsing, typed config
+    views/        HTML documents the BFF serves
+  test/           24 vitest suites, incl. those driving packages/extractor/src
+packages/extractor/
+  src/
+    domain/           trip schema (zod), rates, pricing, counts, dates — no I/O
+    application/      pipeline steps that orchestrate the domain
+    ports/            the provider interface
+    infra/providers/  DeepSeek and Gemini adapters, env factory
+    index.ts          the package's only public import surface
+  test/           vitest suite        eval/   Playbook threshold harness
+public/           the only directory the deployment publishes
+docs/             adr | guides | specs | notes | diagrams | demo
+tools/            repo scripts; tools/scratch/ is git-ignored scratch space
+```
+
+Imports flow downward — `routes → services → stores/config → domain`, and in
+the extractor `application → domain`. The one documented exception is
+`domain/quotationValidity.ts` reading `HonoQuotationDraft`: that edge is a
+`import type` only, so nothing in `domain/` pulls application code into the
+runtime.
 
 ## 30-second version
 
@@ -32,9 +66,9 @@ vars, the eval harness, and the gotchas that already cost an afternoon once.
 - `packages/extractor/eval/` — scores against the Playbook's 5 thresholds.
   Ships with a researched-but-synthetic dataset; real decisions wait for
   Eloa's 30 real messages.
-- `docs/adr/ADR-005a-extractor-model.md` — why Gemini is the demo default,
-  not a decision, and every real finding from testing so far (DeepSeek dry
-  run, the Gemini free-tier quota blocker).
+- [`docs/adr/ADR-005a-extractor-model.md`](docs/adr/ADR-005a-extractor-model.md)
+  — why Gemini is the demo default, not a decision, and every real finding
+  from testing so far (DeepSeek dry run, the Gemini free-tier quota blocker).
 
 **Status:** early scaffold for the Extractor pod's demo. The WhatsApp inbound
 channel is wired end to end (verify, signature, extract, reply) but its
@@ -59,7 +93,7 @@ npm run whatsapp:webhook --workspace apps/casa-bff  # what Meta calls today; -- 
 ## Deploy
 
 Always run Vercel commands from the **repo root** — see
-[docs/01-team-guide.md](docs/01-team-guide.md#5-deploying) for why and for
+[docs/guides/01-team-guide.md](docs/guides/01-team-guide.md#5-deploying) for why and for
 the full command sequence.
 
 ```bash

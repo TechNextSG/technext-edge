@@ -372,7 +372,7 @@ already documented above (model can't reconcile two guest-count signals,
 resolves the conflict by discarding rather than asking a targeted
 clarifying question) — not a new bug, but evidence the known limitation is
 broader and more likely to surface than first scoped. Flagged in
-`docs/demo-checklist.html` as a phrase to avoid during the 2026-09-21
+`public/demo-checklist.html` as a phrase to avoid during the 2026-09-21
 demo. Not fixed pre-demo, same reasoning as the original case (regex
 fallback rejected for the same three reasons above; prompt-only fix
 already failed once on the simpler case). Worth a dedicated eval case
