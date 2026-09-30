@@ -351,6 +351,10 @@ kế hoạch theo kịp nguồn.
   khách đặt qua WhatsApp + AI chatbot, trang khách ẩn danh có thể bị bỏ; P5 ghi "parked, owner Nhật".
   Không phá gì hôm nay, nhưng cần Lead quyết bản nào là gốc (ghi chú ở `docs/notes/lead-extractor-duplication.md`).
 
+### Mốc đã deploy
+
+- 30/09/2026: vá sức chứa (commit `077bfe6`) đã push lên `origin/main`, Vercel production build từ commit này. Smoke test tay trên production và `-sim` do người dùng chạy theo runbook; ghi kết quả vào đây khi xong.
+
 ### Cơ chế bám nguồn
 
 `npm run upstream:check` (chỉ đọc) liệt kê commit mới chạm `contracts/`, `bff/src/{routes,trip,model,odoo,auth}`,
