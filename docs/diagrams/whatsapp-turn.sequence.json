@@ -1,0 +1,266 @@
+{
+  "schema_version": 1,
+  "diagram_type": "sequence",
+  "meta": {
+    "title": "One WhatsApp turn: from a guest's message to a draft quotation",
+    "output": "whatsapp-turn.html",
+    "viewBox": [
+      1080,
+      600
+    ],
+    "column_fit": "spread",
+    "quality_profile": "showcase",
+    "locale": "en",
+    "views": [
+      {
+        "id": "intake",
+        "label": "Intake",
+        "focus": [
+          "guest",
+          "meta",
+          "webhook",
+          "turn"
+        ],
+        "note": "A signed delivery is verified and deduplicated before any work starts."
+      },
+      {
+        "id": "understand",
+        "label": "Understand",
+        "focus": [
+          "turn",
+          "ai",
+          "model",
+          "store"
+        ],
+        "note": "The extractor reads the message; the draft is written only when every required fact is known."
+      },
+      {
+        "id": "reply",
+        "label": "Reply",
+        "focus": [
+          "turn",
+          "meta",
+          "guest"
+        ],
+        "note": "The reply carries no price and no link."
+      }
+    ]
+  },
+  "participants": [
+    {
+      "id": "guest",
+      "type": "external",
+      "label": "Guest",
+      "sublabel": "WhatsApp"
+    },
+    {
+      "id": "meta",
+      "type": "external",
+      "label": "Meta",
+      "sublabel": "Cloud API"
+    },
+    {
+      "id": "webhook",
+      "type": "backend",
+      "label": "Webhook",
+      "sublabel": "routes/whatsapp"
+    },
+    {
+      "id": "turn",
+      "type": "backend",
+      "label": "Turn loop",
+      "sublabel": "channels/whatsapp"
+    },
+    {
+      "id": "store",
+      "type": "database",
+      "label": "Store",
+      "sublabel": "KV: threads, drafts"
+    },
+    {
+      "id": "ai",
+      "type": "backend",
+      "label": "Extractor",
+      "sublabel": "ai/ converse"
+    },
+    {
+      "id": "model",
+      "type": "external",
+      "label": "Gemini",
+      "sublabel": "model"
+    }
+  ],
+  "segments": [
+    {
+      "from": 150,
+      "to": 235,
+      "label": "Intake"
+    },
+    {
+      "from": 240,
+      "to": 430,
+      "label": "Understand"
+    },
+    {
+      "from": 440,
+      "to": 515,
+      "label": "Reply"
+    }
+  ],
+  "messages": [
+    {
+      "id": "m1",
+      "from": "guest",
+      "to": "meta",
+      "y": 160,
+      "label": "message",
+      "variant": "default"
+    },
+    {
+      "id": "m2",
+      "from": "meta",
+      "to": "webhook",
+      "y": 188,
+      "label": "signed POST",
+      "variant": "emphasis"
+    },
+    {
+      "id": "m3",
+      "from": "webhook",
+      "to": "turn",
+      "y": 216,
+      "label": "verified, new id",
+      "variant": "security"
+    },
+    {
+      "id": "m4",
+      "from": "turn",
+      "to": "store",
+      "y": 246,
+      "label": "lock phone, load thread",
+      "variant": "default"
+    },
+    {
+      "id": "m5",
+      "from": "store",
+      "to": "turn",
+      "y": 274,
+      "label": "history",
+      "variant": "return"
+    },
+    {
+      "id": "m6",
+      "from": "turn",
+      "to": "ai",
+      "y": 304,
+      "label": "converse(message, history)",
+      "variant": "emphasis"
+    },
+    {
+      "id": "m7",
+      "from": "ai",
+      "to": "model",
+      "y": 332,
+      "label": "extract JSON",
+      "variant": "default"
+    },
+    {
+      "id": "m8",
+      "from": "model",
+      "to": "ai",
+      "y": 360,
+      "label": "facts + evidence",
+      "variant": "return"
+    },
+    {
+      "id": "m9",
+      "from": "ai",
+      "to": "turn",
+      "y": 388,
+      "label": "questions or done",
+      "variant": "return"
+    },
+    {
+      "id": "m10",
+      "from": "turn",
+      "to": "store",
+      "y": 418,
+      "label": "save draft if done",
+      "variant": "dashed"
+    },
+    {
+      "id": "m11",
+      "from": "turn",
+      "to": "meta",
+      "y": 478,
+      "label": "send reply (no price, no link)",
+      "variant": "emphasis"
+    },
+    {
+      "id": "m12",
+      "from": "meta",
+      "to": "guest",
+      "y": 506,
+      "label": "reply",
+      "variant": "return"
+    }
+  ],
+  "activations": [
+    {
+      "participant": "webhook",
+      "from": 183,
+      "to": 226,
+      "type": "backend"
+    },
+    {
+      "participant": "turn",
+      "from": 210,
+      "to": 512,
+      "type": "backend"
+    },
+    {
+      "participant": "store",
+      "from": 240,
+      "to": 280,
+      "type": "database"
+    },
+    {
+      "participant": "ai",
+      "from": 299,
+      "to": 394,
+      "type": "backend"
+    },
+    {
+      "participant": "model",
+      "from": 327,
+      "to": 366,
+      "type": "database"
+    }
+  ],
+  "cards": [
+    {
+      "dot": "cyan",
+      "title": "Before any work",
+      "items": [
+        "The signature is checked against the app secret in constant time",
+        "A message id seen before is acknowledged and ignored, so Meta's retry never doubles a reply"
+      ]
+    },
+    {
+      "dot": "emerald",
+      "title": "Only when done",
+      "items": [
+        "A draft quotation is written only when every required fact is known",
+        "An impossible room or a partner goes to staff instead of an automatic draft"
+      ]
+    },
+    {
+      "dot": "rose",
+      "title": "Reply rules",
+      "items": [
+        "No money, no booking promise, no link in a guest message",
+        "A failed model call becomes an honest 'a person will reply' message"
+      ]
+    }
+  ]
+}

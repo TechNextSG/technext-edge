@@ -1,0 +1,348 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {
+    "title": "Casa WhatsApp quotation channel: runtime architecture",
+    "output": "system-runtime.html",
+    "quality_profile": "showcase",
+    "locale": "en",
+    "views": [
+      {
+        "id": "guest-path",
+        "label": "Guest to draft",
+        "focus": [
+          "guest",
+          "meta",
+          "webhook",
+          "turn",
+          "ai",
+          "gemini",
+          "store",
+          "kv"
+        ],
+        "note": "A WhatsApp message becomes a draft quotation. The bot never prices."
+      },
+      {
+        "id": "staff-path",
+        "label": "Staff to guest link",
+        "focus": [
+          "staff",
+          "studio",
+          "store",
+          "estimator",
+          "team"
+        ],
+        "note": "Staff price, approve and publish in the studio; the guest link is minted by the team estimator."
+      }
+    ]
+  },
+  "components": [
+    {
+      "id": "guest",
+      "type": "external",
+      "label": "Guest",
+      "sublabel": "WhatsApp user",
+      "pos": [
+        30,
+        70
+      ],
+      "size": [
+        170,
+        64
+      ]
+    },
+    {
+      "id": "meta",
+      "type": "external",
+      "label": "Meta Cloud API",
+      "sublabel": "webhook + Graph send",
+      "pos": [
+        260,
+        70
+      ],
+      "size": [
+        170,
+        64
+      ]
+    },
+    {
+      "id": "webhook",
+      "type": "backend",
+      "label": "routes/whatsapp",
+      "sublabel": "verify signature, dedupe",
+      "pos": [
+        490,
+        70
+      ],
+      "size": [
+        170,
+        64
+      ]
+    },
+    {
+      "id": "turn",
+      "type": "backend",
+      "label": "channels/whatsapp",
+      "sublabel": "per-phone turn loop",
+      "pos": [
+        720,
+        70
+      ],
+      "size": [
+        170,
+        64
+      ]
+    },
+    {
+      "id": "ai",
+      "type": "backend",
+      "label": "ai/ extractor",
+      "sublabel": "converse, fact gate",
+      "pos": [
+        950,
+        70
+      ],
+      "size": [
+        170,
+        64
+      ]
+    },
+    {
+      "id": "gemini",
+      "type": "external",
+      "label": "Gemini",
+      "sublabel": "model (DeepSeek fallback)",
+      "pos": [
+        950,
+        250
+      ],
+      "size": [
+        170,
+        64
+      ]
+    },
+    {
+      "id": "store",
+      "type": "backend",
+      "label": "store/ + quote/",
+      "sublabel": "drafts, threads, settings",
+      "pos": [
+        720,
+        250
+      ],
+      "size": [
+        170,
+        64
+      ]
+    },
+    {
+      "id": "kv",
+      "type": "database",
+      "label": "Upstash KV",
+      "sublabel": "Redis REST",
+      "pos": [
+        720,
+        430
+      ],
+      "size": [
+        170,
+        64
+      ]
+    },
+    {
+      "id": "studio",
+      "type": "frontend",
+      "label": "Studio",
+      "sublabel": "routes/quotes + views",
+      "pos": [
+        490,
+        250
+      ],
+      "size": [
+        170,
+        64
+      ]
+    },
+    {
+      "id": "staff",
+      "type": "external",
+      "label": "Staff",
+      "sublabel": "browser, signed session",
+      "pos": [
+        260,
+        250
+      ],
+      "size": [
+        170,
+        64
+      ]
+    },
+    {
+      "id": "estimator",
+      "type": "backend",
+      "label": "estimator/",
+      "sublabel": "port: remote or simulated",
+      "pos": [
+        490,
+        430
+      ],
+      "size": [
+        170,
+        64
+      ]
+    },
+    {
+      "id": "team",
+      "type": "cloud",
+      "label": "Team estimator",
+      "sublabel": "pricing, guest link, Odoo",
+      "pos": [
+        260,
+        430
+      ],
+      "size": [
+        170,
+        64
+      ]
+    }
+  ],
+  "boundaries": [
+    {
+      "kind": "region",
+      "label": "Vercel function (Hono, api/entry.ts)",
+      "wraps": [
+        "webhook",
+        "turn",
+        "ai",
+        "store",
+        "studio",
+        "estimator"
+      ]
+    }
+  ],
+  "connections": [
+    {
+      "id": "guest-meta",
+      "from": "guest",
+      "to": "meta",
+      "label": "message",
+      "labelDy": -26
+    },
+    {
+      "id": "meta-webhook",
+      "from": "meta",
+      "to": "webhook",
+      "label": "signed POST",
+      "labelDy": 24
+    },
+    {
+      "id": "webhook-turn",
+      "from": "webhook",
+      "to": "turn",
+      "label": "turn",
+      "labelDy": -26
+    },
+    {
+      "id": "turn-ai",
+      "from": "turn",
+      "to": "ai",
+      "label": "converse()",
+      "labelDy": -26
+    },
+    {
+      "id": "ai-gemini",
+      "from": "ai",
+      "to": "gemini",
+      "label": "extract",
+      "fromSide": "bottom",
+      "toSide": "top",
+      "labelAt": [
+        1035,
+        192
+      ]
+    },
+    {
+      "id": "turn-store",
+      "from": "turn",
+      "to": "store",
+      "label": "draft",
+      "fromSide": "bottom",
+      "toSide": "top",
+      "labelAt": [
+        805,
+        192
+      ]
+    },
+    {
+      "id": "store-kv",
+      "from": "store",
+      "to": "kv",
+      "label": "REST",
+      "fromSide": "bottom",
+      "toSide": "top",
+      "labelAt": [
+        805,
+        372
+      ]
+    },
+    {
+      "id": "staff-studio",
+      "from": "staff",
+      "to": "studio",
+      "label": "HTTPS",
+      "labelDy": -26
+    },
+    {
+      "id": "studio-store",
+      "from": "studio",
+      "to": "store",
+      "label": "read, write",
+      "labelDy": -26
+    },
+    {
+      "id": "studio-estimator",
+      "from": "studio",
+      "to": "estimator",
+      "label": "price, share",
+      "fromSide": "bottom",
+      "toSide": "top",
+      "labelAt": [
+        575,
+        372
+      ]
+    },
+    {
+      "id": "estimator-team",
+      "from": "estimator",
+      "to": "team",
+      "label": "HTTP (remote)",
+      "labelDy": -26
+    }
+  ],
+  "cards": [
+    {
+      "dot": "cyan",
+      "title": "The bot never prices",
+      "items": [
+        "The channel extracts facts and writes a draft; it quotes no money and sends no link",
+        "Prices come from the team estimator, asked by staff in the studio"
+      ]
+    },
+    {
+      "dot": "emerald",
+      "title": "One person decides",
+      "items": [
+        "Staff approve and publish; the guest link is minted by the team estimator",
+        "A partner or an impossible room goes to staff, not to an automatic quote"
+      ]
+    },
+    {
+      "dot": "rose",
+      "title": "State lives in KV",
+      "items": [
+        "Threads, locks, drafts and AI settings sit in Upstash Redis, so a cold start loses nothing",
+        "Without KV (local) the stores fall back to memory"
+      ]
+    }
+  ]
+}

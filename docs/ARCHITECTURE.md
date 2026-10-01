@@ -2,6 +2,18 @@
 
 Tài liệu cho nhóm phát triển trên **technext-edge** và cầu nối với **tn-casa-quotation-estimator** (repo của team, gọi là *team estimator*; nó là bản gốc, repo này chỉ mô phỏng phía studio).
 
+
+## Sơ đồ
+
+Bốn sơ đồ vẽ bằng archify, mở bằng trình duyệt (nguồn `.json` cùng thư mục, vẽ lại bằng `node <archify>/bin/archify.mjs deliver …`):
+
+| Sơ đồ | Trả lời |
+|---|---|
+| [system-runtime.html](diagrams/system-runtime.html) | Lúc chạy: khách, Meta, hàm Vercel, Gemini, KV, studio, team estimator nối với nhau thế nào |
+| [whatsapp-turn.html](diagrams/whatsapp-turn.html) | Một lượt WhatsApp từ tin của khách tới bản nháp, từng bước |
+| [quotation-lifecycle.html](diagrams/quotation-lifecycle.html) | Một báo giá đi qua các trạng thái nào, ai làm bước nào |
+| [repo-structure.html](diagrams/repo-structure.html) | Cây thư mục và ranh giới giữa các gói |
+
 ---
 
 ## 1. Ba gói, một chiều phụ thuộc

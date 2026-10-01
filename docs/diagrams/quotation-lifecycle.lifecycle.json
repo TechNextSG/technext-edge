@@ -1,0 +1,163 @@
+{
+  "schema_version": 1,
+  "diagram_type": "lifecycle",
+  "meta": {
+    "title": "Quotation lifecycle",
+    "output": "quotation-lifecycle.html",
+    "viewBox": [
+      980,
+      566
+    ],
+    "quality_profile": "showcase",
+    "locale": "en",
+    "views": [
+      {
+        "id": "rail",
+        "label": "Main rail",
+        "focus": [
+          "enquiry",
+          "draft",
+          "priced",
+          "approved",
+          "sent"
+        ],
+        "note": "Each step is one decision by a person, except the first two, which the bot does."
+      },
+      {
+        "id": "exits",
+        "label": "Re-price and archive",
+        "focus": [
+          "priced",
+          "reprice",
+          "approved",
+          "archived"
+        ],
+        "note": "A changed trip goes back to pricing; an enquiry can be closed at any time."
+      }
+    ]
+  },
+  "lanes": [
+    {
+      "id": "main",
+      "label": "Quotation status"
+    },
+    {
+      "id": "waiting",
+      "label": "Staff edits and closing"
+    }
+  ],
+  "states": [
+    {
+      "id": "enquiry",
+      "type": "start",
+      "label": "Enquiry",
+      "sublabel": "guest message",
+      "lane": "main",
+      "col": 0,
+      "step": "01",
+      "tag": "bot"
+    },
+    {
+      "id": "draft",
+      "type": "active",
+      "label": "Draft",
+      "sublabel": "needs a price",
+      "lane": "main",
+      "col": 1,
+      "step": "02",
+      "tag": "bot"
+    },
+    {
+      "id": "priced",
+      "type": "decision",
+      "label": "Priced",
+      "sublabel": "engine figure",
+      "lane": "main",
+      "col": 2,
+      "step": "03",
+      "tag": "staff"
+    },
+    {
+      "id": "approved",
+      "type": "waiting",
+      "label": "Approved",
+      "sublabel": "not sent yet",
+      "lane": "main",
+      "col": 3,
+      "step": "04",
+      "tag": "staff"
+    },
+    {
+      "id": "sent",
+      "type": "success",
+      "label": "Link sent",
+      "sublabel": "team estimator link",
+      "lane": "main",
+      "col": 4,
+      "step": "05",
+      "tag": "staff"
+    },
+    {
+      "id": "reprice",
+      "type": "waiting",
+      "label": "Trip edited",
+      "sublabel": "price again",
+      "lane": "waiting",
+      "col": 0,
+      "tag": "loop"
+    },
+    {
+      "id": "archived",
+      "type": "failure",
+      "label": "Archived",
+      "sublabel": "closed, nothing sent",
+      "lane": "waiting",
+      "col": 1,
+      "tag": "terminal"
+    }
+  ],
+  "transitions": [
+    {
+      "from": "priced",
+      "to": "reprice",
+      "variant": "dashed",
+      "route": "straight",
+      "fromSide": "bottom",
+      "toSide": "top"
+    },
+    {
+      "from": "approved",
+      "to": "archived",
+      "variant": "security",
+      "route": "straight",
+      "fromSide": "bottom",
+      "toSide": "top"
+    }
+  ],
+  "cards": [
+    {
+      "dot": "cyan",
+      "title": "Bot, then people",
+      "items": [
+        "The bot makes the Enquiry and Draft; it never prices",
+        "Price, approve and send are separate staff actions"
+      ]
+    },
+    {
+      "dot": "amber",
+      "title": "Edits reopen pricing",
+      "items": [
+        "A trip edit after a price means pricing again",
+        "Sending an unpriced figure is blocked"
+      ]
+    },
+    {
+      "dot": "rose",
+      "title": "Closing is explicit",
+      "items": [
+        "Archived: closed, nothing sent to the guest",
+        "A guest reset closes the draft and starts a new one"
+      ]
+    }
+  ]
+}
