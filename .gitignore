@@ -42,3 +42,6 @@ cookies.txt
 # Third-party agent skills installed by the CLI (36 MB, ~1000 files). They are tooling for
 # whoever works in this clone, not part of the product, and they must not reach the AI repo.
 .agents/
+
+# Local state of the coding assistant (settings, sessions, scheduled-task locks): per machine, not the project.
+.claude/
