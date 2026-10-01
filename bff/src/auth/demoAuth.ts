@@ -24,9 +24,9 @@ import { themeCss } from "../views/theme.js";
 import { createHmac, timingSafeEqual } from "node:crypto";
 
 /**
- * The studio is a staff tool and nothing else. In the customer's system a role comes from the login
+ * The studio is a staff tool and nothing else. In the team estimator a role comes from the login
  * session (Odoo decides it), never from what a client sends, and agents and instructors use the
- * customer's own tool — so there is one role here. A cookie signed with an older role ("guest",
+ * team estimator — so there is one role here. A cookie signed with an older role ("guest",
  * "agent") is no longer a session at all: `verifySession` returns null for it.
  */
 export type DemoRole = "staff" | "admin";

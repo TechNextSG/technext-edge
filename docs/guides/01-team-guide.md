@@ -38,9 +38,8 @@ nên cooldown chỉ có tác dụng trong một request). `meta.provider` ghi pr
 **Trang `/test` công khai không còn nhận provider hay API key từ trình duyệt.** `/v1/extract` và `/v1/converse` chỉ nhận `provider`/`apiKey`
 kèm phiên staff (dùng cho eval); không có phiên thì 401.
 
-**Anthropic** đi qua SDK chính thức, mặc định `claude-opus-5-5` (theo skill claude-api). Adapter yêu cầu JSON thuần và parse, không dùng
-tool call bắt buộc (Opus 5.5 / Sonnet 5.5 trả 400 với forced `tool_choice`) và chưa dùng structured outputs vì chưa thử với key thật; xem
-đầu `ai/src/infra/providers/anthropic.ts`.
+**Mô hình là linh hoạt.** Repo này chỉ có hai adapter, Gemini và DeepSeek (qua gateway). Không có adapter Anthropic/Claude; thêm một provider mới là
+viết một adapter theo `ExtractProvider` và thêm một dòng vào bảng trong `providerFromEnv.ts`.
 
 ### Studio vs hệ thống của khách
 
@@ -187,8 +186,7 @@ repo's tsconfig and can be green while the deployment build is not.
 |---|---|---|---|
 | `GEMINI_API_KEY` | Production + Preview | if `EXTRACTOR_PROVIDER` is unset or `gemini` | Free tier is not enough for a real eval run — see ADR-005a. |
 | `GEMINI_MODEL` | optional | no | Defaults to `gemini-2.5-flash`. Verify against [ai.google.dev](https://ai.google.dev/gemini-api/docs/models) before changing — names in this family move fast. |
-| `EXTRACTOR_PROVIDER` | optional | no | `gemini` (default) \| `deepseek-flash` \| `deepseek-pro` \| `anthropic` (or a `claude-…` id). Picks the server's default provider **until something is saved in the admin dashboard**, which then takes over. |
-| `ANTHROPIC_API_KEY` | optional | only for the Anthropic provider | Can be saved in the dashboard instead. |
+| `EXTRACTOR_PROVIDER` | optional | no | `gemini` (default) \| `deepseek-flash` \| `deepseek-pro`. Picks the server's default provider **until something is saved in the admin dashboard**, which then takes over. |
 | `ADMIN_ACCESS_KEY` | Production + Preview | to switch the dashboard on | The key typed on `/login` to open `/admin/ai`. Unset = no dashboard (it answers 404). Must differ from `STAFF_ACCESS_KEY`. |
 | `SETTINGS_ENCRYPTION_KEY` | Production + Preview | to save keys from the dashboard | 32 random bytes, base64 (`node -e "console.log(require('crypto').randomBytes(32).toString('base64'))"`). Encrypts keys in KV. Keep it in Vercel only. |
 | `DEEPSEEK_GATEWAY_KEY` | optional | if `EXTRACTOR_PROVIDER` is a DeepSeek value | Your personal LiteLLM gateway key (Railway) — ask Anthony for one. $12 budget per person, shared across everything you use it for, not just this repo. |
@@ -819,7 +817,7 @@ node ai/eval/runner.mjs --provider deepseek-flash
   accepting a `draft.quoteId` after it turned out to be a way to read any quotation), but it still priced
   and drafted for anyone who could reach the URL, and nothing in this repo calls it. It now needs a staff
   session (30/09/2026). If the tool-calling design in that spec is ever built, it needs a credential of its
-  own — the customer's system has no service identity for a bot yet (their schema.md §4).
+  own — the team estimator has no service identity for a bot yet (their schema.md §4).
   **When you add a quotation route, decide which of the two audiences it serves**: guest link or staff.
 
 - **The BFF contract was validated but never sent anywhere.** `buildBffTrip()` and

@@ -98,7 +98,7 @@ export function renderHonoQuotationEditorHtml(
    *
    * It says what is true — the stay, the link, the terms the resort publishes — and nothing about
    * scarcity: "rooms are filling up quickly" was in the first version of this feature and is not
-   * something this system can know, because availability lives in the customer's Odoo and nothing
+   * something this system can know, because availability lives in the team Odoo and nothing
    * here ever asks. A template that invents urgency is a sentence a guest can check.
    */
   const followUpText =
@@ -1239,7 +1239,7 @@ ${themeCss()}
           // Only once the guest actually has the quotation. Chasing somebody about a link they were
           // never sent is how a helpful follow-up reads as a mistake, and the box also stated a
           // scarcity nobody has checked: "rooms are filling up quickly" is not something this system
-          // knows (availability lives in the customer's Odoo, and we never ask). What it says instead
+          // knows (availability lives in the team Odoo, and we never ask). What it says instead
           // is what is true: the quotation's own deadline and the link
           // to look at. Whether the resort holds a room, and whether rooms are first-come, are
           // questions for Phillip — see `quotationValidityLines`.

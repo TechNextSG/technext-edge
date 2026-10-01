@@ -1064,7 +1064,7 @@ export function fallbackReply(kind: FallbackKind, language: GuestLanguage | null
  * side — would never have a retail model to compare against, because there was never a partner
  * session behind it.
  *
- * The manual flow already answers this: an agent signs in on the customer's own app, sees their own
+ * The manual flow already answers this: an agent signs in on the team estimator, sees their own
  * rate, and books directly. So the bot's job is to say that, and to stay soft about it — the agent
  * signal is read from phrasing ("our agency", "partner rate") and a guest who happens to write like
  * an agency can simply say so. That is why this is an invitation rather than a redirect: the last

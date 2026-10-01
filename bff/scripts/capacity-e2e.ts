@@ -5,7 +5,7 @@
  *   npx tsx bff/scripts/capacity-e2e.ts remote        # needs ESTIMATOR_BASE_URL (from .env.prod.local)
  *
  * The app runs in-process with the in-memory quotation store, so nothing is written to our KV / studio
- * queue. In `remote` mode the only thing touched is the customer's fixture engine (RAM, no Odoo, no
+ * queue. In `remote` mode the only thing touched is the team estimator's fixture engine (RAM, no Odoo, no
  * money). The record is named "TEST capacity 3pax" and archived at the end.
  *
  * Chain: Save & get price (POST) -> edit dates -> Save & get price again (PATCH) -> Approve ->

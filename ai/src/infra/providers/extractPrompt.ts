@@ -1,7 +1,7 @@
 // The instruction every provider gives the model for the main extraction pass.
 //
 // It used to live inside the Gemini adapter, which made "what we tell the model" a property of one vendor.
-// Kept in one place so a provider added later (Anthropic) reads the same rules, and a change to a rule —
+// Kept in one place so every provider reads the same rules, and a change to a rule —
 // a new field, a clarified state — reaches all of them at once. The DeepSeek adapter still carries its own
 // copy, worded for that model; fold it in here when it next changes.
 export const EXTRACT_SYSTEM_PROMPT =

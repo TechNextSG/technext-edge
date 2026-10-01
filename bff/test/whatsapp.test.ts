@@ -720,7 +720,7 @@ describe("the links on a guest's reply once a quotation exists", () => {
     expect(sent).toHaveLength(1);
     // The bot used to append its own `/q/<slug>` link the moment it had enough information. That
     // quoted a price to a customer before anyone at the resort had seen it, from a hand-copied
-    // table. The link a guest gets is the one the customer's own app mints, after staff publish.
+    // table. The link a guest gets is the one the team estimator mints, after staff publish.
     expect(sent[0]!.body).not.toContain("🔗");
     expect(sent[0]!.body).not.toMatch(/\/q\//);
     expect(sent[0]!.body).not.toMatch(/\/quote\//);
@@ -882,7 +882,7 @@ describe("a partner enquiry, and the answer that ends the invitation", () => {
    */
   async function agencyTurn(phone: string) {
     vi.stubEnv("ENABLE_HONO_QUOTATION_TOOL", "true");
-    // The invitation needs a host the guest can actually open, and only the customer's app is that.
+    // The invitation needs a host the guest can actually open, and only the team estimator is that.
     vi.stubEnv("ESTIMATOR_MODE", "remote");
     vi.stubEnv("ESTIMATOR_BASE_URL", "https://their-app.test");
     const h = harness(providerReturning(AGENCY_RAW));

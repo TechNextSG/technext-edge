@@ -77,7 +77,7 @@ export function maskForLogging(text: string): string {
 // assistant's own wording cannot vote on the guest's language. See guestTextOf below.
 const CJK_RE = /[\u4e00-\u9fff]/;
 // Kana and hangul: Japanese and Korean share the Han block with Chinese, so a Han character alone does not
-// make a message Chinese. The customer's tool answers in English or Simplified Chinese only; a Japanese or
+// make a message Chinese. The team estimator answers in English or Simplified Chinese only; a Japanese or
 // Korean guest is answered in English, not in a language they did not write.
 const KANA_HANGUL_RE = /[\u3040-\u30ff\u31f0-\u31ff\u1100-\u11ff\u3130-\u318f\uac00-\ud7af]/;
 

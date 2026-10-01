@@ -85,7 +85,7 @@ describe("demo GAIS session tokens", () => {
     }
   });
 
-  it("has two roles: staff, and admin for the AI settings dashboard; agents use the customer's own tool", () => {
+  it("has two roles: staff, and admin for the AI settings dashboard; agents use the team estimator", () => {
     expect(isDemoRole("staff")).toBe(true);
     expect(isDemoRole("admin")).toBe(true);
     expect(isDemoRole("agent")).toBe(false);

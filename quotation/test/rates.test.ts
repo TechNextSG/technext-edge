@@ -141,7 +141,7 @@ describe("the airport transfer", () => {
   });
 
   it("counts the vans a group actually needs", () => {
-    // 6 per van: the only capacity the customer's systems demonstrate (seven guests split into a van of
+    // 6 per van: the only capacity the team estimators demonstrate (seven guests split into a van of
     // 6 and a van of 1). The site says "max 7 pax"; assuming 7 would under-count a van.
     expect(vansForGuests(1)).toBe(1);
     expect(vansForGuests(6)).toBe(1);

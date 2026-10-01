@@ -1,5 +1,5 @@
 // The quotation package's only public import surface: from a finished Trip to a priced, editable
-// draft and the payload the customer's estimator accepts. Depends on ai/ and contracts/, never the
+// draft and the payload the team estimator accepts. Depends on ai/ and contracts/, never the
 // other way round.
 export { normalizePricing, readWarnings } from "./domain/pricing.js";
 export type {

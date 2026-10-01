@@ -1,5 +1,5 @@
 // F08 (the customer's AI-channel flow) draws two lines the studio has to hold:
-//   - a partner (agent / instructor) is quoted in the customer's own tool after signing in, so an
+//   - a partner (agent / instructor) is quoted in the team estimator after signing in, so an
 //     enquiry from one is never published or sent as a guest link;
 //   - the message that carries the link goes through the same fact gate as a chat reply.
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";

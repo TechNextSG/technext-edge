@@ -361,7 +361,7 @@ const CONFIRMED_GREETING_BUDGET_MS = 3_500;
 /**
  * True when this enquiry came from an agent or instructor.
  *
- * F08 (the customer's AI-channel flow): a partner is quoted in the customer's own tool after signing in
+ * F08 (the customer's AI-channel flow): a partner is quoted in the team estimator after signing in
  * with their own key, because only that session gets a partner rate. Our bot holds a guest session, so
  * whatever it prices is the retail figure — publishing that to an agent would quote them the wrong
  * number. Read from the trip that was priced, and from the draft in case the trip is absent.
@@ -415,7 +415,7 @@ export function guestFacingFactsFor(draft: HonoQuotationDraft): GuestFacingFacts
  *      quotation page, which is what the link opens; a figure repeated in chat is a second source
  *      of the number, and in fixture mode it is a sample figure a guest would read as real.
  *   2. **The link is the published one, or there is no message.** `estimator.guestUrl` is minted by
- *      the customer's app at Publish; our own `/q/<slug>` page is retired and answers 410. The
+ *      the team estimator at Publish; our own `/q/<slug>` page is retired and answers 410. The
  *      caller refuses to send without it (route `send-whatsapp`), and this builder never falls back.
  *   3. **"Confirmed" is not a word this message may use.** Approving a quotation is a staff decision
  *      about a price, not a booking; Q-015 is that this system sends no confirmation of anything.

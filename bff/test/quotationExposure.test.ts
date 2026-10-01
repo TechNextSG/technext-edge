@@ -166,7 +166,7 @@ describe("an unknown quotation is a miss, not somebody's booking", () => {
     expect(body).not.toContain("Total");
   });
 
-  it("forwards a published quotation to the link the customer's app minted", async () => {
+  it("forwards a published quotation to the link the team estimator minted", async () => {
     // Its own record, not the seed: publishing mutates the stored draft, and the seed is shared
     // with every other test in this file.
     const app = createApp();
@@ -259,7 +259,7 @@ describe("an unknown quotation is a miss, not somebody's booking", () => {
       const app = createApp();
 
       const html = await (await app.request(`/q/${saved.slug}`)).text();
-      // The customer's tool says one thing here: the front desk confirms availability. No deposit.
+      // The team estimator says one thing here: the front desk confirms availability. No deposit.
       expect(html).toContain("The front desk will confirm availability and contact you.");
       expect(html).not.toContain("Deposit Policy");
       expect(html.toLowerCase()).not.toContain("down payment");
@@ -339,7 +339,7 @@ describe("an unknown quotation is a miss, not somebody's booking", () => {
       expect(html).not.toContain("Payment is arranged by our reservations team");
       expect(html).not.toContain("Deposit Due");
 
-      // Nor on a real figure: the customer's tool takes no payment and states no deposit, so this page says
+      // Nor on a real figure: the team estimator takes no payment and states no deposit, so this page says
       // only what the front desk does next.
       const real = await mirroredCopy({ quoteId: "QT-0000-REAL-AAA" });
       const realHtml = await (await createApp().request(`/q/${real.slug}`)).text();
@@ -542,7 +542,7 @@ describe("staff quotation routes require the staff token", () => {
       expect(html).toContain("/sync-estimate?token=");
     });
 
-    // The guest page is retired (Đợt 1): a quotation is only ever read on the customer's own app,
+    // The guest page is retired (Đợt 1): a quotation is only ever read on the team estimator,
     // behind the link their app minted. So what these now assert is the stronger property — nothing
     // about a quotation is served from this service to an unauthenticated caller at all.
     it("serves nothing about a quotation publicly, not even the staff token's absence", async () => {
@@ -574,7 +574,7 @@ describe("staff quotation routes require the staff token", () => {
       expect(body).not.toContain("Edit Table");
     });
 
-    // `staffNotes` reaches the customer twice: on their quotation page in the customer's app, and
+    // `staffNotes` reaches the customer twice: on their quotation page in the team estimator, and
     // in the message this service sends once staff publish. The message is the half we still own,
     // so that is where the wording is pinned — the studio's own editable field is staff-facing and
     // legitimately shows the raw value, so someone can fix it.

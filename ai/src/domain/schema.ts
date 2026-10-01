@@ -83,7 +83,7 @@ export const Trip = z.object({
   diveNotes: field(z.string()).optional(), // specific notes about diver schedule / breakdown (e.g. "1 diver day 1, 5 divers both days")
   specialRequests: field(z.string()).optional(), // special requirements or custom notes (e.g. "3 day visitors")
   guestNames: field(z.array(z.string())).optional(), // optional voluntary guest roster if provided by booker
-  // Kitchen and transfer facts the customer's tool keeps on the app side (`scenario.extras`), NOT in the
+  // Kitchen and transfer facts the team estimator keeps on the app side (`scenario.extras`), NOT in the
   // engine's Trip: what people cannot eat, and which way the van runs. Read from the guest's words, only
   // ever `stated`; `buildBffTrip` does not send them, so they cannot change a price.
   dietNotes: field(z.string()).optional(), // e.g. "one guest is vegetarian, nut allergy"

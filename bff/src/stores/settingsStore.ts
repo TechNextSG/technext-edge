@@ -151,7 +151,6 @@ function envOrDefaultSettings(env: NodeJS.ProcessEnv): ProviderSettings {
 const ENV_KEY_NAME: Record<ProviderKind, string> = {
   gemini: "GEMINI_API_KEY",
   deepseek: "DEEPSEEK_GATEWAY_KEY",
-  anthropic: "ANTHROPIC_API_KEY",
 };
 
 export function createSettingsStore(options: SettingsStoreOptions = {}): SettingsStore {
@@ -246,7 +245,7 @@ export function createSettingsStore(options: SettingsStoreOptions = {}): Setting
     const { settings, keyProblems } = await resolve();
     const envDescribes = {
       primary: Boolean(env.EXTRACTOR_PROVIDER),
-      fallback: Boolean(env.GEMINI_API_KEY || env.DEEPSEEK_GATEWAY_KEY || env.ANTHROPIC_API_KEY),
+      fallback: Boolean(env.GEMINI_API_KEY || env.DEEPSEEK_GATEWAY_KEY),
       timeouts: Boolean(env.GEMINI_TIMEOUT_MS || env.DEEPSEEK_TIMEOUT_MS),
     };
     const src = (inKv: boolean, inEnv: boolean): Source => (inKv ? "kv" : inEnv ? "env" : "default");

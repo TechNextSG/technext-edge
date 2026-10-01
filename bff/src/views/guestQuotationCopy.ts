@@ -3,7 +3,7 @@
  *
  * ## Why this exists
  *
- * The guest's link is minted by the customer's app at Publish, and that is by design: their app owns
+ * The guest's link is minted by the team estimator at Publish, and that is by design: their app owns
  * the frozen revision and the folio a guest confirms. But their demo deployment keeps scenarios and
  * share tokens in the memory of ONE serverless instance — measured 2026-09-28, with a real phone:
  * a link that our publish had just verified answered 404 twelve times in a row a minute later, and
@@ -211,7 +211,7 @@ export function renderGuestQuotationCopyHtml(
         //
         // There was a "Provisional 72-Hour Hold Active" box here with a live countdown, and an
         // "Expired" state under it. It is a false statement about the guest's booking: nothing in this
-        // service holds a room, rooms live in the customer's Odoo and are allocated by the front desk.
+        // service holds a room, rooms live in the team Odoo and are allocated by the front desk.
         // `quotationValidityLines` states the quotation's own deadline instead, which is ours to promise.
         ""
       }
@@ -224,7 +224,7 @@ export function renderGuestQuotationCopyHtml(
           <div class="sub">Total, from the resort's booking engine</div>
         </div>
       </div>
-      <!-- No payment guidance of ours: the customer's tool takes no payment here and states no deposit; the front desk
+      <!-- No payment guidance of ours: the team estimator takes no payment here and states no deposit; the front desk
            confirms availability and contacts the guest (the note at the foot of the page). -->`
           : ""
       }

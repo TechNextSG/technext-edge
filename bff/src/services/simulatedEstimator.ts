@@ -1,5 +1,5 @@
 /**
- * The simulated estimator: the customer's pricing model, computed locally.
+ * The simulated estimator: the team estimator's pricing model, computed locally.
  *
  * Why this exists (lead decision, 2026-09-26): *"trước khi có key từ Phillip cứ dựng giả lập, vì
  * khi nào đảm bảo mới giao ra key được."* Phillip's API keys are handed over only once the work

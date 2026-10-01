@@ -1,8 +1,6 @@
-// Demo default per steer: start with Gemini because it's outside Anthropic and
-// cheapest through the two gates in the stack proposal (data-residency, then
-// structured-output/cache). This is NOT the eval-decided winner — that only
-// happens after the 30-message bake-off. Keep this adapter and the other two
-// candidates (Claude, GPT-5.1) equally easy to write once eval time comes.
+// Demo default per steer: start with Gemini because it is cheapest through the two gates in the stack
+// proposal (data-residency, then structured-output/cache). This is NOT the eval-decided winner — that only
+// happens after the 30-message bake-off. The model is flexible: any provider that fits the port can be added.
 //
 // Verify GEMINI_MODEL against https://ai.google.dev/gemini-api/docs/models
 // before a real deploy — model names in this family change often and the

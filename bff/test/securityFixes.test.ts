@@ -183,7 +183,7 @@ describe("the message a guest actually receives", () => {
     expect(body).toContain("valid until");
     expect(body).toContain("(Manila time)");
     // Nothing about money this service invented.
-    // No deposit: the customer's own tool states none, so this service states none either.
+    // No deposit: the team estimator states none, so this service states none either.
     expect(body.toLowerCase()).not.toContain("down payment");
     expect(body).toContain("nothing is booked yet");
     expect(body).not.toContain("31,200");
@@ -582,7 +582,7 @@ describe("an anonymous caller cannot open a quotation", () => {
 });
 
 describe("a link that stopped opening is replaced, not sent", () => {
-  // The last moment before a guest holds the link. Measured on the customer's fixture deployment:
+  // The last moment before a guest holds the link. Measured on the team estimator's fixture deployment:
   // 200 six times, then 404 twelve times in a row for the same token minutes later.
   it("sends our copy of the same revision when their link has since died", async () => {
     const now = new Date().toISOString();

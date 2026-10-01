@@ -55,12 +55,12 @@ describe("settings decide the provider", () => {
     expect(createProviderFromSettings(base(), { GEMINI_API_KEY: "from-env" }).id).toBe("google:gemini-3.1-flash-lite");
   });
 
-  it("an Anthropic primary is built from its own key", () => {
+  it("a DeepSeek primary is built from its own key and the configured gateway", () => {
     const provider = createProviderFromSettings(
-      base({ primary: { provider: "anthropic", model: "claude-opus-5-5" }, keys: { anthropic: "sk-ant-x" } }),
+      base({ primary: { provider: "deepseek", model: "deepseek-pro" }, fallback: null, keys: { deepseek: "d" } }),
       {},
     );
-    expect(provider.id).toBe("anthropic:claude-opus-5-5");
+    expect(provider.id).toContain("deepseek");
   });
 
   it("runs on the fallback alone when the primary has no key, and says so", () => {
@@ -75,15 +75,15 @@ describe("settings decide the provider", () => {
   });
 
   it("drops a fallback that is the same model as the primary: it protects nothing", async () => {
-    const fetchImpl = vi.fn(async () => new Response(JSON.stringify({ type: "error", error: { type: "api_error", message: "down" } }), { status: 500 }));
+    const fetchImpl = vi.fn(async () => new Response("down", { status: 500 }));
+    vi.stubGlobal("fetch", fetchImpl);
     const provider = createProviderFromSettings(
       base({
-        primary: { provider: "anthropic", model: "claude-opus-5-5" },
-        fallback: { provider: "anthropic", model: "claude-opus-5-5" },
-        keys: { anthropic: "k" },
+        primary: { provider: "gemini", model: "gemini-2.5-flash" },
+        fallback: { provider: "gemini", model: "gemini-2.5-flash" },
+        keys: { gemini: "k" },
       }),
       {},
-      { fetch: fetchImpl as unknown as typeof fetch },
     );
     await expect(provider.call(CALL)).rejects.toThrow();
     expect(fetchImpl).toHaveBeenCalledTimes(1); // no second attempt on "the fallback"
@@ -104,17 +104,15 @@ describe("settings decide the provider", () => {
       provider: "deepseek",
       model: "deepseek-pro",
     });
-    expect(settingsFromEnv({ EXTRACTOR_PROVIDER: "anthropic", GEMINI_API_KEY: "g" }).primary.provider).toBe("anthropic");
+    expect(() => settingsFromEnv({ EXTRACTOR_PROVIDER: "claude", GEMINI_API_KEY: "g" })).toThrow(/Unknown EXTRACTOR_PROVIDER/);
     expect(() => settingsFromEnv({ EXTRACTOR_PROVIDER: "klingon" })).toThrow(/Unknown EXTRACTOR_PROVIDER/);
   });
 
   it("knows which model ids an admin may pick", () => {
-    expect(isKnownModel("anthropic", "claude-opus-5-5")).toBe(true);
-    expect(isKnownModel("anthropic", "claude-opus-9")).toBe(false);
     expect(isKnownModel("gemini", "gemini-9.9-flash")).toBe(true); // the gemini- family
     expect(isKnownModel("gemini", "gpt-5")).toBe(false);
     expect(isKnownModel("deepseek", "deepseek-flash")).toBe(true);
-    expect(choiceFromName("claude-sonnet-5-5", {})).toEqual({ provider: "anthropic", model: "claude-sonnet-5-5" });
+    expect(choiceFromName("claude-sonnet-5-5", {})).toBeNull();
   });
 });
 
@@ -162,7 +160,7 @@ describe("the circuit breaker keeps its state between calls", () => {
     const provider = createResilientProvider(
       primary,
       fallback,
-      { primary: "anthropic", fallback: "gemini" },
+      { primary: "deepseek", fallback: "gemini" },
       { cooldownMs: 10, authCooldownMs: 10_000_000 },
     );
 
@@ -217,8 +215,8 @@ describe("who answered, and what the dashboard counts", () => {
     const primary = fakeProvider("p", async () => {
       throw new Error("x");
     });
-    const provider = createResilientProvider(primary, undefined, { primary: "anthropic" }, { onOutcome: (e) => events.push(e) });
+    const provider = createResilientProvider(primary, undefined, { primary: "gemini" }, { onOutcome: (e) => events.push(e) });
     await expect(provider.call(CALL)).rejects.toThrow("x");
-    expect(events.map((e) => `${e.provider}:${e.kind}`)).toEqual(["anthropic:fail"]);
+    expect(events.map((e) => `${e.provider}:${e.kind}`)).toEqual(["gemini:fail"]);
   });
 });

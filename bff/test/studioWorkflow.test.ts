@@ -441,7 +441,7 @@ describe("the queue tabs, and no deposit anywhere in the studio", () => {
     expect(html).toContain('id="tab-cancelled"');
     expect(html).not.toContain("tab-deposit-received");
 
-    // The customer's tool takes no deposit and this studio only simulates it: no recording card, no
+    // The team estimator takes no deposit and this studio only simulates it: no recording card, no
     // modal, no bank details.
     expect(html).not.toContain("deposit-section");
     expect(html).not.toContain("deposit-modal");

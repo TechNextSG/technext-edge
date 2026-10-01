@@ -41,7 +41,7 @@ ai/               @casa/ai — guest message in, Trip and reply out. No pricing,
     domain/           Trip schema, dates, counts, house norms, conversation — no I/O
     application/      extract, normalize, intent, questions, synthesis, naturalness, converse
     ports/            the provider interface
-    infra/providers/  Anthropic, DeepSeek and Gemini adapters, env/settings factory
+    infra/providers/  DeepSeek and Gemini adapters, env/settings factory
     index.ts          the package's only public import surface
   test/             vitest suite      eval/   Playbook threshold harness
 quotation/        @casa/quotation — from a finished Trip to a priced, editable draft
@@ -77,9 +77,9 @@ Inside a package, imports flow `infra → application → domain`; nothing in `d
 ## 30-second version
 
 - `ai/` — Trip schema (zod), date/house-norm post-processing,
-  provider adapters (Anthropic, Gemini, DeepSeek), eval-ready pipeline. Real and tested.
+  provider adapters (Gemini, DeepSeek), eval-ready pipeline. Real and tested.
 - `quotation/` — the priced draft the studio edits and the `BffTrip` the
-  customer's estimator accepts. A simulation of their numbers, never the source of truth.
+  team estimator accepts. A simulation of their numbers, never the source of truth.
 - `contracts/` — the upstream BFF schema we mirror, pinned by commit.
 - `bff/` — Hono app: `POST /v1/extract`, `POST /v1/converse`, the
   WhatsApp inbound webhook at `/v1/channels/whatsapp/webhook`, plus a test

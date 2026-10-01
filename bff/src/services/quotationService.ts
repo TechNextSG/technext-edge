@@ -58,7 +58,7 @@ export function partnerRefusalFor(draft: HonoQuotationDraft): Response | null {
       ok: false,
       reason: "partner_needs_own_login",
       detail:
-        "This enquiry is from an agent — they quote in the customer's tool after signing in. Reply to them instead of publishing.",
+        "This enquiry is from an agent — they quote in the team estimator after signing in. Reply to them instead of publishing.",
     }),
     { status: 409, headers: { "content-type": "application/json" } },
   );

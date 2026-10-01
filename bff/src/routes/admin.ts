@@ -18,11 +18,9 @@ export interface AdminRouteDeps {
    */
   guard: (c: Context, kind: "page" | "api") => Response | null;
   env?: NodeJS.ProcessEnv;
-  /** Injected so a test can answer the test-call without a network. */
-  fetch?: typeof fetch;
 }
 
-const Kind = z.enum(["gemini", "deepseek", "anthropic"]);
+const Kind = z.enum(["gemini", "deepseek"]);
 const Choice = z.object({ provider: Kind, model: z.string().min(1).max(80) }).strict();
 const ms = (min: number, max: number) => z.number().int().min(min).max(max);
 
@@ -103,10 +101,10 @@ export function registerAdminRoutes(app: Hono, deps: AdminRouteDeps): void {
     const tests: Promise<TestResult>[] = [];
     const tuning = Boolean(patch.timeoutsMs || patch.deepseekBaseUrl !== undefined);
     if (!onlyWhatChanged || patch.primary || tuning) {
-      tests.push(testChoice("primary", next.primary, next, env, deps.fetch));
+      tests.push(testChoice("primary", next.primary, next, env));
     }
     if (next.fallback && (!onlyWhatChanged || ("fallback" in patch && patch.fallback))) {
-      tests.push(testChoice("fallback", next.fallback, next, env, deps.fetch));
+      tests.push(testChoice("fallback", next.fallback, next, env));
     }
     return Promise.all(tests);
   }

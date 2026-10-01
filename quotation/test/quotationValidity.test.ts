@@ -65,7 +65,7 @@ describe("when a quotation needs chasing", () => {
 
   it("stops chasing once the booking exists", () => {
     // A folio means the money question is answered. Telling staff "no deposit yet" about a booking the
-    // customer's own app has already created is a lie the desk would have to explain away.
+    // team estimator has already created is a lie the desk would have to explain away.
     const booked = draft({
       sentToGuestAt: sentHoursAgo(80),
       submission: { folioId: 42, orderIds: null, sample: false, mode: "fixture" },
@@ -121,7 +121,7 @@ describe("when a quotation lapses", () => {
 describe("what the resort may say about the quotation", () => {
   const lines = quotationValidityLines(new Date("2026-10-04T12:00:00Z"));
 
-  it("says nothing about a deposit or a balance: the customer's own tool does not", () => {
+  it("says nothing about a deposit or a balance: the team estimator does not", () => {
     const text = lines.join(" ").toLowerCase();
     expect(text).not.toContain("deposit");
     expect(text).not.toContain("down payment");

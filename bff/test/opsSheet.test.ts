@@ -143,7 +143,7 @@ describe("the studio draws the engine's answer", () => {
   it("offers the guest's published link, and never the retired /q/ one", async () => {
     // This page used to show our own `/q/<slug>` URL and call itself "the live working copy ….
     // there is no frozen version yet". Both halves were stale: that page is retired and answers 410,
-    // and the link a guest receives is minted by the customer's app at Publish and frozen there —
+    // and the link a guest receives is minted by the team estimator at Publish and frozen there —
     // so the studio was inviting staff to paste a dead URL into a chat.
     const { app, draft } = await pricedQuote("QT-OPS-9");
 

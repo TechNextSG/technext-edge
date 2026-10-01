@@ -10,14 +10,14 @@ import { decryptSecret, encryptionKeyFromEnv, encryptSecret, SecretDecryptError 
 const STAFF = "staff-key-for-admin-tests";
 const ADMIN = "admin-key-for-admin-tests";
 const ENC = randomBytes(32).toString("base64");
-const SECRET_KEY = "sk-ant-SECRET-abcdef-1234";
+const SECRET_KEY = "AIza-SECRET-abcdef-1234";
 
 beforeEach(() => {
   vi.stubEnv("STAFF_ACCESS_KEY", STAFF);
   vi.stubEnv("WHATSAPP_VERIFY_TOKEN", STAFF);
   vi.stubEnv("ADMIN_ACCESS_KEY", ADMIN);
   vi.stubEnv("SETTINGS_ENCRYPTION_KEY", ENC);
-  for (const k of ["GEMINI_API_KEY", "DEEPSEEK_GATEWAY_KEY", "ANTHROPIC_API_KEY", "EXTRACTOR_PROVIDER", "KV_REST_API_URL", "KV_REST_API_TOKEN"]) {
+  for (const k of ["GEMINI_API_KEY", "DEEPSEEK_GATEWAY_KEY", "DEEPSEEK_BASE_URL", "EXTRACTOR_PROVIDER", "KV_REST_API_URL", "KV_REST_API_TOKEN"]) {
     vi.stubEnv(k, "");
   }
 });
@@ -27,22 +27,20 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 
-/** What the Messages API answers, for the dashboard's test-call. */
-const anthropicOk = () =>
-  new Response(
-    JSON.stringify({
-      id: "m", type: "message", role: "assistant", model: "claude-opus-5-5", stop_reason: "end_turn", stop_sequence: null,
-      content: [{ type: "text", text: "OK" }], usage: { input_tokens: 5, output_tokens: 1 },
-    }),
-    { status: 200, headers: { "content-type": "application/json" } },
-  );
-const anthropicUnauthorized = () =>
-  new Response(JSON.stringify({ type: "error", error: { type: "authentication_error", message: "invalid x-api-key" } }), { status: 401 });
+/** What the model answers, for the dashboard's test-call. */
+const providerOk = () =>
+  new Response(JSON.stringify({ candidates: [{ content: { parts: [{ text: "OK" }] } }], usageMetadata: {} }), {
+    status: 200,
+    headers: { "content-type": "application/json" },
+  });
+const providerUnauthorized = () => new Response(JSON.stringify({ error: { message: "API key not valid" } }), { status: 401 });
 
-function setup(adminFetch: () => Response = anthropicOk) {
+/** Every provider call goes through the global fetch, so a test stubs that and no real provider is reached. */
+function setup(answer: () => Response = providerOk) {
   const settings = createSettingsStore({ kv: null, env: process.env });
-  const fetchImpl = vi.fn(async () => adminFetch());
-  const app = createApp({ settings, adminFetch: fetchImpl as unknown as typeof fetch });
+  const fetchImpl = vi.fn(async () => answer());
+  vi.stubGlobal("fetch", fetchImpl);
+  const app = createApp({ settings });
   return { app, settings, fetchImpl };
 }
 
@@ -119,7 +117,7 @@ describe("what it accepts", () => {
       expect(res.status, JSON.stringify(body)).toBe(422);
       return res.json();
     };
-    await bad({ primary: { provider: "anthropic", model: "claude-opus-9" } });
+    await bad({ primary: { provider: "anthropic", model: "claude-opus-5-5" } }); // no such provider here
     await bad({ primary: { provider: "gemini", model: "gpt-5" } });
     await bad({ timeoutsMs: { extract: 50, synthesis: 8000 } });
     await bad({ timeoutsMs: { extract: 15000, synthesis: 999999 } });
@@ -142,7 +140,7 @@ describe("what it accepts", () => {
 describe("keys", () => {
   it("are stored as ciphertext, shown as dots and four characters, and never echoed back", async () => {
     const { app, settings } = setup();
-    const res = await put(app, "/v1/admin/ai/keys/anthropic", { key: SECRET_KEY });
+    const res = await put(app, "/v1/admin/ai/keys/gemini", { key: SECRET_KEY });
     expect(res.status).toBe(200);
     const body = await res.text();
     expect(body).not.toContain(SECRET_KEY);
@@ -153,14 +151,14 @@ describe("keys", () => {
     expect(viewText).toContain("••••1234");
 
     const stored = await settings.read();
-    const secret = stored!.keys!.anthropic!;
+    const secret = stored!.keys!.gemini!;
     expect(JSON.stringify(stored)).not.toContain(SECRET_KEY);
     expect(secret.ct).not.toBe(SECRET_KEY);
     expect(decryptSecret(secret, encryptionKeyFromEnv(process.env))).toBe(SECRET_KEY);
 
     const audit = await (await app.request("/v1/admin/ai/audit", { headers: asAdmin })).text();
     expect(audit).not.toContain(SECRET_KEY);
-    expect(audit).toContain("keys.anthropic");
+    expect(audit).toContain("keys.gemini");
   });
 
   it("cannot be saved without an encryption key, and the dashboard says so", async () => {
@@ -184,18 +182,18 @@ describe("keys", () => {
     const kv = fakeKv();
     vi.stubGlobal("fetch", kv.fetch);
     const first = createSettingsStore({ kv: { url: "https://kv.test", token: "t" }, env: process.env, encryptionKey: Buffer.from(ENC, "base64") });
-    await first.setKey("anthropic", SECRET_KEY, "admin");
+    await first.setKey("gemini", SECRET_KEY, "admin");
     const second = createSettingsStore({
       kv: { url: "https://kv.test", token: "t" },
-      env: { ...process.env, ANTHROPIC_API_KEY: "sk-ant-from-env-9999" },
+      env: { ...process.env, GEMINI_API_KEY: "AIza-from-env-9999" },
       encryptionKey: randomBytes(32),
     });
     const view = await second.view();
-    expect(view.keys.anthropic).toMatchObject({ present: true, source: "env", masked: "••••9999" });
-    expect(view.keys.anthropic.problem).toMatch(/cannot be opened/);
+    expect(view.keys.gemini).toMatchObject({ present: true, source: "env", masked: "••••9999" });
+    expect(view.keys.gemini.problem).toMatch(/cannot be opened/);
     const { settings, keyProblems } = await second.resolve();
-    expect(keyProblems).toEqual(["anthropic"]);
-    expect(settings.keys.anthropic).toBeUndefined();
+    expect(keyProblems).toEqual(["gemini"]);
+    expect(settings.keys.gemini).toBeUndefined();
   });
 
   it("can be removed, after which the environment decides again", async () => {
@@ -208,52 +206,52 @@ describe("keys", () => {
 
 describe("saving a model", () => {
   it("tests what is being set first, and saves it when the test passes", async () => {
-    const { app, fetchImpl } = setup(anthropicOk);
-    await put(app, "/v1/admin/ai/keys/anthropic", { key: SECRET_KEY });
+    const { app, fetchImpl } = setup(providerOk);
+    await put(app, "/v1/admin/ai/keys/gemini", { key: SECRET_KEY });
 
-    const res = await put(app, "/v1/admin/ai/settings", { primary: { provider: "anthropic", model: "claude-opus-5-5" } });
+    const res = await put(app, "/v1/admin/ai/settings", { primary: { provider: "gemini", model: "gemini-2.5-pro" } });
     expect(res.status).toBe(200);
     const body = await res.json();
     expect(body.version).toBeGreaterThan(1);
-    expect(body.tests).toEqual([expect.objectContaining({ role: "primary", provider: "anthropic", ok: true })]);
+    expect(body.tests).toEqual([expect.objectContaining({ role: "primary", provider: "gemini", ok: true })]);
     expect(fetchImpl).toHaveBeenCalledTimes(1);
 
     const view = await (await app.request("/v1/admin/ai/settings", { headers: asAdmin })).json();
-    expect(view.primary).toMatchObject({ provider: "anthropic", model: "claude-opus-5-5", source: "kv" });
+    expect(view.primary).toMatchObject({ provider: "gemini", model: "gemini-2.5-pro", source: "kv" });
     const audit = (await (await app.request("/v1/admin/ai/audit", { headers: asAdmin })).json()).entries;
     expect(audit[0].diff.some((d: { field: string }) => d.field === "primary")).toBe(true);
   });
 
   it("does not save a model whose test call fails — unless told to", async () => {
-    const { app } = setup(anthropicUnauthorized);
-    await put(app, "/v1/admin/ai/keys/anthropic", { key: "sk-ant-bad-key-000000" });
+    const { app } = setup(providerUnauthorized);
+    await put(app, "/v1/admin/ai/keys/gemini", { key: "AIza-bad-key-000000" });
     const before = (await (await app.request("/v1/admin/ai/settings", { headers: asAdmin })).json()).version;
 
-    const refused = await put(app, "/v1/admin/ai/settings", { primary: { provider: "anthropic", model: "claude-opus-5-5" } });
+    const refused = await put(app, "/v1/admin/ai/settings", { primary: { provider: "gemini", model: "gemini-2.5-pro" } });
     expect(refused.status).toBe(409);
     const refusedBody = await refused.json();
     expect(refusedBody.reason).toBe("test_failed");
     expect(refusedBody.tests[0]).toMatchObject({ ok: false });
-    expect(JSON.stringify(refusedBody)).not.toContain("sk-ant-bad-key-000000");
+    expect(JSON.stringify(refusedBody)).not.toContain("AIza-bad-key-000000");
     expect((await (await app.request("/v1/admin/ai/settings", { headers: asAdmin })).json()).version).toBe(before);
 
-    const forced = await put(app, "/v1/admin/ai/settings", { primary: { provider: "anthropic", model: "claude-opus-5-5" }, saveAnyway: true });
+    const forced = await put(app, "/v1/admin/ai/settings", { primary: { provider: "gemini", model: "gemini-2.5-pro" }, saveAnyway: true });
     expect(forced.status).toBe(200);
   });
 
   it("the test button reports each side without saving anything", async () => {
-    const { app } = setup(anthropicOk);
-    await put(app, "/v1/admin/ai/keys/anthropic", { key: SECRET_KEY });
+    const { app } = setup(providerOk);
+    await put(app, "/v1/admin/ai/keys/gemini", { key: SECRET_KEY });
     const res = await app.request("/v1/admin/ai/test", {
       method: "POST",
       headers: asAdmin,
-      body: JSON.stringify({ primary: { provider: "anthropic", model: "claude-sonnet-5-5" } }),
+      body: JSON.stringify({ primary: { provider: "gemini", model: "gemini-2.5-pro" } }),
     });
     const body = await res.json();
     expect(body.ok).toBe(true);
-    expect(body.tests[0]).toMatchObject({ model: "claude-sonnet-5-5", ok: true });
+    expect(body.tests[0]).toMatchObject({ model: "gemini-2.5-pro", ok: true });
     const view = await (await app.request("/v1/admin/ai/settings", { headers: asAdmin })).json();
-    expect(view.primary.provider).not.toBe("anthropic"); // still the environment's default
+    expect(view.primary).toMatchObject({ model: "gemini-3.1-flash-lite", source: "default" }); // the test saved nothing
   });
 
   it("reports a missing key as a failed test without calling anyone", async () => {
@@ -280,11 +278,10 @@ describe("the provider the app answers with follows the settings", () => {
     expect(before.id).toBe("google:gemini-3.1-flash-lite");
     expect(await holder.get()).toBe(before); // same instance: the breaker's state is kept
 
-    await settings.setKey("anthropic", SECRET_KEY, "admin");
-    await settings.apply({ primary: { provider: "anthropic", model: "claude-opus-5-5" } }, "admin");
+    await settings.apply({ primary: { provider: "gemini", model: "gemini-2.5-pro" } }, "admin");
 
     const after = await holder.get();
-    expect(after.id).toBe("anthropic:claude-opus-5-5");
+    expect(after.id).toBe("google:gemini-2.5-pro");
     expect(after).not.toBe(before);
   });
 
@@ -294,20 +291,24 @@ describe("the provider the app answers with follows the settings", () => {
     vi.spyOn(console, "warn").mockImplementation(() => {});
     const calls: string[] = [];
     const settings = createSettingsStore({ kv: null, env: process.env });
-    await settings.setKey("anthropic", SECRET_KEY, "admin");
+    await settings.setKey("deepseek", SECRET_KEY, "admin");
     vi.stubEnv("GEMINI_API_KEY", "g-key-000000");
     await settings.apply(
-      { primary: { provider: "anthropic", model: "claude-opus-5-5" }, fallback: { provider: "gemini", model: "gemini-3.1-flash-lite" } },
+      {
+        primary: { provider: "deepseek", model: "deepseek-flash" },
+        fallback: { provider: "gemini", model: "gemini-3.1-flash-lite" },
+        deepseekBaseUrl: "https://gateway.example.com/v1",
+      },
       "admin",
     );
     const holder = createProviderHolder(settings, process.env);
-    // Every provider call goes through global fetch here: Anthropic's fails, Gemini's answers.
+    // Every provider call goes through global fetch here: the gateway's fails, Gemini's answers.
     vi.stubGlobal(
       "fetch",
       vi.fn(async (url: unknown) => {
         const target = String(url);
-        calls.push(target.includes("anthropic") ? "anthropic" : "gemini");
-        if (target.includes("anthropic")) return anthropicUnauthorized();
+        calls.push(target.includes("gateway.example.com") ? "deepseek" : "gemini");
+        if (target.includes("gateway.example.com")) return providerUnauthorized();
         return new Response(JSON.stringify({ candidates: [{ content: { parts: [{ text: "{}" }] } }], usageMetadata: {} }), { status: 200 });
       }),
     );
@@ -316,7 +317,7 @@ describe("the provider the app answers with follows the settings", () => {
     await provider.call(args);
     await (await holder.get()).call(args);
 
-    expect(calls.filter((c) => c === "anthropic")).toHaveLength(1); // the second request went straight to the fallback
+    expect(calls.filter((c) => c === "deepseek")).toHaveLength(1); // the second request went straight to the fallback
     expect(provider.answeredBy?.()).toContain("gemini");
   });
 });
@@ -332,7 +333,7 @@ describe("numbers for the health table", () => {
     const { rows } = await settings.stats(7);
     expect(rows.find((r) => r.provider === "gemini")).toMatchObject({ ok: 2, fail: 1, fallback: 0, avgMs: 137 });
     expect(rows.find((r) => r.provider === "deepseek")).toMatchObject({ fallback: 1 });
-    expect(rows.find((r) => r.provider === "anthropic")).toBeUndefined();
+    expect(rows.find((r) => r.provider === "klingon")).toBeUndefined();
   });
 
   it("are served to the admin and to nobody else", async () => {

@@ -8,7 +8,7 @@
  * and the message the resort sends. Two of them are guest-facing claims about time.
  *
  * What this deliberately does NOT do is decide whether the resort actually holds a room. It cannot:
- * nothing in this service reserves inventory, and rooms live in the customer's Odoo. So the window
+ * nothing in this service reserves inventory, and rooms live in the team Odoo. So the window
  * here is the validity of the QUOTATION — which is ours to promise — and any stronger wording ("we are
  * holding your room") has to come from the resort, not from a constant in our code.
  */
@@ -79,7 +79,7 @@ export function followUpState(
   window: FollowUpWindow = followUpWindowFromEnv(),
 ): FollowUpState {
   if (draft.status === "cancelled") return "none";
-  // A booking is the end of this question. `submission` is the folio the customer's app created, and
+  // A booking is the end of this question. `submission` is the folio the team estimator created, and
   if (draft.submission) return "none";
   const hours = hoursSinceSent(draft, now);
   if (hours === null) return "none";

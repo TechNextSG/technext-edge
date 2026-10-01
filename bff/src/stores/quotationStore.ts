@@ -78,7 +78,7 @@ function randomSlug(): string {
 // v3: the seed's staff alert was markdown (`**Custom Dive Schedule:**`), and staff alerts render as
 // text, so the first quotation anyone opens showed literal asterisks.
 //
-// v4: the stored fixture had been PUBLISHED, against the customer's fixture deployment, and that
+// v4: the stored fixture had been PUBLISHED, against the team estimator's fixture deployment, and that
 // deployment keeps share tokens in one serverless instance's memory — so its link is dead and cannot
 // be repaired (the token is gone from their side). A fixture that opens on "send the message again"
 // with a link nobody can open is a bad first impression of a flow that works, so the fixture is

@@ -75,7 +75,6 @@ export async function testChoice(
   choice: ModelChoice,
   settings: ProviderSettings,
   env: NodeJS.ProcessEnv,
-  fetchImpl?: typeof fetch,
 ): Promise<TestResult> {
   const started = Date.now();
   const key = keyFor(choice.provider, settings, env);
@@ -85,7 +84,6 @@ export async function testChoice(
     const provider = buildProvider(choice, key, {
       timeoutsMs: settings.timeoutsMs,
       deepseekBaseUrl: settings.deepseekBaseUrl,
-      fetch: fetchImpl,
     });
     if (!provider.generateText) throw new Error("this provider cannot answer a test call");
     const text = await provider.generateText("Reply with the single word OK.", "ping");

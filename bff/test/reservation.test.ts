@@ -195,7 +195,7 @@ describe("sending a reservation", () => {
   it("keeps the reservation off our own public route, which no longer serves a quotation at all", async () => {
     // The reservation banner used to be rendered by our guest page. That page is retired, so what
     // matters now is that OUR route reveals nothing about the booking either way: the state is the
-    // customer's app's to show, on the link it minted.
+    // team estimator's to show, on the link it minted.
     const draft = await storedQuote("QT-RES-9");
     const app = appWith();
 

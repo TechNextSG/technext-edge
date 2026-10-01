@@ -9,7 +9,7 @@
  *   `ESTIMATOR_MODE=simulated` (default)  -> `simulatedEstimator.ts`
  *   `ESTIMATOR_MODE=remote`               -> `estimatorClient.ts` (their BFF, which talks to Odoo)
  *
- * The simulated side deliberately answers in the **customer's own response shape**
+ * The simulated side deliberately answers in the **team estimator's own response shape**
  * (`contracts/odoo/examples/compute.*.json` — `quotes[]` per guest, `catRev`, `kpis.revenue`),
  * not in a shape of our own. That is what makes the swap free: the studio and the guest page
  * already read the customer's shape, so pointing `ESTIMATOR_MODE` at the real BFF changes where

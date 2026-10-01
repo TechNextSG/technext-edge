@@ -500,7 +500,7 @@ export function registerQuotesRoutes(app: Hono, deps: QuotesRouteDeps): void {
         {
           ok: false,
           reason: "not_priced",
-          detail: "this quotation has no price yet — price the trip on the customer's estimator, then approve it",
+          detail: "this quotation has no price yet — price the trip on the team estimator, then approve it",
         },
         409,
       );
@@ -517,7 +517,7 @@ export function registerQuotesRoutes(app: Hono, deps: QuotesRouteDeps): void {
           ok: false,
           reason: "trip_changed",
           detail:
-            "the trip changed after it was priced — price it again on the customer's estimator, then approve",
+            "the trip changed after it was priced — price it again on the team estimator, then approve",
           fields: correctedFields,
         },
         409,

@@ -134,7 +134,7 @@ export interface HonoQuotationDraft {  quoteId: string;
    * the id and the cookie have to be kept together, next to the draft, or the second call about a
    * quotation is a 404 for a draft that exists.
    *
-   * `guestUrl` is the link the customer's app minted, and it is the ONLY link a guest is ever sent
+   * `guestUrl` is the link the team estimator minted, and it is the ONLY link a guest is ever sent
    * once the bot stops publishing its own — see `sharedAt`, which is also what locks the quotation
    * against further edits (their link always resolves to the latest saved revision).
    */

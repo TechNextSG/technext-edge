@@ -6,7 +6,7 @@
  * Why a script and not a checklist. Every part of this journey is inspectable from one side only:
  * the guest's view exists at the Graph API boundary (the webhook answers `{replied: 1}` whether the
  * reply said the right thing or not), the staff's view is behind the token, and the final link lives
- * on the customer's app. Walking it by hand means holding three windows and remembering what the
+ * on the team estimator. Walking it by hand means holding three windows and remembering what the
  * last one said. This prints the whole thing in order, in the words each side actually sees, so a
  * mismatch between them is visible on one screen instead of in an argument afterwards.
  *

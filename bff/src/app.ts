@@ -47,8 +47,6 @@ export interface AppOptions {
   provider?: ExtractProvider;
   /** The admin-editable AI settings. Injectable so a test can run the dashboard without a KV. */
   settings?: SettingsStore;
-  /** Answers the dashboard's test-call, so a test never reaches a real provider. */
-  adminFetch?: typeof fetch;
   store?: ConversationStore;
   sendWhatsApp?: WhatsAppSendText;
   /**
@@ -146,7 +144,7 @@ export function createApp(options: AppOptions = {}) {
 
   // Register modular route handlers
   registerAuthRoutes(app, { loginLimiter, setSession: setDemoSession });
-  registerAdminRoutes(app, { settings: aiSettings, guard: adminGuard, fetch: options.adminFetch });
+  registerAdminRoutes(app, { settings: aiSettings, guard: adminGuard });
   registerHealthRoutes(app);
   registerPageRoutes(app);
   registerExtractorRoutes(app, {
