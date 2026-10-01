@@ -2,7 +2,7 @@
 // so `vercel deploy` (run from root) uploads the whole workspace — including
 // ai — instead of just the bff subtree.
 import { handle } from "hono/vercel";
-import { createApp } from "../bff/src/app.js";
+import { createApp } from "../bff/src/app.ts";
 
 export const runtime = "nodejs";
 
