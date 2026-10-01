@@ -2,7 +2,8 @@
 //
 //   env.ts                       the only file that touches process.env
 //   auth/   -> env               sessions and the login limiter; knows nothing of pages, stores or services
-//   store/  -> env, quote, auth  persistence; auth only for secretBox (encrypting stored keys); no views, services or routes
+//   crypto/ -> env              encrypting stored secrets; knows nothing of stores or sessions
+//   store/  -> env, quote, crypto  persistence; no auth, views, estimator, channels or routes
 //   views/  -> store (types only) pages render what they are given; they never fetch it
 //   quote/  -> env              the quotation domain (pricing view, drafts, validity); pure, no I/O layers above it
 import { describe, it, expect } from "vitest";
@@ -77,8 +78,8 @@ describe("folders import downward only", () => {
     expect(violations("auth", filesIn("auth"), ["env"])).toEqual([]);
   });
 
-  it("store/ does not import views, services or routes", () => {
-    expect(violations("store", filesIn("store"), ["env", "quote", "auth"])).toEqual([]);
+  it("store/ does not import auth, views, estimator, channels or routes", () => {
+    expect(violations("store", filesIn("store"), ["env", "quote", "crypto"])).toEqual([]);
   });
 
   it("views/ names store types but never calls a store", () => {
@@ -93,6 +94,10 @@ import { b } from "../store/b.ts";`],
     expect(valueImportsOf("views", fake, "store")).toEqual(["views/x.ts imports store as a value"]);
   });
 
+  it("crypto/ imports nothing but env", () => {
+    expect(violations("crypto", filesIn("crypto"), ["env"])).toEqual([]);
+  });
+
   it("quote/ imports nothing but env", () => {
     expect(violations("quote", filesIn("quote"), ["env"])).toEqual([]);
   });
@@ -101,6 +106,6 @@ import { b } from "../store/b.ts";`],
     const fake: Array<[string, string]> = [
       [path.join(SRC, "store/x.ts"), `import { themeCss } from "../views/theme.ts";\nimport { kv } from "./kv.ts";\nconst m = await import("../auth/demoAuth.ts");`],
     ];
-    expect(violations("store", fake, ["env", "quote", "auth"])).toEqual(["store/x.ts imports views"]);
+    expect(violations("store", fake, ["env", "quote", "crypto"])).toEqual(["store/x.ts imports views", "store/x.ts imports auth"]);
   });
 });
