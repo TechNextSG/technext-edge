@@ -1,0 +1,183 @@
+{
+  "ranAt": "2026-10-01T06:44:52.795Z",
+  "base": "https://technext-edge-casa-bff.vercel.app",
+  "label": "load-test",
+  "phonePrefix": "63917999",
+  "phases": {
+    "cold": {
+      "idleMin": 10,
+      "healthFirstMs": 507,
+      "extractFirstMs": 4628,
+      "extractStatus": 200,
+      "healthSecondMs": 319,
+      "webhookTurnMs": 11527
+    },
+    "repeat": {
+      "runs": [
+        {
+          "run": 1,
+          "rejected": 2,
+          "n": 6,
+          "min": 3474,
+          "p50": 5284,
+          "p90": 7651,
+          "p95": 7651,
+          "max": 7651,
+          "mean": 5231
+        },
+        {
+          "run": 2,
+          "rejected": 3,
+          "n": 5,
+          "min": 2821,
+          "p50": 3883,
+          "p90": 5403,
+          "p95": 5403,
+          "max": 5403,
+          "mean": 3939
+        },
+        {
+          "run": 3,
+          "rejected": 1,
+          "n": 7,
+          "min": 3152,
+          "p50": 4864,
+          "p90": 10218,
+          "p95": 10218,
+          "max": 10218,
+          "mean": 5826
+        },
+        {
+          "run": 4,
+          "rejected": 2,
+          "n": 6,
+          "min": 5065,
+          "p50": 5556,
+          "p90": 5666,
+          "p95": 5666,
+          "max": 5666,
+          "mean": 5418
+        },
+        {
+          "run": 5,
+          "rejected": 1,
+          "n": 7,
+          "min": 3842,
+          "p50": 4614,
+          "p90": 7964,
+          "p95": 7964,
+          "max": 7964,
+          "mean": 5565
+        }
+      ],
+      "perRun": 8,
+      "p50Spread": {
+        "min": 3883,
+        "max": 5556
+      },
+      "meanSpread": {
+        "min": 3939,
+        "max": 5826
+      },
+      "rejectedTotal": 9,
+      "calls": 40
+    },
+    "concurrency": [
+      {
+        "guests": 1,
+        "wallMs": 14549,
+        "http200": 1,
+        "replied": 0,
+        "failedTurns": 1,
+        "errors": 0,
+        "n": 1,
+        "min": 14549,
+        "p50": 14549,
+        "p90": 14549,
+        "p95": 14549,
+        "max": 14549,
+        "mean": 14549
+      },
+      {
+        "guests": 3,
+        "wallMs": 13299,
+        "http200": 3,
+        "replied": 0,
+        "failedTurns": 3,
+        "errors": 0,
+        "n": 3,
+        "min": 11177,
+        "p50": 11475,
+        "p90": 13299,
+        "p95": 13299,
+        "max": 13299,
+        "mean": 11984
+      },
+      {
+        "guests": 5,
+        "wallMs": 5483,
+        "http200": 5,
+        "replied": 0,
+        "failedTurns": 5,
+        "errors": 0,
+        "n": 5,
+        "min": 4806,
+        "p50": 5112,
+        "p90": 5483,
+        "p95": 5483,
+        "max": 5483,
+        "mean": 5144
+      },
+      {
+        "guests": 10,
+        "wallMs": 13194,
+        "http200": 10,
+        "replied": 0,
+        "failedTurns": 10,
+        "errors": 0,
+        "n": 10,
+        "min": 7328,
+        "p50": 11451,
+        "p90": 13192,
+        "p95": 13192,
+        "max": 13192,
+        "mean": 10191
+      }
+    ],
+    "studio": {
+      "quotationsInStore": 15,
+      "list": {
+        "n": 20,
+        "min": 723,
+        "p50": 740,
+        "p90": 948,
+        "p95": 975,
+        "max": 975,
+        "mean": 770
+      },
+      "measuredQuote": "a benchmark draft",
+      "read": {
+        "n": 20,
+        "min": 506,
+        "p50": 523,
+        "p90": 551,
+        "p95": 649,
+        "max": 649,
+        "mean": 529
+      },
+      "studioPage": {
+        "n": 20,
+        "min": 962,
+        "p50": 1390,
+        "p90": 1602,
+        "p95": 1839,
+        "max": 1839,
+        "mean": 1307
+      }
+    },
+    "cleanup": {
+      "found": 5,
+      "removed": 5
+    }
+  }
+}

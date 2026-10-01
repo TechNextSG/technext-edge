@@ -4,13 +4,14 @@
  * server is the comparison (and the only place the WhatsApp turn and the staff routes can be timed without the
  * deployment's secrets).
  *
- *   node tools/live-eval/benchmark-report.mjs <production.json> <local.json> <out.html>
+ *   node tools/live-eval/benchmark-report.mjs <production.json> <local.json> <load-production.json> <out.html>
  */
 import { readFileSync, writeFileSync } from "node:fs";
 
-const [prodFile, localFile, outFile] = process.argv.slice(2);
-if (!prodFile || !localFile || !outFile) { console.error("usage: benchmark-report.mjs <production.json> <local.json> <out.html>"); process.exit(2); }
+const [prodFile, localFile, loadFile, outFile] = process.argv.slice(2);
+if (!prodFile || !localFile || !loadFile || !outFile) { console.error("usage: benchmark-report.mjs <production.json> <local.json> <load-production.json> <out.html>"); process.exit(2); }
 const P = JSON.parse(readFileSync(prodFile, "utf8"));
+const LD = JSON.parse(readFileSync(loadFile, "utf8")).phases;
 const L = JSON.parse(readFileSync(localFile, "utf8"));
 
 const esc = (v) => String(v ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
@@ -113,7 +114,7 @@ ul{margin:6px 0 6px 20px;padding:0}
 <body>
 <main>
 <h1>Báo cáo benchmark và latency: bản production</h1>
-<p class="sub">Kênh AI của technext-edge, đo ngày ${esc(P.ranAt.slice(0, 10))} trên <code>technext-edge-casa-bff.vercel.app</code> (bản production, commit <code>48551f4</code>, đã gồm đợt tái cấu trúc), model <code>${esc(tp.rows.find((r) => r.provider)?.provider ?? "google:gemini")}</code>. Máy đo ở local, gọi qua Internet vào Vercel (<code>iad1</code>) bằng link bypass SSO. Phần "local" bên dưới là bản so sánh trên máy phát triển.</p>
+<p class="sub">Kênh AI của technext-edge, đo ngày ${esc(P.ranAt.slice(0, 10))} trên <code>technext-edge-casa-bff.vercel.app</code> (bản production, commit <code>48551f4</code>, đã gồm đợt tái cấu trúc), model <code>${esc(tp.rows.find((r) => r.provider)?.provider ?? "google:gemini")}</code>. Máy đo ở local, gọi qua Internet vào Vercel (<code>iad1</code>) bằng link bypass SSO; phần khởi động nguội, độ dao động, nhiều khách cùng lúc và route studio đo bằng secret của production (xem mục 4). Phần "local" là bản so sánh trên máy phát triển.</p>
 
 <h2>1. Tóm tắt</h2>
 <div class="cards">
@@ -126,6 +127,8 @@ ${card("Độ trễ mạng tới Vercel", ms(P.latency.health.p50), `GET /v1/hea
 </div>
 <div class="note bad"><b>Phát hiện chính trên production.</b> ${tp.failed} trên ${tp.cases} lời gọi (${pct(tp.failed, tp.cases)}) bị từ chối, ${err429} trong số đó là <b>429 từ Gemini: key của production cũng đang ở mức quota thấp</b> (gói miễn phí cho 15 yêu cầu mỗi phút). Ở nhịp đo này (khoảng 20 tin mỗi phút) khoảng một phần tư tin của khách sẽ nhận câu trả lời lỗi. Lưu lượng thật của một resort thấp hơn nhiều so với nhịp đo, nên rủi ro thấp hơn, nhưng <b>một đợt khách nhắn cùng lúc, hoặc buổi demo chạy cả bộ test, sẽ chạm trần</b>. Cách xử lý đơn giản nhất là dùng key có quota trả phí cho production.</div>
 <div class="note ok"><b>Phần trả lời được thì tốt.</b> Không bịa trường nào, ${reqP}% trường bắt buộc đúng, bằng chứng 100% nguyên văn (${tp.evOk}/${tp.evTotal}), trường có giá đúng ${tp.prOk}/${tp.prTotal}. Một lời gọi trích xuất mất khoảng ${ms(exP.p50)}; p95 ${ms(exP.p95)} vẫn <b>chưa đạt ngưỡng 8 s</b>. Mạng chỉ thêm khoảng ${ms(overheadMs)} so với thời gian server tự đo.</div>
+
+<div class="note"><b>Các phép đo thêm trên production (mục 4).</b> Khởi động nguội sau 10 phút chỉ thêm khoảng ${ms(LD.cold.healthFirstMs - LD.cold.healthSecondMs)} (nhưng 10 phút có thể chưa đủ nguội). Qua 5 lượt lặp, p50 của extract chỉ dao động ${ms(LD.repeat.p50Spread.min)}–${ms(LD.repeat.p50Spread.max)}, còn p95 dao động từ 5,4 s đến 10,2 s: <b>một con số p95 đơn lẻ không đáng tin</b>. 10 khách nhắn cùng lúc đều được webhook nhận (200), thời gian không tăng theo số khách, lớn nhất ${ms(Math.max(...LD.concurrency.map((c) => c.max)))} (73% hạn 20 s của Meta, trên số giả). Route studio trên production chậm hơn local hàng trăm lần (trang studio ${ms(LD.studio.studioPage.p50)} với ${LD.studio.quotationsInStore} bản ghi).</div>
 
 <h2>2. Độ chính xác</h2>
 <p class="small">Hai bộ giả lập trong <code>ai/eval/</code> (không phải 30 tin thật của Eloa), chấm bằng <code>ai/eval/score.mjs</code>. Chỉ những tin <b>được trả lời</b> mới được chấm, nên các tin bị 429 làm mẫu nhỏ đi.</p>
@@ -171,9 +174,49 @@ ${prodBars}
 </table>
 <p class="small">Lần gọi đầu không chậm hơn các lần sau, nghĩa là function đã nóng khi bắt đầu đo (lượt đo chạy ngay sau hơn 40 lời gọi trích xuất). Khởi động nguội thật (sau nhiều phút không có ai gọi) <b>chưa được đo</b>.</p>
 
-<h2>4. Phần chỉ đo được ở local</h2>
-<p class="small">Hai phần sau cần secret của production (chữ ký webhook, staff key) mà người đo không có, nên chỉ chạy trên máy phát triển. Không suy ra số production từ đây.</p>
-<h3>4.1 Một lượt WhatsApp đầu–cuối (local)</h3>
+<h2>4. Production: khởi động nguội, độ dao động, nhiều khách cùng lúc, route studio</h2>
+<p class="small">Đo bằng <code>tools/live-eval/load-test.mjs</code> với <code>WHATSAPP_APP_SECRET</code> và <code>STAFF_ACCESS_KEY</code> của production. Mỗi "khách" là số giả <code>63917999NNNN</code> (không có điện thoại thật); ${LD.cleanup?.removed ?? 0} bản nháp tạo ra đã được xoá theo id sau khi đo.</p>
+
+<h3>4.1 Khởi động nguội (sau ${LD.cold.idleMin} phút không có lời gọi nào)</h3>
+<table>
+<tr><th>Phép đo</th><th class="n">Lần đầu sau khi nghỉ</th><th>So với bình thường</th></tr>
+<tr><td>GET /v1/health</td><td class="n">${ms(LD.cold.healthFirstMs)}</td><td>lần ngay sau: ${ms(LD.cold.healthSecondMs)} (chênh khoảng ${ms(LD.cold.healthFirstMs - LD.cold.healthSecondMs)})</td></tr>
+<tr><td>POST /v1/extract</td><td class="n">${ms(LD.cold.extractFirstMs)}</td><td>p50 bình thường ${ms(exP.p50)}: không thấy phạt khởi động</td></tr>
+<tr><td>Một lượt WhatsApp (webhook)</td><td class="n">${ms(LD.cold.webhookTurnMs)}</td><td>cùng loại lượt ở mục 4.3 nằm trong khoảng 5–15 s</td></tr>
+</table>
+<div class="note warn">Khởi động nguội ở đây chỉ thêm khoảng ${ms(LD.cold.healthFirstMs - LD.cold.healthSecondMs)} cho route nhẹ. <b>Nhưng 10 phút có thể chưa đủ để function thật sự bị thu hồi</b>: Vercel có thể giữ instance lâu hơn. Số này là cận dưới của chi phí khởi động nguội; muốn số chắc hơn cần đo sau nhiều giờ không có ai gọi (ví dụ sáng sớm).</div>
+
+<h3>4.2 Độ dao động giữa các lượt (5 lượt giống nhau, mỗi lượt 8 lời gọi extract)</h3>
+<table>
+<tr><th class="n">Lượt</th><th class="n">Thành công</th><th class="n">Bị từ chối</th><th class="n">p50</th><th class="n">p95</th><th class="n">max</th></tr>
+${LD.repeat.runs.map((r) => `<tr><td class="n">${r.run}</td><td class="n">${r.n}/${LD.repeat.perRun}</td><td class="n">${r.rejected}</td><td class="n">${ms(r.p50)}</td><td class="n">${ms(r.p95)}</td><td class="n">${ms(r.max)}</td></tr>`).join("")}
+</table>
+<ul>
+<li><b>p50 dao động từ ${ms(LD.repeat.p50Spread.min)} đến ${ms(LD.repeat.p50Spread.max)}</b> giữa các lượt (chênh ${ms(LD.repeat.p50Spread.max - LD.repeat.p50Spread.min)}): con số "điển hình" khá ổn, quanh 4–5,5 s.</li>
+<li><b>p95 dao động mạnh hơn nhiều</b> (từ 5,4 s đến 10,2 s), vì mỗi lượt chỉ có vài lời gọi thành công nên p95 thực chất là lời gọi chậm nhất của lượt đó. Vì vậy một lần đo p95 đơn lẻ (như 9,2 s ở mục 3) có thể lệch gần gấp đôi; chưa đủ để kết luận "đạt" hay "chưa đạt" ngưỡng 8 s chỉ bằng một con số.</li>
+<li><b>${LD.repeat.rejectedTotal}/${LD.repeat.calls} lời gọi bị từ chối (${pct(LD.repeat.rejectedTotal, LD.repeat.calls)})</b> ở nhịp 1 lời gọi mỗi 3,5 s: cùng mức với lần đo trước (12/44), nên đây là đặc tính ổn định của key hiện tại chứ không phải một lần xui.</li>
+</ul>
+
+<h3>4.3 Nhiều khách nhắn cùng một lúc (webhook ký, từ số giả)</h3>
+<table>
+<tr><th class="n">Khách cùng lúc</th><th class="n">Webhook trả 200</th><th class="n">Lượt lỗi khi gửi</th><th class="n">p50</th><th class="n">p95</th><th class="n">lớn nhất</th></tr>
+${LD.concurrency.map((c) => `<tr><td class="n">${c.guests}</td><td class="n">${c.http200}/${c.guests}</td><td class="n">${c.failedTurns}</td><td class="n">${ms(c.p50)}</td><td class="n">${ms(c.p95)}</td><td class="n">${ms(c.max)}</td></tr>`).join("")}
+</table>
+<div class="note">Điều đo được: <b>cả ${LD.concurrency.reduce((s, c) => s + c.guests, 0)} lượt đều được webhook nhận (200)</b>, kể cả khi 10 khách gửi cùng lúc; thời gian không tăng theo số khách (10 khách cùng lúc có p50 ${ms(LD.concurrency.find((c) => c.guests === 10).p50)}, không chậm hơn 1 khách đơn lẻ ${ms(LD.concurrency[0].p50)}). Chưa thấy dấu hiệu bị xếp hàng hay đổ vỡ ở mức 10 khách. Thời gian lớn nhất là ${ms(Math.max(...LD.concurrency.map((c) => c.max)))}, bằng ${Math.round(Math.max(...LD.concurrency.map((c) => c.max)) / 20000 * 100)}% hạn 20 s của Meta.</div>
+<div class="note warn"><b>Hai điều cần đọc cho đúng.</b> (1) Cột "Lượt lỗi khi gửi" luôn bằng số khách. <b>Nguyên nhân chưa được xác nhận bằng log của Vercel</b>; giả thuyết hợp lý nhất là số giả không tồn tại nên lần gửi tin qua Meta bị lỗi (ở local, khi capture host tắt, cùng hiện tượng xuất hiện). Nếu đúng, đây là hệ quả của cách đo chứ không phải lỗi của bot, và một lượt thật (gửi thành công) có thể nhanh hơn. Thời gian trên production (khoảng 5–15 s) gần gấp đôi ở local (khoảng 7 s), nhưng không tách được phần nào là gọi Meta, phần nào là Redis và mạng. (2) Mỗi mức dùng các tin đầu của cùng một danh sách (có tin hỏi chung "có mở cuối tuần này không", chuyển người ngay), nên các mức không so sánh tuyệt đối với nhau, chỉ cho thấy xu hướng.</div>
+
+<h3>4.4 Route studio trên production (${LD.studio.quotationsInStore} bản ghi trong store)</h3>
+<table>
+<tr><th>Route</th><th class="n">p50</th><th class="n">p95</th><th class="n">local (p50)</th></tr>
+<tr><td>GET /v1/quotes (danh sách)</td><td class="n">${ms(LD.studio.list.p50)}</td><td class="n">${ms(LD.studio.list.p95)}</td><td class="n">${ms(L.latency.quotationList.p50)}</td></tr>
+<tr><td>GET /v1/quotes/:id (đọc một bản ghi)</td><td class="n">${ms(LD.studio.read.p50)}</td><td class="n">${ms(LD.studio.read.p95)}</td><td class="n">${ms(L.latency.quotationRead.p50)}</td></tr>
+<tr><td>GET /quotes/:id (trang studio)</td><td class="n">${ms(LD.studio.studioPage.p50)}</td><td class="n">${ms(LD.studio.studioPage.p95)}</td><td class="n">${ms(L.latency.studioPage.p50)}</td></tr>
+</table>
+<div class="note warn">Trên production các route này chậm hơn local <b>hàng trăm lần</b>: khoảng 0,3 s là mạng, phần còn lại là các vòng gọi Redis (KV). Trang studio mất ${ms(LD.studio.studioPage.p50)} với chỉ ${LD.studio.quotationsInStore} bản ghi; trang này tải cả danh sách báo giá nên <b>thời gian có thể tăng theo số bản ghi</b> (chưa đo với nhiều bản ghi hơn, nên đây là rủi ro chứ chưa phải kết quả). Một giây rưỡi mỗi lần mở trang vẫn dùng được, nhưng đáng xem lại cách đọc danh sách (một lệnh đọc nhiều khoá thay vì từng khoá).</div>
+
+<h2>5. Đo ở local để so sánh</h2>
+<p class="small">Phần này chạy trên máy phát triển, có capture host nên đo được đến lúc tin tới khách (production gửi qua Meta thật nên không bắt được). Đừng suy ra số production từ đây; xem mục 4 cho số thật.</p>
+<h3>5.1 Một lượt WhatsApp đầu–cuối (local)</h3>
 <table>
 <tr><th>Loại lượt</th><th class="n">Số lượt</th><th class="n">p50</th><th class="n">lớn nhất</th></tr>
 <tr><td>Có gọi model</td><td class="n">${modelMs.length}</td><td class="n">${ms(q(modelMs, 0.5))}</td><td class="n">${ms(modelMs[modelMs.length - 1])}</td></tr>
@@ -181,33 +224,37 @@ ${prodBars}
 </table>
 ${turnBars}
 <p class="small">Lượt WhatsApp có model chậm nhất ở local ${ms(modelMs[modelMs.length - 1])}, so với hạn ${ms(wa.metaDeadlineMs)} của Meta. Trên production sẽ cộng thêm gọi Redis và Meta Graph cho mỗi lượt; chưa đo.</p>
-<h3>4.2 Route không dùng model (local, kho bộ nhớ)</h3>
+<h3>5.2 Route không dùng model (local, kho bộ nhớ)</h3>
 <table>
 <tr><th>Route</th><th class="n">p50</th><th class="n">p95</th></tr>
 ${[["GET /v1/quotes", L.latency.quotationList], ["GET /v1/quotes/:id", L.latency.quotationRead], ["GET /quotes/:id (trang studio)", L.latency.studioPage], ["POST /v1/quotes/compute (mô phỏng)", L.latency.estimatorCompute]].filter(([, s]) => s).map(([l, s]) => `<tr><td>${esc(l)}</td><td class="n">${ms(s.p50)}</td><td class="n">${ms(s.p95)}</td></tr>`).join("")}
 </table>
 
-<h2>5. Chưa đo, và vì sao</h2>
+<h2>6. Chưa đo, và vì sao</h2>
 <ul>
-<li><b>Lượt WhatsApp và studio trên production</b>: cần <code>WHATSAPP_APP_SECRET</code> và <code>STAFF_ACCESS_KEY</code> của production, và một chỗ bắt tin gửi đi (production gửi qua Meta thật). Nếu muốn đo, cần bạn cung cấp qua biến môi trường hoặc chạy trên một bản preview có cấu hình riêng.</li>
-<li><b>Khởi động nguội thật</b>, <b>tải đồng thời</b> (nhiều khách cùng lúc), <b>nhiều lần lặp</b> để biết độ dao động: lần đo này tuần tự và chỉ một lần.</li>
+<li><b>Khởi động nguội thật</b>: mới đo sau 10 phút nghỉ, có thể chưa đủ nguội; cần đo sau nhiều giờ không có ai gọi.</li>
+<li><b>Tải cao hơn 10 khách cùng lúc</b>, và tải kéo dài (nhiều đợt liên tiếp): mới thử một đợt cho mỗi mức.</li>
+<li><b>Lượt WhatsApp với người nhận thật</b>: số giả làm lần gửi qua Meta bị lỗi, nên chưa biết thời gian khi gửi thành công; và chưa đo trang studio với nhiều bản ghi.</li>
 <li><b>30 tin thật của Eloa</b> (<code>dataset.real.json</code>) chưa có; hai bộ giả lập không dùng để chọn model.</li>
 <li><b>Độ tự nhiên của câu trả lời</b> và câu hỏi có đúng mục tiêu không: cần người hoặc model chấm.</li>
 </ul>
 
-<h2>6. Khuyến nghị</h2>
+<h2>7. Khuyến nghị</h2>
 <ul>
 <li><b>Ưu tiên cao: key có quota trả phí cho production</b> (hoặc chạy Gemini qua gói có quota cao). 12/44 lời gọi bị từ chối ở nhịp đo là mức không chấp nhận được cho bất kỳ buổi demo nào có nhiều tin liên tiếp. Trước demo, chạy bộ test ở mức vừa phải hoặc dùng key riêng.</li>
 <li><b>Điều tra dự phòng.</b> Production có đặt <code>DEEPSEEK_GATEWAY_KEY</code> và <code>DEEPSEEK_BASE_URL</code> (xem tên biến bằng <code>vercel env ls</code>), tức là có cấu hình dự phòng sang DeepSeek, vậy mà 429 của Gemini vẫn tới được người gọi. Có thể dự phòng cũng lỗi (khoá DeepSeek local đã chết, khoá production chưa kiểm), hoặc đường <code>/v1/extract</code> không đi qua dự phòng khi gặp 429. Chưa điều tra; cần xem log của Vercel.</li>
 <li><b>p95 ≤ 8 s của extract</b> chưa đạt (${ms(exP.p95)} trên production, ${ms(exL.p95)} ở local). Hoặc nới ngưỡng, hoặc giảm lời gọi phụ; cần Lead quyết.</li>
-<li>Lặp lại phép đo này khi có key mới, với 3–5 lần chạy để có độ dao động, và thêm thử tải đồng thời.</li>
+<li><b>Xem lại cách đọc danh sách ở studio</b> (mục 4.4): 0,7 s cho danh sách và 1,4 s cho trang studio với 15 bản ghi, trên đường đọc Redis; thử với vài trăm bản ghi trước khi dữ liệu thật tích lại.</li>
+<li><b>Giữ nguyên kiến trúc trả lời nhanh cho webhook</b>: ở 10 khách cùng lúc không thấy đổ vỡ, nhưng thời gian lớn nhất đã bằng gần ba phần tư hạn của Meta (trên số giả); nếu Meta gửi lại tin, hệ thống đã chặn trùng (KB37).</li>
+<li>Lặp lại phép đo khi có key mới, và đo khởi động nguội sau một đêm không có ai gọi.</li>
 </ul>
 
-<h2>7. Phương pháp</h2>
+<h2>8. Phương pháp</h2>
 <ul>
 <li>Công cụ: <code>tools/live-eval/benchmark.mjs</code> (đo), <code>benchmark-report.mjs</code> (báo cáo). Production: <code>EVAL_BYPASS_SECRET=… node tools/live-eval/benchmark.mjs --base https://technext-edge-casa-bff.vercel.app --delay 3000 --skip whatsapp,staff</code>. Local: server dev ở cổng 8799, gọi trực tiếp.</li>
 <li>Tuần tự, một lời gọi mỗi 3–4,5 s; bộ đếm giờ bắt đầu lúc gửi request, khoảng nghỉ không tính.</li>
-<li>Dữ liệu thô: <code>${esc(prodFile.replace(/^.*docs[\\/]/, "docs/"))}</code> (production), <code>${esc(localFile.replace(/^.*docs[\\/]/, "docs/"))}</code> (local).</li>
+<li>Mục 4: <code>tools/live-eval/load-test.mjs --base https://technext-edge-casa-bff.vercel.app --secrets-file .env.local --cold-wait-min 10 --repeat 5 --per-run 8 --concurrency 1,3,5,10 --cleanup</code> (secret đọc từ file nằm ngoài git, không in ra).</li>
+<li>Dữ liệu thô: <code>${esc(prodFile.replace(/^.*docs[\\/]/, "docs/"))}</code> (production, tuần tự), <code>${esc(loadFile.replace(/^.*docs[\\/]/, "docs/"))}</code> (production, khởi động nguội, lặp, đồng thời, studio), <code>${esc(localFile.replace(/^.*docs[\\/]/, "docs/"))}</code> (local).</li>
 </ul>
 </main>
 </body>
