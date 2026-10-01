@@ -3,10 +3,10 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Casa Escondida — Bộ Test Case Demo Nâng Cao (6 Kịch Bản Khó)</title>
+  <title>Casa Escondida — Bộ Test Case Nâng Cao & Kết Quả Kỳ Vọng (Expected Outputs)</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;600&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;600;700&display=swap" rel="stylesheet">
   <style>
     :root, [data-theme="light"] {
       --bg: #f8fafc;
@@ -28,6 +28,7 @@
       --indigo-soft: #e0e7ff;
       --code-bg: #0f172a;
       --code-text: #f8fafc;
+      --table-border: #cbd5e1;
       --shadow: 0 4px 20px -2px rgba(15, 23, 42, 0.06);
     }
     [data-theme="dark"] {
@@ -50,6 +51,7 @@
       --indigo-soft: rgba(129, 140, 248, 0.12);
       --code-bg: #0b1120;
       --code-text: #e2e8f0;
+      --table-border: #2b3954;
       --shadow: 0 10px 30px -4px rgba(0, 0, 0, 0.5);
     }
     * { box-sizing: border-box; }
@@ -62,7 +64,7 @@
       padding: 32px 20px 80px;
       transition: background 0.2s, color 0.2s;
     }
-    .container { max-width: 1100px; margin: 0 auto; }
+    .container { max-width: 1180px; margin: 0 auto; }
     
     /* Header */
     header {
@@ -141,12 +143,12 @@
     .launch-btn:hover { opacity: 0.9; }
 
     /* Scenario Cards */
-    .scenarios-grid { display: flex; flex-direction: column; gap: 20px; }
+    .scenarios-grid { display: flex; flex-direction: column; gap: 28px; }
     .scenario-card {
       background: var(--card);
       border: 1px solid var(--border);
-      border-radius: 14px;
-      padding: 24px;
+      border-radius: 16px;
+      padding: 26px;
       box-shadow: var(--shadow);
       transition: border-color 0.2s;
     }
@@ -171,8 +173,8 @@
     .pill.rose { background: var(--rose-soft); color: var(--rose); }
     .pill.indigo { background: var(--indigo-soft); color: var(--indigo); }
 
-    .scenario-title { font-size: 18px; font-weight: 700; margin: 0 0 6px; }
-    .scenario-goal { font-size: 13.5px; color: var(--muted); margin: 0 0 16px; }
+    .scenario-title { font-size: 19px; font-weight: 800; margin: 0 0 6px; }
+    .scenario-goal { font-size: 14px; color: var(--muted); margin: 0 0 18px; }
 
     /* Message Box */
     .prompt-box {
@@ -182,6 +184,7 @@
       padding: 16px;
       position: relative;
       margin-bottom: 16px;
+      border: 1px solid rgba(255,255,255,0.06);
     }
     .prompt-label {
       font-size: 11px;
@@ -218,20 +221,66 @@
     }
     .copy-btn:hover { background: var(--primary); border-color: var(--primary); }
 
-    /* Architecture Breakdown Grid */
-    .deep-dive {
+    /* Expected Output Container */
+    .expected-container {
+      background: var(--card-alt);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 18px 20px;
+      margin-top: 18px;
+    }
+    .expected-title {
+      font-size: 13px;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: var(--emerald);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 14px;
+    }
+    .expected-grid {
       display: grid;
       grid-template-columns: 1fr 1fr;
-      gap: 12px;
-      background: var(--card-alt);
-      border-radius: 10px;
-      padding: 14px 16px;
+      gap: 16px;
+    }
+    @media(max-width: 840px) { .expected-grid { grid-template-columns: 1fr; } }
+
+    .box-sub {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 14px;
       font-size: 13px;
     }
-    @media(max-width: 720px) { .deep-dive { grid-template-columns: 1fr; } }
-    .deep-dive b { color: var(--primary); display: block; margin-bottom: 3px; font-size: 12.5px; }
-    .deep-dive ul { margin: 0; padding-left: 18px; }
-    .deep-dive li { margin-bottom: 3px; }
+    .box-sub b { display: block; color: var(--primary); font-size: 12.5px; margin-bottom: 8px; font-weight: 700; }
+    .box-sub ul { margin: 0; padding-left: 18px; }
+    .box-sub li { margin-bottom: 4px; }
+    .bot-reply {
+      font-style: italic;
+      color: var(--text);
+      line-height: 1.5;
+      border-left: 3px solid var(--emerald);
+      padding-left: 10px;
+      margin: 4px 0 0;
+    }
+
+    /* Price Table */
+    .price-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 8px;
+      font-size: 12.5px;
+    }
+    .price-table th, .price-table td {
+      border: 1px solid var(--table-border);
+      padding: 6px 10px;
+      text-align: left;
+    }
+    .price-table th { background: var(--card-alt); font-weight: 700; color: var(--muted); }
+    .price-table td.num { text-align: right; font-family: 'JetBrains Mono', monospace; font-weight: 600; }
+    .price-table tr.total-row { font-weight: 800; background: var(--primary-soft); color: var(--primary); }
 
     /* Toast Notification */
     #toast {
@@ -256,18 +305,17 @@
 </head>
 <body>
 
-<div id="toast">✓ Đã sao chép tin nhắn vào clipboard!</div>
+<div id="toast">✓ Đã sao chép prompt! Dán vào WhatsApp để test</div>
 
 <div class="container">
   <header>
     <div>
-      <div class="badge">TechNext Edge · QA/QC Suite</div>
-      <h1>Bộ 6 Test Case Demo Nâng Cao (Stress &amp; Edge Cases)</h1>
-      <p class="lead">Được thiết kế riêng cho buổi Code Review và Nghiệm thu Hệ thống Casa Escondida AI Booking Engine</p>
+      <div class="badge">TechNext Edge · QA/QC Acceptance Matrix</div>
+      <h1>Bộ 6 Test Case Nâng Cao &amp; Kết Quả Kỳ Vọng (Expected Outputs)</h1>
+      <p class="lead">Đầy đủ Input mẫu, Phản hồi của Bot, Trích xuất Schema, Bảng tính giá chi tiết và Tiêu chí nghiệm thu.</p>
     </div>
     <div class="top-actions">
       <button class="btn-toggle" onclick="toggleTheme()" id="themeBtn">🌙 Dark Mode</button>
-      <button class="btn-toggle" onclick="toggleLang()" id="langBtn">🌐 EN / VI</button>
     </div>
   </header>
 
@@ -282,10 +330,10 @@
     </div>
     <div class="launch-card">
       <div>
-        <b>Simulated Mode (Offline)</b>
-        <span>Báo giá mẫu QT-1010-SKY</span>
+        <b>Seed Quotation (Simulated)</b>
+        <span>Test mẫu QT-1010-SKY</span>
       </div>
-      <a href="https://technext-edge-casa-bff-sim.vercel.app/quotes/QT-1010-SKY" target="_blank" class="launch-btn">Mở Sim →</a>
+      <a href="https://technext-edge-casa-bff.vercel.app/quotes/QT-1010-SKY" target="_blank" class="launch-btn">Mở QT-1010-SKY →</a>
     </div>
     <div class="launch-card">
       <div>
@@ -303,16 +351,16 @@
       <div class="card-top">
         <div class="pills">
           <span class="pill amber">Độ khó: 4/5</span>
-          <span class="pill indigo">Multi-Party &amp; Courses</span>
+          <span class="pill indigo">Multi-Party &amp; Course Rates</span>
         </div>
         <span style="font-size:12px;color:var(--muted);font-weight:600;">Scenario 01</span>
       </div>
       <h2 class="scenario-title">1. Nhóm hỗn hợp: Thợ lặn + Học viên lấy bằng AOW + Nghỉ dưỡng</h2>
-      <p class="scenario-goal">Thử thách khả năng trích xuất đa thực thể: 3 người với 3 nhu cầu khác nhau chia vào 2 phòng, tự động gán khóa học lặn và học phí.</p>
+      <p class="scenario-goal">Thử thách trích xuất đa thực thể: 3 người với 3 nhu cầu khác nhau chia vào 2 phòng (1 Standard + 1 Deluxe), tự động cộng khóa học AOW.</p>
       
       <div class="prompt-box">
         <div class="prompt-label">
-          <span>Tin nhắn WhatsApp (Copy để gửi cho bot)</span>
+          <span>Input Message (Gửi vào WhatsApp)</span>
           <button class="copy-btn" onclick="copyText('p1')">📋 Copy Prompt</button>
         </div>
         <p class="prompt-text" id="p1">Hi Casa Escondida! We are a group of 3 friends planning a trip from Dec 10 to Dec 13 with full board. 
@@ -324,22 +372,49 @@ Regarding activities:
 Can you give us a detailed quotation?</p>
       </div>
 
-      <div class="deep-dive">
-        <div>
-          <b>Cơ chế xử lý kỹ thuật</b>
-          <ul>
-            <li><code>counts.ts</code>: Tách đúng 3 khách, gán diver cho 2 người, 1 non-diver.</li>
-            <li><code>rates.ts</code>: Khóa AOW tự cộng học phí ₱18,000 vào folio của John.</li>
-            <li>Tiền phòng tự chia theo tỷ lệ roommates (<code>nightly / occupancy</code>).</li>
-          </ul>
-        </div>
-        <div>
-          <b>Điểm cần chỉ cho Duy xem</b>
-          <ul>
-            <li>Studio hiển thị rành mạch 3 cột folio cho 3 người.</li>
-            <li>Bữa ăn Full board tính đều cả 3 khách (Meals are never discounted).</li>
-            <li>Bảng giá Odoo fixture hiển thị đầy đủ category: Room, Meals, Dive, Course.</li>
-          </ul>
+      <!-- Expected Output Box -->
+      <div class="expected-container">
+        <div class="expected-title">🎯 Kết Quả Đầu Ra Kỳ Vọng &amp; Tiêu Chí Nghiệm Thu (Acceptance Criteria)</div>
+        <div class="expected-grid">
+          
+          <div class="box-sub">
+            <b>1. Bot Reply Kỳ Vọng (WhatsApp)</b>
+            <p class="bot-reply">
+              "Thanks! I've noted down your group of 3 guests from Dec 10 to Dec 13 (3 nights) with Full Board, staying in 1 Standard and 1 Deluxe room.<br>
+              • 1 certified diver (Dec 11–12)<br>
+              • John taking Advanced Open Water (AOW)<br>
+              • 1 non-diver (relaxation &amp; meals)<br>
+              Our reservation team will prepare your itemized quotation shortly — nothing is booked yet!"
+            </p>
+            <b style="margin-top:12px;">2. Schema Trích Xuất (BffTrip)</b>
+            <ul>
+              <li><code>checkIn: "2026-12-10"</code>, <code>checkOut: "2026-12-13"</code> (3 nights).</li>
+              <li><code>stayingGuests: 3</code>, <code>rooms: 2</code> (1 standard + 1 deluxe).</li>
+              <li><code>guests[1].courses: ["aow"]</code> (Gán AOW đúng cho John).</li>
+              <li><code>guests[2].diver: false</code> (Người thứ 3 không lặn).</li>
+            </ul>
+          </div>
+
+          <div class="box-sub">
+            <b>3. Bảng Giá Kỳ Vọng (Priced by Estimator)</b>
+            <table class="price-table">
+              <tr><th>Hạng mục</th><th>Công thức tính</th><th style="text-align:right;">Thành tiền</th></tr>
+              <tr><td>Phòng Standard (1 người)</td><td>₱7,600 × 3 đêm</td><td class="num">₱22,800</td></tr>
+              <tr><td>Phòng Deluxe (2 người)</td><td>₱11,200 × 3 đêm</td><td class="num">₱33,600</td></tr>
+              <tr><td>Ăn Full board (3 khách)</td><td>3 khách × 3 ngày × ₱1,500</td><td class="num">₱13,500</td></tr>
+              <tr><td>Khóa học AOW (John)</td><td>Học phí cố định (rates.ts)</td><td class="num">₱18,000</td></tr>
+              <tr><td>Boat Dives (Khách 1)</td><td>Tier 1 diver (2 ngày × ₱10,000)</td><td class="num">₱20,000</td></tr>
+              <tr class="total-row"><td>TỔNG CỘNG</td><td>Tất cả chi phí</td><td class="num">₱107,900</td></tr>
+              <tr><td>Đặt cọc 50% Due Now</td><td>50% Tổng hóa đơn</td><td class="num" style="color:var(--emerald);font-weight:700;">₱53,950</td></tr>
+            </table>
+
+            <b style="margin-top:12px;">4. Tiêu chí ĐẠT / KHÔNG ĐẠT</b>
+            <ul>
+              <li><span style="color:var(--emerald);font-weight:700;">✓ ĐẠT:</span> Không hỏi lại ai lặn; John có đúng dòng ₱18,000 AOW; chia đúng 3 folio.</li>
+              <li><span style="color:var(--rose);font-weight:700;">✗ KHÔNG ĐẠT:</span> Đánh đồng cả 3 người đi lặn hoặc không nhận diện được khóa học AOW.</li>
+            </ul>
+          </div>
+
         </div>
       </div>
     </article>
@@ -349,16 +424,16 @@ Can you give us a detailed quotation?</p>
       <div class="card-top">
         <div class="pills">
           <span class="pill emerald">Độ khó: 4/5</span>
-          <span class="pill indigo">Vietnamese NLU</span>
+          <span class="pill indigo">Vietnamese NLU &amp; Auto-Split</span>
         </div>
         <span style="font-size:12px;color:var(--muted);font-weight:600;">Scenario 02</span>
       </div>
       <h2 class="scenario-title">2. Ngôn ngữ bản địa: Tiếng Việt đời thường &amp; Ăn trọn gói</h2>
-      <p class="scenario-goal">Chứng minh khả năng nhận diện tiếng Việt tự nhiên, xử lý ngày tháng theo cú pháp Việt Nam và map thuật ngữ du lịch (ăn trọn gói = full board).</p>
+      <p class="scenario-goal">Chứng minh năng lực đa ngôn ngữ: Nhận diện tiếng Việt tự nhiên, xử lý ngày tháng viết tắt ("16 và 17/12"), map "ăn trọn gói 3 bữa" thành full board.</p>
       
       <div class="prompt-box">
         <div class="prompt-label">
-          <span>Tin nhắn WhatsApp (Copy để gửi cho bot)</span>
+          <span>Input Message (Gửi vào WhatsApp)</span>
           <button class="copy-btn" onclick="copyText('p2')">📋 Copy Prompt</button>
         </div>
         <p class="prompt-text" id="p2">Chào Casa Escondida, team mình có 4 người muốn book chuyến đi từ ngày 15 đến 18 tháng 12 tới. 
@@ -367,21 +442,48 @@ Cả 4 đứa đều muốn đi lặn biển trong 2 ngày 16 và 17/12.
 Báo giá chi tiết giúp mình với nhé!</p>
       </div>
 
-      <div class="deep-dive">
-        <div>
-          <b>Cơ chế xử lý kỹ thuật</b>
-          <ul>
-            <li><code>detectLanguage</code>: Nhận diện mã <code>vi</code> $\rightarrow$ Bot trả lời 100% tiếng Việt.</li>
-            <li><code>dates.ts</code>: Bắt đúng Check-in 15/12, Check-out 18/12 (3 đêm) và lặn 16-17/12.</li>
-            <li>Tự động map "ăn trọn gói 3 bữa" $\rightarrow$ <code>mealPlan: "full_board"</code>.</li>
-          </ul>
-        </div>
-        <div>
-          <b>Điểm cần chỉ cho Duy xem</b>
-          <ul>
-            <li>Bot phản hồi văn phong lịch thiệp, tự nhiên chuẩn resort.</li>
-            <li>Bản nháp trong Studio điền sẵn số phòng: 2 Standard (đúng max 2 người/phòng).</li>
-          </ul>
+      <!-- Expected Output Box -->
+      <div class="expected-container">
+        <div class="expected-title">🎯 Kết Quả Đầu Ra Kỳ Vọng &amp; Tiêu Chí Nghiệm Thu (Acceptance Criteria)</div>
+        <div class="expected-grid">
+          
+          <div class="box-sub">
+            <b>1. Bot Reply Kỳ Vọng (WhatsApp)</b>
+            <p class="bot-reply">
+              "Chào bạn! Cảm ơn bạn đã liên hệ Casa Escondida.<br>
+              Mình đã ghi nhận yêu cầu của nhóm 4 khách từ 15/12 đến 18/12/2026 (3 đêm):<br>
+              • 2 phòng Standard<br>
+              • Ăn trọn gói 3 bữa (Full board)<br>
+              • 4 người lặn biển trong 2 ngày 16 và 17/12.<br>
+              Đội ngũ đặt phòng sẽ chuẩn bị bảng báo giá chi tiết gửi đến bạn sớm nhé!"
+            </p>
+            <b style="margin-top:12px;">2. Schema Trích Xuất (BffTrip)</b>
+            <ul>
+              <li><code>checkIn: "2026-12-15"</code>, <code>checkOut: "2026-12-18"</code> (3 nights).</li>
+              <li><code>mealPlan: "full_board"</code> (Map từ "ăn trọn gói 3 bữa").</li>
+              <li><code>rooms: 2</code> (Standard, mỗi phòng đúng 2 người).</li>
+              <li><code>diveDates: ["2026-12-16", "2026-12-17"]</code> (4 thợ lặn cả 2 ngày).</li>
+            </ul>
+          </div>
+
+          <div class="box-sub">
+            <b>3. Bảng Giá Kỳ Vọng (Priced by Estimator)</b>
+            <table class="price-table">
+              <tr><th>Hạng mục</th><th>Công thức tính</th><th style="text-align:right;">Thành tiền</th></tr>
+              <tr><td>2 Phòng Standard (4 khách)</td><td>2 phòng × ₱9,600 × 3 đêm</td><td class="num">₱57,600</td></tr>
+              <tr><td>Suất ăn Full board (4 khách)</td><td>4 khách × 3 ngày × ₱1,500</td><td class="num">₱18,000</td></tr>
+              <tr><td>Tiền lặn thuyền (4 divers)</td><td>Tier 3-5 divers (₱4,500/người/ngày × 4 divers × 2 ngày)</td><td class="num">₱36,000</td></tr>
+              <tr class="total-row"><td>TỔNG CỘNG</td><td>Tất cả chi phí</td><td class="num">₱111,600</td></tr>
+              <tr><td>Đặt cọc 50% Due Now</td><td>50% Tổng hóa đơn</td><td class="num" style="color:var(--emerald);font-weight:700;">₱55,800</td></tr>
+            </table>
+
+            <b style="margin-top:12px;">4. Tiêu chí ĐẠT / KHÔNG ĐẠT</b>
+            <ul>
+              <li><span style="color:var(--emerald);font-weight:700;">✓ ĐẠT:</span> Trả lời 100% tiếng Việt; tier lặn áp dụng đúng mức ₱4,500 (nhóm 4 người); chia đều 2 phòng standard.</li>
+              <li><span style="color:var(--rose);font-weight:700;">✗ KHÔNG ĐẠT:</span> Trả lời bằng tiếng Anh, hoặc tính nhầm ngày check-in/out.</li>
+            </ul>
+          </div>
+
         </div>
       </div>
     </article>
@@ -391,12 +493,12 @@ Báo giá chi tiết giúp mình với nhé!</p>
       <div class="card-top">
         <div class="pills">
           <span class="pill rose">Độ khó: 5/5</span>
-          <span class="pill indigo">State Machine &amp; Fact Gate</span>
+          <span class="pill indigo">State Machine &amp; Approval Revoke</span>
         </div>
         <span style="font-size:12px;color:var(--muted);font-weight:600;">Scenario 03</span>
       </div>
       <h2 class="scenario-title">3. Khách đổi ý liên tục: Thêm người, tăng số đêm &amp; thêm lặn</h2>
-      <p class="scenario-goal">Thử thách bộ nhớ hội thoại và máy trạng thái. Khách thay đổi các thông số quan trọng (priced facts) sau khi đơn đã được tạo.</p>
+      <p class="scenario-goal">Thử thách máy trạng thái: Duy trì 1 quotation duy nhất; tự động thu hồi trạng thái Approved khi khách đổi các thông số nhạy cảm (Priced Facts).</p>
       
       <div class="prompt-box">
         <div class="prompt-label">
@@ -408,28 +510,53 @@ Báo giá chi tiết giúp mình với nhé!</p>
 
       <div class="prompt-box">
         <div class="prompt-label">
-          <span>Lượt 2: Khách đổi ý (Gửi sau khi bot trả lời)</span>
+          <span>Lượt 2: Khách đổi ý (Gửi sau khi bot xác nhận Lượt 1)</span>
           <button class="copy-btn" onclick="copyText('p3b')">📋 Copy Lượt 2</button>
         </div>
         <p class="prompt-text" id="p3b">Wait, change of plans! My brother is joining so we are 3 people now. 
 And could we extend checkout to Dec 8? Also we want to do boat diving on Dec 6.</p>
       </div>
 
-      <div class="deep-dive">
-        <div>
-          <b>Cơ chế xử lý kỹ thuật</b>
-          <ul>
-            <li><code>oneEnquiryOneQuotation.test.ts</code>: Giữ đúng 1 quotation ID duy nhất.</li>
-            <li><code>pricedFactsChanged</code>: Tự động thu hồi cờ Approve cũ để chống thất thoát.</li>
-            <li><code>diffBffTrip</code>: Lưu lại vết sửa đổi của từng trường dữ liệu.</li>
-          </ul>
-        </div>
-        <div>
-          <b>Điểm cần chỉ cho Duy xem</b>
-          <ul>
-            <li>Studio tự động cập nhật số khách (2 $\rightarrow$ 3), số đêm (2 $\rightarrow$ 3 đêm).</li>
-            <li>Hệ thống yêu cầu re-price với BFF trước khi cho phép Approve lại.</li>
-          </ul>
+      <!-- Expected Output Box -->
+      <div class="expected-container">
+        <div class="expected-title">🎯 Kết Quả Đầu Ra Kỳ Vọng &amp; Tiêu Chí Nghiệm Thu (Acceptance Criteria)</div>
+        <div class="expected-grid">
+          
+          <div class="box-sub">
+            <b>1. Bot Reply Kỳ Vọng Lượt 2</b>
+            <p class="bot-reply">
+              "No problem, Alex! I've updated your reservation details:<br>
+              • Group size: 3 guests (Dec 5 to Dec 8 — 3 nights)<br>
+              • Meals: Full board<br>
+              • Diving: 3 divers on Dec 6.<br>
+              I will refresh your quotation with these new dates and headcount!"
+            </p>
+            <b style="margin-top:12px;">2. Máy Trạng Thái Studio</b>
+            <ul>
+              <li><b>Quotation ID:</b> Giữ nguyên mã <code>QT-...</code>, không sinh bản ghi thứ 2.</li>
+              <li><b>Status:</b> Nếu trước đó là <code>confirmed_by_hono</code> $\rightarrow$ Tự động chuyển về <code>pending_hono_review</code>.</li>
+              <li><b>Bắt buộc:</b> Nút <i>Save &amp; get price</i> bật sáng, buộc nhân viên phải bấm tính giá lại.</li>
+            </ul>
+          </div>
+
+          <div class="box-sub">
+            <b>3. So Sánh Bảng Giá Cũ vs Mới</b>
+            <table class="price-table">
+              <tr><th>Trường</th><th>Lượt 1 (Ban đầu)</th><th>Lượt 2 (Sau khi đổi)</th></tr>
+              <tr><td>Khách &amp; Đêm</td><td>2 khách, 2 đêm</td><td><b>3 khách, 3 đêm</b></td></tr>
+              <tr><td>Tiền phòng</td><td>₱19,200 (₱9,600 × 2)</td><td><b>₱34,200</b> (₱11,400 × 3)</td></tr>
+              <tr><td>Tiền ăn</td><td>₱6,000 (2 × 2 × 1.5k)</td><td><b>₱13,500</b> (3 × 3 × 1.5k)</td></tr>
+              <tr><td>Tiền lặn</td><td>₱0 (No diving)</td><td><b>₱13,500</b> (3 divers × ₱4,500)</td></tr>
+              <tr class="total-row"><td>TỔNG TIỀN</td><td>₱25,200</td><td style="color:var(--emerald);"><b>₱61,200</b></td></tr>
+            </table>
+
+            <b style="margin-top:12px;">4. Tiêu chí ĐẠT / KHÔNG ĐẠT</b>
+            <ul>
+              <li><span style="color:var(--emerald);font-weight:700;">✓ ĐẠT:</span> Giữ đúng 1 ID duy nhất; tự hủy trạng thái Approve cũ; tổng tiền cập nhật đúng ₱61,200.</li>
+              <li><span style="color:var(--rose);font-weight:700;">✗ KHÔNG ĐẠT:</span> Sinh ra 2 quotation trùng lặp trên Studio, hoặc để nguyên giá cũ ₱25,200 gửi cho khách.</li>
+            </ul>
+          </div>
+
         </div>
       </div>
     </article>
@@ -439,36 +566,62 @@ And could we extend checkout to Dec 8? Also we want to do boat diving on Dec 6.<
       <div class="card-top">
         <div class="pills">
           <span class="pill amber">Độ khó: 4/5</span>
-          <span class="pill indigo">Logistics &amp; Van Split</span>
+          <span class="pill indigo">Van Logistics &amp; Split</span>
         </div>
         <span style="font-size:12px;color:var(--muted);font-weight:600;">Scenario 04</span>
       </div>
       <h2 class="scenario-title">4. Đưa đón sân bay &amp; Thuật toán chia xe van (Nhóm 7 khách)</h2>
-      <p class="scenario-goal">Thử thách năng lực logistics: Nhóm 7 người vượt quá sức chứa tối đa 1 xe van (6 chỗ) của resort $\rightarrow$ Thuật toán phải tự điều 2 xe.</p>
+      <p class="scenario-goal">Thử thách năng lực logistics: 1 xe van chỉ chở tối đa 6 khách. Nhóm 7 khách $\rightarrow$ Hệ thống phải tự điều động **2 xe van khứ hồi** và chia đều tiền xe.</p>
       
       <div class="prompt-box">
         <div class="prompt-label">
-          <span>Tin nhắn WhatsApp (Copy để gửi cho bot)</span>
+          <span>Input Message (Gửi vào WhatsApp)</span>
           <button class="copy-btn" onclick="copyText('p4')">📋 Copy Prompt</button>
         </div>
         <p class="prompt-text" id="p4">Hello, we are a group of 7 guests staying from Dec 20 to Dec 22. 
 We need full board, diving on Dec 21, and we definitely need private roundtrip van transfer from Manila for all 7 of us.</p>
       </div>
 
-      <div class="deep-dive">
-        <div>
-          <b>Cơ chế xử lý kỹ thuật</b>
-          <ul>
-            <li><code>vansForGuests(7) = 2 vans</code>: Tự động tính 2 xe khứ hồi Manila - Anilao.</li>
-            <li>Bổ đều chi phí 2 xe van cho 7 khách (<code>van split</code>).</li>
-            <li>Kiểm soát danh mục doanh thu <code>catRev.transport</code> chuẩn xác.</li>
-          </ul>
-        </div>
-        <div>
-          <b>Điểm cần chỉ cho Duy xem</b>
-          <ul>
-            <li>Mở trang Vận hành Ops Sheet (<code>/ops</code>): Thấy rõ lịch điều 2 xe đón và 2 xe tiễn.</li>
-          </ul>
+      <!-- Expected Output Box -->
+      <div class="expected-container">
+        <div class="expected-title">🎯 Kết Quả Đầu Ra Kỳ Vọng &amp; Tiêu Chí Nghiệm Thu (Acceptance Criteria)</div>
+        <div class="expected-grid">
+          
+          <div class="box-sub">
+            <b>1. Bot Reply Kỳ Vọng (WhatsApp)</b>
+            <p class="bot-reply">
+              "Hello! I've noted down your group reservation for 7 guests from Dec 20 to Dec 22 (2 nights):<br>
+              • Full board meals for 7 guests<br>
+              • Diving on Dec 21 for 7 divers<br>
+              • Private roundtrip van transfer from Manila (2 vans arranged for your 7-person group).<br>
+              Our team will prepare your quotation shortly!"
+            </p>
+            <b style="margin-top:12px;">2. Thuật toán Logistics (vansForGuests)</b>
+            <ul>
+              <li><code>vansForGuests(7) = 2 vans</code> (Vì 1 van max 6 pax).</li>
+              <li><code>vanPrice.roundtrip = ₱12,000 / van</code> $\rightarrow$ 2 van = <b>₱24,000</b>.</li>
+              <li><code>vanSplit</code>: ₱24,000 chia đều cho 7 khách = <b>₱3,428.57 / người</b>.</li>
+            </ul>
+          </div>
+
+          <div class="box-sub">
+            <b>3. Bảng Giá &amp; Ops Sheet Kỳ Vọng</b>
+            <table class="price-table">
+              <tr><th>Hạng mục</th><th>Cách tính</th><th style="text-align:right;">Thành tiền</th></tr>
+              <tr><td>Phòng ở (4 phòng)</td><td>3 Standard đôi + 1 Standard đơn (2 đêm)</td><td class="num">₱72,800</td></tr>
+              <tr><td>Suất ăn Full board</td><td>7 khách × 2 ngày × ₱1,500</td><td class="num">₱21,000</td></tr>
+              <tr><td>Tiền lặn (7 divers)</td><td>Tier 6+ divers (₱4,000 × 7 divers)</td><td class="num">₱28,000</td></tr>
+              <tr><td>Xe van đưa đón khứ hồi</td><td><b>2 xe van</b> × ₱12,000</td><td class="num" style="color:var(--indigo);font-weight:700;">₱24,000</td></tr>
+              <tr class="total-row"><td>TỔNG CỘNG</td><td>Tất cả chi phí</td><td class="num">₱145,800</td></tr>
+            </table>
+
+            <b style="margin-top:12px;">4. Tiêu chí ĐẠT / KHÔNG ĐẠT</b>
+            <ul>
+              <li><span style="color:var(--emerald);font-weight:700;">✓ ĐẠT:</span> Tính đúng 2 xe van (₱24,000) thay vì 1 xe; trang <code>/ops</code> hiện đủ 2 xe đón ngày 20 và 2 xe tiễn ngày 22.</li>
+              <li><span style="color:var(--rose);font-weight:700;">✗ KHÔNG ĐẠT:</span> Chỉ tính 1 xe van ₱12,000 (vi phạm sức chứa an toàn giao thông).</li>
+            </ul>
+          </div>
+
         </div>
       </div>
     </article>
@@ -478,37 +631,60 @@ We need full board, diving on Dec 21, and we definitely need private roundtrip v
       <div class="card-top">
         <div class="pills">
           <span class="pill amber">Độ khó: 4/5</span>
-          <span class="pill indigo">B2B Partner Pricing</span>
+          <span class="pill indigo">B2B Partner Rate Discipline</span>
         </div>
         <span style="font-size:12px;color:var(--muted);font-weight:600;">Scenario 05</span>
       </div>
-      <h2 class="scenario-title">5. Khách B2B: Đại lý / HLV dạy lặn đòi giảm giá 30%</h2>
-      <p class="scenario-goal">Kiểm tra chính sách giá sỉ B2B đối với HLV lặn dẫn học viên: Giảm đúng 30% tiền phòng, tuyệt đối không giảm tiền ăn.</p>
+      <h2 class="scenario-title">5. Khách B2B: HLV dạy lặn đòi chiết khấu Partner 30%</h2>
+      <p class="scenario-goal">Kiểm tra chính sách giá B2B: Chiết khấu đúng 30% tiền phòng, **tuyệt đối KHÔNG chiết khấu tiền ăn**; kích hoạt Agent View đối chiếu.</p>
       
       <div class="prompt-box">
         <div class="prompt-label">
-          <span>Tin nhắn WhatsApp (Copy để gửi cho bot)</span>
+          <span>Input Message (Gửi vào WhatsApp)</span>
           <button class="copy-btn" onclick="copyText('p5')">📋 Copy Prompt</button>
         </div>
         <p class="prompt-text" id="p5">Hi Casa Escondida, I am a certified PADI Dive Instructor bringing 4 students for a dive trip from Dec 12 to 14. 
 Do you offer instructor/partner rates for accommodation and diving?</p>
       </div>
 
-      <div class="deep-dive">
-        <div>
-          <b>Cơ chế xử lý kỹ thuật</b>
-          <ul>
-            <li><code>classifyEnquiry</code>: Nhận diện intent đối tác B2B (<code>instructor</code>).</li>
-            <li><code>rates.ts</code>: Giảm 30% tiền phòng (<code>PARTNER_DISCOUNT_PCT</code>).</li>
-            <li>Quy tắc bất biến: Suất ăn Full board ₱1,500/ngày không bị giảm giá.</li>
-          </ul>
-        </div>
-        <div>
-          <b>Điểm cần chỉ cho Duy xem</b>
-          <ul>
-            <li>Tính năng <b>Agent View</b> trên Studio: Đặt 2 bảng giá Retail và Partner song song.</li>
-            <li>Bot không tự tiện hứa hẹn giảm giá trên chat khi chưa có phê duyệt của Staff.</li>
-          </ul>
+      <!-- Expected Output Box -->
+      <div class="expected-container">
+        <div class="expected-title">🎯 Kết Quả Đầu Ra Kỳ Vọng &amp; Tiêu Chí Nghiệm Thu (Acceptance Criteria)</div>
+        <div class="expected-grid">
+          
+          <div class="box-sub">
+            <b>1. Bot Reply Kỳ Vọng (Không tự hứa giảm giá)</b>
+            <p class="bot-reply">
+              "Hello Instructor! Thank you for considering Casa Escondida for your students.<br>
+              I have noted down your trip details for 5 guests from Dec 12 to Dec 14.<br>
+              We do offer partner and instructor arrangements! Our management team will review your credentials and apply the appropriate partner rate on your quotation."
+            </p>
+            <b style="margin-top:12px;">2. Kỷ Luật Chính Sách Giá (rates.ts)</b>
+            <ul>
+              <li><code>PARTNER_DISCOUNT_PCT = 30</code>: Áp dụng duy nhất trên dòng tiền phòng.</li>
+              <li><b>Quy tắc bất biến:</b> Tiền ăn ₱1,500/ngày giữ nguyên 100% (không bao giờ giảm).</li>
+              <li><b>Agent View:</b> Studio hiển thị cột so sánh Retail vs Partner.</li>
+            </ul>
+          </div>
+
+          <div class="box-sub">
+            <b>3. Bảng Giá So Sánh: Bán Lẻ (Retail) vs Đối Tác (Partner)</b>
+            <table class="price-table">
+              <tr><th>Hạng mục</th><th>Giá Bán Lẻ (Retail)</th><th>Giá Đối Tác (Partner)</th></tr>
+              <tr><td>Tiền phòng (3 Standard)</td><td>₱57,600</td><td class="num" style="color:var(--emerald);"><b>₱40,320</b> (-30%)</td></tr>
+              <tr><td>Suất ăn Full board</td><td>₱15,000</td><td class="num">₱15,000 (0% off)</td></tr>
+              <tr><td>Tiền lặn (5 divers)</td><td>₱45,000</td><td class="num">₱45,000</td></tr>
+              <tr class="total-row"><td>TỔNG CỘNG</td><td>₱117,600</td><td class="num" style="color:var(--emerald);font-weight:800;">₱100,320</td></tr>
+              <tr><td>Tiết kiệm đối tác</td><td colspan="2" style="text-align:center;font-weight:700;color:var(--emerald);">Tiết kiệm đúng ₱17,280 (30% tiền phòng)</td></tr>
+            </table>
+
+            <b style="margin-top:12px;">4. Tiêu chí ĐẠT / KHÔNG ĐẠT</b>
+            <ul>
+              <li><span style="color:var(--emerald);font-weight:700;">✓ ĐẠT:</span> Giảm đúng 30% tiền phòng; tiền ăn giữ nguyên ₱15,000; bot không tự ý cấp mã giảm giá trên WhatsApp.</li>
+              <li><span style="color:var(--rose);font-weight:700;">✗ KHÔNG ĐẠT:</span> Giảm 30% trên toàn bộ tổng bill (vi phạm chính sách resort).</li>
+            </ul>
+          </div>
+
         </div>
       </div>
     </article>
@@ -523,30 +699,45 @@ Do you offer instructor/partner rates for accommodation and diving?</p>
         <span style="font-size:12px;color:var(--muted);font-weight:600;">Scenario 06</span>
       </div>
       <h2 class="scenario-title">6. Phòng thủ gian lận: Nhồi nhét 5 người vào 1 phòng Standard</h2>
-      <p class="scenario-goal">Kiểm tra phòng thủ biên: Khách cố tình yêu cầu nhồi 5 người lớn vào 1 phòng duy nhất (vượt quá công suất tối đa của resort).</p>
+      <p class="scenario-goal">Kiểm tra phòng thủ biên: Khách cố tình yêu cầu nhồi 5 người lớn vào 1 phòng duy nhất (vượt quá công suất tối đa của resort) để ép giá rẻ.</p>
       
       <div class="prompt-box">
         <div class="prompt-label">
-          <span>Tin nhắn WhatsApp (Copy để gửi cho bot)</span>
+          <span>Input Message (Gửi vào WhatsApp)</span>
           <button class="copy-btn" onclick="copyText('p6')">📋 Copy Prompt</button>
         </div>
         <p class="prompt-text" id="p6">Hi, we have 5 adults visiting from Dec 10 to 12. We want to save money so please put all 5 of us into just 1 single Standard room. Can you send the quote?</p>
       </div>
 
-      <div class="deep-dive">
-        <div>
-          <b>Cơ chế xử lý kỹ thuật</b>
-          <ul>
-            <li><code>roomCapacity.ts</code>: Standard room max occupancy = 2 khách.</li>
-            <li>AI từ chối lịch sự, đề xuất phương án an toàn (tối thiểu 3 phòng Standard).</li>
-            <li><code>p5-guest-facing-gate.ts</code>: Chặn không cho tạo báo giá sai luật nhà.</li>
-          </ul>
-        </div>
-        <div>
-          <b>Điểm cần chỉ cho Duy xem</b>
-          <ul>
-            <li>Hệ thống bảo vệ quy định resort, không chiều theo khách để sinh dữ liệu sai.</li>
-          </ul>
+      <!-- Expected Output Box -->
+      <div class="expected-container">
+        <div class="expected-title">🎯 Kết Quả Đầu Ra Kỳ Vọng &amp; Tiêu Chí Nghiệm Thu (Acceptance Criteria)</div>
+        <div class="expected-grid">
+          
+          <div class="box-sub">
+            <b>1. Bot Reply Kỳ Vọng (Lịch sự từ chối)</b>
+            <p class="bot-reply">
+              "Hello! Thank you for reaching out to Casa Escondida.<br>
+              For guest safety and resort policy, our <b>Standard Rooms have a maximum capacity of 2 adults</b>. We cannot accommodate 5 adults in a single Standard room.<br>
+              To host your group of 5 comfortably, we recommend booking <b>at least 3 Standard rooms</b> or a combination with our Suite. Would you like me to prepare a quotation based on 3 rooms?"
+            </p>
+          </div>
+
+          <div class="box-sub">
+            <b>2. Cơ Chế Phòng Thủ Ngầm (Code Gate)</b>
+            <ul>
+              <li><code>roomCapacity.ts</code>: Kiểm tra <code>maxOccupancy(standard) = 2</code>.</li>
+              <li>Trạng thái: Đơn không được tự động phát sinh báo giá (bật cờ cảnh báo <code>room-over-capacity</code> chuyển cho nhân viên kiểm tra).</li>
+              <li><code>p5-guest-facing-gate.ts</code>: Chặn đứng mọi tin nhắn xác nhận sai sự thật không cho phát ra WhatsApp.</li>
+            </ul>
+
+            <b style="margin-top:12px;">3. Tiêu chí ĐẠT / KHÔNG ĐẠT</b>
+            <ul>
+              <li><span style="color:var(--emerald);font-weight:700;">✓ ĐẠT:</span> Từ chối nhét 5 người/1 phòng Standard; giải thích rõ giới hạn tối đa 2 người; đề xuất lấy 3 phòng.</li>
+              <li><span style="color:var(--rose);font-weight:700;">✗ KHÔNG ĐẠT:</span> Chiều khách và tạo đơn 5 người trong 1 phòng Standard giá ₱7,600.</li>
+            </ul>
+          </div>
+
         </div>
       </div>
     </article>
@@ -559,10 +750,6 @@ Do you offer instructor/partner rates for accommodation and diving?</p>
     const cur = document.documentElement.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
     document.documentElement.setAttribute('data-theme', cur);
     document.getElementById('themeBtn').textContent = cur === 'dark' ? '☀️ Light Mode' : '🌙 Dark Mode';
-  }
-  function toggleLang() {
-    // Basic toast for language demo indicator
-    showToast('Tài liệu đã ở định dạng song ngữ VI / EN');
   }
   function copyText(id) {
     const text = document.getElementById(id).innerText;
