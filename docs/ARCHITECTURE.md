@@ -38,7 +38,7 @@ Tài liệu cho nhóm phát triển trên **technext-edge** và cầu nối vớ
 Hai thư mục này **giống từng byte** repo team (bỏ qua kiểu xuống dòng). Sửa chúng ở repo team (một PR bên đó), rồi chép về.
 `npm run mirror:check` so sánh với bản checkout của team (`TEAM_REPO`) và báo mọi file khác, thiếu hay thừa. Mốc ghim,
 quy tắc và cách cập nhật nằm ở [notes/upstream-provenance.md](notes/upstream-provenance.md). Hệ quả: zod 4, đuôi `.ts` trong
-import, `tsconfig.base.json` của team; `bff/` vẫn biên dịch với `tsconfig.studio.json` (các tuỳ chọn cũ, lỏng hơn).
+import, `tsconfig.base.json` của team; `bff/` vẫn biên dịch với `tsconfig.bff.json` (các tuỳ chọn cũ, lỏng hơn).
 
 `npm run upstream:check` là nửa còn lại: liệt kê commit mới bên team chạm các đường dẫn ảnh hưởng chatbot.
 

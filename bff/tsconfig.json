@@ -1,5 +1,5 @@
 {
-  "extends": "../tsconfig.studio.json",
+  "extends": "../tsconfig.bff.json",
   "include": [
     "src",
     "../ai/src",

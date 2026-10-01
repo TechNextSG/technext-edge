@@ -1,0 +1,20 @@
+{
+  // Settings for bff/ only. Looser than tsconfig.base.json (the team repo's): no noUncheckedIndexedAccess,
+  // exactOptionalPropertyTypes or verbatimModuleSyntax, and Bundler module resolution. A stopgap: bff/ is
+  // raised to the base when it is ported into the team repo (docs/notes/port-to-team-repo.md).
+  // ai/ and contracts/ are mirrors of the team repo and already compile with the base.
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "ES2022",
+    "moduleResolution": "Bundler",
+    "lib": ["ES2022", "DOM"],
+    "strict": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "resolveJsonModule": true,
+    "declaration": true,
+    "isolatedModules": true,
+    "allowImportingTsExtensions": true,
+    "noEmit": true
+  }
+}

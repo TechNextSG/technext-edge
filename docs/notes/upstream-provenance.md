@@ -18,7 +18,7 @@ and fails on any difference, any file only on one side, or a leftover local file
 When PR #5 merges: set `AI_REF` default in `tools/ops/mirror-check.mjs` to `origin/main`, re-copy, update the table.
 
 Dependencies follow the team repo: zod 4, `.ts` import suffixes, vitest 5. `bff/` and `quotation/` still compile with
-the looser options in `tsconfig.studio.json`; `ai/` and `contracts/` compile with the team's `tsconfig.base.json`.
+the looser options in `tsconfig.bff.json`; `ai/` and `contracts/` compile with the team's `tsconfig.base.json`.
 
 ## Behaviour snapshot
 

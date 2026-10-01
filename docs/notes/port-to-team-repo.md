@@ -50,6 +50,6 @@ and Odoo do those jobs. Do not port them; port the *calls* the studio makes (`co
 
 ## What still differs by design
 
-- `bff/` here compiles with looser TypeScript options (`tsconfig.studio.json`); theirs uses the strict base.
+- `bff/` here compiles with looser TypeScript options (`tsconfig.bff.json`); theirs uses the strict base. Raising bff/ to `tsconfig.base.json` (noUncheckedIndexedAccess, exactOptionalPropertyTypes, verbatimModuleSyntax) is a task of the port itself: expect a few hundred type errors in the studio-only code, almost none in the parts that are ported.
 - Imports are relative (`../../ai/src/index.ts`) because the workspace symlink failed in this repo's Vercel bundle.
 - Roles: the studio has `staff` and `admin`; a role in the team estimator comes from the Odoo login, never from a form.
