@@ -13,9 +13,9 @@ and fails on any difference, any file only on one side, or a leftover local file
 | Directory | Compared to | Pin |
 |---|---|---|
 | `contracts/` | `origin/main` | `3a3c2068c9ab2da2306821c8087b4755c1f250df` (2026-10-01) |
-| `ai/` | `feat/ai-layered-fix` until PR #5 merges, then `origin/main` | `6f5eab042c9c80a2be7957517106bae79ea11acb` |
+| `ai/` | `pr/ai-9-eval-tools` (stack of PRs 8 to 15 that replaced PR 5; PR 5 is a draft, reference only) until merged, then `origin/main` | `8bd3971` (`pr/ai-9-eval-tools`; `ai/src` and `ai/test` equal PR 5 at `6f5eab0`) |
 
-When PR #5 merges: set `AI_REF` default in `tools/ops/mirror-check.mjs` to `origin/main`, re-copy, update the table.
+When the stack merges: set `AI_REF` default in `tools/ops/mirror-check.mjs` to `origin/main`, re-copy, update the table. The stack adds `docs/flows/F12-ai-channel.md` and a shared `clientIp` in the team repo; neither is mirrored here.
 
 Dependencies follow the team repo: zod 4, `.ts` import suffixes, vitest 5. `bff/` and `quotation/` still compile with
 the looser options in `tsconfig.bff.json`; `ai/` and `contracts/` compile with the team's `tsconfig.base.json`.

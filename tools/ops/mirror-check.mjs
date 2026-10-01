@@ -12,7 +12,7 @@
  *   TEAM_REPO      path of the team checkout (default E:\tn-casa-quotation-estimator)
  *   CONTRACTS_REF  where `contracts/` is compared to (default origin/main)
  *   AI_REF         where `ai/` is compared to. Default is the branch that carries it until it is merged
- *                  (PR #5); set it to origin/main afterwards and change the default here.
+ *                  (PR #15 plus the eval tools of the optional PR 9 branch; the stack #8..#15 replaced #5); set it to origin/main once merged
  */
 import { execFileSync } from "node:child_process";
 import { existsSync, readFileSync } from "node:fs";
@@ -23,7 +23,7 @@ const here = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..")
 const repo = process.env.TEAM_REPO ?? "E:\\tn-casa-quotation-estimator";
 const PARTS = [
   { dir: "contracts", ref: process.env.CONTRACTS_REF ?? "origin/main" },
-  { dir: "ai", ref: process.env.AI_REF ?? "feat/ai-layered-fix" },
+  { dir: "ai", ref: process.env.AI_REF ?? "origin/pr/ai-9-eval-tools" },
 ];
 // Run output, never committed on either side.
 const IGNORED = [/^ai\/eval\/results\//, /\/node_modules\//];
