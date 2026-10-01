@@ -1,7 +1,7 @@
 // The studio's old cold-start record, as a test fixture. The app no longer seeds one (a fresh studio is
 // empty); tests that need "a priced-by-the-sample-engine, unapproved, unpublished quotation" build it here.
 import { buildBffTrip, type Trip } from "../../../ai/src/index.ts";
-import { normalizePricing, recalculateQuotationTotals, type HonoQuotationDraft } from "../../../quotation/src/index.ts";
+import { normalizePricing, recalculateQuotationTotals, type HonoQuotationDraft } from "../../src/quote/index.ts";
 import { buildSimulatedModel } from "../../src/services/simulatedEstimator.ts";
 import { saveQuotationDraft } from "../../src/store/quotationStore.ts";
 

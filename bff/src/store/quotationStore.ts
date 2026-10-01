@@ -1,4 +1,4 @@
-import { recalculateQuotationTotals, type HonoQuotationDraft } from "../../../quotation/src/index.ts";
+import { recalculateQuotationTotals, type HonoQuotationDraft } from "../quote/index.ts";
 import { createQuotationStoreFromEnv, type QuotationStore } from "./quotationStoreClient.ts";
 
 /**

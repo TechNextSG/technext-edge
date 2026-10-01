@@ -55,6 +55,9 @@ export const EnvSchema = z.object({
   ESTIMATOR_APP_URL: text,
   ESTIMATOR_TIMEOUT_MS: text,
 
+  // The quotation tool's trace switch ("true" turns it on)
+  ENABLE_HONO_QUOTATION_TOOL: text,
+
   // Follow-up window for a sent quotation
   QUOTATION_VALID_HOURS: text,
   QUOTATION_NUDGE_HOURS: text,

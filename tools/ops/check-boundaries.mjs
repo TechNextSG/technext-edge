@@ -2,7 +2,7 @@
 /**
  * Fails when an import crosses a package boundary the wrong way.
  *
- *   contracts  <-  ai  <-  quotation  <-  bff
+ *   contracts  <-  ai  <-  bff
  *
  * - A package may import only the packages to its left.
  * - Across packages, only `<pkg>/src/index.ts` (the barrel) may be imported. A deep import couples
@@ -17,7 +17,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
-const ORDER = ["contracts", "ai", "quotation", "bff"];
+const ORDER = ["contracts", "ai", "bff"];
 const ENTRIES = new Set(["src/index.ts"]);
 const SPEC = /(?:from|import)\s*\(?\s*["'](\.\.?\/[^"']+)["']/g;
 
@@ -50,4 +50,4 @@ if (problems.length) {
   console.error(`Package boundary violations (${problems.length}):\n\n  ${problems.join("\n  ")}\n`);
   process.exit(1);
 }
-console.log("package boundaries: ok (contracts <- ai <- quotation <- bff)");
+console.log("package boundaries: ok (contracts <- ai <- bff)");

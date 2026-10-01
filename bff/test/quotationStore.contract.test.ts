@@ -15,7 +15,7 @@ import {
   createRedisQuotationStore,
   type QuotationStore,
 } from "../src/store/quotationStoreClient.ts";
-import type { HonoQuotationDraft } from "../../quotation/src/index.ts";
+import type { HonoQuotationDraft } from "../src/quote/index.ts";
 
 afterEach(() => {
   vi.restoreAllMocks();

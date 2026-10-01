@@ -1,6 +1,6 @@
 import { validateBffTripPrecheck } from "../../../ai/src/index.ts";
 import { z } from "zod";
-import { normalizePricing, isPartnerEnquiry, type HonoQuotationDraft } from "../../../quotation/src/index.ts";
+import { normalizePricing, isPartnerEnquiry, type HonoQuotationDraft } from "../quote/index.ts";
 import { protectedFromCleanup } from "../store/quotationStore.ts";
 import {
   buildEstimateRequest,

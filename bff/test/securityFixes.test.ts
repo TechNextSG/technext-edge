@@ -8,7 +8,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { createApp } from "../src/app.ts";
 import { createEstimatorClient } from "../src/services/estimatorClient.ts";
 import { saveQuotationDraft, listQuotations } from "../src/store/quotationStore.ts";
-import { buildHonoQuotationDraft } from "../../quotation/src/index.ts";
+import { buildHonoQuotationDraft } from "../src/quote/index.ts";
 import { renderLoginHtml } from "../src/views/loginPage.ts";
 import { escapeHtml } from "../src/views/html.ts";
 import type { Trip } from "../../ai/src/index.ts";
@@ -200,7 +200,7 @@ describe("the message a guest actually receives", () => {
     expect(stated, "the message names a date").toBeTruthy();
     expect(sentMs).toBeGreaterThan(0);
     // 72 hours after the send, in Manila — asserted through the formatter so a timezone bug shows.
-    const { formatManila } = await import("../../quotation/src/index.ts");
+    const { formatManila } = await import("../src/quote/index.ts");
     expect(stated).toBe(formatManila(new Date(sentMs + windowHours * 3_600_000)));
   });
 });

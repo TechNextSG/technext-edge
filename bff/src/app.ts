@@ -38,7 +38,7 @@ import { registerPageRoutes } from "./routes/pages.ts";
 import { registerExtractorRoutes } from "./routes/extractor.ts";
 import { registerHandoffRoutes } from "./routes/handoff.ts";
 import { registerWhatsAppRoutes } from "./routes/whatsapp.ts";
-import { registerQuotesRoutes } from "./routes/quotes.ts";
+import { registerQuotesRoutes } from "./routes/quotes/index.ts";
 
 export { guestPendingQuotationNote };
 

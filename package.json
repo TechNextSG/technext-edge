@@ -7,7 +7,6 @@
   "workspaces": [
     "contracts",
     "ai",
-    "quotation",
     "bff"
   ],
   "scripts": {

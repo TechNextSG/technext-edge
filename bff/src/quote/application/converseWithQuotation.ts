@@ -6,13 +6,14 @@
  * "message in, Trip and reply out" and never builds a priced draft: the draft, its line items and its
  * totals belong to the quotation context. The behaviour is unchanged — same env switch, same trace.
  */
+import { loadEnv } from "../../env.ts";
 import {
   converse,
   type ConversationInput,
   type ConversationTurn,
   type ConverseOutcome,
   type ExtractProvider,
-} from "../../../ai/src/index.ts";
+} from "../../../../ai/src/index.ts";
 import { buildHonoQuotationDraft } from "./quotationTool.ts";
 import type { HonoQuotationDraft, HonoToolCallTrace } from "../domain/quotationDraft.ts";
 
@@ -28,7 +29,7 @@ export async function converseWithQuotation(
 ): Promise<QuotationConverseOutcome> {
   const outcome = await converse(input, provider, options);
 
-  if (outcome.done && process.env.ENABLE_HONO_QUOTATION_TOOL === "true") {
+  if (outcome.done && loadEnv().ENABLE_HONO_QUOTATION_TOOL === "true") {
     const quotationDraft = buildHonoQuotationDraft(outcome.trip);
     const toolCall: HonoToolCallTrace = {
       toolName: "submit_quotation_to_hono",

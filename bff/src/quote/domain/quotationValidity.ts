@@ -12,6 +12,7 @@
  * here is the validity of the QUOTATION — which is ours to promise — and any stronger wording ("we are
  * holding your room") has to come from the resort, not from a constant in our code.
  */
+import { loadEnv, type Env } from "../../env.ts";
 import type { HonoQuotationDraft } from "./quotationDraft.ts";
 
 /** Hours after the guest was sent the quotation. Timings are the resort's own, so they are config. */
@@ -36,7 +37,7 @@ function hours(value: string | undefined, fallback: number): number {
  * internal one. Both are read per call rather than at module load, because tests set them per case and
  * Vercel does not guarantee env at import time.
  */
-export function followUpWindowFromEnv(env: NodeJS.ProcessEnv = process.env): FollowUpWindow {
+export function followUpWindowFromEnv(env: Env = loadEnv()): FollowUpWindow {
   const staleHours = hours(env.QUOTATION_VALID_HOURS, DEFAULT_FOLLOW_UP_WINDOW.staleHours);
   const nudgeHours = Math.min(hours(env.QUOTATION_NUDGE_HOURS, DEFAULT_FOLLOW_UP_WINDOW.nudgeHours), staleHours);
   return { nudgeHours, staleHours };

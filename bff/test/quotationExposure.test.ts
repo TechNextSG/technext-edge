@@ -22,10 +22,10 @@ import {
   getQuotationByIdOrSlug,
   saveQuotationDraft,
 } from "../src/store/quotationStore.ts";
-import { buildHonoQuotationDraft, recalculateQuotationTotals, synthesizeConfirmedQuotationReply } from "../../quotation/src/index.ts";
+import { buildHonoQuotationDraft, recalculateQuotationTotals, synthesizeConfirmedQuotationReply } from "../src/quote/index.ts";
 
 import type { Trip } from "../../ai/src/index.ts";
-import type { HonoQuotationDraft } from "../../quotation/src/index.ts";
+import type { HonoQuotationDraft } from "../src/quote/index.ts";
 
 const STAFF_TOKEN = "test-staff-token";
 const savedToken = process.env.WHATSAPP_VERIFY_TOKEN;

@@ -1,9 +1,9 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { extract, partnerTypeOf, detectLanguage, buildBffTrip, buildOdooHandoffPayload } from "../../ai/src/index.ts";
-import { toInquiryLead } from "../src/application/inquiryLead.ts";
-import { buildHonoQuotationDraft } from "../src/application/quotationTool.ts";
-import type { ExtractProvider } from "../../ai/src/index.ts";
-import type { Trip } from "../../ai/src/index.ts";
+import { extract, partnerTypeOf, detectLanguage, buildBffTrip, buildOdooHandoffPayload } from "../../../ai/src/index.ts";
+import { toInquiryLead } from "../../src/quote/application/inquiryLead.ts";
+import { buildHonoQuotationDraft } from "../../src/quote/application/quotationTool.ts";
+import type { ExtractProvider } from "../../../ai/src/index.ts";
+import type { Trip } from "../../../ai/src/index.ts";
 
 /**
  * F10 — the website enquiry as `toInquiryLead` prepares it: only the columns this side collects (the team estimator's

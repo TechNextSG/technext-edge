@@ -1,11 +1,11 @@
 import { randomUUID } from "node:crypto";
-import type { Trip } from "../../../ai/src/index.ts";
-import type { BffTrip } from "../../../ai/src/index.ts";
+import type { Trip } from "../../../../ai/src/index.ts";
+import type { BffTrip } from "../../../../ai/src/index.ts";
 import type { StaffTripEdit } from "../domain/tripDiff.ts";
-import type { ExtractProvider } from "../../../ai/src/index.ts";
-import { getStaffAlerts, diveWindowIsGuessed } from "../../../ai/src/index.ts";
-import { buildBffTrip, datesBetweenInclusive } from "../../../ai/src/index.ts";
-import { verifyGuestFacingText, withBudget, type GuestFacingFacts } from "../../../ai/src/index.ts";
+import type { ExtractProvider } from "../../../../ai/src/index.ts";
+import { getStaffAlerts, diveWindowIsGuessed } from "../../../../ai/src/index.ts";
+import { buildBffTrip, datesBetweenInclusive } from "../../../../ai/src/index.ts";
+import { verifyGuestFacingText, withBudget, type GuestFacingFacts } from "../../../../ai/src/index.ts";
 import { quotationValidityLines, quotationValidUntil } from "../domain/quotationValidity.ts";
 import {
   roomNightlyRate,

@@ -7,7 +7,7 @@
 import { buildBffTrip } from "../../ai/src/index.ts";
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { createApp } from "../src/app.ts";
-import { buildHonoQuotationDraft } from "../../quotation/src/index.ts";
+import { buildHonoQuotationDraft } from "../src/quote/index.ts";
 import { saveQuotationDraft } from "../src/store/quotationStore.ts";
 import { issueSession } from "../src/auth/demoAuth.ts";
 

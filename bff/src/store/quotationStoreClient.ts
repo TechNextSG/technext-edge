@@ -13,7 +13,7 @@
  * WhatsApp window.
  */
 import { loadEnv, type Env } from "../env.ts";
-import type { HonoQuotationDraft } from "../../../quotation/src/index.ts";
+import type { HonoQuotationDraft } from "../quote/index.ts";
 import { kvCommand, kvConfigFromEnv, type KvConfig } from "./kv.ts";
 
 export interface QuotationStore {

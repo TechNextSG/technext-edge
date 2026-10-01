@@ -14,7 +14,7 @@ import { describe, it, expect, beforeEach, afterEach, vi, beforeAll } from "vite
 import { createApp } from "../src/app.ts";
 import { listQuotations, saveQuotationDraft } from "../src/store/quotationStore.ts";
 import { renderHonoQuotationEditorHtml } from "../src/views/quotationEditorPage.ts";
-import type { HonoQuotationDraft } from "../../quotation/src/index.ts";
+import type { HonoQuotationDraft } from "../src/quote/index.ts";
 import { ensureSampleQuotation } from "./helpers/sampleQuotation.ts";
 
 // The app no longer seeds a cold-start record; this file reads the sample one.

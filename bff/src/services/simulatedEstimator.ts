@@ -46,7 +46,7 @@ import {
   vanLoads,
   vansForGuests,
   type RoomType,
-} from "../../../quotation/src/index.ts";
+} from "../quote/index.ts";
 import { describeRefusal, refusalIssues } from "./refusalCopy.ts";
 import type {
   CommitResult,

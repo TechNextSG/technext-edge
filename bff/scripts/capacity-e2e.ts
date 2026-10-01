@@ -35,7 +35,7 @@ for (const k of ["REDIS_URL", "KV_URL", "KV_REST_API_URL", "KV_REST_API_TOKEN"])
 const { createApp } = await import("../src/app.ts");
 const { getQuotationByIdOrSlug, saveQuotationDraft } = await import("../src/store/quotationStore.ts");
 const { createEstimatorPortFromEnv } = await import("../src/services/estimatorPort.ts");
-const { buildHonoQuotationDraft } = await import("../../quotation/src/index.ts");
+const { buildHonoQuotationDraft } = await import("../src/quote/index.ts");
 
 const f = (value: unknown, state = "stated") => ({ value, state, evidence: null });
 // A stay 60 days out, so the script keeps working as the calendar moves (a check-in in the past is a 422).

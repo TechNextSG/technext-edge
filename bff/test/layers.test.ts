@@ -2,8 +2,8 @@
 //
 //   env.ts                       the only file that touches process.env
 //   auth/   -> env               sessions and the login limiter; knows nothing of pages, stores or services
-//   store/  -> env, kv, ai, quotation barrels
-//                                persistence; must not import views, services, auth or routes
+//   store/  -> env, quote        persistence of quotation drafts; must not import views, services, auth or routes
+//   quote/  -> env              the quotation domain (pricing view, drafts, validity); pure, no I/O layers above it
 import { describe, it, expect } from "vitest";
 import { readdirSync, readFileSync, statSync } from "node:fs";
 import path from "node:path";
@@ -65,13 +65,17 @@ describe("folders import downward only", () => {
   });
 
   it("store/ does not import views, services, auth or routes", () => {
-    expect(violations("store", filesIn("store"), ["env"])).toEqual([]);
+    expect(violations("store", filesIn("store"), ["env", "quote"])).toEqual([]);
+  });
+
+  it("quote/ imports nothing but env", () => {
+    expect(violations("quote", filesIn("quote"), ["env"])).toEqual([]);
   });
 
   it("the checker sees a violation when there is one", () => {
     const fake: Array<[string, string]> = [
       [path.join(SRC, "store/x.ts"), `import { themeCss } from "../views/theme.ts";\nimport { kv } from "./kv.ts";\nconst m = await import("../auth/demoAuth.ts");`],
     ];
-    expect(violations("store", fake, ["env"])).toEqual(["store/x.ts imports views", "store/x.ts imports auth"]);
+    expect(violations("store", fake, ["env", "quote"])).toEqual(["store/x.ts imports views", "store/x.ts imports auth"]);
   });
 });

@@ -12,7 +12,7 @@ import {
 import {
   converseWithQuotation,
   type HonoQuotationDraft,
-} from "../../../quotation/src/index.ts";
+} from "../quote/index.ts";
 import type { DemoRole } from "../auth/demoAuth.ts";
 
 const ProviderOverride = {

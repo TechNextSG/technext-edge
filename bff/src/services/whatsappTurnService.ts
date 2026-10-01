@@ -22,7 +22,7 @@ import {
   diffBffTrip,
   pricedFactsChanged,
   type HonoQuotationDraft,
-} from "../../../quotation/src/index.ts";
+} from "../quote/index.ts";
 import {
   saveQuotationDraft,
   findOpenQuotationForPhone,

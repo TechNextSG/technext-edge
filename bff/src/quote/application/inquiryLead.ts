@@ -1,5 +1,5 @@
-import type { Trip } from "../../../ai/src/index.ts";
-import { buildBffTrip, courseAssignment } from "../../../ai/src/index.ts";
+import type { Trip } from "../../../../ai/src/index.ts";
+import { buildBffTrip, courseAssignment } from "../../../../ai/src/index.ts";
 
 /**
  * The shape of the customer's website enquiry (their F10, `bff/src/inquiry/types.ts` on
