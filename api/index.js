@@ -82,26 +82,26 @@ var throwNestingLimitExceeded = () => {
 };
 
 // node_modules/hono/dist/utils/url.js
-var splitPath = (path) => {
-  const paths = path.split("/");
+var splitPath = (path2) => {
+  const paths = path2.split("/");
   if (paths[0] === "") paths.shift();
   return paths;
 };
 var splitRoutingPath = (routePath) => {
-  const { groups, path } = extractGroupsFromPath(routePath);
-  const paths = splitPath(path);
+  const { groups, path: path2 } = extractGroupsFromPath(routePath);
+  const paths = splitPath(path2);
   return replaceGroupMarks(paths, groups);
 };
-var extractGroupsFromPath = (path) => {
+var extractGroupsFromPath = (path2) => {
   const groups = [];
-  path = path.replace(/\{[^}]+\}/g, (match2, index) => {
+  path2 = path2.replace(/\{[^}]+\}/g, (match2, index) => {
     const mark = `@${index}`;
     groups.push([mark, match2]);
     return mark;
   });
   return {
     groups,
-    path
+    path: path2
   };
 };
 var replaceGroupMarks = (paths, groups) => {
@@ -164,8 +164,8 @@ var getPath = (request) => {
       const queryIndex = url2.indexOf("?", i);
       const hashIndex = url2.indexOf("#", i);
       const end = queryIndex === -1 ? hashIndex === -1 ? void 0 : hashIndex : hashIndex === -1 ? queryIndex : Math.min(queryIndex, hashIndex);
-      const path = url2.slice(start, end);
-      return tryDecodeURI(path.includes("%25") ? path.replace(/%25/g, "%2525") : path);
+      const path2 = url2.slice(start, end);
+      return tryDecodeURI(path2.includes("%25") ? path2.replace(/%25/g, "%2525") : path2);
     } else if (charCode === 63 || charCode === 35) break;
   }
   return url2.slice(start, i);
@@ -178,9 +178,9 @@ var mergePath = (base, sub, ...rest) => {
   if (rest.length) sub = mergePath(sub, ...rest);
   return `${base?.[0] === "/" ? "" : "/"}${base}${sub === "/" ? "" : `${base?.at(-1) === "/" ? "" : "/"}${sub?.[0] === "/" ? sub.slice(1) : sub}`}`;
 };
-var checkOptionalParameter = (path) => {
-  if (path.charCodeAt(path.length - 1) !== 63 || !path.includes(":")) return null;
-  const segments = path.split("/");
+var checkOptionalParameter = (path2) => {
+  if (path2.charCodeAt(path2.length - 1) !== 63 || !path2.includes(":")) return null;
+  const segments = path2.split("/");
   const results = [];
   let basePath = "";
   segments.forEach((segment) => {
@@ -286,9 +286,9 @@ var HonoRequest = class {
   */
   path;
   bodyCache = {};
-  constructor(request, path = "/", matchResult = [[]]) {
+  constructor(request, path2 = "/", matchResult = [[]]) {
     this.raw = request;
-    this.path = path;
+    this.path = path2;
     this.#matchResult = matchResult;
   }
   param(key) {
@@ -1018,8 +1018,8 @@ var Hono = class Hono2 {
         return this;
       };
     });
-    this.on = (method, path, ...handlers) => {
-      for (const p of [path].flat()) {
+    this.on = (method, path2, ...handlers) => {
+      for (const p of [path2].flat()) {
         this.#path = p;
         for (const m of [method].flat()) {
           const methodName = m.toUpperCase();
@@ -1073,8 +1073,8 @@ var Hono = class Hono2 {
   * app.route("/api", app2) // GET /api/user
   * ```
   */
-  route(path, app2) {
-    const subApp = this.basePath(path);
+  route(path2, app2) {
+    const subApp = this.basePath(path2);
     app2.routes.map((r) => {
       let handler;
       if (app2.errorHandler === errorHandler) handler = r.handler;
@@ -1099,9 +1099,9 @@ var Hono = class Hono2 {
   * const api = new Hono().basePath('/api')
   * ```
   */
-  basePath(path) {
+  basePath(path2) {
     const subApp = this.#clone();
-    subApp._basePath = mergePath(this._basePath, path);
+    subApp._basePath = mergePath(this._basePath, path2);
     return subApp;
   }
   /**
@@ -1175,7 +1175,7 @@ var Hono = class Hono2 {
   * })
   * ```
   */
-  mount(path, applicationHandler, options) {
+  mount(path2, applicationHandler, options) {
     let replaceRequest;
     let optionHandler;
     if (options) {
@@ -1198,7 +1198,7 @@ var Hono = class Hono2 {
       return [c.env, executionContext];
     };
     replaceRequest ||= (() => {
-      const mergedPath = mergePath(this._basePath, path);
+      const mergedPath = mergePath(this._basePath, path2);
       const pathPrefixLength = mergedPath === "/" ? 0 : mergedPath.length;
       return (request) => {
         const url2 = new URL(request.url);
@@ -1211,18 +1211,18 @@ var Hono = class Hono2 {
       if (res) return res;
       await next();
     };
-    this.#addRoute("ALL", mergePath(path, "*"), handler);
+    this.#addRoute("ALL", mergePath(path2, "*"), handler);
     return this;
   }
-  #addRoute(method, path, handler, baseRoutePath) {
-    path = mergePath(this._basePath, path);
+  #addRoute(method, path2, handler, baseRoutePath) {
+    path2 = mergePath(this._basePath, path2);
     const r = {
       basePath: baseRoutePath !== void 0 ? mergePath(this._basePath, baseRoutePath) : this._basePath,
-      path,
+      path: path2,
       method,
       handler
     };
-    this.router.add(method, path, [handler, r]);
+    this.router.add(method, path2, [handler, r]);
     this.routes.push(r);
   }
   #handleError(err, c) {
@@ -1231,10 +1231,10 @@ var Hono = class Hono2 {
   }
   #dispatch(request, executionCtx, env, method) {
     if (method === "HEAD") return (async () => new Response(null, await this.#dispatch(request, executionCtx, env, "GET")))();
-    const path = this.getPath(request, { env });
-    const matchResult = this.router.match(method, path);
+    const path2 = this.getPath(request, { env });
+    const matchResult = this.router.match(method, path2);
     const c = new Context(request, {
-      path,
+      path: path2,
       matchResult,
       env,
       executionCtx,
@@ -1322,19 +1322,19 @@ var createNullObject = () => /* @__PURE__ */ Object.create(null);
 
 // node_modules/hono/dist/router/reg-exp-router/matcher.js
 var emptyParam = [];
-function match(method, path) {
+function match(method, path2) {
   const matchers = this.buildAllMatchers();
-  const match2 = ((method2, path2) => {
+  const match2 = ((method2, path3) => {
     const matcher = matchers[method2] || matchers["ALL"];
-    const staticMatch = matcher[2][path2];
+    const staticMatch = matcher[2][path3];
     if (staticMatch) return staticMatch;
-    const match3 = path2.match(matcher[0]);
+    const match3 = path3.match(matcher[0]);
     if (!match3) return [[], emptyParam];
     const index = match3.indexOf("", 1);
     return [matcher[1][index], match3];
   });
   this.match = match2;
-  return match2(method, path);
+  return match2(method, path2);
 }
 
 // node_modules/hono/dist/router/reg-exp-router/node.js
@@ -1424,14 +1424,14 @@ var Trie = class {
   #root = new Node();
   #index = 0;
   paths = createNullObject();
-  insert(path, isStatic) {
+  insert(path2, isStatic) {
     if (isStatic) {
-      this.#root.insert(path.split(""), 0, [], this.#context, true);
+      this.#root.insert(path2.split(""), 0, [], this.#context, true);
       return;
     }
     const paramAssoc = [];
     const groups = [];
-    let markedPath = path;
+    let markedPath = path2;
     for (let i = 0; ; ) {
       let replaced = false;
       markedPath = markedPath.replace(/\{[^}]+\}/g, (m) => {
@@ -1452,7 +1452,7 @@ var Trie = class {
       }
     }
     this.#root.insert(tokens, this.#index, paramAssoc, this.#context, false);
-    this.paths[path] = [this.#index++, paramAssoc];
+    this.paths[path2] = [this.#index++, paramAssoc];
   }
   buildRegExp() {
     let regexp = this.#root.buildRegExpStr();
@@ -1485,11 +1485,11 @@ var Trie = class {
 
 // node_modules/hono/dist/router/reg-exp-router/router.js
 var wildcardRegExpCache = createNullObject();
-function buildWildcardRegExp(path) {
-  return wildcardRegExpCache[path] ??= new RegExp(`^${path.replace(/\/:[^/{}]+(?:\{\[\^\/]\+})?(?=[/{]|$)|\/?\*$|([.\\+*[^\]$()?{}|])/g, (match2, metaChar) => metaChar ? `\\${metaChar}` : match2 === "/*" ? TAIL_WILDCARD_REG_EXP_STR : match2 === "*" ? ".*" : `/:${LABEL_REG_EXP_STR}`)}$`);
+function buildWildcardRegExp(path2) {
+  return wildcardRegExpCache[path2] ??= new RegExp(`^${path2.replace(/\/:[^/{}]+(?:\{\[\^\/]\+})?(?=[/{]|$)|\/?\*$|([.\\+*[^\]$()?{}|])/g, (match2, metaChar) => metaChar ? `\\${metaChar}` : match2 === "/*" ? TAIL_WILDCARD_REG_EXP_STR : match2 === "*" ? ".*" : `/:${LABEL_REG_EXP_STR}`)}$`);
 }
-function findMiddleware(middleware, path) {
-  for (const k of Object.keys(middleware).sort((a, b) => b.length - a.length)) if (buildWildcardRegExp(k).test(path)) return [...middleware[k]];
+function findMiddleware(middleware, path2) {
+  for (const k of Object.keys(middleware).sort((a, b) => b.length - a.length)) if (buildWildcardRegExp(k).test(path2)) return [...middleware[k]];
 }
 var RegExpRouter = class {
   name = "RegExpRouter";
@@ -1501,14 +1501,14 @@ var RegExpRouter = class {
     this.#routes = { ["ALL"]: createNullObject() };
     this.#tries = { ["ALL"]: new Trie() };
   }
-  #insertPath(method, path) {
+  #insertPath(method, path2) {
     try {
-      this.#tries[method].insert(path, !/\*|\/:/.test(path));
+      this.#tries[method].insert(path2, !/\*|\/:/.test(path2));
     } catch (e) {
-      throw e === PATH_ERROR ? new UnsupportedPathError(path) : e;
+      throw e === PATH_ERROR ? new UnsupportedPathError(path2) : e;
     }
   }
-  add(method, path, handler) {
+  add(method, path2, handler) {
     const middleware = this.#middleware;
     const routes = this.#routes;
     if (!middleware) throw new Error(MESSAGE_MATCHER_IS_ALREADY_BUILT);
@@ -1522,24 +1522,24 @@ var RegExpRouter = class {
         }
       }
     }
-    if (path === "/*") path = "*";
+    if (path2 === "/*") path2 = "*";
     const methods = method === "ALL" ? Object.keys(middleware) : [method];
-    if (/\*$/.test(path)) {
-      const re = buildWildcardRegExp(path);
-      for (const m of methods) if (!middleware[m][path]) {
-        this.#insertPath(m, path);
-        middleware[m][path] = findMiddleware(middleware[m], path) || findMiddleware(middleware["ALL"], path) || [];
+    if (/\*$/.test(path2)) {
+      const re = buildWildcardRegExp(path2);
+      for (const m of methods) if (!middleware[m][path2]) {
+        this.#insertPath(m, path2);
+        middleware[m][path2] = findMiddleware(middleware[m], path2) || findMiddleware(middleware["ALL"], path2) || [];
       }
-      for (const handlerMap of [middleware, routes]) for (const m of methods) for (const p in handlerMap[m]) re.test(p) && handlerMap[m][p].push([handler, path]);
+      for (const handlerMap of [middleware, routes]) for (const m of methods) for (const p in handlerMap[m]) re.test(p) && handlerMap[m][p].push([handler, path2]);
       return;
     }
-    const paths = checkOptionalParameter(path) || [path];
-    for (const path2 of paths) for (const m of methods) {
-      if (!routes[m][path2]) {
-        this.#insertPath(m, path2);
-        routes[m][path2] = findMiddleware(middleware[m], path2) || findMiddleware(middleware["ALL"], path2) || [];
+    const paths = checkOptionalParameter(path2) || [path2];
+    for (const path3 of paths) for (const m of methods) {
+      if (!routes[m][path3]) {
+        this.#insertPath(m, path3);
+        routes[m][path3] = findMiddleware(middleware[m], path3) || findMiddleware(middleware["ALL"], path3) || [];
       }
-      routes[m][path2].push([handler, path2]);
+      routes[m][path3].push([handler, path3]);
     }
   }
   match = match;
@@ -1557,11 +1557,11 @@ var RegExpRouter = class {
     const staticMap = createNullObject();
     const handlerData = [];
     const [regexp, indexReplacementMap, paramReplacementMap] = trie.buildRegExp();
-    for (const r of [middleware, routes]) for (const path in r) {
-      const handlers = r[path];
-      const pathData = trie.paths[path];
+    for (const r of [middleware, routes]) for (const path2 in r) {
+      const handlers = r[path2];
+      const pathData = trie.paths[path2];
       if (!pathData) {
-        staticMap[path] = [handlers.map(([h]) => [h, createNullObject()]), emptyParam];
+        staticMap[path2] = [handlers.map(([h]) => [h, createNullObject()]), emptyParam];
         continue;
       }
       handlerData[pathData[0]] = handlers.map(([h, handlerPath]) => [h, trie.paths[handlerPath][1].reduceRight((map2, [key], i) => {
@@ -1585,15 +1585,15 @@ var SmartRouter = class {
   constructor(init) {
     this.#routers = init.routers;
   }
-  add(method, path, handler) {
+  add(method, path2, handler) {
     if (!this.#routes) throw new Error(MESSAGE_MATCHER_IS_ALREADY_BUILT);
     this.#routes.push([
       method,
-      path,
+      path2,
       handler
     ]);
   }
-  match(method, path) {
+  match(method, path2) {
     if (!this.#routes) throw new Error("Fatal error");
     const routers = this.#routers;
     const routes = this.#routes;
@@ -1604,7 +1604,7 @@ var SmartRouter = class {
       const router = routers[i];
       try {
         for (let i2 = 0, len2 = routes.length; i2 < len2; i2++) router.add(...routes[i2]);
-        res = router.match(method, path);
+        res = router.match(method, path2);
       } catch (e) {
         if (e instanceof UnsupportedPathError) continue;
         throw e;
@@ -1633,9 +1633,9 @@ var Node3 = class Node4 {
   #patterns = [];
   #pattern;
   #params = emptyParams;
-  insert(method, path, handler) {
+  insert(method, path2, handler) {
     let curNode = this;
-    const parts = splitRoutingPath(path);
+    const parts = splitRoutingPath(path2);
     const possibleKeys = /* @__PURE__ */ new Set();
     let i = 0;
     for (const p of parts) {
@@ -1671,11 +1671,11 @@ var Node3 = class Node4 {
       }
     }
   }
-  search(method, path) {
+  search(method, path2) {
     const handlerSets = [];
     this.#params = emptyParams;
     let curNodes = [this];
-    const parts = splitPath(path);
+    const parts = splitPath(path2);
     const curNodesQueue = [];
     const len = parts.length;
     let partOffsets = null;
@@ -1711,13 +1711,13 @@ var Node3 = class Node4 {
           if (matcher !== true) {
             if (!partOffsets) {
               partOffsets = [];
-              let offset = path[0] === "/" ? 1 : 0;
+              let offset = path2[0] === "/" ? 1 : 0;
               for (let p = 0; p < len; p++) {
                 partOffsets[p] = offset;
                 offset += parts[p].length + 1;
               }
             }
-            const restPathString = path.slice(partOffsets[i]);
+            const restPathString = path2.slice(partOffsets[i]);
             const m = matcher.exec(restPathString);
             if (m) {
               params[name] = m[0];
@@ -1758,11 +1758,11 @@ var Node3 = class Node4 {
 var TrieRouter = class {
   name = "TrieRouter";
   #node = new Node3();
-  add(method, path, handler) {
-    for (const result of checkOptionalParameter(path) || [path]) this.#node.insert(method, result, handler);
+  add(method, path2, handler) {
+    for (const result of checkOptionalParameter(path2) || [path2]) this.#node.insert(method, result, handler);
   }
-  match(method, path) {
-    return this.#node.search(method, path);
+  match(method, path2) {
+    return this.#node.search(method, path2);
   }
 };
 
@@ -2713,10 +2713,10 @@ function mergeDefs(...defs) {
 function cloneDef(schema) {
   return mergeDefs(schema._zod.def);
 }
-function getElementAtPath(obj, path) {
-  if (!path)
+function getElementAtPath(obj, path2) {
+  if (!path2)
     return obj;
-  return path.reduce((acc, key) => acc?.[key], obj);
+  return path2.reduce((acc, key) => acc?.[key], obj);
 }
 function promiseAllObject(promisesObj) {
   const keys = Object.keys(promisesObj);
@@ -3056,11 +3056,11 @@ function explicitlyAborted(x, startIndex = 0) {
   }
   return false;
 }
-function prefixIssues(path, issues) {
+function prefixIssues(path2, issues) {
   return issues.map((iss) => {
     var _a3;
     (_a3 = iss).path ?? (_a3.path = []);
-    iss.path.unshift(path);
+    iss.path.unshift(path2);
     return iss;
   });
 }
@@ -3510,16 +3510,16 @@ function flattenError(error62, mapper = (issue2) => issue2.message) {
 }
 function formatError(error62, mapper = (issue2) => issue2.message) {
   const fieldErrors = { _errors: [] };
-  const processError = (error63, path = []) => {
+  const processError = (error63, path2 = []) => {
     for (const issue2 of error63.issues) {
       if (issue2.code === "invalid_union" && issue2.errors.length) {
-        issue2.errors.map((issues) => processError({ issues }, [...path, ...issue2.path]));
+        issue2.errors.map((issues) => processError({ issues }, [...path2, ...issue2.path]));
       } else if (issue2.code === "invalid_key") {
-        processError({ issues: issue2.issues }, [...path, ...issue2.path]);
+        processError({ issues: issue2.issues }, [...path2, ...issue2.path]);
       } else if (issue2.code === "invalid_element") {
-        processError({ issues: issue2.issues }, [...path, ...issue2.path]);
+        processError({ issues: issue2.issues }, [...path2, ...issue2.path]);
       } else {
-        const fullpath = [...path, ...issue2.path];
+        const fullpath = [...path2, ...issue2.path];
         if (fullpath.length === 0) {
           fieldErrors._errors.push(mapper(issue2));
         } else {
@@ -3558,17 +3558,17 @@ function formatError(error62, mapper = (issue2) => issue2.message) {
 }
 function treeifyError(error62, mapper = (issue2) => issue2.message) {
   const result = { errors: [] };
-  const processError = (error63, path = []) => {
+  const processError = (error63, path2 = []) => {
     var _a3;
     for (const issue2 of error63.issues) {
       if (issue2.code === "invalid_union" && issue2.errors.length) {
-        issue2.errors.map((issues) => processError({ issues }, [...path, ...issue2.path]));
+        issue2.errors.map((issues) => processError({ issues }, [...path2, ...issue2.path]));
       } else if (issue2.code === "invalid_key") {
-        processError({ issues: issue2.issues }, [...path, ...issue2.path]);
+        processError({ issues: issue2.issues }, [...path2, ...issue2.path]);
       } else if (issue2.code === "invalid_element") {
-        processError({ issues: issue2.issues }, [...path, ...issue2.path]);
+        processError({ issues: issue2.issues }, [...path2, ...issue2.path]);
       } else {
-        const fullpath = [...path, ...issue2.path];
+        const fullpath = [...path2, ...issue2.path];
         if (fullpath.length === 0) {
           result.errors.push(mapper(issue2));
           continue;
@@ -3607,8 +3607,8 @@ function treeifyError(error62, mapper = (issue2) => issue2.message) {
 }
 function toDotPath(_path) {
   const segs = [];
-  const path = _path.map((seg) => typeof seg === "object" ? seg.key : seg);
-  for (const seg of path) {
+  const path2 = _path.map((seg) => typeof seg === "object" ? seg.key : seg);
+  for (const seg of path2) {
     if (typeof seg === "number")
       segs.push(`[${seg}]`);
     else if (typeof seg === "symbol")
@@ -20710,13 +20710,13 @@ function resolveRef(ref, ctx) {
   if (!ref.startsWith("#")) {
     throw new Error("External $ref is not supported, only local refs (#/...) are allowed");
   }
-  const path = ref.slice(1).split("/").filter(Boolean);
-  if (path.length === 0) {
+  const path2 = ref.slice(1).split("/").filter(Boolean);
+  if (path2.length === 0) {
     return ctx.rootSchema;
   }
   const defsKey = ctx.version === "draft-2020-12" ? "$defs" : "definitions";
-  if (path[0] === defsKey) {
-    const key = path[1] === void 0 ? void 0 : decodeJSONPointerSegment(path[1]);
+  if (path2[0] === defsKey) {
+    const key = path2[1] === void 0 ? void 0 : decodeJSONPointerSegment(path2[1]);
     if (!key || !ctx.defs[key]) {
       throw new Error(`Reference not found: ${ref}`);
     }
@@ -24951,8 +24951,8 @@ async function converse(input2, provider, options = {}) {
 }
 
 // ai/src/application/tripCorrections.ts
-function extractorFieldsForTripPath(path) {
-  const guestField = /^guests\[\d+\]\.(\w+)/.exec(path)?.[1];
+function extractorFieldsForTripPath(path2) {
+  const guestField = /^guests\[\d+\]\.(\w+)/.exec(path2)?.[1];
   if (guestField) {
     switch (guestField) {
       case "diver":
@@ -24980,26 +24980,26 @@ function extractorFieldsForTripPath(path) {
         return ["guests"];
     }
   }
-  if (path.startsWith("guests.length")) return ["guests"];
-  if (path.startsWith("checkIn")) return ["checkIn"];
-  if (path.startsWith("checkOut")) return ["checkOut", "nights"];
-  if (path.startsWith("nights")) return ["nights", "checkIn", "checkOut"];
-  if (path.startsWith("rooms")) return ["rooms", "roomType"];
-  if (path.startsWith("roomType")) return ["roomType", "rooms"];
-  if (path.startsWith("transportType") || path.startsWith("transport")) return ["transportType", "transport"];
-  if (path.startsWith("diveFrom") || path.startsWith("diveTo") || path.startsWith("diveNotes")) {
+  if (path2.startsWith("guests.length")) return ["guests"];
+  if (path2.startsWith("checkIn")) return ["checkIn"];
+  if (path2.startsWith("checkOut")) return ["checkOut", "nights"];
+  if (path2.startsWith("nights")) return ["nights", "checkIn", "checkOut"];
+  if (path2.startsWith("rooms")) return ["rooms", "roomType"];
+  if (path2.startsWith("roomType")) return ["roomType", "rooms"];
+  if (path2.startsWith("transportType") || path2.startsWith("transport")) return ["transportType", "transport"];
+  if (path2.startsWith("diveFrom") || path2.startsWith("diveTo") || path2.startsWith("diveNotes")) {
     return ["diveFrom", "diveTo", "diveNotes"];
   }
-  if (path.startsWith("dmByDay") || path.startsWith("extraDMByDay")) return ["diveFrom", "diveTo", "diveNotes"];
-  if (path.startsWith("bookedDaysAhead")) return ["bookedDaysAhead"];
-  if (path.startsWith("guestType")) return ["guestType"];
+  if (path2.startsWith("dmByDay") || path2.startsWith("extraDMByDay")) return ["diveFrom", "diveTo", "diveNotes"];
+  if (path2.startsWith("bookedDaysAhead")) return ["bookedDaysAhead"];
+  if (path2.startsWith("guestType")) return ["guestType"];
   return [];
 }
 function pathsRestatedByGuest(changedPaths, trip, guestText) {
   const haystack = guestText.toLowerCase();
   const fields = trip;
-  return changedPaths.filter((path) => {
-    const candidates = extractorFieldsForTripPath(path);
+  return changedPaths.filter((path2) => {
+    const candidates = extractorFieldsForTripPath(path2);
     if (candidates.length === 0) return false;
     return candidates.some((field2) => {
       const evidence = fields[field2]?.evidence;
@@ -28476,9 +28476,9 @@ var PatchShape = {
 function checked(schema) {
   return schema.superRefine((value, ctx) => {
     const v = value;
-    for (const [path, choice] of [["primary", v.primary], ["fallback", v.fallback]]) {
+    for (const [path2, choice] of [["primary", v.primary], ["fallback", v.fallback]]) {
       if (choice && !isKnownModel(choice.provider, choice.model)) {
-        ctx.addIssue({ code: "custom", path: [path, "model"], message: `"${choice.model}" is not a ${choice.provider} model this app knows` });
+        ctx.addIssue({ code: "custom", path: [path2, "model"], message: `"${choice.model}" is not a ${choice.provider} model this app knows` });
       }
     }
     if (v.primary && v.fallback && v.primary.provider === v.fallback.provider && v.primary.model === v.fallback.model) {
@@ -29087,6 +29087,102 @@ function pageRoutes(deps) {
   return app2;
 }
 
+// bff/src/routes/docs.ts
+import { existsSync, readFileSync } from "node:fs";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
+
+// bff/src/views/html.ts
+function escapeHtml(value) {
+  if (value === null || value === void 0) return "";
+  return String(value).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+}
+var CURRENCY_SYMBOLS = { PHP: "\u20B1", USD: "$", EUR: "\u20AC", VND: "\u20AB" };
+function money(currency, amount) {
+  const symbol2 = CURRENCY_SYMBOLS[currency] ?? `${currency} `;
+  return `${symbol2}${amount.toLocaleString("en-US", { maximumFractionDigits: 2 })}`;
+}
+function wholeMoney(currency, amount) {
+  return `${currency === "USD" ? "$" : "\u20B1"}${Math.round(amount).toLocaleString("en-US")}`;
+}
+
+// bff/src/views/docsPage.ts
+function renderDocsIndexHtml(entries) {
+  const groups = [...new Set(entries.map((e) => e.group))];
+  const body = groups.map(
+    (g) => `<h2>${escapeHtml(g)}</h2>
+    <ul>${entries.filter((e) => e.group === g).map((e) => `<li><a href="/docs/${escapeHtml(e.slug)}">${escapeHtml(e.title)}</a><span>${escapeHtml(e.about)}</span></li>`).join("")}</ul>`
+  ).join("\n    ");
+  return `<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Documents \u2014 Casa Escondida</title>
+  <style>
+${themeCss()}
+    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; background: var(--bg); color: var(--text); margin: 0; padding: 24px; }
+    main { max-width: 760px; margin: 0 auto; }
+    h1 { font-size: 24px; font-weight: 800; margin: 0 0 4px; }
+    h2 { font-size: 13px; text-transform: uppercase; letter-spacing: 0.05em; color: var(--muted); margin: 26px 0 8px; }
+    .sub { color: var(--muted); font-weight: 600; margin: 0 0 8px; }
+    ul { list-style: none; margin: 0; padding: 0; }
+    li { background: var(--card); border: 2px solid var(--border); border-radius: 12px; padding: 12px 16px; margin: 8px 0; }
+    li a { color: var(--primary); font-weight: 700; text-decoration: none; display: block; }
+    li span { color: var(--muted); font-size: 14px; }
+    .back { font-weight: 700; color: var(--primary); text-decoration: none; }
+  </style>
+</head>
+<body>
+  <main>
+    <a class="back" href="/quotes">&larr; Studio</a>
+    <h1>Documents</h1>
+    <p class="sub">For signed-in staff. Each opens as a standalone page.</p>
+    ${body}
+  </main>
+</body>
+</html>`;
+}
+
+// bff/src/routes/docs.ts
+var DOCUMENTS = [
+  { slug: "benchmark-latency", file: "reports/benchmark-latency-2026-10-01.html", group: "Reports", title: "Benchmark and latency", about: "Accuracy and speed of the AI channel on production, cold start, run-to-run spread, simultaneous guests." },
+  { slug: "manual-test-checklist", file: "guides/manual-test-checklist.html", group: "Testing", title: "Hand-test checklist", about: "51 cases with copyable WhatsApp messages and result boxes." },
+  { slug: "advanced-demo-scenarios", file: "guides/advanced-demo-scenarios.html", group: "Testing", title: "Advanced demo scenarios", about: "Six stress and edge-case scenarios for the live demo, with expected replies." },
+  { slug: "system-runtime", file: "diagrams/system-runtime.html", group: "Architecture", title: "Runtime architecture", about: "Guest, Meta, the Vercel function, Gemini, KV, the studio and the team estimator." },
+  { slug: "whatsapp-turn", file: "diagrams/whatsapp-turn.html", group: "Architecture", title: "One WhatsApp turn", about: "From a signed webhook to a draft quotation and the reply, step by step." },
+  { slug: "quotation-lifecycle", file: "diagrams/quotation-lifecycle.html", group: "Architecture", title: "Quotation lifecycle", about: "Enquiry, draft, priced, approved, link sent; re-price and archive." },
+  { slug: "repo-structure", file: "diagrams/repo-structure.html", group: "Architecture", title: "Repo map", about: "Packages, folders and the boundaries between them." },
+  { slug: "structure-compare", file: "notes/structure-compare.html", group: "Architecture", title: "This repo and the team repo", about: "What is mirrored, what moves to the team estimator, what never does." }
+];
+function docsRoot() {
+  let dir = path.dirname(fileURLToPath(import.meta.url));
+  for (let depth = 0; depth < 8; depth++) {
+    const candidate2 = path.join(dir, "docs");
+    if (existsSync(path.join(candidate2, "guides"))) return candidate2;
+    const parent = path.dirname(dir);
+    if (parent === dir) break;
+    dir = parent;
+  }
+  return path.join(process.cwd(), "docs");
+}
+function docsRoutes(deps) {
+  const app2 = new Hono3();
+  app2.get("/docs", (c) => {
+    if (!deps.staffSession(c).ok) return c.redirect("/login");
+    return c.html(renderDocsIndexHtml(DOCUMENTS));
+  });
+  app2.get("/docs/:slug", (c) => {
+    if (!deps.staffSession(c).ok) return c.redirect("/login");
+    const entry = DOCUMENTS.find((d) => d.slug === c.req.param("slug"));
+    if (!entry) return c.json({ error: "not_found" }, 404);
+    const file2 = path.join(docsRoot(), entry.file);
+    if (!existsSync(file2)) return c.json({ error: "not_found", detail: "this document is not part of this deployment" }, 404);
+    return c.html(readFileSync(file2, "utf8"));
+  });
+  return app2;
+}
+
 // bff/src/routes/extractor.ts
 var ProviderOverride = {
   provider: external_exports.enum(KNOWN_PROVIDER_NAMES).optional(),
@@ -29186,20 +29282,6 @@ function extractorRoutes(deps) {
     }
   });
   return app2;
-}
-
-// bff/src/views/html.ts
-function escapeHtml(value) {
-  if (value === null || value === void 0) return "";
-  return String(value).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
-}
-var CURRENCY_SYMBOLS = { PHP: "\u20B1", USD: "$", EUR: "\u20AC", VND: "\u20AB" };
-function money(currency, amount) {
-  const symbol2 = CURRENCY_SYMBOLS[currency] ?? `${currency} `;
-  return `${symbol2}${amount.toLocaleString("en-US", { maximumFractionDigits: 2 })}`;
-}
-function wholeMoney(currency, amount) {
-  return `${currency === "USD" ? "$" : "\u20B1"}${Math.round(amount).toLocaleString("en-US")}`;
 }
 
 // bff/src/views/handoffPage.ts
@@ -33568,6 +33650,7 @@ function createApp(options = {}) {
   app2.route("/", adminRoutes({ settings: d.settings, guard: adminGuard }));
   app2.route("/", healthRoutes());
   app2.route("/", pageRoutes({ staffSession }));
+  app2.route("/", docsRoutes({ staffSession }));
   app2.route("/", extractorRoutes({ providerFor: d.providerFor, staffWriter, staffSession, saveQuotationDraft }));
   app2.route("/", handoffRoutes({ store: d.store, staffSession, staffWriter, closeEnquiryQuotation }));
   app2.route(

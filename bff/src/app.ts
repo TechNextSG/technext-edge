@@ -9,6 +9,7 @@ import { authRoutes } from "./routes/auth.ts";
 import { adminRoutes } from "./routes/admin.ts";
 import { healthRoutes } from "./routes/health.ts";
 import { pageRoutes } from "./routes/pages.ts";
+import { docsRoutes } from "./routes/docs.ts";
 import { extractorRoutes } from "./routes/extractor.ts";
 import { handoffRoutes } from "./routes/handoff.ts";
 import { whatsAppRoutes } from "./routes/whatsapp.ts";
@@ -50,6 +51,7 @@ export function createApp(options: AppOptions = {}) {
   app.route("/", adminRoutes({ settings: d.settings, guard: adminGuard }));
   app.route("/", healthRoutes());
   app.route("/", pageRoutes({ staffSession }));
+  app.route("/", docsRoutes({ staffSession }));
   app.route("/", extractorRoutes({ providerFor: d.providerFor, staffWriter, staffSession, saveQuotationDraft }));
   app.route("/", handoffRoutes({ store: d.store, staffSession, staffWriter, closeEnquiryQuotation }));
   app.route(

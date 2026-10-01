@@ -5,7 +5,7 @@ Tài liệu cho nhóm phát triển trên **technext-edge** và cầu nối vớ
 
 ## Sơ đồ
 
-Bốn sơ đồ vẽ bằng archify, mở bằng trình duyệt (nguồn `.json` cùng thư mục, vẽ lại bằng `node <archify>/bin/archify.mjs deliver …`):
+Nhân viên đã đăng nhập xem được các tài liệu HTML này ngay trên web tại `/docs` (danh sách cố định trong `bff/src/routes/docs.ts`; file được đóng gói kèm hàm nhờ `includeFiles` trong `vercel.json`). Bốn sơ đồ vẽ bằng archify, mở bằng trình duyệt (nguồn `.json` cùng thư mục, vẽ lại bằng `node <archify>/bin/archify.mjs deliver …`):
 
 | Sơ đồ | Trả lời |
 |---|---|

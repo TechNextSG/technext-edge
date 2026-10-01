@@ -50,7 +50,7 @@ describe("BFF Endpoints", () => {
     });
   });
 
-  it.each(["/docs", "/hub", "/benchmark", "/scenarios", "/status", "/roadmap", "/guide", "/showcase", "/plan", "/architecture", "/demo", "/diagrams"])(
+  it.each(["/hub", "/benchmark", "/scenarios", "/status", "/roadmap", "/guide", "/showcase", "/plan", "/architecture", "/demo", "/diagrams"])(
     "no longer serves the documentation page %s",
     async (path) => {
       expect((await app.request(path)).status).toBe(404);

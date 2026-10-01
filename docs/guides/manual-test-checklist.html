@@ -240,8 +240,8 @@ const CASES = [
 
   // ---------------- I
   { id: "I1", g: "I", kind: "studio", title: "Vào trang khi chưa đăng nhập", why: "Mọi trang nhân viên đều qua đăng nhập.",
-    steps: ["Cửa sổ ẩn danh, mở <code>/</code>, rồi <code>/quotes</code>, rồi <code>/test</code>, rồi <code>/handoff</code>.", "Mở <code>/docs</code> và <code>/hub</code>."],
-    must: ["<code>/</code> chuyển sang <code>/quotes</code>, rồi sang <code>/login</code>", "<code>/test</code> và <code>/handoff</code> chuyển sang <code>/login</code>", "<code>/docs</code>, <code>/hub</code> trả 404 (trang tài liệu đã bỏ)"], mustNot: ["Không thấy dữ liệu khách khi chưa đăng nhập"] },
+    steps: ["Cửa sổ ẩn danh, mở <code>/</code>, rồi <code>/quotes</code>, rồi <code>/test</code>, rồi <code>/handoff</code>.", "Mở <code>/hub</code> và <code>/benchmark</code>."],
+    must: ["<code>/</code> chuyển sang <code>/quotes</code>, rồi sang <code>/login</code>", "<code>/test</code> và <code>/handoff</code> chuyển sang <code>/login</code>", "<code>/hub</code>, <code>/benchmark</code> trả 404 (trang tài liệu cũ đã bỏ)", "<code>/docs</code> chuyển sang <code>/login</code> (chỉ nhân viên đã đăng nhập mới xem được)"], mustNot: ["Không thấy dữ liệu khách khi chưa đăng nhập"] },
   { id: "I2", g: "I", kind: "studio", hard: true, title: "Đăng nhập sai nhiều lần", why: "Phanh chống đoán key: 5 lần sai trong 15 phút thì khoá theo địa chỉ.",
     steps: ["Ở <code>/login</code>, nhập sai key 5 lần liên tiếp.", "Lần thứ 6: nhập đúng key."],
     must: ["Mỗi lần sai trang đăng nhập báo lỗi (HTTP 401)", "Sau 5 lần sai, các lần tiếp theo bị chặn (HTTP 429) kể cả key đúng, cho tới hết cửa sổ chờ"], mustNot: ["Không vào được studio bằng key sai"], note: "Đây là đếm theo địa chỉ IP trong bộ nhớ của từng instance Vercel, nên có thể không chặn đúng ở lần thứ 6 nếu request rơi vào instance khác." },
@@ -260,6 +260,9 @@ const CASES = [
   { id: "I7", g: "I", kind: "studio", title: "Trang /test (console) chỉ dành cho nhân viên", why: "Không còn ô nhập apiKey công khai.",
     steps: ["Chưa đăng nhập: mở <code>/test</code>. Sau đó đăng nhập và mở lại."],
     must: ["Chưa đăng nhập: chuyển sang <code>/login</code>", "Đã đăng nhập: thấy console thử trích xuất"], mustNot: ["Không có ô nhập API key trên trang"] },
+  { id: "I9", g: "I", kind: "studio", title: "Trang tài liệu /docs (chỉ nhân viên)", why: "Danh sách cố định các tài liệu HTML; URL chọn mục trong danh sách, không bao giờ là đường dẫn.",
+    steps: ["Chưa đăng nhập: mở <code>/docs</code>. Sau đó đăng nhập và mở lại.", "Mở từng tài liệu trong danh sách (báo cáo benchmark, bộ test tay, các sơ đồ).", "Thử <code>/docs/nope</code> và <code>/docs/..%2fpackage.json</code>."],
+    must: ["Chưa đăng nhập: chuyển sang <code>/login</code>", "Đã đăng nhập: thấy danh sách theo nhóm, mỗi mục mở ra một trang đầy đủ", "Đường dẫn lạ trả 404"], mustNot: ["Không đọc được file nào ngoài danh sách"] },
   { id: "I8", g: "I", kind: "studio", title: "Dashboard AI (/admin/ai)", why: "Chỉ mở khi deployment có ADMIN_ACCESS_KEY.",
     steps: ["Mở <code>/admin/ai</code> khi đã đăng nhập bằng key staff."],
     must: ["Nếu deployment CHƯA đặt <code>ADMIN_ACCESS_KEY</code>: 404 (hiện trạng của production)", "Nếu đã đặt: vai staff bị từ chối (403), chỉ key admin mới vào được"], mustNot: ["Không cho staff đổi model/key"], note: "ADMIN_ACCESS_KEY và SETTINGS_ENCRYPTION_KEY chưa được đặt trên Vercel tính tới ngày 01/10." },

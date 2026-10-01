@@ -16,6 +16,8 @@ GET /
 GET /test
 GET /test-console
 GET /console
+GET /docs
+GET /docs/:slug
 POST /v1/extract
 POST /v1/converse
 GET /handoff
