@@ -1,0 +1,581 @@
+<!doctype html>
+<html lang="vi" data-theme="light">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Casa Escondida — Bộ Test Case Demo Nâng Cao (6 Kịch Bản Khó)</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;600&display=swap" rel="stylesheet">
+  <style>
+    :root, [data-theme="light"] {
+      --bg: #f8fafc;
+      --card: #ffffff;
+      --card-alt: #f1f5f9;
+      --border: #e2e8f0;
+      --border-focus: #0284c7;
+      --text: #0f172a;
+      --muted: #475569;
+      --primary: #0284c7;
+      --primary-soft: #e0f2fe;
+      --emerald: #059669;
+      --emerald-soft: #ecfdf5;
+      --amber: #d97706;
+      --amber-soft: #fffbeb;
+      --rose: #e11d48;
+      --rose-soft: #ffe4e6;
+      --indigo: #4f46e5;
+      --indigo-soft: #e0e7ff;
+      --code-bg: #0f172a;
+      --code-text: #f8fafc;
+      --shadow: 0 4px 20px -2px rgba(15, 23, 42, 0.06);
+    }
+    [data-theme="dark"] {
+      --bg: #090d16;
+      --card: #111827;
+      --card-alt: #1a2234;
+      --border: #243048;
+      --border-focus: #38bdf8;
+      --text: #f1f5f9;
+      --muted: #94a3b8;
+      --primary: #38bdf8;
+      --primary-soft: rgba(56, 189, 248, 0.12);
+      --emerald: #10b981;
+      --emerald-soft: rgba(16, 185, 129, 0.12);
+      --amber: #fbbf24;
+      --amber-soft: rgba(251, 191, 36, 0.12);
+      --rose: #fb7185;
+      --rose-soft: rgba(251, 113, 133, 0.12);
+      --indigo: #818cf8;
+      --indigo-soft: rgba(129, 140, 248, 0.12);
+      --code-bg: #0b1120;
+      --code-text: #e2e8f0;
+      --shadow: 0 10px 30px -4px rgba(0, 0, 0, 0.5);
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+      line-height: 1.55;
+      padding: 32px 20px 80px;
+      transition: background 0.2s, color 0.2s;
+    }
+    .container { max-width: 1100px; margin: 0 auto; }
+    
+    /* Header */
+    header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      margin-bottom: 28px;
+      flex-wrap: wrap;
+      gap: 16px;
+      padding-bottom: 24px;
+      border-bottom: 1px solid var(--border);
+    }
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 12px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      padding: 4px 10px;
+      border-radius: 999px;
+      background: var(--primary-soft);
+      color: var(--primary);
+    }
+    h1 { font-size: 26px; font-weight: 800; margin: 8px 0 4px; letter-spacing: -0.02em; }
+    p.lead { color: var(--muted); margin: 0; font-size: 15px; }
+
+    .top-actions { display: flex; gap: 10px; align-items: center; }
+    .btn-toggle {
+      background: var(--card);
+      border: 1px solid var(--border);
+      color: var(--text);
+      padding: 8px 14px;
+      border-radius: 8px;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      transition: all 0.15s;
+    }
+    .btn-toggle:hover { border-color: var(--primary); color: var(--primary); }
+
+    /* Quick Launch Bar */
+    .quick-launch {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+      gap: 14px;
+      margin-bottom: 32px;
+    }
+    .launch-card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 16px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      box-shadow: var(--shadow);
+    }
+    .launch-card b { display: block; font-size: 14px; margin-bottom: 2px; }
+    .launch-card span { font-size: 12.5px; color: var(--muted); }
+    .launch-btn {
+      background: var(--primary);
+      color: #fff;
+      padding: 7px 12px;
+      border-radius: 6px;
+      text-decoration: none;
+      font-size: 12.5px;
+      font-weight: 700;
+      white-space: nowrap;
+      transition: opacity 0.15s;
+    }
+    .launch-btn:hover { opacity: 0.9; }
+
+    /* Scenario Cards */
+    .scenarios-grid { display: flex; flex-direction: column; gap: 20px; }
+    .scenario-card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 24px;
+      box-shadow: var(--shadow);
+      transition: border-color 0.2s;
+    }
+    .scenario-card:hover { border-color: var(--border-focus); }
+    .card-top {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 12px;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+    .pills { display: flex; gap: 6px; align-items: center; }
+    .pill {
+      font-size: 11.5px;
+      font-weight: 700;
+      padding: 3px 9px;
+      border-radius: 6px;
+    }
+    .pill.emerald { background: var(--emerald-soft); color: var(--emerald); }
+    .pill.amber { background: var(--amber-soft); color: var(--amber); }
+    .pill.rose { background: var(--rose-soft); color: var(--rose); }
+    .pill.indigo { background: var(--indigo-soft); color: var(--indigo); }
+
+    .scenario-title { font-size: 18px; font-weight: 700; margin: 0 0 6px; }
+    .scenario-goal { font-size: 13.5px; color: var(--muted); margin: 0 0 16px; }
+
+    /* Message Box */
+    .prompt-box {
+      background: var(--code-bg);
+      color: var(--code-text);
+      border-radius: 10px;
+      padding: 16px;
+      position: relative;
+      margin-bottom: 16px;
+    }
+    .prompt-label {
+      font-size: 11px;
+      font-weight: 700;
+      color: #94a3b8;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      margin-bottom: 8px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .prompt-text {
+      font-family: 'JetBrains Mono', Consolas, monospace;
+      font-size: 13px;
+      white-space: pre-wrap;
+      word-break: break-word;
+      line-height: 1.6;
+      margin: 0;
+    }
+    .copy-btn {
+      background: rgba(255,255,255,0.12);
+      color: #fff;
+      border: 1px solid rgba(255,255,255,0.2);
+      border-radius: 6px;
+      padding: 4px 10px;
+      font-size: 11.5px;
+      font-weight: 700;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      transition: all 0.15s;
+    }
+    .copy-btn:hover { background: var(--primary); border-color: var(--primary); }
+
+    /* Architecture Breakdown Grid */
+    .deep-dive {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+      background: var(--card-alt);
+      border-radius: 10px;
+      padding: 14px 16px;
+      font-size: 13px;
+    }
+    @media(max-width: 720px) { .deep-dive { grid-template-columns: 1fr; } }
+    .deep-dive b { color: var(--primary); display: block; margin-bottom: 3px; font-size: 12.5px; }
+    .deep-dive ul { margin: 0; padding-left: 18px; }
+    .deep-dive li { margin-bottom: 3px; }
+
+    /* Toast Notification */
+    #toast {
+      position: fixed;
+      bottom: 24px;
+      right: 24px;
+      background: var(--emerald);
+      color: #fff;
+      padding: 10px 18px;
+      border-radius: 8px;
+      font-weight: 700;
+      font-size: 13.5px;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.25);
+      opacity: 0;
+      transform: translateY(10px);
+      transition: all 0.2s ease;
+      z-index: 1000;
+      pointer-events: none;
+    }
+    #toast.show { opacity: 1; transform: translateY(0); }
+  </style>
+</head>
+<body>
+
+<div id="toast">✓ Đã sao chép tin nhắn vào clipboard!</div>
+
+<div class="container">
+  <header>
+    <div>
+      <div class="badge">TechNext Edge · QA/QC Suite</div>
+      <h1>Bộ 6 Test Case Demo Nâng Cao (Stress &amp; Edge Cases)</h1>
+      <p class="lead">Được thiết kế riêng cho buổi Code Review và Nghiệm thu Hệ thống Casa Escondida AI Booking Engine</p>
+    </div>
+    <div class="top-actions">
+      <button class="btn-toggle" onclick="toggleTheme()" id="themeBtn">🌙 Dark Mode</button>
+      <button class="btn-toggle" onclick="toggleLang()" id="langBtn">🌐 EN / VI</button>
+    </div>
+  </header>
+
+  <!-- Quick Launch Links -->
+  <div class="quick-launch">
+    <div class="launch-card">
+      <div>
+        <b>Quotation Studio (Remote)</b>
+        <span>Tích hợp Odoo Fixture thật</span>
+      </div>
+      <a href="https://technext-edge-casa-bff.vercel.app/quotes" target="_blank" class="launch-btn">Mở Studio →</a>
+    </div>
+    <div class="launch-card">
+      <div>
+        <b>Simulated Mode (Offline)</b>
+        <span>Báo giá mẫu QT-1010-SKY</span>
+      </div>
+      <a href="https://technext-edge-casa-bff-sim.vercel.app/quotes/QT-1010-SKY" target="_blank" class="launch-btn">Mở Sim →</a>
+    </div>
+    <div class="launch-card">
+      <div>
+        <b>Automated Verification</b>
+        <span>956 tests xanh 100%</span>
+      </div>
+      <span style="font-family:'JetBrains Mono';font-size:12px;color:var(--emerald);font-weight:700;">npm run verify</span>
+    </div>
+  </div>
+
+  <div class="scenarios-grid">
+
+    <!-- Scenario 1 -->
+    <article class="scenario-card">
+      <div class="card-top">
+        <div class="pills">
+          <span class="pill amber">Độ khó: 4/5</span>
+          <span class="pill indigo">Multi-Party &amp; Courses</span>
+        </div>
+        <span style="font-size:12px;color:var(--muted);font-weight:600;">Scenario 01</span>
+      </div>
+      <h2 class="scenario-title">1. Nhóm hỗn hợp: Thợ lặn + Học viên lấy bằng AOW + Nghỉ dưỡng</h2>
+      <p class="scenario-goal">Thử thách khả năng trích xuất đa thực thể: 3 người với 3 nhu cầu khác nhau chia vào 2 phòng, tự động gán khóa học lặn và học phí.</p>
+      
+      <div class="prompt-box">
+        <div class="prompt-label">
+          <span>Tin nhắn WhatsApp (Copy để gửi cho bot)</span>
+          <button class="copy-btn" onclick="copyText('p1')">📋 Copy Prompt</button>
+        </div>
+        <p class="prompt-text" id="p1">Hi Casa Escondida! We are a group of 3 friends planning a trip from Dec 10 to Dec 13 with full board. 
+We need 2 rooms: 1 standard and 1 deluxe. 
+Regarding activities:
+- I'm an experienced diver and want to dive on Dec 11 and Dec 12.
+- My friend John wants to take the Advanced Open Water course.
+- Our third friend does not dive at all, just relaxation and meals.
+Can you give us a detailed quotation?</p>
+      </div>
+
+      <div class="deep-dive">
+        <div>
+          <b>Cơ chế xử lý kỹ thuật</b>
+          <ul>
+            <li><code>counts.ts</code>: Tách đúng 3 khách, gán diver cho 2 người, 1 non-diver.</li>
+            <li><code>rates.ts</code>: Khóa AOW tự cộng học phí ₱18,000 vào folio của John.</li>
+            <li>Tiền phòng tự chia theo tỷ lệ roommates (<code>nightly / occupancy</code>).</li>
+          </ul>
+        </div>
+        <div>
+          <b>Điểm cần chỉ cho Duy xem</b>
+          <ul>
+            <li>Studio hiển thị rành mạch 3 cột folio cho 3 người.</li>
+            <li>Bữa ăn Full board tính đều cả 3 khách (Meals are never discounted).</li>
+            <li>Bảng giá Odoo fixture hiển thị đầy đủ category: Room, Meals, Dive, Course.</li>
+          </ul>
+        </div>
+      </div>
+    </article>
+
+    <!-- Scenario 2 -->
+    <article class="scenario-card">
+      <div class="card-top">
+        <div class="pills">
+          <span class="pill emerald">Độ khó: 4/5</span>
+          <span class="pill indigo">Vietnamese NLU</span>
+        </div>
+        <span style="font-size:12px;color:var(--muted);font-weight:600;">Scenario 02</span>
+      </div>
+      <h2 class="scenario-title">2. Ngôn ngữ bản địa: Tiếng Việt đời thường &amp; Ăn trọn gói</h2>
+      <p class="scenario-goal">Chứng minh khả năng nhận diện tiếng Việt tự nhiên, xử lý ngày tháng theo cú pháp Việt Nam và map thuật ngữ du lịch (ăn trọn gói = full board).</p>
+      
+      <div class="prompt-box">
+        <div class="prompt-label">
+          <span>Tin nhắn WhatsApp (Copy để gửi cho bot)</span>
+          <button class="copy-btn" onclick="copyText('p2')">📋 Copy Prompt</button>
+        </div>
+        <p class="prompt-text" id="p2">Chào Casa Escondida, team mình có 4 người muốn book chuyến đi từ ngày 15 đến 18 tháng 12 tới. 
+Bọn mình chọn ăn trọn gói 3 bữa (full board) và ở 2 phòng standard nhé. 
+Cả 4 đứa đều muốn đi lặn biển trong 2 ngày 16 và 17/12. 
+Báo giá chi tiết giúp mình với nhé!</p>
+      </div>
+
+      <div class="deep-dive">
+        <div>
+          <b>Cơ chế xử lý kỹ thuật</b>
+          <ul>
+            <li><code>detectLanguage</code>: Nhận diện mã <code>vi</code> $\rightarrow$ Bot trả lời 100% tiếng Việt.</li>
+            <li><code>dates.ts</code>: Bắt đúng Check-in 15/12, Check-out 18/12 (3 đêm) và lặn 16-17/12.</li>
+            <li>Tự động map "ăn trọn gói 3 bữa" $\rightarrow$ <code>mealPlan: "full_board"</code>.</li>
+          </ul>
+        </div>
+        <div>
+          <b>Điểm cần chỉ cho Duy xem</b>
+          <ul>
+            <li>Bot phản hồi văn phong lịch thiệp, tự nhiên chuẩn resort.</li>
+            <li>Bản nháp trong Studio điền sẵn số phòng: 2 Standard (đúng max 2 người/phòng).</li>
+          </ul>
+        </div>
+      </div>
+    </article>
+
+    <!-- Scenario 3 -->
+    <article class="scenario-card">
+      <div class="card-top">
+        <div class="pills">
+          <span class="pill rose">Độ khó: 5/5</span>
+          <span class="pill indigo">State Machine &amp; Fact Gate</span>
+        </div>
+        <span style="font-size:12px;color:var(--muted);font-weight:600;">Scenario 03</span>
+      </div>
+      <h2 class="scenario-title">3. Khách đổi ý liên tục: Thêm người, tăng số đêm &amp; thêm lặn</h2>
+      <p class="scenario-goal">Thử thách bộ nhớ hội thoại và máy trạng thái. Khách thay đổi các thông số quan trọng (priced facts) sau khi đơn đã được tạo.</p>
+      
+      <div class="prompt-box">
+        <div class="prompt-label">
+          <span>Lượt 1: Gửi tin nhắn ban đầu</span>
+          <button class="copy-btn" onclick="copyText('p3a')">📋 Copy Lượt 1</button>
+        </div>
+        <p class="prompt-text" id="p3a">Hi, I'm Alex. Need a quote for 2 people, Dec 5 to Dec 7, standard room, full board. No diving.</p>
+      </div>
+
+      <div class="prompt-box">
+        <div class="prompt-label">
+          <span>Lượt 2: Khách đổi ý (Gửi sau khi bot trả lời)</span>
+          <button class="copy-btn" onclick="copyText('p3b')">📋 Copy Lượt 2</button>
+        </div>
+        <p class="prompt-text" id="p3b">Wait, change of plans! My brother is joining so we are 3 people now. 
+And could we extend checkout to Dec 8? Also we want to do boat diving on Dec 6.</p>
+      </div>
+
+      <div class="deep-dive">
+        <div>
+          <b>Cơ chế xử lý kỹ thuật</b>
+          <ul>
+            <li><code>oneEnquiryOneQuotation.test.ts</code>: Giữ đúng 1 quotation ID duy nhất.</li>
+            <li><code>pricedFactsChanged</code>: Tự động thu hồi cờ Approve cũ để chống thất thoát.</li>
+            <li><code>diffBffTrip</code>: Lưu lại vết sửa đổi của từng trường dữ liệu.</li>
+          </ul>
+        </div>
+        <div>
+          <b>Điểm cần chỉ cho Duy xem</b>
+          <ul>
+            <li>Studio tự động cập nhật số khách (2 $\rightarrow$ 3), số đêm (2 $\rightarrow$ 3 đêm).</li>
+            <li>Hệ thống yêu cầu re-price với BFF trước khi cho phép Approve lại.</li>
+          </ul>
+        </div>
+      </div>
+    </article>
+
+    <!-- Scenario 4 -->
+    <article class="scenario-card">
+      <div class="card-top">
+        <div class="pills">
+          <span class="pill amber">Độ khó: 4/5</span>
+          <span class="pill indigo">Logistics &amp; Van Split</span>
+        </div>
+        <span style="font-size:12px;color:var(--muted);font-weight:600;">Scenario 04</span>
+      </div>
+      <h2 class="scenario-title">4. Đưa đón sân bay &amp; Thuật toán chia xe van (Nhóm 7 khách)</h2>
+      <p class="scenario-goal">Thử thách năng lực logistics: Nhóm 7 người vượt quá sức chứa tối đa 1 xe van (6 chỗ) của resort $\rightarrow$ Thuật toán phải tự điều 2 xe.</p>
+      
+      <div class="prompt-box">
+        <div class="prompt-label">
+          <span>Tin nhắn WhatsApp (Copy để gửi cho bot)</span>
+          <button class="copy-btn" onclick="copyText('p4')">📋 Copy Prompt</button>
+        </div>
+        <p class="prompt-text" id="p4">Hello, we are a group of 7 guests staying from Dec 20 to Dec 22. 
+We need full board, diving on Dec 21, and we definitely need private roundtrip van transfer from Manila for all 7 of us.</p>
+      </div>
+
+      <div class="deep-dive">
+        <div>
+          <b>Cơ chế xử lý kỹ thuật</b>
+          <ul>
+            <li><code>vansForGuests(7) = 2 vans</code>: Tự động tính 2 xe khứ hồi Manila - Anilao.</li>
+            <li>Bổ đều chi phí 2 xe van cho 7 khách (<code>van split</code>).</li>
+            <li>Kiểm soát danh mục doanh thu <code>catRev.transport</code> chuẩn xác.</li>
+          </ul>
+        </div>
+        <div>
+          <b>Điểm cần chỉ cho Duy xem</b>
+          <ul>
+            <li>Mở trang Vận hành Ops Sheet (<code>/ops</code>): Thấy rõ lịch điều 2 xe đón và 2 xe tiễn.</li>
+          </ul>
+        </div>
+      </div>
+    </article>
+
+    <!-- Scenario 5 -->
+    <article class="scenario-card">
+      <div class="card-top">
+        <div class="pills">
+          <span class="pill amber">Độ khó: 4/5</span>
+          <span class="pill indigo">B2B Partner Pricing</span>
+        </div>
+        <span style="font-size:12px;color:var(--muted);font-weight:600;">Scenario 05</span>
+      </div>
+      <h2 class="scenario-title">5. Khách B2B: Đại lý / HLV dạy lặn đòi giảm giá 30%</h2>
+      <p class="scenario-goal">Kiểm tra chính sách giá sỉ B2B đối với HLV lặn dẫn học viên: Giảm đúng 30% tiền phòng, tuyệt đối không giảm tiền ăn.</p>
+      
+      <div class="prompt-box">
+        <div class="prompt-label">
+          <span>Tin nhắn WhatsApp (Copy để gửi cho bot)</span>
+          <button class="copy-btn" onclick="copyText('p5')">📋 Copy Prompt</button>
+        </div>
+        <p class="prompt-text" id="p5">Hi Casa Escondida, I am a certified PADI Dive Instructor bringing 4 students for a dive trip from Dec 12 to 14. 
+Do you offer instructor/partner rates for accommodation and diving?</p>
+      </div>
+
+      <div class="deep-dive">
+        <div>
+          <b>Cơ chế xử lý kỹ thuật</b>
+          <ul>
+            <li><code>classifyEnquiry</code>: Nhận diện intent đối tác B2B (<code>instructor</code>).</li>
+            <li><code>rates.ts</code>: Giảm 30% tiền phòng (<code>PARTNER_DISCOUNT_PCT</code>).</li>
+            <li>Quy tắc bất biến: Suất ăn Full board ₱1,500/ngày không bị giảm giá.</li>
+          </ul>
+        </div>
+        <div>
+          <b>Điểm cần chỉ cho Duy xem</b>
+          <ul>
+            <li>Tính năng <b>Agent View</b> trên Studio: Đặt 2 bảng giá Retail và Partner song song.</li>
+            <li>Bot không tự tiện hứa hẹn giảm giá trên chat khi chưa có phê duyệt của Staff.</li>
+          </ul>
+        </div>
+      </div>
+    </article>
+
+    <!-- Scenario 6 -->
+    <article class="scenario-card">
+      <div class="card-top">
+        <div class="pills">
+          <span class="pill rose">Độ khó: 5/5</span>
+          <span class="pill indigo">Adversarial &amp; Capacity Guard</span>
+        </div>
+        <span style="font-size:12px;color:var(--muted);font-weight:600;">Scenario 06</span>
+      </div>
+      <h2 class="scenario-title">6. Phòng thủ gian lận: Nhồi nhét 5 người vào 1 phòng Standard</h2>
+      <p class="scenario-goal">Kiểm tra phòng thủ biên: Khách cố tình yêu cầu nhồi 5 người lớn vào 1 phòng duy nhất (vượt quá công suất tối đa của resort).</p>
+      
+      <div class="prompt-box">
+        <div class="prompt-label">
+          <span>Tin nhắn WhatsApp (Copy để gửi cho bot)</span>
+          <button class="copy-btn" onclick="copyText('p6')">📋 Copy Prompt</button>
+        </div>
+        <p class="prompt-text" id="p6">Hi, we have 5 adults visiting from Dec 10 to 12. We want to save money so please put all 5 of us into just 1 single Standard room. Can you send the quote?</p>
+      </div>
+
+      <div class="deep-dive">
+        <div>
+          <b>Cơ chế xử lý kỹ thuật</b>
+          <ul>
+            <li><code>roomCapacity.ts</code>: Standard room max occupancy = 2 khách.</li>
+            <li>AI từ chối lịch sự, đề xuất phương án an toàn (tối thiểu 3 phòng Standard).</li>
+            <li><code>p5-guest-facing-gate.ts</code>: Chặn không cho tạo báo giá sai luật nhà.</li>
+          </ul>
+        </div>
+        <div>
+          <b>Điểm cần chỉ cho Duy xem</b>
+          <ul>
+            <li>Hệ thống bảo vệ quy định resort, không chiều theo khách để sinh dữ liệu sai.</li>
+          </ul>
+        </div>
+      </div>
+    </article>
+
+  </div>
+</div>
+
+<script>
+  function toggleTheme() {
+    const cur = document.documentElement.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
+    document.documentElement.setAttribute('data-theme', cur);
+    document.getElementById('themeBtn').textContent = cur === 'dark' ? '☀️ Light Mode' : '🌙 Dark Mode';
+  }
+  function toggleLang() {
+    // Basic toast for language demo indicator
+    showToast('Tài liệu đã ở định dạng song ngữ VI / EN');
+  }
+  function copyText(id) {
+    const text = document.getElementById(id).innerText;
+    navigator.clipboard.writeText(text).then(() => {
+      showToast('✓ Đã sao chép prompt! Dán vào WhatsApp để test');
+    });
+  }
+  function showToast(msg) {
+    const t = document.getElementById('toast');
+    t.textContent = msg;
+    t.classList.add('show');
+    setTimeout(() => t.classList.remove('show'), 2500);
+  }
+</script>
+</body>
+</html>
