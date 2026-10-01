@@ -1,7 +1,5 @@
 import { randomUUID } from "node:crypto";
 import type { Trip } from "../../../../ai/src/index.ts";
-import type { BffTrip } from "../../../../ai/src/index.ts";
-import type { StaffTripEdit } from "../domain/tripDiff.ts";
 import type { ExtractProvider } from "../../../../ai/src/index.ts";
 import { getStaffAlerts, diveWindowIsGuessed } from "../../../../ai/src/index.ts";
 import { buildBffTrip, datesBetweenInclusive } from "../../../../ai/src/index.ts";
@@ -37,7 +35,7 @@ export type {
 };
 
 /**
- * The link to show the guest and to put in the message: our copy when their app lost the link,
+ * The link to show the guest and to put in the message: our copy when the team estimator's app lost the link,
  * otherwise theirs. One place, so the studio, the message and the send guard cannot disagree about
  * which link the guest is holding.
  */
@@ -82,7 +80,7 @@ export function recalculateQuotationTotals(draft: HonoQuotationDraft): HonoQuota
     return { ...item, subtotal };
   });
   const subtotalAmount = updatedItems.reduce((sum, item) => sum + item.subtotal, 0);
-  // The only discount in the customer's model is the partner/agency rate, and the field guide
+  // The only discount in the team estimator's model is the partner/agency rate, and the field guide
   // is explicit that it is "30% off rooms" — meals are "never guest-type discounted". So the
   // discount is computed against the ROOM lines only, not the whole table.
   const roomSubtotal = updatedItems
@@ -163,7 +161,7 @@ export function buildHonoQuotationDraft(
 
   const lineItems: QuotationLineItem[] = [];
 
-  // 1. Rooms — the customer's per-night room rate for each room's occupancy, summed over the stay.
+  // 1. Rooms — the team estimator's per-night room rate for each room's occupancy, summed over the stay.
   // buildBffTrip assigns guests to rooms round-robin (standard rooms), so the occupancy that Odoo
   // will price is read back off it — the draft prices the same thing the payload sends.
   const occupancyByRoom = new Map<string, number>();
@@ -291,7 +289,7 @@ export function buildHonoQuotationDraft(
     });
   }
 
-  // No discount from what the guest typed. A partner rate is the customer's engine answering an agent
+  // No discount from what the guest typed. A partner rate is the team estimator's engine answering an agent
   // who signed in with their own key; "we are a travel agency" in a WhatsApp message is not that. The
   // enquiry is held for staff instead (`partner_rate_confirmation_required`).
   const discountPercent = 0;
@@ -332,7 +330,7 @@ export function buildHonoQuotationDraft(
     // quotation page and in the confirmed WhatsApp reply ("📝 Resort Note"). It used to default to
     // internal wording — "Standard resort quotation draft ready for Hono confirmation" and, for a
     // split-day plan, "Verify boat manifest before confirming" — which shipped our own workflow,
-    // and a to-do for our staff, onto the customer's page. The split-day signal staff need is
+    // and a to-do for our staff, onto the team estimator's page. The split-day signal staff need is
     // `staffAlerts` below, which is deliberately phrased for both audiences.
     staffNotes: "",
     staffAlerts: getStaffAlerts(trip, "en"),
@@ -360,7 +358,7 @@ const CONFIRMED_GREETING_BUDGET_MS = 3_500;
 /**
  * True when this enquiry came from an agent or instructor.
  *
- * F08 (the customer's AI-channel flow): a partner is quoted in the team estimator after signing in
+ * F08 (the team estimator's AI-channel flow): a partner is quoted in the team estimator after signing in
  * with their own key, because only that session gets a partner rate. Our bot holds a guest session, so
  * whatever it prices is the retail figure — publishing that to an agent would quote them the wrong
  * number. Read from the trip that was priced, and from the draft in case the trip is absent.
@@ -410,7 +408,7 @@ export function guestFacingFactsFor(draft: HonoQuotationDraft): GuestFacingFacts
  *
  * Three rules now, and they are the whole point of the rewrite:
  *
- *   1. **No money in this message at all.** The engine's price lives on the customer's own
+ *   1. **No money in this message at all.** The engine's price lives on the team estimator's own
  *      quotation page, which is what the link opens; a figure repeated in chat is a second source
  *      of the number, and in fixture mode it is a sample figure a guest would read as real.
  *   2. **The link is the published one, or there is no message.** `estimator.guestUrl` is minted by
@@ -426,7 +424,7 @@ export async function synthesizeConfirmedQuotationReply(
   draft: HonoQuotationDraft,
   provider?: ExtractProvider
 ): Promise<string> {
-  // `guestLinkFor`, not `estimator.guestUrl`: when their app lost the link it issued, the guest is
+  // `guestLinkFor`, not `estimator.guestUrl`: when the team estimator's app lost the link it issued, the guest is
   // sent our copy of the same revision, and the message has to carry the link that opens.
   const guestLink = guestLinkFor(draft);
   const sample = Boolean(draft.pricing?.sample);

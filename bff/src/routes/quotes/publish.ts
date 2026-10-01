@@ -18,6 +18,7 @@ export function publishRoutes(deps: QuotesRouteDeps): Hono {
     const existing = await getQuotationByIdOrSlug(c.req.param("id"));
     if (!existing) return c.json({ error: "not_found" }, 404);
 
+    // Kept for the cold-start record an older deploy left in KV (nothing seeds any more). Delete the guard with that record.
     if (typeof existing.seedVersion === "number") {
       return c.json(
         {

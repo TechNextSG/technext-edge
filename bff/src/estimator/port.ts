@@ -7,12 +7,12 @@
  * change rather than a rewrite.
  *
  *   `ESTIMATOR_MODE=simulated` (default)  -> `simulatedEstimator.ts`
- *   `ESTIMATOR_MODE=remote`               -> `estimatorClient.ts` (their BFF, which talks to Odoo)
+ *   `ESTIMATOR_MODE=remote`               -> `estimatorClient.ts` (the team estimator's BFF, which talks to Odoo)
  *
  * The simulated side deliberately answers in the **team estimator's own response shape**
  * (`contracts/odoo/examples/compute.*.json` — `quotes[]` per guest, `catRev`, `kpis.revenue`),
  * not in a shape of our own. That is what makes the swap free: the studio and the guest page
- * already read the customer's shape, so pointing `ESTIMATOR_MODE` at the real BFF changes where
+ * already read the team estimator's shape, so pointing `ESTIMATOR_MODE` at the real BFF changes where
  * the numbers come from and nothing about how they are displayed.
  *
  * Safety invariant, unchanged in both modes: nothing here holds an Odoo credential, and nothing
@@ -30,8 +30,8 @@ export type EstimatorMode = "simulated" | "remote";
  * The result of asking the estimator to price a trip.
  *
  * `sample` is the load-bearing field, not a nicety: a price computed from captured or simulated
- * data must never be shown as a live one. It has two sources, because their fixture does not
- * currently set the flag their own docs promise — their response body when it says so, or our
+ * data must never be shown as a live one. It has two sources, because the team estimator's fixture does not
+ * currently set the flag the team estimator's own docs promise — their response body when it says so, or our
  * probe of `GET /api/health` reporting `mode: 'fixture'`. Either one is enough. The simulated
  * port sets both, always.
  *
@@ -55,7 +55,7 @@ export type EstimateSendResult =
        */
       retailModel?: unknown;
       /**
-       * The `ubg_sid` cookie their BFF set on this call, verbatim, or null when it set none.
+       * The `ubg_sid` cookie the team estimator's BFF set on this call, verbatim, or null when it set none.
        * Recorded on the quotation so `commit`/`share`/`submit` can be addressed to the same
        * session — see `EstimatorSession`.
        */
@@ -86,7 +86,7 @@ export interface BookingContact {
 /**
  * The booking engine's answer to a submit.
  *
- * The four `reason` values are the customer's own failure taxonomy (`docs/flows/F07-booking.md`
+ * The four `reason` values are the team estimator's own failure taxonomy (`docs/flows/F07-booking.md`
  * D1): `closed` = live submit is switched off, `rejected` = the engine answered and said no
  * (safe to retry), `busy` = the request never left us, `unknown` = it may have created a folio
  * and must not be retried blindly.
@@ -111,7 +111,7 @@ export interface EstimatorHealth {
 }
 
 /**
- * One quotation's session with their BFF.
+ * One quotation's session with the team estimator's BFF.
  *
  * Their flow keeps a guest draft behind an `ubg_sid` cookie: `POST /api/estimates` sets it, and
  * `commit`, `share` and `submit` only work for the session that owns the scenario. So the cookie is
@@ -130,7 +130,7 @@ export interface EstimatorSession {
   cookie: string | null;
 }
 
-/** Why a call to their BFF did not produce an answer. Mirrors `EstimateSendResult`'s failures. */
+/** Why a call to the team estimator's BFF did not produce an answer. Mirrors `EstimateSendResult`'s failures. */
 export type EstimatorFailure =
   | "not_configured"
   | "unreachable"
@@ -157,7 +157,7 @@ export type ShareResult =
 /**
  * What a submit needs.
  *
- * `estimatorId` is their own scenario id, handed back by `POST /api/estimates`. It is optional
+ * `estimatorId` is the team estimator's own scenario id, handed back by `POST /api/estimates`. It is optional
  * because the simulated port has no such id and does not need one; the remote port requires it,
  * because their `POST /api/estimates/:id/submit` is addressed by it. Keeping it in the call
  * rather than in module state is what stops a remote submit from silently reusing another
@@ -181,7 +181,7 @@ export interface SubmitInput {
 export interface EstimatorPort {
   /** Which side of the port this is. Surfaced so a page can label itself honestly. */
   readonly kind: EstimatorMode;
-  /** Their BFF's base URL, when there is one. `undefined` for the simulated port. */
+  /** The team estimator's BFF's base URL, when there is one. `undefined` for the simulated port. */
   readonly baseUrl?: string;
   /**
    * The host their GUEST pages are served from, when it differs from the API host.
@@ -218,7 +218,7 @@ export interface EstimatorPort {
   /**
    * Can the guest actually OPEN the link we just minted?
    *
-   * Not paranoia, and not a duplicate of `share` answering 200. Measured against the customer's
+   * Not paranoia, and not a duplicate of `share` answering 200. Measured against the team estimator's
    * fixture deployment (2026-09-28): the same token, opened 24 times in parallel, answered **200
    * seventeen times and 404 seven times** — that deployment keeps scenarios and share tokens in the
    * memory of one serverless instance, so a token is known only to the instance that minted it.

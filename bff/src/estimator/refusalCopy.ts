@@ -3,7 +3,7 @@
  *
  * Their 422 body is `{ error, code, fields, issues: [{ code, fields, level, params? }] }`, and `error`
  * is a Vietnamese sentence ("Chuyến không hợp lệ") that tells a receptionist nothing. The `code` is the
- * stable part, so it is what gets translated here. `TripIssueCode` on their side is a closed union
+ * stable part, so it is what gets translated here. `TripIssueCode` on the team estimator's side is a closed union
  * (`bff/src/trip/validate.ts`); `refusalCopy.test.ts` fails when the vendored snapshot of that
  * union holds a code missing from `ISSUE_COPY`, so a new rule cannot arrive as an unexplained refusal.
  *

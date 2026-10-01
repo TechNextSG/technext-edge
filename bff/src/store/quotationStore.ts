@@ -36,7 +36,7 @@ export async function saveQuotationDraft(draft: HonoQuotationDraft): Promise<Hon
  *   * the **seeded** fixture, because that is what a cold start shows;
  *   * an **approved** record, because that is a decision somebody made and may already have told the
  *     guest about — deleting the only local evidence of it is not a tidy-up;
- *   * a record with a **submission**, because a folio exists on the customer's side and this record
+ *   * a record with a **submission**, because a folio exists on the team estimator's side and this record
  *     is what ties it to a guest here.
  */
 export function protectedFromCleanup(q: HonoQuotationDraft): boolean {

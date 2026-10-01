@@ -8,7 +8,7 @@
  *
  * Two properties make that true rather than aspirational:
  *
- * 1. **It answers in the customer's own shape.** The output is the body of
+ * 1. **It answers in the team estimator's own shape.** The output is the body of
  *    `contracts/odoo/examples/compute.*.json` — `quotes[]` with per-guest `lines`, `catRev`,
  *    `kpis`, `presence`, `covers`, `dayPlans`, `gwin`. Not a shape of our own invention. So the
  *    studio and the guest page read real-contract fields today, and switching
@@ -18,7 +18,7 @@
  *    `compute.retail-couple.json` this returns the same ₱31,200, the same ₱15,200 room /
  *    ₱6,000 meals / ₱10,000 dive split, the same `rpgn`, the same `covers`. That equality is the
  *    contract test (`simulatedEstimator.test.ts`), and it is what makes a local price
- *    trustworthy enough to demo: it is the customer's arithmetic, not ours.
+ *    trustworthy enough to demo: it is the team estimator's arithmetic, not ours.
  *
  * What it is NOT: a second source of pricing truth. Every number here is labelled
  * `sample: true`, `mode: 'fixture'`, and the studio shows the Sample banner on top of it. The
@@ -65,7 +65,7 @@ const r2 = (n: number) => Math.round(n * 100) / 100;
 
 export type SimulatedRole = "guest" | "agent" | "instructor";
 
-/** One priced row, exactly as the customer's `quotes[].lines[]` carries it. */
+/** One priced row, exactly as the team estimator's `quotes[].lines[]` carries it. */
 export interface SimLine {
   cat: "room" | "meals" | "dive" | "course" | "transport";
   label: string;
@@ -100,9 +100,9 @@ export interface SimFocusSummary {
 }
 
 /**
- * The customer's `model`. Field-for-field what `compute.retail-couple.json` returns, with the
- * nullable cost/margin half left null exactly as their fixture leaves it (we have no cost data in
- * any mode — `B-003` on their side, "cost only with a real staff key").
+ * The team estimator's `model`. Field-for-field what `compute.retail-couple.json` returns, with the
+ * nullable cost/margin half left null exactly as the team estimator's fixture leaves it (we have no cost data in
+ * any mode — `B-003` on the team estimator's side, "cost only with a real staff key").
  */
 export interface SimModel {
   N: number;
@@ -217,7 +217,7 @@ function displayRoomName(trip: BffTrip, roomId: string | null): string {
  * Their engine takes the role from the *session* — the Odoo key behind the login — and never from the
  * payload: `deriveGuestType(sessionRole, trip.guestType)` overrides what the trip claims. Our bot only
  * ever holds a guest session (`ubg_sid`), so an enquiry that says "travel agency" is still priced at
- * retail; a partner rate exists only for a partner who signs in on their own system. A simulation that
+ * retail; a partner rate exists only for a partner who signs in on the team estimator. A simulation that
  * read the role off the trip would hand out a discount the real engine cannot.
  */
 function roleOf(_trip: BffTrip): SimulatedRole {
@@ -225,7 +225,7 @@ function roleOf(_trip: BffTrip): SimulatedRole {
 }
 
 /**
- * Price a validated `BffTrip` into the customer's model.
+ * Price a validated `BffTrip` into the team estimator's model.
  *
  * `asRole` is split out because the Agent View needs the *same trip* priced twice — once on the
  * agent card and once as a retail guest — and the two answers must come from one function or they
@@ -450,7 +450,7 @@ export function buildSimulatedEnvelope(trip: BffTrip, asRole?: SimulatedRole): S
   const model = buildSimulatedModel(trip, role);
   // Only an agent (or staff) session gets the retail comparison — their B-039. A guest has nothing
   // to compare against and an instructor is not shown what a retail guest would have paid, so for
-  // both the second model is genuinely absent rather than a copy, as in their own fixture.
+  // both the second model is genuinely absent rather than a copy, as in the team estimator's own fixture.
   const retailModel = role === "agent" ? buildSimulatedModel(trip, "guest") : null;
   return { ok: true, role, model, retail_model: retailModel, assumptions: null };
 }
@@ -521,7 +521,7 @@ export function createSimulatedEstimator(options: SimulatedEstimatorOptions = {}
   const now = options.now ?? (() => new Date());
   const behaviour = options.submitBehaviour ?? "confirmed";
 
-  // The one piece of state their fixture keeps in a database: how many times a scenario has been
+  // The one piece of state the team estimator's fixture keeps in a database: how many times a scenario has been
   // saved, and whether it has been committed at all. Held per port instance, which is the honest
   // scope for a simulation — it exists so the commit → share *sequence* can be exercised, including
   // the `no-snapshot` refusal a share gets for a quotation nobody has saved.
@@ -548,7 +548,7 @@ export function createSimulatedEstimator(options: SimulatedEstimatorOptions = {}
     if (refused) return refused;
     const warnings = validateBffTripPrecheck(priced, DEFAULT_ROOM_CAPS).filter((i) => i.level === "warn");
     const envelope = buildSimulatedEnvelope(priced, "guest");
-    // Re-pricing an existing scenario keeps its id and its session, which is what their BFF does:
+    // Re-pricing an existing scenario keeps its id and its session, which is what the team estimator's BFF does:
     // the draft is the session's, and a second compute is a PATCH of it, not a new enquiry.
     const id = session?.id ?? `sim-${randomUUID()}`;
     saved.set(id, priced);
@@ -560,7 +560,7 @@ export function createSimulatedEstimator(options: SimulatedEstimatorOptions = {}
       issues: warnings,
       computedAt: now().toISOString(),
       model: envelope.model,
-      // Present for a partner session, null for retail — the same rule their fixture follows.
+      // Present for a partner session, null for retail — the same rule the team estimator's fixture follows.
       retailModel: envelope.retail_model,
       // Their `ubg_sid`, in their format, so the caller records and replays a real-looking cookie.
       sessionCookie: session?.cookie ?? `ubg_sid=${id}`,

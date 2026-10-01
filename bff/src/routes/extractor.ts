@@ -4,7 +4,6 @@ import { z } from "zod";
 import {
   extract,
   ExtractionValidationError,
-  createProviderByName,
   KNOWN_PROVIDER_NAMES,
   type ConversationTurn,
   type ExtractProvider,

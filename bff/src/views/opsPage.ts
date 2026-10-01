@@ -21,7 +21,7 @@ import { escapeHtml } from "./html.ts";
 const SHORT_MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 const SHORT_DAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
-/** "Fri, Nov 20, 2026" — how the customer's own sheet heads a day. */
+/** "Fri, Nov 20, 2026" — how the team estimator's own sheet heads a day. */
 function longDay(iso: string): string {
   const d = new Date(`${iso}T00:00:00Z`);
   if (Number.isNaN(d.getTime())) return iso;

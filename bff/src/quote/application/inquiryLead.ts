@@ -2,7 +2,7 @@ import type { Trip } from "../../../../ai/src/index.ts";
 import { buildBffTrip, courseAssignment } from "../../../../ai/src/index.ts";
 
 /**
- * The shape of the customer's website enquiry (their F10, `bff/src/inquiry/types.ts` on
+ * The shape of the Casa website enquiry (the team estimator's F10, `bff/src/inquiry/types.ts` on
  * `Stage1_Estimator_Tools@5fe2806`): the part a guest fills in on the Casa site, without the contact
  * columns (`name`, `email`, `phone`), the lead id and the timestamp, which are theirs to add.
  *
@@ -21,8 +21,8 @@ export interface InquiryLead {
 }
 
 /**
- * Prepares an enquiry from a `Trip` in their F10 shape. **Nothing calls Odoo with it**: the customer's rule
- * is that this side never talks to Odoo directly, and their BFF route for it does not exist yet
+ * Prepares an enquiry from a `Trip` in the team estimator's F10 shape. **Nothing calls Odoo with it**: the team estimator's rule
+ * is that this side never talks to Odoo directly, and the team estimator's BFF route for it does not exist yet
  * (`GET /api/staff/inquiries` is "waiting for Phillip"). It is data prepared for the day that route is
  * opened, and the proposed hand-over path — see `docs/notes/lead-extractor-duplication.md`.
  *

@@ -18,7 +18,7 @@
  *
  * It prices. If the response says the payload would be rejected, that is a **bug in what this
  * service produces** and it is surfaced as a failure with the offending field names, because
- * `fillTrip` on their side is the authority on the contract — our own
+ * `fillTrip` on the team estimator's side is the authority on the contract — our own
  * `validateBffTripPrecheck()` is only a mirror of it, and a mirror is what disagrees silently.
  *
  * It does **not** commit, share or submit. Those are separate BFF endpoints that belong to a
@@ -50,20 +50,20 @@ export type { EstimateSendResult };
 export const ESTIMATE_PATH = "/api/estimates";
 
 /**
- * Default to the local fixture-mode BFF that their own docs describe (`npm run dev -w bff`,
+ * Default to the local fixture-mode BFF that the team estimator's own docs describe (`npm run dev -w bff`,
  * `FIXTURE_MODE=1`, port 8787). Deliberately NOT a production hostname: this constant is what
  * a misconfigured deploy falls back to, and a fallback that silently points at production is
  * worse than one that obviously points at a laptop.
  */
 export const DEFAULT_ESTIMATOR_BASE_URL = "http://127.0.0.1:8787";
 
-/** One compute is synchronous on their side; fixture mode answers in ~1ms, Odoo in ~8s. */
+/** One compute is synchronous on the team estimator's side; fixture mode answers in ~1ms, Odoo in ~8s. */
 const DEFAULT_TIMEOUT_MS = Number(loadEnv().ESTIMATOR_TIMEOUT_MS ?? 12_000);
 
 /**
- * What to tell a person when their engine refuses.
+ * What to tell a person when the team estimator's engine refuses.
  *
- * Their BFF is only one of the things that can answer on that hostname. A Vercel preview behind
+ * The team estimator's BFF is only one of the things that can answer on that hostname. A Vercel preview behind
  * SSO answers with an HTML sign-in page, a proxy answers with its own error document, and a wrong
  * path answers with a 404 page. Pasting 300 characters of any of those into the studio puts markup
  * and vendor jargon in front of a receptionist who is taking a booking — and it was measured, not
@@ -170,11 +170,11 @@ export function buildEstimateRequest(trip: BffTrip): { body: string } {
 }
 
 /**
- * What mode is their BFF in — fixture (captured data) or odoo (real pricing)?
+ * What mode is the team estimator's BFF in — fixture (captured data) or odoo (real pricing)?
  *
- * Exists because their fixture does not set the `sample` flag their own `schema.md` §7 says it
+ * Exists because the team estimator's fixture does not set the `sample` flag their own `schema.md` §7 says it
  * should: on their `main`, the string `sample` appears nowhere in `bff/src`, so a captured price
- * comes back looking exactly like a real one. Verified against their BFF at `4c48918`: a
+ * comes back looking exactly like a real one. Verified against the team estimator's BFF at `4c48918`: a
  * fixture-mode response carried `sample: false` because nothing sets it.
  *
  * Their health endpoint does report the mode, so this asks it once and remembers the answer
@@ -185,7 +185,7 @@ const HEALTH_PATH = "/api/health";
 const MODE_CACHE_MS = 60_000;
 
 /**
- * Where a guest's page resolves the token in its link — the request their app makes the moment
+ * Where a guest's page resolves the token in its link — the request the team estimator's app makes the moment
  * somebody opens `/quote/<token>`. Checking the link means making that request ourselves.
  */
 const SHARE_PATH = "/api/share";
@@ -297,7 +297,7 @@ export function createEstimatorClient(options: EstimatorClientOptions = {}) {
         model: parsed.model,
         // Their name for it. Null is a real answer — a retail session gets no comparison model.
         retailModel: parsed.retail_model,
-        // Captured on the way through, because it is the only moment their BFF hands it over. A
+        // Captured on the way through, because it is the only moment the team estimator's BFF hands it over. A
         // call that carries an existing session gets it echoed back, so this is never null once a
         // quotation has been priced at least once against a reachable BFF.
         sessionCookie: readSetCookie(res) ?? session?.cookie ?? null,
@@ -451,7 +451,7 @@ export function createEstimatorClient(options: EstimatorClientOptions = {}) {
   }
 
   /**
-   * Is their BFF answering, and in which mode? Used by the studio's pre-flight badge so staff do
+   * Is the team estimator's BFF answering, and in which mode? Used by the studio's pre-flight badge so staff do
    * not discover a missing/incorrect `ESTIMATOR_BASE_URL` by clicking a button and reading a 503.
    *
    * Never throws: an unreachable BFF is an answer (`reachable: false`), not an error.
@@ -479,7 +479,7 @@ export function createEstimatorClient(options: EstimatorClientOptions = {}) {
    * The guest's page resolves a token through `GET /api/share/:token`, which is the request a browser
    * makes the moment somebody opens the link — so that is what is asked here, rather than trusting
    * the `share` call that minted it. See `verifyGuestLink` on the port for the measurement that made
-   * this necessary: their fixture deployment answered 200 and 404 to the SAME token in one run of 24
+   * this necessary: the team estimator's fixture deployment answered 200 and 404 to the SAME token in one run of 24
    * parallel requests, because its store lives in one serverless instance's memory.
    */
   async function verifyGuestLink(guestUrl: string): Promise<GuestLinkCheck> {
@@ -517,7 +517,7 @@ export function createEstimatorClient(options: EstimatorClientOptions = {}) {
   }
 
   /**
-   * Ask their BFF to turn a frozen revision into a booking.
+   * Ask the team estimator's BFF to turn a frozen revision into a booking.
    *
    * Their route is `POST /api/estimates/:id/submit {seq, contact}` and it is the one call in the
    * whole integration that creates something real (a folio), which is why the caller — not this
@@ -526,7 +526,7 @@ export function createEstimatorClient(options: EstimatorClientOptions = {}) {
    * `closed` (they refuse), `rejected` (they answered no — safe to retry), `busy` (we never got
    * through), `unknown` (it may exist; never retry blindly).
    *
-   * Two prerequisites are the caller's: `estimatorId` (their scenario) and `estimatorSeq` (the
+   * Two prerequisites are the caller's: `estimatorId` (the team estimator's scenario) and `estimatorSeq` (the
    * frozen revision). Without both there is nothing to address, and guessing either is how a
    * reservation lands on the wrong trip — so this refuses instead.
    */
@@ -595,7 +595,7 @@ export function createEstimatorClient(options: EstimatorClientOptions = {}) {
   }
 
   // Still deliberately absent: our own `/q/:slug` guest page was removed in favour of the
-  // customer's `/quote/<token>`, so `commit`/`share` above ARE the guest-link path now. What
+  // the team estimator's `/quote/<token>`, so `commit`/`share` above ARE the guest-link path now. What
   // remains unwired is only their `/revisions` reads, which nothing here needs.
   return {
     kind: "remote" as const,

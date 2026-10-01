@@ -447,7 +447,7 @@ export function renderBody(m: EditorModel): string {
 
         ${
           // When their app could not hold the link it issued, the guest is sent OUR copy of the same
-          // frozen revision. Staff are told, because "why is the link not on the customer's domain"
+          // frozen revision. Staff are told, because "why is the link not on the team estimator's domain"
           // is a fair question to be asked in a demo — and because it is their deployment's fault,
           // not this quotation's.
           draft.estimator?.mirrorUrl

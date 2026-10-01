@@ -120,7 +120,7 @@ export function formatManila(date: Date): string {
 /**
  * The one sentence about the quotation's own deadline, or nothing when it was never sent.
  *
- * There used to be a deposit and a balance line here beside it. The customer's own quotation tool says
+ * There used to be a deposit and a balance line here beside it. The team estimator's own quotation tool says
  * nothing about a deposit — the front desk confirms availability and contacts the guest — so this
  * service no longer states one either. What is left is ours and only about the *quotation*: we know when
  * we sent it, so we can say when it lapses. It is not a claim about inventory, and it is not a promise to

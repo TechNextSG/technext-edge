@@ -1,11 +1,11 @@
 /**
  * Reading the pricing engine's answer into something a page can draw.
  *
- * Two shapes arrive here and both are the customer's, not ours:
+ * Two shapes arrive here and both are the team estimator's, not ours:
  *
  *   * the **simulated** engine (`simulatedEstimator.ts`), which reproduces
  *     `contracts/odoo/examples/compute.*.json`;
- *   * the **remote** one, which is their BFF relaying Odoo.
+ *   * the **remote** one, which is the team estimator's BFF relaying Odoo.
  *
  * The shapes are supposed to be identical, and they are not quite — their captured fixture carries
  * `"warnings": {…}` for a single warning where an array is the general form, their `catRev` keys
@@ -18,7 +18,7 @@
  * as "free", which is the most expensive possible way to be wrong.
  */
 
-/** One priced row, as the customer's `quotes[].lines[]` carries it. */
+/** One priced row, as the team estimator's `quotes[].lines[]` carries it. */
 export interface PricedLine {
   cat: string;
   label: string;
@@ -158,7 +158,7 @@ function readCatRev(value: unknown): Record<string, number> {
 
 /**
  * The Ops Sheet's half. `presence` and `covers` are keyed by date and `dayPlans` is an array —
- * their fixture is explicit about that asymmetry, so it is preserved rather than tidied.
+ * the team estimator's fixture is explicit about that asymmetry, so it is preserved rather than tidied.
  */
 function readOps(model: Record<string, unknown>): PricedOps | null {
   const stayDates = Array.isArray(model.stayDates) ? model.stayDates.map(String) : [];

@@ -1,9 +1,9 @@
-// The customer's real rate card, captured 17/09/2026 from 14 live calls into Odoo staging.
+// The team estimator's real rate card, captured 17/09/2026 from 14 live calls into Odoo staging.
 //
 // SCOPE, since 2026-09-26: this file feeds **only** `bff/src/simulatedEstimator.ts`, the
 // built-in stand-in used when `ESTIMATOR_MODE=simulated` (local dev, tests, and a demo with no BFF
 // to reach). It is not a pricing authority, and nothing a guest receives is computed from it: the
-// price a guest is sent is Odoo's, produced by the customer's own quotation app and published by a
+// price a guest is sent is Odoo's, produced by the team estimator's own quotation app and published by a
 // staff member. Before that rule these numbers were rendered onto a public `/q/:slug` page as soon
 // as the bot had enough information — a price quoted to a customer before anyone at the resort had
 // seen it. That page is gone.
@@ -26,7 +26,7 @@
 // TWO NUMBERS ARE NOT FROM THE ABOVE, and each says so where it is declared:
 //   * `TRANSPORT_RATE.roundtrip` is 14,000, from the resort's own public site (read 2026-09-28), not
 //     from source 2 — which also says 13,000, as do the compute examples (6,500 per run). So the
-//     round trip is the ONE value here that disagrees with the customer's own files, deliberately,
+//     round trip is the ONE value here that disagrees with the team estimator's own files, deliberately,
 //     and it is an open question for Phillip: `docs/specs/resort-website-cross-check.md`.
 //   * `VAN_CAPACITY` (6) is **inferred by us** from a single captured run that split 7 guests into a
 //     van of 6 and a van of 1. No source states a capacity; the website says "max 7 pax with light
@@ -85,17 +85,17 @@ export const MEAL_RATE = 1500;
 /**
  * Airport transfer: a price per VAN, and a van carries `VAN_CAPACITY` guests.
  *
- * This is the one value in this file that does NOT come from the customer's own rate card, so read
+ * This is the one value in this file that does NOT come from the team estimator's own rate card, so read
  * the disagreement before changing it:
  *
  *   * the resort's own public site publishes **PHP 14,000 per van, round trip, max 7 pax with light
  *     luggage** (`https://www.casaescondida-anilao.com/book-now`, read 2026-09-28) — and that is what
  *     a guest is told, which is why this copy uses it;
- *   * `contracts/odoo/examples/rates.json` — the customer's own rate card export — says
+ *   * `contracts/odoo/examples/rates.json` — the team estimator's own rate card export — says
  *     **`"transport":{"roundtrip":13000.0,"oneway":6500.0}`**, and the compute examples charge 6,500
  *     per van RUN, so a round trip is 13,000 there too.
  *
- * DECIDED 2026-09-28: this table follows the customer's data (13,000), not the page. Their engine is
+ * DECIDED 2026-09-28: this table follows the team estimator's data (13,000), not the page. Their engine is
  * what a guest is actually charged, and a draft that disagrees with the engine disagrees with the
  * source of truth — which is the failure this repository keeps finding. If the page turns out to be the
  * newer truth, the correction belongs on the page (or in Odoo, which the engine reads) and this number
@@ -108,7 +108,7 @@ export const TRANSPORT_RATE = { roundtrip: 13000, oneway: 6500 } as const;
  *
  * Decided the same way as the price above: 6, because it is the only capacity any customer system has
  * demonstrated — their captured run split seven guests into a van of 6 and a van of 1
- * (`contracts/odoo/examples/compute.agent-group.json`), and that is what their engine bills for. The
+ * (`contracts/odoo/examples/compute.agent-group.json`), and that is what the team estimator's engine bills for. The
  * resort's site says "max 7 pax with light luggage"; if that is right, the engine's own arithmetic is
  * what needs fixing. Assuming 7 here would under-count a van for a seven-guest group and under-quote by
  * a whole van. Open question for Phillip: `docs/specs/resort-website-cross-check.md` §2.2.

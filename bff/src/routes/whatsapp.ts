@@ -2,7 +2,7 @@ import { Hono } from "hono";
 import type { ExtractProvider } from "../../../ai/src/index.ts";
 import type { ConversationStore } from "../store/conversationStore.ts";
 import type { EstimatorPort } from "../estimator/index.ts";
-import { whatsAppConfig, verifySignature, parseInboundTexts, checkSenderCredentials, createWhatsAppSender, type WhatsAppSendText, type InboundTextMessage } from "../channels/whatsapp/index.ts";
+import { whatsAppConfig, verifySignature, parseInboundTexts, checkSenderCredentials, createWhatsAppSender, type WhatsAppSendText } from "../channels/whatsapp/index.ts";
 import {
   processPhoneTurnBatch,
   closeEnquiryQuotation,

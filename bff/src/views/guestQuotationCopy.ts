@@ -13,7 +13,7 @@
  * When that happens, the guest is holding a WhatsApp message whose link is dead. So `publish` now
  * falls back to a **copy of the same frozen revision** on this host, and the message carries that
  * copy instead. It is a fallback, never the primary: `estimator.mirrorUrl` is set only after the
- * customer's own link failed a check, and it is cleared the moment a working link exists.
+ * the team estimator's own link failed a check, and it is cleared the moment a working link exists.
  *
  * ## What makes this different from the page that was retired (and must stay different)
  *
@@ -23,7 +23,7 @@
  *   1. renders `draft.pricing` — the ENGINE's own answer, stored on the record. No arithmetic of
  *      ours, no line built here, no rounding: if a number is on this page, the engine said it.
  *   2. exists only for a quotation staff have **approved and published** (`/q/:slug` forwards to the
- *      customer's link unless `mirrorUrl` is set, and `publish` only sets it for a published record).
+ *      the team estimator's link unless `mirrorUrl` is set, and `publish` only sets it for a published record).
  *   3. carries no booking action. Their app owns the folio, so this page says plainly that nothing is
  *      booked here and offers the WhatsApp reply that the guest already has.
  *   4. shows nothing staff-facing: no phone number, no internal notes, no cost, no other guest.

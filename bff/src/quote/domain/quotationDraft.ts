@@ -17,7 +17,7 @@ export interface QuotationLineItem {
 }
 
 /**
- * The four states a reservation can be in, copied from the customer's own `submission` table
+ * The four states a reservation can be in, copied from the team estimator's own `submission` table
  * (`docs/flows/F07-booking.md` D2). The distinctions are not cosmetic:
  *
  *   `pending`    written before the engine is called, and it is what locks the button. Odoo issues
@@ -88,9 +88,9 @@ export interface HonoQuotationDraft {  quoteId: string;
   staffAlerts: string[];
   aiConfirmedReply?: string;
   /**
-   * Version of the seeded studio fixture (see `quotationStore.ts` `SEED_VERSION`). Present only
-   * on the seed record: `ensureSeeded()` uses it to re-seed when the fixture's pricing changes,
-   * instead of leaving a stale copy in KV forever. Not part of any guest quotation.
+   * Version stamp of the cold-start fixture an older deploy used to seed into the store. Nothing seeds
+   * any more; the field stays so a record already in KV is still recognised, and protected from
+   * publishing and cleanup. Not part of any guest quotation.
    */
   seedVersion?: number;
   /**
@@ -127,7 +127,7 @@ export interface HonoQuotationDraft {  quoteId: string;
    */
   submission?: QuotationSubmission | null;
   /**
-   * What we hold on the customer's own quotation app for THIS quotation.
+   * What we hold on the team estimator's own quotation app for THIS quotation.
    *
    * Their API is session-scoped: `POST /api/estimates` mints a scenario and sets an `ubg_sid`
    * cookie, and `commit` / `share` / `submit` are only answered for the session that owns it. So
@@ -163,7 +163,7 @@ export interface QuotationEstimatorState {
   cookie: string | null;
   /** The frozen revision, once committed. */
   seq: number | null;
-  /** The link their app minted, absolute. Null until `share` has answered. */
+  /** The link the team estimator's app minted, absolute. Null until `share` has answered. */
   guestUrl: string | null;
   /** When the link was minted. After this the quotation is read-only: see Q-005. */
   sharedAt: string | null;

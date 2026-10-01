@@ -175,6 +175,8 @@ export function recordRoutes(deps: QuotesRouteDeps): Hono {
     };
     const all = await listQuotations();
     const isForce = body.force === true;
+    // The seed guards below protect the cold-start record an older deploy left in KV; nothing seeds any more.
+    // Delete them together with that record.
     const allExceptSeed = body.allExceptSeed === true;
     const named = allExceptSeed
       ? new Set(all.filter((q) => q.quoteId !== "QT-1010-SKY" && typeof q.seedVersion !== "number").map((q) => q.quoteId))
