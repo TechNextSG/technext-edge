@@ -1,5 +1,7 @@
 # Bộ test case để demo (KB1–KB42, cộng KB28b và KB35b)
 
+> **Muốn test tay từng case, có ô ghi kết quả:** mở [manual-test-checklist.html](manual-test-checklist.html) (51 case, tin nhắn để copy, điều phải đúng và không được, lưu kết quả trong trình duyệt). File này là bảng tra cứu và cách chạy bằng script.
+
 Mỗi case là một cuộc trò chuyện WhatsApp mà bot phải xử lý đúng, kèm điều **không bao giờ được xảy ra**. Có hai cách dùng:
 
 1. **Chạy tự động**, đọc đúng tin khách nhận (xem `docs/guides/whatsapp-manual-test.md`):
