@@ -2,6 +2,8 @@
 
 Everything the handoff needs, grouped by what kind of document it is. Read the
 folders top-down — `adr/` first if you are changing anything the ADRs decide.
+For the code layout itself start with [ARCHITECTURE.md](ARCHITECTURE.md); for what moves to the team repo and in
+what order, [notes/port-to-team-repo.md](notes/port-to-team-repo.md).
 
 | Folder | What lives there |
 | --- | --- |
@@ -9,8 +11,9 @@ folders top-down — `adr/` first if you are changing anything the ADRs decide.
 | [`guides/`](guides/) | How to run, test, demo and deploy this thing. Written for a person arriving today. |
 | [`specs/`](specs/) | Contracts and upstream references: the API schema, the architecture spec, what the resort's own site claims, what we found in their BFF. |
 | [`notes/`](notes/) | Engineering logs — what was tried, what broke, what the fix was. Chronological, not normative. |
-| [`diagrams/`](diagrams/) | Draw.io sources and their PNG exports (flow, component, sequence diagrams). |
-| [`demo/`](demo/) | Demo artefacts: shooting script, staged HTML pages, subtitle file, screen captures, the walkthrough screenshots, the sprint tracker. |
+| [`diagrams/`](diagrams/) | Archify and draw.io diagrams of the repo, the message flow and the extractor pod. |
+| [`site/`](site/) | `site/media/`: demo videos and screen captures. Not deployed (`.vercelignore`). |
+| [`archive/`](archive/) | Finished or superseded material kept for reference: the September demo kit (`demo-2026-09/`) and old implementation notes (`notes/`). |
 
 There is no documentation site any more: the app serves no documentation pages, and `public/` holds only `robots.txt`
 (Vercel publishes that folder, so it must exist). The demo videos and captures are in [`site/media/`](site/media/),

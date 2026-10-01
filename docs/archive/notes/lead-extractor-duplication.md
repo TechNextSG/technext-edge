@@ -1,4 +1,8 @@
-# Cần Lead quyết: hai bản extractor song song
+# Hai bản extractor song song (đã giải quyết)
+
+> **Cập nhật 01/10/2026.** Hai bản không còn song song: `ai/` bên technext-edge là bản sao giống từng byte của `ai/` bên repo team
+> (PR #5 `feat/ai-layered-fix`, thay PR #2 và #4), kiểm bằng `npm run mirror:check`. Việc còn lại là merge PR #5 và đổi số flow
+> kênh AI từ F08 sang F11 (F08 trên `main` là hồ sơ đại lý): xem `docs/notes/port-to-team-repo.md`. Bản gốc bên dưới giữ để tra cứu.
 
 *30/09/2026 — từ đợt đối chiếu với repo nguồn `tn-casa-quotation-estimator`.*
 

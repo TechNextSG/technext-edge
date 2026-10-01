@@ -12,11 +12,11 @@ Kết quả lần kiểm 2026-10-01: tất cả xanh.
 - [x] Không còn tham chiếu Anthropic trong code, cấu hình, `.env.example`
 - [ ] `npm run upstream:check`: đọc commit mới bên team trước khi demo
 - [ ] `vercel build` local còn chạy được sau lần sửa cuối (lần gần nhất: ok)
-- [ ] Trang `docs/notes/structure-compare.html` chưa commit: commit hoặc bỏ
+- [x] Trang `docs/notes/structure-compare.html` đã commit (cập nhật theo cây thư mục mới)
 
 ## B. Deploy và kiểm tay (bạn làm)
 
-- [ ] `vercel deploy --yes` (preview), rồi `vercel alias set <url> <alias -sim>`
+- [x] `vercel deploy --yes` (preview, commit `ba5dcc1`, READY); [ ] `vercel alias set <url> <alias -sim>`
 - [ ] Kiểm commit của bản deploy: `vercel api /v13/deployments/<url>` -> `meta.githubCommitSha` = `7b6c316` hoặc mới hơn
 - [ ] `GET /` -> 302 `/quotes`; `/quotes`, `/test`, `/console` chưa đăng nhập -> `/login`; `/docs` -> 404
 - [ ] `/quotes` mở được khi store rỗng (trang "No enquiries yet")
@@ -38,12 +38,19 @@ Kết quả lần kiểm 2026-10-01: tất cả xanh.
 
 ## D. Phần plan chưa làm
 
-- [x] Tách `auth/` thành `keys`, `session`, `rate-limit`, `guards`; `staffSession`/`adminGuard` ra khỏi `app.ts`
+- [x] Tách `auth/` thành `keys`, `session`, `rate-limit`, `guards`; `staffSession`/`adminGuard` ra khỏi `app.ts` (đợt 1)
 - [x] Route thành sub-app `Hono` (`app.route()`); tách `estimator/`, `channels/whatsapp/`, `ai/`
 - [x] Gom `money` (hai hàm khác nhau có chủ đích) và helper script editor; `api/index.ts` export `PATCH`, `DELETE`
 - [x] Gom `bff/test/` theo thư mục nguồn
-- [x] Xoá `tools/scratch/`; `tools/live-eval/` ở lại (không vào `ai/` vì `ai/` là bản sao của team); media `public/` đã sang `docs/site/media/`
-- [ ] Cần duyệt riêng: đổi cookie `casa_gais_session` -> `casa_staff_session` (đọc cả tên cũ 8 giờ); `/test` chưa đăng nhập trả 401 thay vì 302; chuyển media `public/` sang `docs/site/`
+- [x] Xoá `tools/scratch/`; media `public/` sang `docs/site/media/` (đợt 1). `tools/live-eval/` ở lại: `ai/` là bản sao của team, thêm thư mục vào sẽ làm lệch mirror
+- [ ] Cần duyệt riêng (đổi hành vi): đổi cookie `casa_gais_session` -> `casa_staff_session` (đọc cả tên cũ 8 giờ); `/test` chưa đăng nhập trả 401 thay vì 302
+
+## D2. Đợt 2 (ngoài `bff/`)
+
+- [x] `tsconfig.studio.json` -> `tsconfig.bff.json`, có ghi chú; CI nêu đúng 3 workspace; `.claude/` vào `.gitignore`
+- [x] Xoá ví dụ mẫu archify `example-trace-*`; `docs/demo/` -> `docs/archive/demo-2026-09/`; ghi chú phase1/2 và `lead-extractor-duplication` vào `docs/archive/notes/`; `anthony-decisions` bỏ chính sách Anthropic
+- [ ] `secretBox` sang `bff/src/crypto/`; `deps.ts` cho `app.ts`
+- [ ] Hỏi Lead: video 17 MB trong git (bỏ, LFS hay để nguyên); tách file lớn trong `ai/` (làm ở repo team); tách `views/editor/client.ts`, `estimator/simulated.ts`, `estimator/client.ts`
 
 ## E. Port sang team (xem `port-to-team-repo.md`)
 

@@ -22,7 +22,7 @@ premise: Odoo is the brain, this is the edge. Drafts never enter Odoo — see
 handoff: prerequisites, running locally, the test console, deploying, env
 vars, the eval harness, and the gotchas that already cost an afternoon once.
 [docs/README.md](docs/README.md) indexes the rest of `docs/` (`adr/`, `guides/`,
-`specs/`, `notes/`, `diagrams/`, `demo/`).
+`specs/`, `notes/`, `diagrams/`, `site/`, `archive/`).
 
 ## Layout
 
