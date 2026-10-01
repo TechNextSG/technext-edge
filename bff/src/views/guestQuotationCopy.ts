@@ -30,29 +30,10 @@
  */
 import type { HonoQuotationDraft } from "../quote/index.ts";
 import { quotationValidityLines, quotationValidUntil } from "../quote/index.ts";
-import { escapeHtml } from "./html.ts";
+import { escapeHtml, money } from "./html.ts";
 import { themeCss } from "./theme.ts";
 
 const esc = escapeHtml;
-
-/**
- * A number with the symbol of the currency it is already in. Deliberately NOT a conversion.
- *
- * This page shows the engine's figures in the engine's own currency. The version this replaces had a
- * rate table typed into the file (USD 0.018, EUR 0.016, VND 440) and a currency dropdown that rewrote
- * the total, the deposit and the balance: arithmetic of ours, about money, at a rate that is stale the
- * day after it is typed — 0.018 implies about ₱55.6 to the dollar. Worse, the table assumed the base
- * was always PHP, so a quotation the engine priced in USD printed peso-sized numbers under a "$", and
- * choosing EUR multiplied those dollars by 0.016. A guest reading a total in a currency nobody quoted
- * is the one thing a quotation page must never do.
- */
-const CURRENCY_SYMBOLS: Record<string, string> = { PHP: "₱", USD: "$", EUR: "€", VND: "₫" };
-
-function money(currency: string, amount: number): string {
-  const symbol = CURRENCY_SYMBOLS[currency] ?? `${currency} `;
-  // No rounding of our own: whatever the engine said, to two decimals at most, is what is printed.
-  return `${symbol}${amount.toLocaleString("en-US", { maximumFractionDigits: 2 })}`;
-}
 
 /**
  * The guest's page: their stay, the engine's lines, and the total.

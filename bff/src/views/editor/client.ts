@@ -4,6 +4,7 @@
  * few values the server decides (the record, the queue, the follow-up window).
  */
 import type { EditorModel } from "./model.ts";
+import { ESC_HTML_JS, FMT_MONEY_JS, SAFE_JSON_JS } from "./clientHelpers.ts";
 
 export function editorScript(m: EditorModel): string {
   const { window, followUpJsString, initialJson, allQuotesJson } = m;
@@ -14,16 +15,7 @@ export function editorScript(m: EditorModel): string {
     const FOLLOW_UP_HOURS = { nudge: ${window.nudgeHours}, stale: ${window.staleHours} };
     const FOLLOW_UP_TEXT = ${followUpJsString};
 
-    // The same escaping the server does (html.ts), for the parts of this page the browser draws. A
-    // line description and a guest name arrive from WhatsApp, so a less-than sign in either is not
-    // markup — it is a guest's own text, and it reaches staff who are signed in.
-    function escHtml(value) {
-      return String(value == null ? '' : value)
-        .replace(/&/g, '&amp;')
-        .replace(/</g, '&lt;')
-        .replace(/>/g, '&gt;')
-        .replace(/"/g, '&quot;');
-    }
+${ESC_HTML_JS}
 
     // "2026-11-20" -> "Nov 20", or "Nov 20 '27" when it is not this year. The queue card has room for
     // about thirty characters on its second line; a full ISO date pushed the short id off the end and
@@ -108,29 +100,7 @@ export function editorScript(m: EditorModel): string {
       }
     }
 
-    async function safeJson(res) {
-      if (typeof res.text === 'function') {
-        const text = await res.text();
-        try {
-          return JSON.parse(text);
-        } catch (err) {
-          const snippet = text ? text.replace(/\s+/g, ' ').trim().slice(0, 160) : '';
-          return {
-            ok: false,
-            reason: 'server_error',
-            error: 'Server returned ' + (res.status || 'error') + (res.statusText ? ' ' + res.statusText : '') + (snippet ? ': ' + snippet : '')
-          };
-        }
-      }
-      if (typeof res.json === 'function') {
-        try {
-          return await res.json();
-        } catch (err) {
-          return { ok: false, reason: 'parse_error', error: String(err) };
-        }
-      }
-      return { ok: false, reason: 'unknown_response', error: 'Invalid response' };
-    }
+${SAFE_JSON_JS}
 
     /**
      * The wizard: which screen is in front, and what the button at the bottom does.
@@ -266,10 +236,7 @@ export function editorScript(m: EditorModel): string {
       applyTheme(saved);
     })();
 
-    function fmtMoney(n, currency) {
-      const sym = (currency || state.currency) === 'USD' ? '$' : '₱';
-      return sym + Number(n || 0).toLocaleString('en-US');
-    }
+${FMT_MONEY_JS}
 
     let quoteFilter = 'all';
     let quoteSearch = '';

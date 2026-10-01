@@ -2,7 +2,7 @@
  * The staff editor's markup: the page head and the body. Server-rendered from the model alone, so a quotation
  * that is already approved reads as approved before any script runs.
  */
-import { escapeHtml } from "../html.ts";
+import { escapeHtml, wholeMoney } from "../html.ts";
 import type { EditorModel } from "./model.ts";
 
 export function renderHead(m: EditorModel): string {
@@ -39,7 +39,7 @@ export function renderBody(m: EditorModel): string {
   // when the quotation was priced. Nothing here is recomputed: a per-guest card that disagrees with
   // the total above it would be worse than no card at all.
   const pricing = draft.pricing ?? null;
-  const money = (n: number) => `${draft.currency === "USD" ? "$" : "₱"}${Math.round(n).toLocaleString("en-US")}`;
+  const money = (n: number) => wholeMoney(draft.currency, n);
   // `esc` is the shared escaper (html.ts). A guest's own words reach this page — their name, their
   // dive notes, a line description staff edited — and none of it is trusted markup.
   const esc = escapeHtml;

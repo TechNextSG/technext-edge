@@ -14,3 +14,5 @@ export const POST = handle(app);
 // PUT /v1/quotes/:id. Without this export Vercel answers 405 in production while the
 // same click works locally under tsx, where Hono serves every method.
 export const PUT = handle(app);
+export const PATCH = handle(app);
+export const DELETE = handle(app);
