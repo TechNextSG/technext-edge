@@ -18,6 +18,7 @@
  * Safety invariant, unchanged in both modes: nothing here holds an Odoo credential, and nothing
  * here calls Odoo directly. `remote` posts to a BFF; `simulated` does not leave the process.
  */
+import { loadEnv, type Env } from "../env.ts";
 import type { BffTrip } from "../../../ai/src/index.ts";
 import type { RefusalIssue } from "./refusalCopy.ts";
 import { createEstimatorClient, estimatorAppUrl, estimatorBaseUrl } from "./estimatorClient.ts";
@@ -241,12 +242,12 @@ export type GuestLinkCheck =
  * that forgets to set `ESTIMATOR_MODE` must not accidentally try to reach an Odoo-backed host
  * with no credentials. Opting *in* to the real engine is the deliberate act.
  */
-export function estimatorModeFromEnv(env: NodeJS.ProcessEnv = process.env): EstimatorMode {
+export function estimatorModeFromEnv(env: Env = loadEnv()): EstimatorMode {
   const raw = (env.ESTIMATOR_MODE ?? "").trim().toLowerCase();
   return raw === "remote" ? "remote" : "simulated";
 }
 
-export function createEstimatorPortFromEnv(env: NodeJS.ProcessEnv = process.env): EstimatorPort {
+export function createEstimatorPortFromEnv(env: Env = loadEnv()): EstimatorPort {
   if (estimatorModeFromEnv(env) === "remote") {
     // The URL is resolved from the SAME env object the mode came from, not from `process.env`
     // inside the client: a factory that reads half its configuration from its argument and half

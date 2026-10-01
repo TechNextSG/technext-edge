@@ -1,3 +1,4 @@
+import { loadEnv } from "../env.ts";
 import type { Context, Hono } from "hono";
 import { z } from "zod";
 import {
@@ -55,7 +56,7 @@ export function handleExtractError(err: unknown): Response {
     const causeDescription = cause instanceof Error ? { message: cause.message, stack: cause.stack } : cause;
     // eslint-disable-next-line no-console
     console.error("extraction validation failed twice", JSON.stringify(causeDescription), err.sample);
-    const debug = process.env.DEBUG_EXTRACT === "1" ? { cause: causeDescription, sample: err.sample } : undefined;
+    const debug = loadEnv().DEBUG_EXTRACT === "1" ? { cause: causeDescription, sample: err.sample } : undefined;
     return Response.json({ error: "extraction_failed", detail: "model output did not match the Trip schema twice", debug }, { status: 422 });
   }
   // eslint-disable-next-line no-console
@@ -63,11 +64,11 @@ export function handleExtractError(err: unknown): Response {
   const message = err instanceof Error ? err.message : String(err);
   if (/\b429\b|RESOURCE_EXHAUSTED|rate.?limit/i.test(message)) {
     return Response.json(
-      { error: "provider_rate_limited", detail: process.env.DEBUG_EXTRACT === "1" ? message : "the AI provider is rate-limited — try again shortly" },
+      { error: "provider_rate_limited", detail: loadEnv().DEBUG_EXTRACT === "1" ? message : "the AI provider is rate-limited — try again shortly" },
       { status: 429 },
     );
   }
-  return Response.json({ error: "extract_error", detail: process.env.DEBUG_EXTRACT === "1" ? message : undefined }, { status: 502 });
+  return Response.json({ error: "extract_error", detail: loadEnv().DEBUG_EXTRACT === "1" ? message : undefined }, { status: 502 });
 }
 
 export interface ExtractorRouteDeps {

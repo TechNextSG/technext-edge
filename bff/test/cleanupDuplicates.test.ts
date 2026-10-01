@@ -6,18 +6,24 @@
 // left thirteen (`QT-1120-MIGU-*`, four inside the same minute), and every row in the studio looked
 // current.
 import { buildBffTrip } from "../../ai/src/index.ts";
-import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
+import { describe, it, expect, beforeEach, afterEach, vi, beforeAll } from "vitest";
 import { createApp } from "../src/app.ts";
 import {
   duplicateQuotationIds,
   findOpenQuotationForPhone,
   saveQuotationDraft,
-} from "../src/stores/quotationStore.ts";
+} from "../src/store/quotationStore.ts";
 import { issueSession } from "../src/auth/demoAuth.ts";
 import { buildHonoQuotationDraft } from "../../quotation/src/index.ts";
 
 import type { HonoQuotationDraft } from "../../quotation/src/index.ts";
 import type { Trip } from "../../ai/src/index.ts";
+import { ensureSampleQuotation } from "./helpers/sampleQuotation.ts";
+
+// The app no longer seeds a cold-start record; this file reads the sample one.
+beforeAll(async () => {
+  await ensureSampleQuotation();
+});
 
 const VERIFY_TOKEN = "cleanup-token";
 

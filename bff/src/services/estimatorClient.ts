@@ -27,6 +27,7 @@
  * `/quote/<token>` link is noted at the bottom of this file; it is deliberately not implemented
  * because those endpoints are not on their `main`.
  */
+import { loadEnv, type Env } from "../env.ts";
 import type { BffTrip } from "../../../ai/src/index.ts";
 import { describeRefusal, refusalCode, refusalIssues } from "./refusalCopy.ts";
 import type {
@@ -57,7 +58,7 @@ export const ESTIMATE_PATH = "/api/estimates";
 export const DEFAULT_ESTIMATOR_BASE_URL = "http://127.0.0.1:8787";
 
 /** One compute is synchronous on their side; fixture mode answers in ~1ms, Odoo in ~8s. */
-const DEFAULT_TIMEOUT_MS = Number(process.env.ESTIMATOR_TIMEOUT_MS ?? 12_000);
+const DEFAULT_TIMEOUT_MS = Number(loadEnv().ESTIMATOR_TIMEOUT_MS ?? 12_000);
 
 /**
  * What to tell a person when their engine refuses.
@@ -139,7 +140,7 @@ export interface EstimatorClientOptions {
   timeoutMs?: number;
 }
 
-export function estimatorBaseUrl(env: NodeJS.ProcessEnv = process.env): string | undefined {
+export function estimatorBaseUrl(env: Env = loadEnv()): string | undefined {
   // Read lazily rather than at module load: tests set this per case, and on Vercel env vars are
   // not guaranteed to exist when the module is first evaluated.
   const raw = env.ESTIMATOR_BASE_URL;
@@ -153,7 +154,7 @@ export function estimatorBaseUrl(env: NodeJS.ProcessEnv = process.env): string |
  * `npm run dev:app -w bff` puts the app on :5173, so a guest link joined to the API host 404s even
  * though the token is valid. In production it is one Vercel project and this stays unset.
  */
-export function estimatorAppUrl(env: NodeJS.ProcessEnv = process.env): string | undefined {
+export function estimatorAppUrl(env: Env = loadEnv()): string | undefined {
   const raw = env.ESTIMATOR_APP_URL;
   return raw && raw.trim() !== "" ? raw.replace(/\/+$/, "") : undefined;
 }

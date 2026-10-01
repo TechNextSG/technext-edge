@@ -5,7 +5,7 @@ import {
   MAX_TURNS,
   THREAD_TTL_MS,
   IN_FLIGHT_CLAIM_TTL_MS,
-} from "../src/stores/conversationStore.ts";
+} from "../src/store/conversationStore.ts";
 
 afterEach(() => {
   vi.useRealTimers();

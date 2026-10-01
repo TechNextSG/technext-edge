@@ -8,6 +8,12 @@
 import { describe, it, expect, beforeAll, afterAll, vi } from "vitest";
 import { createApp } from "../src/app.ts";
 import { issueSession, verifySession, isDemoRole } from "../src/auth/demoAuth.ts";
+import { ensureSampleQuotation } from "./helpers/sampleQuotation.ts";
+
+// The app no longer seeds a cold-start record; this file reads the sample one.
+beforeAll(async () => {
+  await ensureSampleQuotation();
+});
 
 const STAFF_TOKEN = "test-staff-token";
 /** The seeded studio record, so a deep link points at a quotation that exists. */

@@ -1,5 +1,5 @@
 import type { ConversationTurn } from "../../../ai/src/index.ts";
-import { kvCommand } from "./kv.ts";
+import { kvCommand, type KvConfig } from "./kv.ts";
 import {
   type ConversationStore,
   type PausedThread,
@@ -12,11 +12,6 @@ import {
 } from "./conversationStore.ts";
 import type { StatedValueChange } from "../../../ai/src/index.ts";
 import { randomUUID } from "node:crypto";
-
-export interface RedisConfig {
-  url: string;
-  token: string;
-}
 
 interface StoredThread {
   turns: ConversationTurn[];
@@ -69,7 +64,7 @@ export interface RedisStoreOptions {
 }
 
 export function createRedisConversationStore(
-  config: RedisConfig,
+  config: KvConfig,
   ttlMs = THREAD_TTL_MS,
   options: RedisStoreOptions = {},
 ): ConversationStore {

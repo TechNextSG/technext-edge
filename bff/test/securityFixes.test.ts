@@ -7,9 +7,9 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { createApp } from "../src/app.ts";
 import { createEstimatorClient } from "../src/services/estimatorClient.ts";
-import { saveQuotationDraft, listQuotations } from "../src/stores/quotationStore.ts";
+import { saveQuotationDraft, listQuotations } from "../src/store/quotationStore.ts";
 import { buildHonoQuotationDraft } from "../../quotation/src/index.ts";
-import { renderLoginHtml } from "../src/auth/demoAuth.ts";
+import { renderLoginHtml } from "../src/views/loginPage.ts";
 import { escapeHtml } from "../src/views/html.ts";
 import type { Trip } from "../../ai/src/index.ts";
 

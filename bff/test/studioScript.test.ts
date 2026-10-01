@@ -9,10 +9,16 @@
 //
 // So: a deliberately small DOM stub, and the page's real script run against it. It is not a browser
 // and does not pretend to be one; it is the cheapest thing that fails when the wiring breaks.
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, beforeAll } from "vitest";
 import { createContext, runInContext } from "node:vm";
 import { createApp } from "../src/app.ts";
-import { listQuotations, saveQuotationDraft } from "../src/stores/quotationStore.ts";
+import { listQuotations, saveQuotationDraft } from "../src/store/quotationStore.ts";
+import { ensureSampleQuotation } from "./helpers/sampleQuotation.ts";
+
+// The app no longer seeds a cold-start record; this file reads the sample one.
+beforeAll(async () => {
+  await ensureSampleQuotation();
+});
 
 const STAFF_TOKEN = "studio-script-token";
 

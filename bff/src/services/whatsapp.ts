@@ -11,6 +11,7 @@
 //     their last message (Meta rejects free-form text outside that window)
 //   - handle voice notes / images; v1 reads text only, and transcription would
 //     be a new vendor with its own data-residency question (ADR-005a Gate A)
+import { loadEnv, type Env } from "../env.ts";
 import { createHmac, timingSafeEqual } from "node:crypto";
 
 export interface WhatsAppConfig {
@@ -44,7 +45,7 @@ export const GRAPH_BASE_URL = "https://graph.facebook.com";
  * which tests import and then set these vars per-case, and by api/index.ts on
  * Vercel where env vars are not guaranteed to exist at module evaluation.
  */
-export function whatsAppConfig(env: NodeJS.ProcessEnv = process.env): WhatsAppConfig {
+export function whatsAppConfig(env: Env = loadEnv()): WhatsAppConfig {
   return {
     verifyToken: env.WHATSAPP_VERIFY_TOKEN,
     appSecret: env.WHATSAPP_APP_SECRET,

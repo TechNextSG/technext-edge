@@ -1,6 +1,6 @@
 import type { Hono } from "hono";
 import type { ExtractProvider } from "../../../ai/src/index.ts";
-import type { ConversationStore } from "../stores/conversationStore.ts";
+import type { ConversationStore } from "../store/conversationStore.ts";
 import type { EstimatorPort } from "../services/estimatorPort.ts";
 import {
   whatsAppConfig,

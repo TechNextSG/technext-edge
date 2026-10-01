@@ -12,8 +12,9 @@
  * TTL: they are business records, not transient thread state, and a link must outlive the 24h
  * WhatsApp window.
  */
+import { loadEnv, type Env } from "../env.ts";
 import type { HonoQuotationDraft } from "../../../quotation/src/index.ts";
-import { kvCommand } from "./kv.ts";
+import { kvCommand, kvConfigFromEnv, type KvConfig } from "./kv.ts";
 
 export interface QuotationStore {
   get(idOrSlug: string): Promise<HonoQuotationDraft | undefined>;
@@ -31,11 +32,6 @@ export interface QuotationStore {
    * claim a deletion that was a no-op.
    */
   remove(idOrSlug: string): Promise<boolean>;
-}
-
-export interface RedisConfig {
-  url: string;
-  token: string;
 }
 
 /** In-memory store: the previous behaviour, kept for local dev and for the contract test. */
@@ -86,7 +82,7 @@ export function createInMemoryQuotationStore(): QuotationStore {
  *                             while our index is not)
  *   quotes:all             -> a SET of every quote id, so `list` never needs KEYS/SCAN
  */
-export function createRedisQuotationStore(config: RedisConfig): QuotationStore {
+export function createRedisQuotationStore(config: KvConfig): QuotationStore {
   const command = <T = unknown>(args: (string | number)[]): Promise<T> => kvCommand<T>(config, args);
 
   async function read(id: string): Promise<HonoQuotationDraft | undefined> {
@@ -151,13 +147,10 @@ export function createRedisQuotationStore(config: RedisConfig): QuotationStore {
  * fallback here is exactly the bug this file exists to fix (guest links that work until the next
  * deploy).
  */
-export function createQuotationStoreFromEnv(): QuotationStore {
-  const kvUrl = process.env.KV_REST_API_URL || process.env.UPSTASH_REDIS_REST_URL;
-  const kvToken = process.env.KV_REST_API_TOKEN || process.env.UPSTASH_REDIS_REST_TOKEN;
-  if (kvUrl && kvToken) {
-    return createRedisQuotationStore({ url: kvUrl, token: kvToken });
-  }
-  if (process.env.NODE_ENV === "production") {
+export function createQuotationStoreFromEnv(env: Env = loadEnv()): QuotationStore {
+  const kv = kvConfigFromEnv(env);
+  if (kv) return createRedisQuotationStore(kv);
+  if (env.NODE_ENV === "production") {
     // eslint-disable-next-line no-console
     console.error(
       "[casa-bff] NO KV CONFIGURED IN PRODUCTION: quotations fall back to in-memory storage, " +

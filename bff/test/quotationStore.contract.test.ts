@@ -14,7 +14,7 @@ import {
   createInMemoryQuotationStore,
   createRedisQuotationStore,
   type QuotationStore,
-} from "../src/stores/quotationStoreClient.ts";
+} from "../src/store/quotationStoreClient.ts";
 import type { HonoQuotationDraft } from "../../quotation/src/index.ts";
 
 afterEach(() => {

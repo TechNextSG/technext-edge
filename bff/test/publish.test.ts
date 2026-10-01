@@ -6,14 +6,20 @@
 // here too. Getting that wrong is a 404 for a draft that exists, which is the failure the customer's
 // own `docs/integration/schema.md` §4 warns about.
 import { buildBffTrip } from "../../ai/src/index.ts";
-import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterEach, beforeAll } from "vitest";
 import { createApp } from "../src/app.ts";
 import { createEstimatorClient } from "../src/services/estimatorClient.ts";
 import { createSimulatedEstimator } from "../src/services/simulatedEstimator.ts";
 import { buildHonoQuotationDraft } from "../../quotation/src/index.ts";
-import { saveQuotationDraft } from "../src/stores/quotationStore.ts";
+import { saveQuotationDraft } from "../src/store/quotationStore.ts";
 
 import type { Trip } from "../../ai/src/index.ts";
+import { ensureSampleQuotation } from "./helpers/sampleQuotation.ts";
+
+// The app no longer seeds a cold-start record; this file reads the sample one.
+beforeAll(async () => {
+  await ensureSampleQuotation();
+});
 
 const VERIFY_TOKEN = "publish-token";
 const STAFF = `?token=${VERIFY_TOKEN}`;

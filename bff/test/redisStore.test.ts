@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { createRedisConversationStore } from "../src/stores/redisStore.ts";
+import { createRedisConversationStore } from "../src/store/redisStore.ts";
 
 describe("createRedisConversationStore", () => {
   const config = {

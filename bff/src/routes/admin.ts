@@ -1,3 +1,4 @@
+import { loadEnv, type Env } from "../env.ts";
 import type { Context, Hono } from "hono";
 import { z } from "zod";
 import { isKnownModel, PROVIDER_KINDS, type ModelChoice, type ProviderKind, type ProviderSettings } from "../../../ai/src/index.ts";
@@ -7,7 +8,7 @@ import {
   validateDeepseekBaseUrl,
   type AiSettingsPatch,
   type SettingsStore,
-} from "../stores/settingsStore.ts";
+} from "../store/settingsStore.ts";
 import { renderAdminAiPage } from "../views/adminAiPage.ts";
 
 export interface AdminRouteDeps {
@@ -17,7 +18,7 @@ export interface AdminRouteDeps {
    * (no `ADMIN_ACCESS_KEY`), 401 without a session, 403 for a staff session — staff may not open `/admin`.
    */
   guard: (c: Context, kind: "page" | "api") => Response | null;
-  env?: NodeJS.ProcessEnv;
+  env?: Env;
 }
 
 const Kind = z.enum(["gemini", "deepseek"]);
@@ -92,7 +93,7 @@ function candidate(current: ProviderSettings, patch: AiSettingsPatch): ProviderS
 
 export function registerAdminRoutes(app: Hono, deps: AdminRouteDeps): void {
   const { settings: store, guard } = deps;
-  const env = deps.env ?? process.env;
+  const env = deps.env ?? loadEnv();
   // The audit records who; there is one admin key, so the actor is the role.
   const BY = "admin";
 

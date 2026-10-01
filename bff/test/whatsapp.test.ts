@@ -9,10 +9,10 @@ import {
   verifySignature,
   whatsAppConfig,
 } from "../src/services/whatsapp.ts";
-import { createInMemoryConversationStore, type ConversationStore } from "../src/stores/conversationStore.ts";
+import { createInMemoryConversationStore, type ConversationStore } from "../src/store/conversationStore.ts";
 import { ASK_LIMIT, STALL_LIMIT } from "../../ai/src/index.ts";
 import type { ExtractProvider } from "../../ai/src/index.ts";
-import { listQuotations } from "../src/stores/quotationStore.ts";
+import { listQuotations } from "../src/store/quotationStore.ts";
 
 const VERIFY_TOKEN = "casa-verify-token";
 const APP_SECRET = "casa-app-secret";

@@ -4,6 +4,8 @@
 // turn two arrives context-free ("3 nights" with no dates, no guest count, no
 // name) and the guest is asked to start over. This is the same reason the test
 // console sends its own `history` field instead of a bare `message`.
+import { loadEnv, type Env } from "../env.ts";
+import { kvConfigFromEnv } from "./kv.ts";
 import type { ConversationTurn } from "../../../ai/src/index.ts";
 import type { StatedValueChange } from "../../../ai/src/index.ts";
 import { randomUUID } from "node:crypto";
@@ -414,16 +416,11 @@ export function createInMemoryConversationStore(ttlMs = THREAD_TTL_MS): Conversa
  * quoting tool that still answers, with degraded memory, beats a tool that answers nothing
  * because an env var is missing, and the operator can see the warning in the function logs.
  */
-export function createConversationStoreFromEnv(): ConversationStore {
-  const kvUrl = process.env.KV_REST_API_URL || process.env.UPSTASH_REDIS_REST_URL;
-  const kvToken = process.env.KV_REST_API_TOKEN || process.env.UPSTASH_REDIS_REST_TOKEN;
+export function createConversationStoreFromEnv(env: Env = loadEnv()): ConversationStore {
+  const kv = kvConfigFromEnv(env);
+  if (kv) return createRedisConversationStore(kv);
 
-  if (kvUrl && kvToken) {
-    return createRedisConversationStore({ url: kvUrl, token: kvToken });
-  }
-
-  const isProduction =
-    process.env.VERCEL_ENV === "production" || process.env.NODE_ENV === "production";
+  const isProduction = env.VERCEL_ENV === "production" || env.NODE_ENV === "production";
   if (isProduction) {
     console.error(
       "[casa-bff] NO KV CONFIGURED IN PRODUCTION: falling back to the in-memory conversation " +

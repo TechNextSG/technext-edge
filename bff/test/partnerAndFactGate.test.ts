@@ -7,7 +7,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { createApp } from "../src/app.ts";
 import { buildHonoQuotationDraft } from "../../quotation/src/index.ts";
 
-import { saveQuotationDraft } from "../src/stores/quotationStore.ts";
+import { saveQuotationDraft } from "../src/store/quotationStore.ts";
 import type { Trip } from "../../ai/src/index.ts";
 
 const TOKEN = "f08-token";

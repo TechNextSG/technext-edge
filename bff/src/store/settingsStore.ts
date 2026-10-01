@@ -7,6 +7,7 @@
 //
 // Shape of what is stored: only what an admin changed. That is what lets the dashboard say where each value
 // comes from, and what keeps a fresh deployment's behaviour identical to the pre-dashboard one.
+import { loadEnv, type Env } from "../env.ts";
 import {
   DEFAULT_MODELS,
   MODEL_CATALOG,
@@ -17,7 +18,7 @@ import {
   type ProviderOutcome,
   type ProviderSettings,
 } from "../../../ai/src/index.ts";
-import { decryptSecret, encryptionKeyFromEnv, encryptSecret, maskSecret, SecretDecryptError, type EncryptedSecret } from "../auth/secretBox.ts";
+import { decryptSecret, encryptionKeyFromEnv, encryptSecret, maskSecret, SecretDecryptError, type EncryptedSecret } from "./secretBox.ts";
 import { kvCommand, kvConfigFromEnv, type KvConfig } from "./kv.ts";
 
 export const SETTINGS_KEY = "settings:ai";
@@ -112,7 +113,7 @@ export function validateDeepseekBaseUrl(raw: string): string | null {
 
 export interface SettingsStoreOptions {
   kv?: KvConfig | null;
-  env?: NodeJS.ProcessEnv;
+  env?: Env;
   now?: () => Date;
   cacheMs?: number;
   encryptionKey?: Buffer | null;
@@ -131,7 +132,7 @@ export interface SettingsStore {
   invalidate(): void;
 }
 
-function envOrDefaultSettings(env: NodeJS.ProcessEnv): ProviderSettings {
+function envOrDefaultSettings(env: Env): ProviderSettings {
   try {
     return settingsFromEnv(env);
   } catch {
@@ -148,13 +149,13 @@ function envOrDefaultSettings(env: NodeJS.ProcessEnv): ProviderSettings {
   }
 }
 
-const ENV_KEY_NAME: Record<ProviderKind, string> = {
+const ENV_KEY_NAME: Record<ProviderKind, keyof Env> = {
   gemini: "GEMINI_API_KEY",
   deepseek: "DEEPSEEK_GATEWAY_KEY",
 };
 
 export function createSettingsStore(options: SettingsStoreOptions = {}): SettingsStore {
-  const env = options.env ?? process.env;
+  const env = options.env ?? loadEnv();
   const kv = options.kv === undefined ? kvConfigFromEnv(env) : options.kv;
   const now = options.now ?? (() => new Date());
   const cacheMs = options.cacheMs ?? 30_000;

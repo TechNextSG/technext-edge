@@ -1,11 +1,5 @@
-import { themeCss } from "../views/theme.ts";
-import { randomUUID } from "node:crypto";
-import { normalizePricing, recalculateQuotationTotals, guestLinkFor, quotationValidityLines, followUpState, followUpWindowFromEnv, quotationValidUntil, type HonoQuotationDraft } from "../../../quotation/src/index.ts";
-import { type Trip, buildBffTrip } from "../../../ai/src/index.ts";
-import { buildSimulatedModel } from "../services/simulatedEstimator.ts";
+import { recalculateQuotationTotals, type HonoQuotationDraft } from "../../../quotation/src/index.ts";
 import { createQuotationStoreFromEnv, type QuotationStore } from "./quotationStoreClient.ts";
-import { type DemoRole } from "../auth/demoAuth.ts";
-import { escapeHtml } from "../views/html.ts";
 
 /**
  * Lazily-built, so reading the env happens at first use rather than at import time. That keeps
@@ -20,159 +14,8 @@ function getStore(): Promise<QuotationStore> {
   return storePromise;
 }
 
-/**
- * The unpredictable part of a guest-facing quotation link.
- *
- * `/q/:slug` is deliberately reachable without a credential — it is the link staff paste
- * into WhatsApp, so the guest must be able to open it — which means the slug itself is the
- * only thing standing between a URL and someone else's booking. A UUID is 122 bits of CSPRNG
- * output.
- *
- * Lowercase, because this store indexes slugs case-insensitively (`quoteIdBySlug` keys are
- * lowercased) while URL paths are case-sensitive. A mixed-case token — base64url, say — would
- * be indexed under one spelling and looked up under another, so a legitimate link would 404.
- * That mistake was made here and caught by the "still serves the real quotation" test; the
- * two slug generators must use the same alphabet.
- *
- * The previous slugs were derived from the guest's own name and dates ("sky-oct10-group"),
- * and are guessable by anyone who knows the guest's name. Treat this value as a credential:
- * never rebuild it from booking data, never shorten it, and never log it next to the PII it
- * protects.
- */
-function randomSlug(): string {
-  return randomUUID();
-}
-
-// A synthetic split-day group scenario, pre-seeded so /quotes always has an immediately
-// editable quotation to look at, even on a fresh serverless cold start.
-//
-// It is a FIXTURE, and it now says so in its own data. It used to carry a real guest's name and
-// a real phone number copied out of a live enquiry, which meant PII was sitting in source
-// control and rendering on a staff page — and when the old code fell back to this record for any
-// unknown slug, that PII was reachable at a public URL. The name and number below are obviously
-// not anyone's, so nobody can mistake this for a real booking or leak a real one by extending it.
-//
-// The guest-facing slug is randomised rather than derived from the name: this record is served by
-// `/q/:slug` with no credential, so a guessable slug is a guessable quotation. The quote id stays
-// readable because it is only reachable behind the staff token.
-// Bump this whenever the seeded fixture's shape or pricing changes. `ensureSeeded()` compares it
-// to the stored record and re-seeds when they differ, so a deploy that changes the fixture (e.g.
-// the 2026-09-25 real-rate-card migration) does not leave the previous copy stuck in KV forever.
-//
-// v2: the studio prices from the engine and nothing else, so the fixture carries a real `bffTrip`
-// and the engine's own answer for it. Before this it carried a hand-typed line-item table that the
-// page no longer renders — a cold-start studio showed "not priced yet" and no trip to review.
-//
-// v3: the seed's staff alert was markdown (`**Custom Dive Schedule:**`), and staff alerts render as
-// text, so the first quotation anyone opens showed literal asterisks.
-//
-// v4: the stored fixture had been PUBLISHED, against the team estimator's fixture deployment, and that
-// deployment keeps share tokens in one serverless instance's memory — so its link is dead and cannot
-// be repaired (the token is gone from their side). A fixture that opens on "send the message again"
-// with a link nobody can open is a bad first impression of a flow that works, so the fixture is
-// rebuilt to its pre-publish state: no estimator session, pending review, priced by the sample
-// engine. See `docs/specs/upstream-note-bff-vercel-deploy.md` for the measurement.
-//
-// v5: it happened again during the 2026-09-28 audit (published 07:10 UTC), because the only thing
-// stopping it was a version check that nobody re-runs. Same rebuild, and `/publish` now refuses the
-// fixture outright — see `seeded_fixture` in app.ts — so the third time is not a matter of chance.
-const SEED_VERSION = 5;
-
-/**
- * The fixture's trip, as the extractor would have produced it: a split-day diving group, which is
- * the case the guardrail deliberately routes to staff rather than auto-pricing.
- */
-function seededTrip(): Trip {
-  const f = <T,>(value: T | null, state = "stated") => ({ value, state, evidence: null });
-  return {
-    language: f("en", "default"),
-    contactName: f("Sample Group"),
-    checkIn: f("2026-10-10"),
-    checkOut: f("2026-10-12"),
-    nights: f(2),
-    guests: f(4),
-    rooms: f(2),
-    roomType: f("standard"),
-    meals: f("full_board"),
-    transport: f(false),
-    guestType: f("retail", "default"),
-    transportType: f("none", "derived"),
-    diver: f(true),
-    divers: f(null, "missing"),
-    diveNotes: f("1 person dives day 1; 5 people dive both days"),
-    specialRequests: f(null, "missing"),
-    guestNames: f([]),
-  } as Trip;
-}
-
-let seedPromise: Promise<void> | undefined;
-function ensureSeeded(): Promise<void> {
-  seedPromise ??= (async () => {
-    const store = await getStore();
-    const existing = await store.get("QT-1010-SKY");
-    if (existing && existing.seedVersion === SEED_VERSION) return;
-    const now = new Date().toISOString();
-    const baseUrl = "https://technext-edge-casa-bff.vercel.app";
-    const slug = randomSlug();
-    const trip = buildBffTrip(seededTrip());
-    const seeded: HonoQuotationDraft = recalculateQuotationTotals({
-    quoteId: "QT-1010-SKY",
-    slug,
-    seedVersion: SEED_VERSION,
-    status: "pending_hono_review",
-    createdAt: now,
-    updatedAt: now,
-    phone: "639000000000",
-    guestName: "Sample Group",
-    checkIn: "2026-10-10",
-    checkOut: "2026-10-12",
-    nights: 2,
-    stayingGuests: 4,
-    totalGroupSize: 6,
-    rooms: 2,
-    mealPlan: "full_board",
-    diver: true,
-    divers: null,
-    diveNotes: "1 person dives day 1; 5 people dive both days",
-    guestType: "regular",
-    currency: "PHP",
-    discountPercent: 0,
-    // No hand-typed lines: the studio draws the price from the engine now, and a seeded fixture
-    // that carried its own arithmetic is exactly the second source of truth that was removed.
-    // `totalAmount` below is the engine's own revenue, so the sidebar and the cards agree.
-    lineItems: [],
-    subtotalAmount: 0,
-    discountAmount: 0,
-    totalAmount: buildSimulatedModel(trip).kpis.revenue ?? 0,
-    bffTrip: trip,
-    pricing: normalizePricing({
-      model: buildSimulatedModel(trip),
-      source: "simulated",
-      sample: true,
-      mode: "fixture",
-      role: "guest",
-      computedAt: now,
-    }),
-    estimator: null,
-    quotationUrl: `${baseUrl}/q/${slug}`,
-    honoEditorUrl: `${baseUrl}/quotes/QT-1010-SKY`,
-    staffNotes:
-      "Split-day diving arrangement: 6 people total (4 staying overnight in 2 rooms; 1 diver on Day 1 only, 5 divers on both days).",
-    staffAlerts: [
-      // Plain text, no `**`: this string is rendered as text in the studio, so markdown emphasis
-      // reaches staff as literal asterisks. (Found on the seeded fixture, which is the first thing
-      // anyone opens.)
-      "Custom dive schedule noted — 1 person dives day 1, 5 people dive both days. Our reservation team will prepare the quotation.",
-    ],
-  });
-    await store.save(seeded);
-  })();
-  return seedPromise;
-}
-
 export async function saveQuotationDraft(draft: HonoQuotationDraft): Promise<HonoQuotationDraft> {
   const store = await getStore();
-  await ensureSeeded();
   const normalized = recalculateQuotationTotals(draft);
   return store.save(normalized);
 }
@@ -280,13 +123,11 @@ export async function removeQuotation(idOrSlug: string): Promise<boolean> {
  */
 export async function getQuotationByIdOrSlug(idOrSlug: string): Promise<HonoQuotationDraft | undefined> {
   const store = await getStore();
-  await ensureSeeded();
   return store.get(idOrSlug);
 }
 
 export async function listQuotations(): Promise<HonoQuotationDraft[]> {
   const store = await getStore();
-  await ensureSeeded();
   return store.list();
 }
 
@@ -358,5 +199,3 @@ export async function findOpenQuotationForPhone(phone: string): Promise<HonoQuot
   return all.find((q) => q.phone === phone && q.status !== "cancelled" && !q.estimator?.sharedAt);
 }
 
-// Re-exported from presentation layer for backwards compatibility
-export { renderHonoQuotationEditorHtml } from "../views/quotationEditorPage.ts";

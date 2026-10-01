@@ -9,7 +9,7 @@ import { createApp } from "../src/app.ts";
 import {
   createInMemoryConversationStore,
   type ConversationStore,
-} from "../src/stores/conversationStore.ts";
+} from "../src/store/conversationStore.ts";
 import type { ExtractProvider } from "../../ai/src/index.ts";
 
 const VERIFY_TOKEN = "handoff-inbox-token";

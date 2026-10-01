@@ -19,8 +19,8 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { createHmac } from "node:crypto";
 import { createApp } from "../src/app.ts";
-import { createInMemoryConversationStore } from "../src/stores/conversationStore.ts";
-import { listQuotations, saveQuotationDraft } from "../src/stores/quotationStore.ts";
+import { createInMemoryConversationStore } from "../src/store/conversationStore.ts";
+import { listQuotations, saveQuotationDraft } from "../src/store/quotationStore.ts";
 import type { ExtractProvider } from "../../ai/src/index.ts";
 import type { HonoQuotationDraft } from "../../quotation/src/index.ts";
 

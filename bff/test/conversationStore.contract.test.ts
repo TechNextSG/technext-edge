@@ -16,8 +16,8 @@ import {
   THREAD_TTL_MS,
   IN_FLIGHT_CLAIM_TTL_MS,
   type ConversationStore,
-} from "../src/stores/conversationStore.ts";
-import { createRedisConversationStore } from "../src/stores/redisStore.ts";
+} from "../src/store/conversationStore.ts";
+import { createRedisConversationStore } from "../src/store/redisStore.ts";
 
 afterEach(() => {
   vi.restoreAllMocks();

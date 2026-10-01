@@ -1,3 +1,4 @@
+import { loadEnv } from "./env.ts";
 import { Hono, type Context } from "hono";
 import { getCookie, setCookie } from "hono/cookie";
 import { secureHeaders } from "hono/secure-headers";
@@ -5,11 +6,11 @@ import {
   createProviderByName,
   type ExtractProvider,
 } from "../../ai/src/index.ts";
-import { saveQuotationDraft } from "./stores/quotationStore.ts";
+import { saveQuotationDraft } from "./store/quotationStore.ts";
 import { createProviderHolder } from "./services/aiProvider.ts";
-import { createSettingsStore, type SettingsStore } from "./stores/settingsStore.ts";
+import { createSettingsStore, type SettingsStore } from "./store/settingsStore.ts";
 import { createEstimatorPortFromEnv, type EstimatorPort } from "./services/estimatorPort.ts";
-import { createConversationStoreFromEnv, type ConversationStore } from "./stores/conversationStore.ts";
+import { createConversationStoreFromEnv, type ConversationStore } from "./store/conversationStore.ts";
 import {
   DEMO_SESSION_COOKIE,
   createLoginAttemptLimiter,
@@ -77,7 +78,7 @@ export function createApp(options: AppOptions = {}) {
   const providerHolder = createProviderHolder(aiSettings);
 
   async function providerFor(data: { provider?: string; apiKey?: string }): Promise<ExtractProvider> {
-    if (data.provider) return createProviderByName(data.provider, data.apiKey!, process.env);
+    if (data.provider) return createProviderByName(data.provider, data.apiKey!, loadEnv());
     return options.provider ?? (await providerHolder.get());
   }
 
@@ -109,7 +110,7 @@ export function createApp(options: AppOptions = {}) {
     setCookie(c, DEMO_SESSION_COOKIE, issueSession(role), {
       httpOnly: true,
       sameSite: "Lax",
-      secure: process.env.NODE_ENV === "production" || process.env.VERCEL === "1",
+      secure: loadEnv().NODE_ENV === "production" || loadEnv().VERCEL === "1",
       path: "/",
       maxAge: 8 * 60 * 60,
     });

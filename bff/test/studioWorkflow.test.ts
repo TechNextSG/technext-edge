@@ -10,10 +10,17 @@
 // They assert on the SERVER-rendered markup wherever the claim is "this is true without the script
 // running", because the page's own script necessarily contains the same words (it redraws the same
 // status after an action). Asserting on the whole document would pass for the wrong reason.
-import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
+import { describe, it, expect, beforeEach, afterEach, vi, beforeAll } from "vitest";
 import { createApp } from "../src/app.ts";
-import { listQuotations, renderHonoQuotationEditorHtml, saveQuotationDraft } from "../src/stores/quotationStore.ts";
+import { listQuotations, saveQuotationDraft } from "../src/store/quotationStore.ts";
+import { renderHonoQuotationEditorHtml } from "../src/views/quotationEditorPage.ts";
 import type { HonoQuotationDraft } from "../../quotation/src/index.ts";
+import { ensureSampleQuotation } from "./helpers/sampleQuotation.ts";
+
+// The app no longer seeds a cold-start record; this file reads the sample one.
+beforeAll(async () => {
+  await ensureSampleQuotation();
+});
 
 const STAFF_TOKEN = "studio-workflow-token";
 

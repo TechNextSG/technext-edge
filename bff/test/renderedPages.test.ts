@@ -10,7 +10,13 @@
 // none of them execute the page's JavaScript. This file does: it parses each rendered script.
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import { createApp } from "../src/app.ts";
-import { listQuotations, saveQuotationDraft } from "../src/stores/quotationStore.ts";
+import { listQuotations, saveQuotationDraft } from "../src/store/quotationStore.ts";
+import { ensureSampleQuotation } from "./helpers/sampleQuotation.ts";
+
+// The app no longer seeds a cold-start record; this file reads the sample one.
+beforeAll(async () => {
+  await ensureSampleQuotation();
+});
 
 const STAFF_TOKEN = "test-staff-token";
 const savedToken = process.env.WHATSAPP_VERIFY_TOKEN;

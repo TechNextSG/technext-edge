@@ -1,5 +1,5 @@
 import type { Context, Hono } from "hono";
-import type { ConversationStore } from "../stores/conversationStore.ts";
+import type { ConversationStore } from "../store/conversationStore.ts";
 import { renderHandoffPageHtml } from "../views/handoffPage.ts";
 import type { DemoRole } from "../auth/demoAuth.ts";
 

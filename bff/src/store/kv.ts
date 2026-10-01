@@ -1,8 +1,10 @@
 // The Upstash / Vercel KV REST client, in one place.
 //
 // The same ten lines lived in `redisStore.ts` and `quotationStoreClient.ts` (and the env lookup in three more);
-// the admin settings store is a third caller. `RedisConfig` stays exported from both store files because other
-// code imports it from there — it is this type.
+// the admin settings store is a third caller. `KvConfig` is the one connection type, and `kvConfigFromEnv` the one
+// place that decides which environment variables name it.
+
+import { loadEnv, type Env } from "../env.ts";
 
 export interface KvConfig {
   url: string;
@@ -10,7 +12,7 @@ export interface KvConfig {
 }
 
 /** The KV endpoint from the environment, or null when this deployment has none (local dev, tests). */
-export function kvConfigFromEnv(env: NodeJS.ProcessEnv = process.env): KvConfig | null {
+export function kvConfigFromEnv(env: Env = loadEnv()): KvConfig | null {
   const url = env.KV_REST_API_URL || env.UPSTASH_REDIS_REST_URL;
   const token = env.KV_REST_API_TOKEN || env.UPSTASH_REDIS_REST_TOKEN;
   return url && token ? { url, token } : null;

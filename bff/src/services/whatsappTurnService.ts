@@ -1,3 +1,4 @@
+import { loadEnv, type Env } from "../env.ts";
 import {
   detectLanguage,
   fallbackReply,
@@ -25,8 +26,8 @@ import {
 import {
   saveQuotationDraft,
   findOpenQuotationForPhone,
-} from "../stores/quotationStore.ts";
-import type { ConversationStore } from "../stores/conversationStore.ts";
+} from "../store/quotationStore.ts";
+import type { ConversationStore } from "../store/conversationStore.ts";
 import type { EstimatorPort } from "./estimatorPort.ts";
 import {
   type InboundTextMessage,
@@ -86,7 +87,7 @@ export function statedMoneyValues(trip: Trip): Record<string, string | number | 
 /**
  * The WhatsApp number a guest should reply to, or null when this deployment has not been told one.
  */
-export function resortWhatsAppNumber(env: NodeJS.ProcessEnv = process.env): string | null {
+export function resortWhatsAppNumber(env: Env = loadEnv()): string | null {
   const raw = (env.RESORT_WHATSAPP_NUMBER ?? "").replace(/[^\d]/g, "");
   return raw.length >= 8 && raw.length <= 15 ? raw : null;
 }

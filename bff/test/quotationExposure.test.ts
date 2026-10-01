@@ -21,7 +21,7 @@ import {
   listQuotations,
   getQuotationByIdOrSlug,
   saveQuotationDraft,
-} from "../src/stores/quotationStore.ts";
+} from "../src/store/quotationStore.ts";
 import { buildHonoQuotationDraft, recalculateQuotationTotals, synthesizeConfirmedQuotationReply } from "../../quotation/src/index.ts";
 
 import type { Trip } from "../../ai/src/index.ts";

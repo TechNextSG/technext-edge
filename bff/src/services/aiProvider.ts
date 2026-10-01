@@ -5,6 +5,7 @@
 // circuit breaker after each request — "primary is down, use the fallback for 60s" only ever held inside one
 // request. Now one provider lives here, is rebuilt when the saved settings change (their `version`), and keeps
 // its breaker the rest of the time.
+import { loadEnv, type Env } from "../env.ts";
 import {
   buildProvider,
   createProviderFromEnv,
@@ -15,13 +16,13 @@ import {
   type ProviderOutcome,
   type ProviderSettings,
 } from "../../../ai/src/index.ts";
-import type { SettingsStore } from "../stores/settingsStore.ts";
+import type { SettingsStore } from "../store/settingsStore.ts";
 
 export interface ProviderHolder {
   get(): Promise<ExtractProvider>;
 }
 
-export function createProviderHolder(store: SettingsStore, env: NodeJS.ProcessEnv = process.env): ProviderHolder {
+export function createProviderHolder(store: SettingsStore, env: Env = loadEnv()): ProviderHolder {
   let current: { version: number; provider: ExtractProvider } | null = null;
 
   const onOutcome = (outcome: ProviderOutcome) => {
@@ -74,7 +75,7 @@ export async function testChoice(
   role: TestResult["role"],
   choice: ModelChoice,
   settings: ProviderSettings,
-  env: NodeJS.ProcessEnv,
+  env: Env,
 ): Promise<TestResult> {
   const started = Date.now();
   const key = keyFor(choice.provider, settings, env);

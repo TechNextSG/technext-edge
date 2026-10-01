@@ -4,6 +4,7 @@
 // base64), which lives in Vercel and never in KV. So a leaked KV dump is not a leaked provider key, and a
 // wrong or rotated `SETTINGS_ENCRYPTION_KEY` makes saved keys unreadable — reported as such, with the
 // environment's own key used instead (see `settingsStore.resolve`) — never as a silent empty string.
+import { loadEnv, type Env } from "../env.ts";
 import { createCipheriv, createDecipheriv, randomBytes } from "node:crypto";
 
 export interface EncryptedSecret {
@@ -23,7 +24,7 @@ export class SecretDecryptError extends Error {
 }
 
 /** The 32-byte key from `SETTINGS_ENCRYPTION_KEY`, or null when it is unset or not a base64 32-byte value. */
-export function encryptionKeyFromEnv(env: NodeJS.ProcessEnv = process.env): Buffer | null {
+export function encryptionKeyFromEnv(env: Env = loadEnv()): Buffer | null {
   const raw = env.SETTINGS_ENCRYPTION_KEY;
   if (!raw) return null;
   const key = Buffer.from(raw, "base64");

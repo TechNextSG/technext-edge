@@ -14,7 +14,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { createApp } from "../src/app.ts";
 import { createEstimatorClient } from "../src/services/estimatorClient.ts";
 import { buildHonoQuotationDraft } from "../../quotation/src/index.ts";
-import { listQuotations, saveQuotationDraft } from "../src/stores/quotationStore.ts";
+import { listQuotations, saveQuotationDraft } from "../src/store/quotationStore.ts";
 
 import type { BffTrip } from "../../ai/src/index.ts";
 import type { Trip } from "../../ai/src/index.ts";

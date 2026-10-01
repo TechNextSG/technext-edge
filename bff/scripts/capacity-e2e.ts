@@ -33,7 +33,7 @@ process.env.STAFF_ACCESS_KEY = TOKEN;
 for (const k of ["REDIS_URL", "KV_URL", "KV_REST_API_URL", "KV_REST_API_TOKEN"]) delete process.env[k];
 
 const { createApp } = await import("../src/app.ts");
-const { getQuotationByIdOrSlug, saveQuotationDraft } = await import("../src/stores/quotationStore.ts");
+const { getQuotationByIdOrSlug, saveQuotationDraft } = await import("../src/store/quotationStore.ts");
 const { createEstimatorPortFromEnv } = await import("../src/services/estimatorPort.ts");
 const { buildHonoQuotationDraft } = await import("../../quotation/src/index.ts");
 

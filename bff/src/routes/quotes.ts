@@ -1,3 +1,4 @@
+import { loadEnv } from "../env.ts";
 import { randomUUID } from "node:crypto";
 import type { Hono, Context } from "hono";
 import {
@@ -27,8 +28,9 @@ import {
   duplicateQuotationIds,
   filterQuotations,
   removeQuotation,
-  renderHonoQuotationEditorHtml,
-} from "../stores/quotationStore.ts";
+} from "../store/quotationStore.ts";
+import { renderHonoQuotationEditorHtml } from "../views/quotationEditorPage.ts";
+import { renderEmptyStudioHtml } from "../views/emptyStudio.ts";
 import type { EstimatorPort } from "../services/estimatorPort.ts";
 import type { DemoRole } from "../auth/demoAuth.ts";
 import {
@@ -51,7 +53,7 @@ import {
 } from "../services/quotationService.ts";
 
 function canonicalOrigin(c: Context): string {
-  const envUrl = (process.env.PUBLIC_BASE_URL ?? "").trim().replace(/\/$/, "");
+  const envUrl = (loadEnv().PUBLIC_BASE_URL ?? "").trim().replace(/\/$/, "");
   if (envUrl) return envUrl;
   return new URL(c.req.url).origin;
 }
@@ -72,7 +74,8 @@ export function registerQuotesRoutes(app: Hono, deps: QuotesRouteDeps): void {
     const auth = staffSession(c);
     if (!auth.ok) return c.redirect("/login");
     const all = await listQuotations();
-    const latest = all[0]!;
+    const latest = all[0];
+    if (!latest) return c.html(renderEmptyStudioHtml());
     return c.html(renderHonoQuotationEditorHtml(latest, all, auth.role ?? "staff", estimator.kind));
   });
 
@@ -939,7 +942,7 @@ export function registerQuotesRoutes(app: Hono, deps: QuotesRouteDeps): void {
     const guestUrl = absoluteUrl(shared.url, estimator.appBaseUrl ?? estimator.baseUrl);
     let mirrorUrl: string | null = null;
     let mirrorReason: string | null = null;
-    const forceCopy = (process.env.GUEST_LINK_MODE ?? "").trim().toLowerCase() === "copy";
+    const forceCopy = (loadEnv().GUEST_LINK_MODE ?? "").trim().toLowerCase() === "copy";
     if (!guestUrl || estimator.kind === "remote") {
       const check = !guestUrl
         ? ({

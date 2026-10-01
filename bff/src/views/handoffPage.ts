@@ -14,7 +14,7 @@
  * records written before those existed simply do not have them, and the row must still render.
  */
 import { themeCss } from "./theme.ts";
-import type { PausedThread } from "../stores/conversationStore.ts";
+import type { PausedThread } from "../store/conversationStore.ts";
 import type { DemoRole } from "../auth/demoAuth.ts";
 import { escapeHtml } from "./html.ts";
 

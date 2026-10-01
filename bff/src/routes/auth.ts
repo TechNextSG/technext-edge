@@ -1,14 +1,7 @@
 import type { Context, Hono } from "hono";
 import { deleteCookie } from "hono/cookie";
-import {
-  adminAccessKey,
-  DEMO_SESSION_COOKIE,
-  renderLoginHtml,
-  staffAccessKey,
-  SAFE_NEXT_PREFIXES,
-  type DemoRole,
-  type LoginAttemptLimiter,
-} from "../auth/demoAuth.ts";
+import { adminAccessKey, DEMO_SESSION_COOKIE, staffAccessKey, SAFE_NEXT_PREFIXES, type DemoRole, type LoginAttemptLimiter } from "../auth/demoAuth.ts";
+import { renderLoginHtml } from "../views/loginPage.ts";
 import { sameSecret } from "../services/whatsapp.ts";
 
 export interface AuthRouteDeps {

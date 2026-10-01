@@ -1,10 +1,11 @@
+import { loadEnv } from "./env.ts";
 import { serve } from "@hono/node-server";
 import { createApp } from "./app.ts";
 
 try { process.loadEnvFile(".env.local"); } catch {}
 try { process.loadEnvFile("../.env.local"); } catch {}
 
-const port = Number(process.env.PORT ?? 8787);
+const port = Number(loadEnv().PORT ?? 8787);
 serve({ fetch: createApp().fetch, port }, (info) => {
   console.log(`casa-bff dev server on http://localhost:${info.port}`);
   console.log(`try: curl -s localhost:${info.port}/v1/extract -H 'content-type: application/json' -d '{"text":"4 of us, next Saturday, 3 nights"}'`);
