@@ -18,7 +18,10 @@
     "upstream:check": "node tools/ops/upstream-check.mjs",
     "mirror:check": "node tools/ops/mirror-check.mjs",
     "check:boundaries": "node tools/ops/check-boundaries.mjs",
-    "build": "esbuild api/entry.ts --bundle --platform=node --format=esm --target=node20 --outfile=api/index.js"
+    "build": "esbuild api/entry.ts --bundle --platform=node --format=esm --target=node20 --outfile=api/index.js",
+    "judge": "node --import tsx tools/judge/run.mjs",
+    "judge:calibrate": "node tools/judge/calibrate.mjs",
+    "test:judge": "vitest run tools/judge/test"
   },
   "engines": {
     "node": ">=18"

@@ -45,3 +45,6 @@ cookies.txt
 
 # Local state of the coding assistant (settings, sessions, scheduled-task locks): per machine, not the project.
 .claude/
+
+# LLM-as-a-judge run output: transcripts of model replies and scores (tools/judge)
+tools/judge/results/

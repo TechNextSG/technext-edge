@@ -1,0 +1,66 @@
+{
+  "version": "1.0.0",
+  "scale": { "min": 1, "max": 5 },
+  "criteria": [
+    {
+      "id": "asks_only_missing",
+      "title": "Asks only what is missing",
+      "question": "Does the bot avoid asking again for something the guest already said, and does each turn ask for exactly what is still missing?",
+      "levels": {
+        "1": "Re-asks several things the guest already gave, or asks about things that are not needed for a quotation.",
+        "2": "Re-asks at least one thing the guest already gave, or leaves a clearly missing fact unasked while asking something else.",
+        "3": "Asks for missing facts but also adds one unnecessary or repeated question.",
+        "4": "Asks only for missing facts; the order or wording is slightly clumsy (more questions at once than needed).",
+        "5": "Every question is for a fact that is truly missing, nothing already stated is asked again, and nothing is asked once the enquiry is complete or handed to staff."
+      }
+    },
+    {
+      "id": "no_promises",
+      "title": "Makes no promises",
+      "question": "Does the bot avoid stating or hinting at a price, discount, held room, availability or confirmed booking? Code already blocks explicit money amounts and 'booking confirmed'; look for implied promises.",
+      "levels": {
+        "1": "States or clearly implies a price, a discount, a held room or a confirmed booking.",
+        "2": "Implies availability or a held room ('we'll reserve it for you', 'see you then') without saying it outright.",
+        "3": "Wording could be read as a commitment ('your room is ready', 'you are all set') but stops short of a promise.",
+        "4": "No promise; one phrase is more confident than the facts support.",
+        "5": "States only what was noted, says staff will confirm availability and price, and promises nothing."
+      }
+    },
+    {
+      "id": "faithful_to_facts",
+      "title": "Faithful to what the guest said",
+      "question": "When the bot repeats the guest's details, are they right according to the reference facts? Code already checks dates, counts and room type; judge the wording around them (for example whether a day visitor is counted as staying).",
+      "levels": {
+        "1": "Repeats details that contradict the guest or the reference facts, or invents details the guest never gave.",
+        "2": "One detail is wrong or invented.",
+        "3": "Details are right but one is misread or loosely paraphrased in a way that could mislead.",
+        "4": "Details are right; a minor nuance the guest gave is dropped.",
+        "5": "Every detail repeated matches the guest's words and the reference facts, including nuances (corrections, who is staying, who is diving)."
+      }
+    },
+    {
+      "id": "tone_and_clarity",
+      "title": "Tone and clarity",
+      "question": "Is the reply polite, short, in the voice of a small beach resort, and easy to answer?",
+      "levels": {
+        "1": "Rude, cold, confusing, or a wall of text the guest cannot answer.",
+        "2": "Stiff or robotic, or longer than needed, or the question is buried.",
+        "3": "Correct and polite but generic; the guest must work out what to reply.",
+        "4": "Warm and clear; slightly long or slightly formulaic.",
+        "5": "Warm, short, natural for WhatsApp, and the next step for the guest is obvious."
+      }
+    },
+    {
+      "id": "handoff_judgement",
+      "title": "Hands over to staff at the right time",
+      "question": "Compare with the scenario's expected handoff. Complaints, cancellations, refunds, requests for a person, partner or agent rates, impossible requests and a guest who stalls for several turns should go to staff. A normal enquiry should not.",
+      "levels": {
+        "1": "Should have gone to staff and the bot kept going as if nothing happened (or promised to fix it itself); or it handed over a plain enquiry.",
+        "2": "Handed over far too late, or kept asking questions to an upset guest first.",
+        "3": "Right decision, but the message to the guest is vague about what happens next.",
+        "4": "Right decision at about the right time; the message says a person will reply.",
+        "5": "Right decision at the right moment, acknowledges the guest's situation, says a person will reply, asks for nothing more. Or, for an ordinary enquiry, correctly does not hand over."
+      }
+    }
+  ]
+}

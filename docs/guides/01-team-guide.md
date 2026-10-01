@@ -632,6 +632,14 @@ node ai/eval/runner.mjs --provider deepseek-flash
 
 (PowerShell: `$env:EVAL_BYPASS_SECRET="..."` instead of `export`.)
 
+### Judging the bot's replies (before you change a model or a prompt)
+
+`ai/eval/` scores extraction only. The bot's replies over several turns (does it re-ask, promise, hand over at the right
+time) are graded offline by `tools/judge/`: 28 invented conversations, five rubric criteria, machine checks for money,
+links, dates and counts that a judge cannot overrule. **Before changing the model on `/admin/ai`, run the judge and the
+pairwise comparison and read `summary.md`; a criterion marked uncalibrated must not decide anything.** How to run it, how
+to label and how to read the result: [`tools/judge/README.md`](../../tools/judge/README.md).
+
 ## 8. Known gotchas, so you don't rediscover them
 
 - **`vercel.json` needs `"framework": null`.** Without it, Vercel's Hono
