@@ -1,13 +1,13 @@
 // The demo GAIS sign-in: the studio is opened with a session cookie instead of pasting the shared
 // secret into the URL.
 //
-// This is DEMO auth (see bff/src/demoAuth.ts) — it fakes the shape of the edge spec's
+// This is DEMO auth (see bff/src/auth/) — it fakes the shape of the edge spec's
 // `Authorization: Bearer <GAIS_API_KEY>` so the real thing is a one-file swap. These tests pin
 // exactly that shape: the cookie works, a forged or expired one does not, the role rides along,
 // and the old header/query paths still work so nothing that used them breaks.
 import { describe, it, expect, beforeAll, afterAll, vi } from "vitest";
 import { createApp } from "../src/app.ts";
-import { issueSession, verifySession, isDemoRole } from "../src/auth/demoAuth.ts";
+import { issueSession, verifySession, isDemoRole } from "../src/auth/session.ts";
 import { ensureSampleQuotation } from "./helpers/sampleQuotation.ts";
 
 // The app no longer seeds a cold-start record; this file reads the sample one.

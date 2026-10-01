@@ -15,7 +15,7 @@
  */
 import { themeCss } from "./theme.ts";
 import type { PausedThread } from "../store/conversationStore.ts";
-import type { DemoRole } from "../auth/demoAuth.ts";
+import type { StaffRole } from "../auth/session.ts";
 import { escapeHtml } from "./html.ts";
 
 /** A parked thread's reason, in words a person can act on. */
@@ -60,7 +60,7 @@ function waitingFor(since: number, now: number): string {
   return `${Math.floor(hours / 24)} d ${hours % 24} h`;
 }
 
-function renderRow(thread: PausedThread, now: number, role: DemoRole): string {
+function renderRow(thread: PausedThread, now: number, role: StaffRole): string {
   const missing = (thread.missingFields ?? []).map((f) => FIELD_LABELS[f] ?? f);
   const reason = REASON_LABELS[thread.reason] ?? thread.reason;
   const phone = escapeHtml(thread.phone);
@@ -78,7 +78,7 @@ function renderRow(thread: PausedThread, now: number, role: DemoRole): string {
 </tr>`;
 }
 
-export function renderHandoffPageHtml(paused: PausedThread[], role: DemoRole = "staff", now = Date.now()): string {
+export function renderHandoffPageHtml(paused: PausedThread[], role: StaffRole = "staff", now = Date.now()): string {
   const rows = paused.map((thread) => renderRow(thread, now, role)).join("\n");
 
   return `<!DOCTYPE html>

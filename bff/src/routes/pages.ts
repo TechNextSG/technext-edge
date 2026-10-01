@@ -1,9 +1,9 @@
 import type { Context, Hono } from "hono";
 import { TEST_PAGE_HTML } from "../views/testPage.ts";
-import type { DemoRole } from "../auth/demoAuth.ts";
+import type { StaffRole } from "../auth/session.ts";
 
 export interface PageRouteDeps {
-  staffSession: (c: Context) => { ok: boolean; role: DemoRole | null };
+  staffSession: (c: Context) => { ok: boolean; role: StaffRole | null };
 }
 
 /**

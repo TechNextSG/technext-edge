@@ -5,7 +5,7 @@ import { randomBytes } from "node:crypto";
 import { createApp } from "../src/app.ts";
 import { createSettingsStore, type SettingsStore } from "../src/store/settingsStore.ts";
 import { createProviderHolder } from "../src/services/aiProvider.ts";
-import { decryptSecret, encryptionKeyFromEnv, encryptSecret, SecretDecryptError } from "../src/store/secretBox.ts";
+import { decryptSecret, encryptionKeyFromEnv, encryptSecret, SecretDecryptError } from "../src/auth/secretBox.ts";
 
 const STAFF = "staff-key-for-admin-tests";
 const ADMIN = "admin-key-for-admin-tests";

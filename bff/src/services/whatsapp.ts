@@ -82,22 +82,6 @@ export function verifySignature(rawBody: string, header: string | undefined, app
   return timingSafeEqual(Buffer.from(received, "utf8"), Buffer.from(expected, "utf8"));
 }
 
-/**
- * Constant-time comparison of a shared secret a caller sent us, for the routes
- * that are guarded by the verify token instead of by a signature (the handoff
- * view in app.ts). Same reasoning as verifySignature's comparison: `===` on a
- * secret exits at the first differing byte, which leaks it to anyone willing to
- * measure how long a rejection takes.
- */
-export function sameSecret(received: string | undefined, expected: string | undefined): boolean {
-  if (!received || !expected) return false;
-  const a = Buffer.from(received, "utf8");
-  const b = Buffer.from(expected, "utf8");
-  // timingSafeEqual throws on a length mismatch, so guard first.
-  if (a.length !== b.length) return false;
-  return timingSafeEqual(a, b);
-}
-
 export interface SenderCheck {
   ok: boolean;
   displayPhoneNumber?: string;

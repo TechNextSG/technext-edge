@@ -1,34 +1,18 @@
 import { loadEnv } from "./env.ts";
-import { Hono, type Context } from "hono";
-import { getCookie, setCookie } from "hono/cookie";
+import { Hono } from "hono";
 import { secureHeaders } from "hono/secure-headers";
-import {
-  createProviderByName,
-  type ExtractProvider,
-} from "../../ai/src/index.ts";
+import { createProviderByName, type ExtractProvider } from "../../ai/src/index.ts";
 import { saveQuotationDraft } from "./store/quotationStore.ts";
 import { createProviderHolder } from "./services/aiProvider.ts";
 import { createSettingsStore, type SettingsStore } from "./store/settingsStore.ts";
 import { createEstimatorPortFromEnv, type EstimatorPort } from "./services/estimatorPort.ts";
 import { createConversationStoreFromEnv, type ConversationStore } from "./store/conversationStore.ts";
-import {
-  DEMO_SESSION_COOKIE,
-  createLoginAttemptLimiter,
-  staffAccessKey,
-  type LoginAttemptLimiter,
-  issueSession,
-  verifySession,
-  type DemoRole,
-  adminAccessKey,
-} from "./auth/demoAuth.ts";
-import {
-  sameSecret,
-  type WhatsAppSendText,
-} from "./services/whatsapp.ts";
-import {
-  closeEnquiryQuotation,
-  guestPendingQuotationNote,
-} from "./services/whatsappTurnService.ts";
+import { setSession } from "./auth/session.ts";
+import { createLoginAttemptLimiter, type LoginAttemptLimiter } from "./auth/rate-limit.ts";
+import { createGuards } from "./auth/guards.ts";
+import { ADMIN_ONLY_HTML } from "./views/forbiddenPage.ts";
+import type { WhatsAppSendText } from "./services/whatsapp.ts";
+import { closeEnquiryQuotation, guestPendingQuotationNote } from "./services/whatsappTurnService.ts";
 
 // Route modules
 import { registerAuthRoutes } from "./routes/auth.ts";
@@ -76,44 +60,12 @@ export function createApp(options: AppOptions = {}) {
   const estimator = options.estimator ?? createEstimatorPortFromEnv();
   const aiSettings = options.settings ?? createSettingsStore();
   const providerHolder = createProviderHolder(aiSettings);
+  const { staffSession, staffWriter, adminGuard, handoffAuthorized } = createGuards({ adminOnlyHtml: ADMIN_ONLY_HTML });
+  const loginLimiter = options.loginLimiter ?? createLoginAttemptLimiter();
 
   async function providerFor(data: { provider?: string; apiKey?: string }): Promise<ExtractProvider> {
     if (data.provider) return createProviderByName(data.provider, data.apiKey!, loadEnv());
     return options.provider ?? (await providerHolder.get());
-  }
-
-  function staffAuthorizedWithQuery(header: string | undefined, query: string | undefined): boolean {
-    const key = staffAccessKey();
-    if (!key) return false;
-    if (sameSecret(header, key)) return true;
-    return Boolean(query && sameSecret(query, key));
-  }
-
-  function staffSession(c: Context): { ok: boolean; role: DemoRole | null } {
-    const bearer = c.req.header("authorization");
-    if (bearer?.startsWith("Bearer ") && sameSecret(bearer.slice(7).trim(), staffAccessKey())) {
-      return { ok: true, role: "staff" };
-    }
-    if (staffAuthorizedWithQuery(c.req.header("x-verify-token"), c.req.query("token"))) {
-      return { ok: true, role: "staff" };
-    }
-    const role = verifySession(getCookie(c, DEMO_SESSION_COOKIE));
-    return role ? { ok: true, role } : { ok: false, role: null };
-  }
-
-  function staffWriter(c: Context): boolean {
-    const auth = staffSession(c);
-    return auth.ok && (auth.role === "staff" || auth.role === "admin");
-  }
-
-  function setDemoSession(c: Context, role: DemoRole): void {
-    setCookie(c, DEMO_SESSION_COOKIE, issueSession(role), {
-      httpOnly: true,
-      sameSite: "Lax",
-      secure: loadEnv().NODE_ENV === "production" || loadEnv().VERCEL === "1",
-      path: "/",
-      maxAge: 8 * 60 * 60,
-    });
   }
 
   app.use(
@@ -126,25 +78,7 @@ export function createApp(options: AppOptions = {}) {
     }),
   );
 
-  const loginLimiter = options.loginLimiter ?? createLoginAttemptLimiter();
-
-  function adminGuard(c: Context, kind: "page" | "api"): Response | null {
-    const key = adminAccessKey();
-    if (!key) return c.json({ error: "not_found" }, 404);
-    const header = c.req.header("x-admin-key");
-    if (header && sameSecret(header, key)) return null;
-    const auth = staffSession(c);
-    if (auth.ok && auth.role === "admin") return null;
-    if (auth.ok) {
-      return kind === "page"
-        ? c.html("<!doctype html><title>Admin only</title><p>This page is for the admin account. Sign in with the admin key.</p>", 403)
-        : c.json({ error: "forbidden", detail: "the admin dashboard needs the admin key" }, 403);
-    }
-    return kind === "page" ? c.redirect("/login?next=%2Fadmin%2Fai") : c.json({ error: "unauthorized" }, 401);
-  }
-
-  // Register modular route handlers
-  registerAuthRoutes(app, { loginLimiter, setSession: setDemoSession });
+  registerAuthRoutes(app, { loginLimiter, setSession: (c, role) => setSession(c, role) });
   registerAdminRoutes(app, { settings: aiSettings, guard: adminGuard });
   registerHealthRoutes(app);
   registerPageRoutes(app, { staffSession });
@@ -165,6 +99,7 @@ export function createApp(options: AppOptions = {}) {
     providerFor,
     sendWhatsApp: options.sendWhatsApp,
     estimator,
+    handoffAuthorized,
   });
   registerQuotesRoutes(app, {
     estimator,

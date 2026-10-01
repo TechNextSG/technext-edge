@@ -11,14 +11,14 @@ import {
   quotationValidUntil,
   type HonoQuotationDraft,
 } from "../../quote/index.ts";
-import { type DemoRole } from "../../auth/demoAuth.ts";
+import { type StaffRole } from "../../auth/session.ts";
 
 export type EditorModel = ReturnType<typeof buildEditorModel>;
 
 export function buildEditorModel(
   draft: HonoQuotationDraft,
   allQuotes: HonoQuotationDraft[],
-  role: DemoRole = "staff",
+  role: StaffRole = "staff",
   /**
    * Which engine prices this deployment. The "Send reservation" bar is hidden when it is `remote`:
    * bookings are taken on the team estimator's own quotation page (their app owns the folio), and the

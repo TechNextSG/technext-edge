@@ -1,5 +1,5 @@
 import { themeCss } from "./theme.ts";
-import { SAFE_NEXT_PREFIXES } from "../auth/demoAuth.ts";
+import { SAFE_NEXT_PREFIXES } from "../auth/session.ts";
 
 /**
  * The demo sign-in page. One password field, and a `role` field the form fills with `staff` — the

@@ -1,8 +1,10 @@
 import type { Context, Hono } from "hono";
 import { deleteCookie } from "hono/cookie";
-import { adminAccessKey, DEMO_SESSION_COOKIE, staffAccessKey, SAFE_NEXT_PREFIXES, type DemoRole, type LoginAttemptLimiter } from "../auth/demoAuth.ts";
+import { adminAccessKey, staffAccessKey } from "../auth/keys.ts";
+import { DEMO_SESSION_COOKIE, SAFE_NEXT_PREFIXES, type StaffRole } from "../auth/session.ts";
+import { type LoginAttemptLimiter } from "../auth/rate-limit.ts";
 import { renderLoginHtml } from "../views/loginPage.ts";
-import { sameSecret } from "../services/whatsapp.ts";
+import { sameSecret } from "../auth/keys.ts";
 
 export interface AuthRouteDeps {
   /**
@@ -11,7 +13,7 @@ export interface AuthRouteDeps {
    */
   loginLimiter: LoginAttemptLimiter;
   /** Writes the signed demo cookie. Owned by app.ts, which also clears it elsewhere. */
-  setSession: (c: Context, role: DemoRole) => void;
+  setSession: (c: Context, role: StaffRole) => void;
 }
 
 /**

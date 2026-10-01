@@ -13,7 +13,7 @@ import {
   converseWithQuotation,
   type HonoQuotationDraft,
 } from "../quote/index.ts";
-import type { DemoRole } from "../auth/demoAuth.ts";
+import type { StaffRole } from "../auth/session.ts";
 
 const ProviderOverride = {
   provider: z.enum(KNOWN_PROVIDER_NAMES).optional(),
@@ -74,7 +74,7 @@ export function handleExtractError(err: unknown): Response {
 export interface ExtractorRouteDeps {
   providerFor: (data: { provider?: string; apiKey?: string }) => Promise<ExtractProvider>;
   staffWriter: (c: Context) => boolean;
-  staffSession: (c: Context) => { ok: boolean; role: DemoRole | null };
+  staffSession: (c: Context) => { ok: boolean; role: StaffRole | null };
   saveQuotationDraft: (draft: HonoQuotationDraft) => Promise<HonoQuotationDraft>;
 }
 

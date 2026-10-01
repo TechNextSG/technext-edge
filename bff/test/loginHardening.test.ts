@@ -6,7 +6,8 @@
 // security headers on pages that print a guest's own words.
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { createApp } from "../src/app.ts";
-import { createLoginAttemptLimiter, staffAccessKey } from "../src/auth/demoAuth.ts";
+import { createLoginAttemptLimiter } from "../src/auth/rate-limit.ts";
+import { staffAccessKey } from "../src/auth/keys.ts";
 
 const VERIFY_TOKEN = "meta-verify-token";
 const STAFF_KEY = "separate-staff-key";

@@ -13,15 +13,18 @@
  *   * `issueSession(role)` / `verifySession(token)` — an HMAC-signed session, the demo equivalent
  *     of a GAIS bearer key. Signed with `GAIS_API_KEY` when it exists, otherwise the verify token
  *     we already have, so the demo needs no new secret.
- *   * `DemoRole` — the same three roles the field guide names. In this demo a role only changes
+ *   * `StaffRole` — the same three roles the field guide names. In this demo a role only changes
  *     what the studio *shows*; it is not an access-control boundary.
  *
  * What this deliberately is NOT: a user database, rate limiting, or Odoo authentication. Do not
  * grow it into one — when the real keys arrive, `verifySession` becomes a GAIS key check and
  * everything else stays.
  */
-import { loadEnv, type Env } from "../env.ts";
 import { createHmac, timingSafeEqual } from "node:crypto";
+import type { Context } from "hono";
+import { setCookie } from "hono/cookie";
+import { loadEnv, type Env } from "../env.ts";
+import { staffAccessKey } from "./keys.ts";
 
 /**
  * The studio is a staff tool and nothing else. In the team estimator a role comes from the login
@@ -29,9 +32,9 @@ import { createHmac, timingSafeEqual } from "node:crypto";
  * team estimator — so there is one role here. A cookie signed with an older role ("guest",
  * "agent") is no longer a session at all: `verifySession` returns null for it.
  */
-export type DemoRole = "staff" | "admin";
+export type StaffRole = "staff" | "admin";
 
-export const DEMO_ROLES: readonly DemoRole[] = ["staff", "admin"];
+export const DEMO_ROLES: readonly StaffRole[] = ["staff", "admin"];
 
 /**
  * `admin` exists for one thing: the AI settings dashboard (`/admin`). It can do everything `staff` can; `staff`
@@ -52,81 +55,8 @@ const SESSION_TTL_MS = 8 * 60 * 60 * 1000;
  */
 export const SAFE_NEXT_PREFIXES = ["/quotes", "/handoff", "/admin"] as const;
 
-export const DEMO_GAIS_BANNER =
-  "DEMO AUTH — staff sign-in here is a stand-in for GAIS. Real GAIS_API_KEY + Odoo roles land when Phillip issues keys.";
-
-export function isDemoRole(value: unknown): value is DemoRole {
+export function isDemoRole(value: unknown): value is StaffRole {
   return typeof value === "string" && (DEMO_ROLES as readonly string[]).includes(value);
-}
-
-/**
- * The key a person types to reach the studio.
- *
- * Deliberately NOT `WHATSAPP_VERIFY_TOKEN`, which is what it used to be. That one string was doing
- * two unrelated jobs: answering Meta's webhook handshake, and signing staff in. So rotating it for
- * either reason broke the other, and — the part that actually bit — the staff key had to be a
- * string Meta already knew, which meant it lived in a Meta dashboard and in every place the webhook
- * was configured.
- *
- * `STAFF_ACCESS_KEY` separates them. The fallback to `WHATSAPP_VERIFY_TOKEN` is for the deployment
- * that is already running: without it, adding this env var would lock everyone out until it was
- * set, and a security change that takes the tool offline is not one anybody applies.
- */
-export function staffAccessKey(env: Env = loadEnv()): string {
-  return env.STAFF_ACCESS_KEY || env.WHATSAPP_VERIFY_TOKEN || "";
-}
-
-/** The key that opens the admin dashboard. Empty = the dashboard is off. Must differ from the staff key to mean anything. */
-export function adminAccessKey(env: Env = loadEnv()): string {
-  return env.ADMIN_ACCESS_KEY || "";
-}
-
-export interface LoginAttemptLimiter {
-  /** Whether this address may try again, and how long to wait if not. */
-  check(ip: string): { allowed: boolean; retryAfterSeconds: number };
-  /** Record a wrong key. */
-  fail(ip: string): void;
-  /** Forget an address's failures — called on a correct key. */
-  reset(ip: string): void;
-}
-
-/**
- * A brake on guessing the staff key.
- *
- * Per-instance, in memory, and deliberately so: Vercel runs concurrent requests in separate
- * instances, so this cannot bound an attacker who lands on ten of them. What it does bound is the
- * case that matters for a demo — one address trying keys in a loop — and it does it without adding
- * a Redis round trip to every sign-in. Their own repo documents the same trade-off for the same
- * endpoint (`bff/src/auth/rate-limit.ts`, D-021), and upgrading this to a shared counter is a
- * follow-up rather than something to fake here.
- */
-export function createLoginAttemptLimiter(
-  options: { limit?: number; windowMs?: number; now?: () => number } = {},
-): LoginAttemptLimiter {
-  const limit = options.limit ?? 5;
-  const windowMs = options.windowMs ?? 15 * 60 * 1000;
-  const now = options.now ?? (() => Date.now());
-  const failures = new Map<string, number[]>();
-
-  function live(ip: string): number[] {
-    const cutoff = now() - windowMs;
-    return (failures.get(ip) ?? []).filter((at) => at > cutoff);
-  }
-
-  return {
-    check(ip) {
-      const recent = live(ip);
-      if (recent.length < limit) return { allowed: true, retryAfterSeconds: 0 };
-      const oldest = recent[0] ?? now();
-      return { allowed: false, retryAfterSeconds: Math.max(1, Math.ceil((oldest + windowMs - now()) / 1000)) };
-    },
-    fail(ip) {
-      failures.set(ip, [...live(ip), now()]);
-    },
-    reset(ip) {
-      failures.delete(ip);
-    },
-  };
 }
 
 /**
@@ -148,7 +78,7 @@ function sign(payload: string, key: string): string {
 }
 
 /** `<payload>.<hmac>` — payload is base64url JSON `{ role, exp }`. */
-export function issueSession(role: DemoRole, env: Env = loadEnv()): string {
+export function issueSession(role: StaffRole, env: Env = loadEnv()): string {
   const payload = Buffer.from(JSON.stringify({ role, exp: Date.now() + SESSION_TTL_MS }), "utf8").toString(
     "base64url",
   );
@@ -156,7 +86,7 @@ export function issueSession(role: DemoRole, env: Env = loadEnv()): string {
 }
 
 /** The role on a valid, unexpired session — or null. Fails closed when no secret is configured. */
-export function verifySession(token: string | undefined, env: Env = loadEnv()): DemoRole | null {
+export function verifySession(token: string | undefined, env: Env = loadEnv()): StaffRole | null {
   if (!token) return null;
   const key = sessionSecret(env);
   if (!key) return null;
@@ -181,4 +111,15 @@ export function verifySession(token: string | undefined, env: Env = loadEnv()): 
   } catch {
     return null;
   }
+}
+
+/** Puts the signed session in an HttpOnly cookie for one shift. */
+export function setSession(c: Context, role: StaffRole, env: Env = loadEnv()): void {
+  setCookie(c, DEMO_SESSION_COOKIE, issueSession(role, env), {
+    httpOnly: true,
+    sameSite: "Lax",
+    secure: env.NODE_ENV === "production" || env.VERCEL === "1",
+    path: "/",
+    maxAge: 8 * 60 * 60,
+  });
 }

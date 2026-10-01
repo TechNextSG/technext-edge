@@ -1,11 +1,11 @@
 import type { Context, Hono } from "hono";
 import type { ConversationStore } from "../store/conversationStore.ts";
 import { renderHandoffPageHtml } from "../views/handoffPage.ts";
-import type { DemoRole } from "../auth/demoAuth.ts";
+import type { StaffRole } from "../auth/session.ts";
 
 export interface HandoffRouteDeps {
   store: ConversationStore;
-  staffSession: (c: Context) => { ok: boolean; role: DemoRole | null };
+  staffSession: (c: Context) => { ok: boolean; role: StaffRole | null };
   staffWriter: (c: Context) => boolean;
   closeEnquiryQuotation: (phone: string) => Promise<string | null | undefined>;
 }

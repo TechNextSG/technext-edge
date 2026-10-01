@@ -4,12 +4,12 @@ import { editorCss } from "./editor/styles.ts";
 import { renderHead, renderBody } from "./editor/markup.ts";
 import { editorScript } from "./editor/client.ts";
 import { type HonoQuotationDraft } from "../quote/index.ts";
-import { type DemoRole } from "../auth/demoAuth.ts";
+import { type StaffRole } from "../auth/session.ts";
 
 export function renderHonoQuotationEditorHtml(
   draft: HonoQuotationDraft,
   allQuotes: HonoQuotationDraft[],
-  role: DemoRole = "staff",
+  role: StaffRole = "staff",
   estimatorKind: "simulated" | "remote" = "simulated",
 ): string {
   const m = buildEditorModel(draft, allQuotes, role, estimatorKind);

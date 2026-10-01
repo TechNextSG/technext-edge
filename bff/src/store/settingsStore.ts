@@ -18,7 +18,7 @@ import {
   type ProviderOutcome,
   type ProviderSettings,
 } from "../../../ai/src/index.ts";
-import { decryptSecret, encryptionKeyFromEnv, encryptSecret, maskSecret, SecretDecryptError, type EncryptedSecret } from "./secretBox.ts";
+import { decryptSecret, encryptionKeyFromEnv, encryptSecret, maskSecret, SecretDecryptError, type EncryptedSecret } from "../auth/secretBox.ts";
 import { kvCommand, kvConfigFromEnv, type KvConfig } from "./kv.ts";
 
 export const SETTINGS_KEY = "settings:ai";

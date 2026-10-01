@@ -13,7 +13,7 @@ import {
   findOpenQuotationForPhone,
   saveQuotationDraft,
 } from "../src/store/quotationStore.ts";
-import { issueSession } from "../src/auth/demoAuth.ts";
+import { issueSession } from "../src/auth/session.ts";
 import { buildHonoQuotationDraft } from "../src/quote/index.ts";
 
 import type { HonoQuotationDraft } from "../src/quote/index.ts";

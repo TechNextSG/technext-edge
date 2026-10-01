@@ -3,7 +3,7 @@ import { loadEnv } from "../../env.ts";
 import type { Context } from "hono";
 import type { ExtractProvider } from "../../../../ai/src/index.ts";
 import type { EstimatorPort } from "../../services/estimatorPort.ts";
-import type { DemoRole } from "../../auth/demoAuth.ts";
+import type { StaffRole } from "../../auth/session.ts";
 import type { WhatsAppSendText } from "../../services/whatsapp.ts";
 
 export function canonicalOrigin(c: Context): string {
@@ -16,7 +16,7 @@ export interface QuotesRouteDeps {
   estimator: EstimatorPort;
   providerHolder: { get: () => Promise<ExtractProvider> };
   optionsProvider?: ExtractProvider;
-  staffSession: (c: Context) => { ok: boolean; role: DemoRole | null };
+  staffSession: (c: Context) => { ok: boolean; role: StaffRole | null };
   staffWriter: (c: Context) => boolean;
   sendWhatsApp?: WhatsAppSendText;
 }
