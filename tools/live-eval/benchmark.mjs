@@ -16,6 +16,11 @@
  * pacing is NOT in the latency numbers (each timer starts when its request is sent). A 429 retry inside the provider IS in them,
  * and is counted separately (`retried`), because that is the honest cost of running on that tier.
  *
+ * Against a deployment (e.g. production behind Vercel's Deployment Protection):
+ *   EVAL_BYPASS_SECRET=<protection bypass secret> node tools/live-eval/benchmark.mjs --base https://<host> --skip whatsapp,staff
+ * The WhatsApp turn needs the app secret and a capture host for the reply, and the staff routes need the staff key, so
+ * a deployment run skips them unless those are in the environment.
+ *
  * Env: WHATSAPP_APP_SECRET, STAFF_ACCESS_KEY (or WHATSAPP_VERIFY_TOKEN) — read from .env.local like the other scripts.
  */
 import { createHmac, randomUUID } from "node:crypto";
@@ -40,11 +45,17 @@ const datasets = flag("datasets", "mock-30,synthetic").split(",");
 const turns = Number(flag("turns", "10"));
 const fast = Number(flag("fast", "30"));
 const out = flag("out", "ai/eval/results/benchmark.json");
+const skip = flag("skip", "").split(",").filter(Boolean);
+const bypass = process.env.EVAL_BYPASS_SECRET;
+/** Extra headers on every request to the deployment (Vercel's Deployment Protection bypass). */
+const guard = bypass ? { "x-vercel-protection-bypass": bypass } : {};
+const isLocal = /127\.0\.0\.1|localhost/.test(base);
 const here = path.dirname(fileURLToPath(import.meta.url));
 const root = path.resolve(here, "../..");
-const secret = process.env.WHATSAPP_APP_SECRET;
-const staffKey = process.env.STAFF_ACCESS_KEY || process.env.WHATSAPP_VERIFY_TOKEN;
-const verifyToken = process.env.WHATSAPP_VERIFY_TOKEN;
+// The secrets in .env.local belong to the local server; they are not tried against a deployment.
+const secret = isLocal ? process.env.WHATSAPP_APP_SECRET : undefined;
+const staffKey = isLocal ? process.env.STAFF_ACCESS_KEY || process.env.WHATSAPP_VERIFY_TOKEN : undefined;
+const verifyToken = isLocal ? process.env.WHATSAPP_VERIFY_TOKEN : undefined;
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
 function stats(values) {
@@ -62,11 +73,11 @@ async function timed(fn) {
   return { ms: Math.round(performance.now() - t), result, error };
 }
 
-const report = { ranAt: new Date().toISOString(), base, node: process.version, platform: process.platform, accuracy: {}, latency: {} };
+const report = { ranAt: new Date().toISOString(), base, target: isLocal ? "local dev server" : "deployment", node: process.version, platform: process.platform, skipped: skip, accuracy: {}, latency: {} };
 
 // ---- environment, as the server reports it ------------------------------------------------------------------
 {
-  const health = await fetch(`${base}/v1/health`).then((r) => r.json()).catch(() => null);
+  const health = await fetch(`${base}/v1/health`, { headers: guard }).then((r) => r.json()).catch(() => null);
   if (!health?.ok) { console.error(`No casa-bff answering at ${base}`); process.exit(2); }
 }
 
@@ -74,7 +85,7 @@ const report = { ranAt: new Date().toISOString(), base, node: process.version, p
 async function callExtract(text) {
   const res = await fetch(`${base}/v1/extract`, {
     method: "POST",
-    headers: { "content-type": "application/json; charset=utf-8" },
+    headers: { "content-type": "application/json; charset=utf-8", ...guard },
     body: JSON.stringify({ text }),
   });
   const body = await res.json();
@@ -142,7 +153,7 @@ report.latency.extract = stats(extractWalls);
   const walls = [], retried = [];
   for (let i = 0; i < Math.min(turns, messages.length * 2); i++) {
     const t = await timed(async () => {
-      const res = await fetch(`${base}/v1/converse`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ message: messages[i % messages.length], channel: "whatsapp" }) });
+      const res = await fetch(`${base}/v1/converse`, { method: "POST", headers: { "content-type": "application/json", ...guard }, body: JSON.stringify({ message: messages[i % messages.length], channel: "whatsapp" }) });
       return res.json();
     });
     if (!t.error) { walls.push(t.ms); retried.push(Boolean(t.result?.meta?.retried)); }
@@ -153,7 +164,7 @@ report.latency.extract = stats(extractWalls);
 }
 
 // ---- 3. a WhatsApp turn, end to end ----------------------------------------------------------------------------
-{
+if (!skip.includes("whatsapp") && secret) {
   const captured = [];
   const server = createServer((req, res) => {
     let body = "";
@@ -217,7 +228,8 @@ report.latency.extract = stats(extractWalls);
 
 // ---- 4. routes that never touch a model --------------------------------------------------------------------------
 {
-  const staff = { "x-verify-token": staffKey };
+  const staff = { "x-verify-token": staffKey, ...guard };
+  const withStaff = !skip.includes("staff") && Boolean(staffKey);
   const lat = async (label, fn, n = fast) => {
     const walls = [];
     for (let i = 0; i < n; i++) { const t = await timed(fn); if (!t.error) walls.push(t.ms); }
@@ -225,7 +237,17 @@ report.latency.extract = stats(extractWalls);
     console.log(`  ${label.padEnd(24)} p50 ${report.latency[label].p50}ms  p95 ${report.latency[label].p95}ms  (${walls.length}/${n})`);
   };
   console.log(`\n== latency: routes without a model (${fast} calls each)`);
-  await lat("health", () => fetch(`${base}/v1/health`).then((r) => r.text()));
+  // The first request after a quiet period is the cold start on a deployment; keep it apart from the warm ones.
+  const first = await timed(() => fetch(`${base}/v1/health`, { headers: guard }).then((r) => r.text()));
+  report.latency.healthFirstCall = first.ms;
+  await lat("health", () => fetch(`${base}/v1/health`, { headers: guard }).then((r) => r.text()));
+  if (!withStaff) {
+    console.log("  (staff routes skipped: no staff key in the environment, or --skip staff)");
+    await mkdir(path.dirname(path.resolve(root, out)), { recursive: true });
+    await writeFile(path.resolve(root, out), JSON.stringify(report, null, 2));
+    console.log(`\nWritten: ${out}`);
+    process.exit(0);
+  }
   const list = await fetch(`${base}/v1/quotes`, { headers: staff }).then((r) => r.json()).catch(() => ({ quotations: [] }));
   const q = (list.quotations ?? []).find((x) => x.bffTrip);
   report.latency.quotationsInStore = (list.quotations ?? []).length;

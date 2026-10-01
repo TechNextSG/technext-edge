@@ -1,0 +1,838 @@
+{
+  "ranAt": "2026-10-01T06:01:45.628Z",
+  "base": "https://technext-edge-casa-bff.vercel.app",
+  "target": "deployment",
+  "node": "v22.20.0",
+  "platform": "win32",
+  "skipped": [
+    "whatsapp",
+    "staff"
+  ],
+  "accuracy": {
+    "mock-30": {
+      "cases": 30,
+      "failedCalls": 9,
+      "fabricated": 0,
+      "required": {
+        "correct": 56,
+        "total": 56
+      },
+      "evidence": {
+        "ok": 110,
+        "total": 110
+      },
+      "priced": {
+        "correct": 13,
+        "total": 13
+      },
+      "tokens": {
+        "in": 33354,
+        "out": 16693
+      },
+      "retriedCalls": 1,
+      "wallMs": {
+        "n": 21,
+        "min": 3088,
+        "p50": 4503,
+        "p90": 8155,
+        "p95": 9187,
+        "max": 9499,
+        "mean": 5047
+      },
+      "serverMs": {
+        "n": 21,
+        "min": 2778,
+        "p50": 4201,
+        "p90": 7631,
+        "p95": 7719,
+        "max": 8758,
+        "mean": 4500
+      },
+      "rows": [
+        {
+          "id": "en-01-complete",
+          "wallMs": 4482,
+          "serverMs": 3666,
+          "tokensIn": 1767,
+          "tokensOut": 874,
+          "retried": false,
+          "provider": "google:gemini-3.1-flash-lite",
+          "fabricated": 0,
+          "requiredTotal": 3,
+          "requiredCorrect": 3,
+          "evidenceStated": 6,
+          "evidenceOk": 6,
+          "pricedTotal": 1,
+          "pricedBad": 0,
+          "bad": [
+            {
+              "field": "rooms",
+              "expected": {
+                "state": "missing"
+              },
+              "actual": {
+                "state": "default",
+                "value": 1
+              },
+              "fabrication": false
+            }
+          ]
+        },
+        {
+          "id": "en-02-missing-most",
+          "wallMs": 3126,
+          "serverMs": 2802,
+          "tokensIn": 1426,
+          "tokensOut": 411,
+          "retried": false,
+          "provider": "google:gemini-3.1-flash-lite",
+          "fabricated": 0,
+          "requiredTotal": 0,
+          "requiredCorrect": 0,
+          "evidenceStated": 1,
+          "evidenceOk": 1,
+          "pricedTotal": 0,
+          "pricedBad": 0,
+          "bad": [
+            {
+              "field": "nights",
+              "expected": {
+                "state": "missing"
+              },
+              "actual": {
+                "state": "derived",
+                "value": 2
+              },
+              "fabrication": false
+            },
+            {
+              "field": "rooms",
+              "expected": {
+                "state": "missing"
+              },
+              "actual": {
+                "state": "default",
+                "value": 1
+              },
+              "fabrication": false
+            }
+          ]
+        },
+        {
+          "id": "en-03-trap-unrelated-number",
+          "wallMs": 5069,
+          "serverMs": 4766,
+          "tokensIn": 1569,
+          "tokensOut": 901,
+          "retried": false,
+          "provider": "google:gemini-3.1-flash-lite",
+          "fabricated": 0,
+          "requiredTotal": 3,
+          "requiredCorrect": 3,
+          "evidenceStated": 5,
+          "evidenceOk": 5,
+          "pricedTotal": 0,
+          "pricedBad": 0,
+          "bad": []
+        },
+        {
+          "id": "en-04-agent-multiple-rooms",
+          "wallMs": 4777,
+          "serverMs": 4225,
+          "tokensIn": 1787,
+          "tokensOut": 888,
+          "retried": false,
+          "provider": "google:gemini-3.1-flash-lite",
+          "fabricated": 0,
+          "requiredTotal": 4,
+          "requiredCorrect": 4,
+          "evidenceStated": 7,
+          "evidenceOk": 7,
+          "pricedTotal": 1,
+          "pricedBad": 0,
+          "bad": []
+        },
+        {
+          "id": "en-05-relative-date-idiom",
+          "error": "HTTP 502: {\"error\":\"extract_error\"}",
+          "wallMs": 9077
+        },
+        {
+          "id": "en-06-padi-open-water",
+          "wallMs": 5106,
+          "serverMs": 4569,
+          "tokensIn": 1787,
+          "tokensOut": 978,
+          "retried": false,
+          "provider": "google:gemini-3.1-flash-lite",
+          "fabricated": 0,
+          "requiredTotal": 3,
+          "requiredCorrect": 3,
+          "evidenceStated": 11,
+          "evidenceOk": 11,
+          "pricedTotal": 1,
+          "pricedBad": 0,
+          "bad": []
+        },
+        {
+          "id": "en-07-fun-diving-package",
+          "wallMs": 4503,
+          "serverMs": 4201,
+          "tokensIn": 1755,
+          "tokensOut": 926,
+          "retried": false,
+          "provider": "google:gemini-3.1-flash-lite",
+          "fabricated": 0,
+          "requiredTotal": 3,
+          "requiredCorrect": 3,
+          "evidenceStated": 7,
+          "evidenceOk": 7,
+          "pricedTotal": 1,
+          "pricedBad": 0,
+          "bad": []
+        },
+        {
+          "id": "en-08-family-non-divers",
+          "error": "HTTP 429: {\"error\":\"provider_rate_limited\",\"detail\":\"the AI provider is rate-limited — try again shortly\"}",
+          "wallMs": 6781
+        },
+        {
+          "id": "en-09-trap-price-inquiry",
+          "error": "HTTP 429: {\"error\":\"provider_rate_limited\",\"detail\":\"the AI provider is rate-limited — try again shortly\"}",
+          "wallMs": 2787
+        },
+        {
+          "id": "en-10-solo-diver",
+          "error": "HTTP 429: {\"error\":\"provider_rate_limited\",\"detail\":\"the AI provider is rate-limited — try again shortly\"}",
+          "wallMs": 7056
+        },
+        {
+          "id": "vi-01-complete",
+          "wallMs": 3613,
+          "serverMs": 3296,
+          "tokensIn": 1767,
+          "tokensOut": 870,
+          "retried": false,
+          "provider": "google:gemini-3.1-flash-lite",
+          "fabricated": 0,
+          "requiredTotal": 3,
+          "requiredCorrect": 3,
+          "evidenceStated": 6,
+          "evidenceOk": 6,
+          "pricedTotal": 1,
+          "pricedBad": 0,
+          "bad": [
+            {
+              "field": "rooms",
+              "expected": {
+                "state": "missing"
+              },
+              "actual": {
+                "state": "default",
+                "value": 1
+              },
+              "fabrication": false
+            }
+          ]
+        },
+        {
+          "id": "vi-02-missing-dates",
+          "wallMs": 3317,
+          "serverMs": 3009,
+          "tokensIn": 1743,
+          "tokensOut": 822,
+          "retried": false,
+          "provider": "google:gemini-3.1-flash-lite",
+          "fabricated": 0,
+          "requiredTotal": 1,
+          "requiredCorrect": 1,
+          "evidenceStated": 2,
+          "evidenceOk": 2,
+          "pricedTotal": 0,
+          "pricedBad": 0,
+          "bad": []
+        },
+        {
+          "id": "vi-03-trap-price-number",
+          "wallMs": 4620,
+          "serverMs": 4306,
+          "tokensIn": 1739,
+          "tokensOut": 814,
+          "retried": false,
+          "provider": "google:gemini-3.1-flash-lite",
+          "fabricated": 0,
+          "requiredTotal": 3,
+          "requiredCorrect": 3,
+          "evidenceStated": 3,
+          "evidenceOk": 3,
+          "pricedTotal": 0,
+          "pricedBad": 0,
+          "bad": []
+        },
+        {
+          "id": "vi-04-khoa-hoc-lan-ow",
+          "error": "HTTP 429: {\"error\":\"provider_rate_limited\",\"detail\":\"the AI provider is rate-limited — try again shortly\"}",
+          "wallMs": 4054
+        },
+        {
+          "id": "vi-05-dai-ly-dat-doan",
+          "error": "HTTP 429: {\"error\":\"provider_rate_limited\",\"detail\":\"the AI provider is rate-limited — try again shortly\"}",
+          "wallMs": 6787
+        },
+        {
+          "id": "vi-06-gia-dinh-nghi-duong",
+          "error": "HTTP 429: {\"error\":\"provider_rate_limited\",\"detail\":\"the AI provider is rate-limited — try again shortly\"}",
+          "wallMs": 6773
+        },
+        {
+          "id": "vi-07-cuoi-tuan-lan-bien",
+          "error": "HTTP 429: {\"error\":\"provider_rate_limited\",\"detail\":\"the AI provider is rate-limited — try again shortly\"}",
+          "wallMs": 6764
+        },
+        {
+          "id": "vi-08-hoi-gia-chung",
+          "wallMs": 8155,
+          "serverMs": 7631,
+          "tokensIn": 973,
+          "tokensOut": 682,
+          "retried": false,
+          "provider": "google:gemini-3.1-flash-lite",
+          "fabricated": 0,
+          "requiredTotal": 0,
+          "requiredCorrect": 0,
+          "evidenceStated": 0,
+          "evidenceOk": 0,
+          "pricedTotal": 0,
+          "pricedBad": 0,
+          "bad": [
+            {
+              "field": "rooms",
+              "expected": {
+                "state": "missing"
+              },
+              "actual": {
+                "state": "default",
+                "value": 1
+              },
+              "fabrication": false
+            }
+          ]
+        },
+        {
+          "id": "vi-09-bay-so-dien-thoai",
+          "wallMs": 4298,
+          "serverMs": 4000,
+          "tokensIn": 1843,
+          "tokensOut": 914,
+          "retried": false,
+          "provider": "google:gemini-3.1-flash-lite",
+          "fabricated": 0,
+          "requiredTotal": 3,
+          "requiredCorrect": 3,
+          "evidenceStated": 5,
+          "evidenceOk": 5,
+          "pricedTotal": 0,
+          "pricedBad": 0,
+          "bad": []
+        },
+        {
+          "id": "vi-10-thue-xe-rieng",
+          "wallMs": 3092,
+          "serverMs": 2778,
+          "tokensIn": 1775,
+          "tokensOut": 897,
+          "retried": false,
+          "provider": "google:gemini-3.1-flash-lite",
+          "fabricated": 0,
+          "requiredTotal": 3,
+          "requiredCorrect": 3,
+          "evidenceStated": 6,
+          "evidenceOk": 6,
+          "pricedTotal": 1,
+          "pricedBad": 0,
+          "bad": []
+        },
+        {
+          "id": "zh-01-complete",
+          "wallMs": 3460,
+          "serverMs": 3149,
+          "tokensIn": 1727,
+          "tokensOut": 458,
+          "retried": false,
+          "provider": "google:gemini-3.1-flash-lite",
+          "fabricated": 0,
+          "requiredTotal": 3,
+          "requiredCorrect": 3,
+          "evidenceStated": 5,
+          "evidenceOk": 5,
+          "pricedTotal": 1,
+          "pricedBad": 0,
+          "bad": []
+        },
+        {
+          "id": "zh-02-missing-most",
+          "wallMs": 3839,
+          "serverMs": 3305,
+          "tokensIn": 1671,
+          "tokensOut": 773,
+          "retried": false,
+          "provider": "google:gemini-3.1-flash-lite",
+          "fabricated": 0,
+          "requiredTotal": 0,
+          "requiredCorrect": 0,
+          "evidenceStated": 1,
+          "evidenceOk": 1,
+          "pricedTotal": 0,
+          "pricedBad": 0,
+          "bad": []
+        },
+        {
+          "id": "zh-03-trap-phone-wechat",
+          "wallMs": 9187,
+          "serverMs": 8758,
+          "tokensIn": 1002,
+          "tokensOut": 792,
+          "retried": false,
+          "provider": "google:gemini-3.1-flash-lite",
+          "fabricated": 0,
+          "requiredTotal": 3,
+          "requiredCorrect": 3,
+          "evidenceStated": 9,
+          "evidenceOk": 9,
+          "pricedTotal": 1,
+          "pricedBad": 0,
+          "bad": []
+        },
+        {
+          "id": "zh-04-padi-ow-course",
+          "error": "HTTP 429: {\"error\":\"provider_rate_limited\",\"detail\":\"the AI provider is rate-limited — try again shortly\"}",
+          "wallMs": 3719
+        },
+        {
+          "id": "zh-05-fun-dive-club",
+          "wallMs": 9499,
+          "serverMs": 5960,
+          "tokensIn": 998,
+          "tokensOut": 784,
+          "retried": true,
+          "provider": "google:gemini-3.1-flash-lite",
+          "fabricated": 0,
+          "requiredTotal": 4,
+          "requiredCorrect": 4,
+          "evidenceStated": 8,
+          "evidenceOk": 8,
+          "pricedTotal": 1,
+          "pricedBad": 0,
+          "bad": []
+        },
+        {
+          "id": "zh-06-agency-booking",
+          "wallMs": 3570,
+          "serverMs": 3048,
+          "tokensIn": 1795,
+          "tokensOut": 573,
+          "retried": false,
+          "provider": "google:gemini-3.1-flash-lite",
+          "fabricated": 0,
+          "requiredTotal": 4,
+          "requiredCorrect": 4,
+          "evidenceStated": 8,
+          "evidenceOk": 8,
+          "pricedTotal": 1,
+          "pricedBad": 0,
+          "bad": []
+        },
+        {
+          "id": "zh-07-family-trip",
+          "wallMs": 3088,
+          "serverMs": 2782,
+          "tokensIn": 1763,
+          "tokensOut": 875,
+          "retried": false,
+          "provider": "google:gemini-3.1-flash-lite",
+          "fabricated": 0,
+          "requiredTotal": 4,
+          "requiredCorrect": 4,
+          "evidenceStated": 6,
+          "evidenceOk": 6,
+          "pricedTotal": 1,
+          "pricedBad": 0,
+          "bad": []
+        },
+        {
+          "id": "zh-08-relative-date",
+          "wallMs": 4940,
+          "serverMs": 4638,
+          "tokensIn": 1715,
+          "tokensOut": 882,
+          "retried": false,
+          "provider": "google:gemini-3.1-flash-lite",
+          "fabricated": 0,
+          "requiredTotal": 3,
+          "requiredCorrect": 3,
+          "evidenceStated": 5,
+          "evidenceOk": 5,
+          "pricedTotal": 1,
+          "pricedBad": 0,
+          "bad": []
+        },
+        {
+          "id": "zh-09-room-only",
+          "wallMs": 6217,
+          "serverMs": 5895,
+          "tokensIn": 1508,
+          "tokensOut": 814,
+          "retried": false,
+          "provider": "google:gemini-3.1-flash-lite",
+          "fabricated": 0,
+          "requiredTotal": 3,
+          "requiredCorrect": 3,
+          "evidenceStated": 5,
+          "evidenceOk": 5,
+          "pricedTotal": 1,
+          "pricedBad": 0,
+          "bad": []
+        },
+        {
+          "id": "zh-10-trap-price-inquiry",
+          "wallMs": 8036,
+          "serverMs": 7719,
+          "tokensIn": 1244,
+          "tokensOut": 765,
+          "retried": false,
+          "provider": "google:gemini-3.1-flash-lite",
+          "fabricated": 0,
+          "requiredTotal": 3,
+          "requiredCorrect": 3,
+          "evidenceStated": 4,
+          "evidenceOk": 4,
+          "pricedTotal": 0,
+          "pricedBad": 0,
+          "bad": []
+        }
+      ]
+    },
+    "synthetic": {
+      "cases": 14,
+      "failedCalls": 3,
+      "fabricated": 0,
+      "required": {
+        "correct": 27,
+        "total": 29
+      },
+      "evidence": {
+        "ok": 40,
+        "total": 40
+      },
+      "priced": {
+        "correct": 3,
+        "total": 3
+      },
+      "tokens": {
+        "in": 16566,
+        "out": 7707
+      },
+      "retriedCalls": 0,
+      "wallMs": {
+        "n": 11,
+        "min": 1723,
+        "p50": 3560,
+        "p90": 6705,
+        "p95": 8394,
+        "max": 8394,
+        "mean": 4436
+      },
+      "serverMs": {
+        "n": 11,
+        "min": 1412,
+        "p50": 3251,
+        "p90": 6384,
+        "p95": 8095,
+        "max": 8095,
+        "mean": 4065
+      },
+      "rows": [
+        {
+          "id": "en-01-complete",
+          "error": "HTTP 429: {\"error\":\"provider_rate_limited\",\"detail\":\"the AI provider is rate-limited — try again shortly\"}",
+          "wallMs": 6992
+        },
+        {
+          "id": "en-02-missing-most",
+          "wallMs": 8394,
+          "serverMs": 8095,
+          "tokensIn": 968,
+          "tokensOut": 657,
+          "retried": false,
+          "provider": "google:gemini-3.1-flash-lite",
+          "fabricated": 0,
+          "requiredTotal": 0,
+          "requiredCorrect": 0,
+          "evidenceStated": 0,
+          "evidenceOk": 0,
+          "pricedTotal": 0,
+          "pricedBad": 0,
+          "bad": [
+            {
+              "field": "rooms",
+              "expected": {
+                "state": "missing"
+              },
+              "actual": {
+                "state": "default",
+                "value": 1
+              },
+              "fabrication": false
+            }
+          ]
+        },
+        {
+          "id": "en-03-trap-unrelated-number",
+          "wallMs": 2825,
+          "serverMs": 2518,
+          "tokensIn": 1843,
+          "tokensOut": 917,
+          "retried": false,
+          "provider": "google:gemini-3.1-flash-lite",
+          "fabricated": 0,
+          "requiredTotal": 3,
+          "requiredCorrect": 3,
+          "evidenceStated": 5,
+          "evidenceOk": 5,
+          "pricedTotal": 0,
+          "pricedBad": 0,
+          "bad": []
+        },
+        {
+          "id": "en-04-agent-multiple-rooms",
+          "wallMs": 3560,
+          "serverMs": 3253,
+          "tokensIn": 1783,
+          "tokensOut": 844,
+          "retried": false,
+          "provider": "google:gemini-3.1-flash-lite",
+          "fabricated": 0,
+          "requiredTotal": 4,
+          "requiredCorrect": 4,
+          "evidenceStated": 7,
+          "evidenceOk": 7,
+          "pricedTotal": 1,
+          "pricedBad": 0,
+          "bad": []
+        },
+        {
+          "id": "vi-01-complete",
+          "wallMs": 3779,
+          "serverMs": 3251,
+          "tokensIn": 1228,
+          "tokensOut": 807,
+          "retried": false,
+          "provider": "google:gemini-3.1-flash-lite",
+          "fabricated": 0,
+          "requiredTotal": 3,
+          "requiredCorrect": 2,
+          "evidenceStated": 5,
+          "evidenceOk": 5,
+          "pricedTotal": 1,
+          "pricedBad": 0,
+          "bad": [
+            {
+              "field": "checkIn",
+              "expected": {
+                "state": "stated"
+              },
+              "actual": {
+                "state": "missing",
+                "value": null
+              },
+              "fabrication": false
+            },
+            {
+              "field": "rooms",
+              "expected": {
+                "state": "missing"
+              },
+              "actual": {
+                "state": "default",
+                "value": 1
+              },
+              "fabrication": false
+            }
+          ]
+        },
+        {
+          "id": "vi-02-missing-dates",
+          "wallMs": 3426,
+          "serverMs": 3114,
+          "tokensIn": 1743,
+          "tokensOut": 822,
+          "retried": false,
+          "provider": "google:gemini-3.1-flash-lite",
+          "fabricated": 0,
+          "requiredTotal": 1,
+          "requiredCorrect": 1,
+          "evidenceStated": 2,
+          "evidenceOk": 2,
+          "pricedTotal": 0,
+          "pricedBad": 0,
+          "bad": []
+        },
+        {
+          "id": "vi-03-trap-price-number",
+          "wallMs": 1723,
+          "serverMs": 1412,
+          "tokensIn": 980,
+          "tokensOut": 324,
+          "retried": false,
+          "provider": "google:gemini-3.1-flash-lite",
+          "fabricated": 0,
+          "requiredTotal": 3,
+          "requiredCorrect": 2,
+          "evidenceStated": 2,
+          "evidenceOk": 2,
+          "pricedTotal": 0,
+          "pricedBad": 0,
+          "bad": [
+            {
+              "field": "checkIn",
+              "expected": {
+                "state": "stated"
+              },
+              "actual": {
+                "state": "missing",
+                "value": null
+              },
+              "fabrication": false
+            }
+          ]
+        },
+        {
+          "id": "zh-01-complete",
+          "error": "HTTP 429: {\"error\":\"provider_rate_limited\",\"detail\":\"the AI provider is rate-limited — try again shortly\"}",
+          "wallMs": 6780
+        },
+        {
+          "id": "zh-02-missing-most",
+          "error": "HTTP 429: {\"error\":\"provider_rate_limited\",\"detail\":\"the AI provider is rate-limited — try again shortly\"}",
+          "wallMs": 6845
+        },
+        {
+          "id": "en-05-relative-date-idiom",
+          "wallMs": 5912,
+          "serverMs": 5391,
+          "tokensIn": 977,
+          "tokensOut": 706,
+          "retried": false,
+          "provider": "google:gemini-3.1-flash-lite",
+          "fabricated": 0,
+          "requiredTotal": 3,
+          "requiredCorrect": 3,
+          "evidenceStated": 4,
+          "evidenceOk": 4,
+          "pricedTotal": 0,
+          "pricedBad": 0,
+          "bad": []
+        },
+        {
+          "id": "en-06-bare-group-vs-staying-digits",
+          "wallMs": 2524,
+          "serverMs": 2185,
+          "tokensIn": 1743,
+          "tokensOut": 454,
+          "retried": false,
+          "provider": "google:gemini-3.1-flash-lite",
+          "fabricated": 0,
+          "requiredTotal": 3,
+          "requiredCorrect": 3,
+          "evidenceStated": 3,
+          "evidenceOk": 3,
+          "pricedTotal": 0,
+          "pricedBad": 0,
+          "bad": []
+        },
+        {
+          "id": "en-07-bare-group-vs-staying-word-number",
+          "wallMs": 6692,
+          "serverMs": 6384,
+          "tokensIn": 1731,
+          "tokensOut": 821,
+          "retried": false,
+          "provider": "google:gemini-3.1-flash-lite",
+          "fabricated": 0,
+          "requiredTotal": 3,
+          "requiredCorrect": 3,
+          "evidenceStated": 3,
+          "evidenceOk": 3,
+          "pricedTotal": 0,
+          "pricedBad": 0,
+          "bad": []
+        },
+        {
+          "id": "en-08-bare-group-vs-staying-reordered",
+          "wallMs": 3259,
+          "serverMs": 2945,
+          "tokensIn": 1743,
+          "tokensOut": 456,
+          "retried": false,
+          "provider": "google:gemini-3.1-flash-lite",
+          "fabricated": 0,
+          "requiredTotal": 3,
+          "requiredCorrect": 3,
+          "evidenceStated": 3,
+          "evidenceOk": 3,
+          "pricedTotal": 0,
+          "pricedBad": 0,
+          "bad": []
+        },
+        {
+          "id": "en-09-day-visitors-staying-overnight-verbatim",
+          "wallMs": 6705,
+          "serverMs": 6162,
+          "tokensIn": 1827,
+          "tokensOut": 899,
+          "retried": false,
+          "provider": "google:gemini-3.1-flash-lite",
+          "fabricated": 0,
+          "requiredTotal": 3,
+          "requiredCorrect": 3,
+          "evidenceStated": 6,
+          "evidenceOk": 6,
+          "pricedTotal": 1,
+          "pricedBad": 0,
+          "bad": []
+        }
+      ]
+    }
+  },
+  "latency": {
+    "extract": {
+      "n": 32,
+      "min": 1723,
+      "p50": 4482,
+      "p90": 8155,
+      "p95": 9187,
+      "max": 9499,
+      "mean": 4837
+    },
+    "converse": {
+      "n": 10,
+      "min": 3686,
+      "p50": 7044,
+      "p90": 8724,
+      "p95": 8724,
+      "max": 8724,
+      "mean": 6844,
+      "retriedCalls": 0
+    },
+    "healthFirstCall": 303,
+    "health": {
+      "n": 30,
+      "min": 292,
+      "p50": 304,
+      "p90": 313,
+      "p95": 333,
+      "max": 351,
+      "mean": 305
+    }
+  }
+}
