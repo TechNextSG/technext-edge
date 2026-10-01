@@ -27,5 +27,9 @@ jobs:
       - run: npm ci
 
       # package boundaries, then typecheck + vitest in every workspace
-      # (contracts, ai, quotation, bff) — see "Layout" in README.md
+      # (contracts, ai, bff) — see "Layout" in README.md
       - run: npm run verify
+
+      # `npm run mirror:check` (ai/ and contracts/ are byte-copies of the team repo) is not run here: it compares with a
+      # local checkout of tn-casa-quotation-estimator, which this job does not have. Run it by hand before and after
+      # copying either directory.
