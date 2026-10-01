@@ -12,8 +12,9 @@ folders top-down — `adr/` first if you are changing anything the ADRs decide.
 | [`diagrams/`](diagrams/) | Draw.io sources and their PNG exports (flow, component, sequence diagrams). |
 | [`demo/`](demo/) | Demo artefacts: shooting script, staged HTML pages, subtitle file, screen captures, the walkthrough screenshots, the sprint tracker. |
 
-There is no documentation site any more: the app serves no documentation pages, and
-[`public/`](../public/) holds only the demo videos and captures. This folder is the documentation.
+There is no documentation site any more: the app serves no documentation pages, and `public/` holds only `robots.txt`
+(Vercel publishes that folder, so it must exist). The demo videos and captures are in [`site/media/`](site/media/),
+kept out of the deployment by `.vercelignore`. This folder is the documentation.
 
 ## guides/
 
@@ -59,6 +60,4 @@ There is no documentation site any more: the app serves no documentation pages, 
 - **Anything that describes an external contract** (their schema, their BFF,
   the resort's published rates) goes in `specs/`, so "what we decided" and
   "what we were told" never mix.
-- **Published pages** are built into [`public/`](../public/). Do not add a
-  second copy here; `bff/test/publicAssets.test.ts` fails the build if
-  a document served from `public/` has a duplicate anywhere else.
+- **Nothing here is served.** The app publishes no documentation pages; a document is read in the repo.

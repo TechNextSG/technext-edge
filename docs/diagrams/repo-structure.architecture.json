@@ -26,7 +26,7 @@
         "focus": [
           "bff",
           "routes",
-          "services",
+          "estimator",
           "store",
           "quote",
           "auth",
@@ -108,10 +108,10 @@
       ]
     },
     {
-      "id": "services",
+      "id": "estimator",
       "type": "backend",
-      "label": "services/",
-      "sublabel": "turn loop, estimator client",
+      "label": "estimator/ channels/",
+      "sublabel": "engine port, WhatsApp turn loop",
       "pos": [
         740,
         120
@@ -253,9 +253,9 @@
       ]
     },
     {
-      "id": "routes-to-services",
+      "id": "routes-to-estimator",
       "from": "routes",
-      "to": "services",
+      "to": "estimator",
       "label": "calls",
       "labelDy": -26
     },
@@ -331,7 +331,7 @@
       "title": "bff/src layering",
       "items": [
         "process.env is read only in env.ts",
-        "store/, auth/ and quote/ never import views/, services/ or routes/"
+        "auth/ and quote/ import only env; store/ uses quote/ and auth/secretBox; views/ only name store types"
       ]
     },
     {

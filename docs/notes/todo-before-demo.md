@@ -38,11 +38,11 @@ Kết quả lần kiểm 2026-10-01: tất cả xanh.
 
 ## D. Phần plan chưa làm
 
-- [ ] Tách `auth/` thành `session`, `keys`, `guards`, `rate-limit`; đưa `staffSession`/`adminGuard` ra khỏi `app.ts`
-- [ ] Đổi route sang sub-app `Hono` (`app.route()`); tách `estimator/`, `channels/whatsapp/`, `ai/`
-- [ ] Gom `money`/`safeJson` dùng chung; `api/index.ts` export thêm `PATCH`, `DELETE`
-- [ ] Gom `bff/test/` theo thư mục nguồn
-- [ ] Chuyển `tools/live-eval/` vào `ai/eval/live/`; xoá `tools/scratch/`
+- [x] Tách `auth/` thành `keys`, `session`, `rate-limit`, `guards`; `staffSession`/`adminGuard` ra khỏi `app.ts`
+- [x] Route thành sub-app `Hono` (`app.route()`); tách `estimator/`, `channels/whatsapp/`, `ai/`
+- [x] Gom `money` (hai hàm khác nhau có chủ đích) và helper script editor; `api/index.ts` export `PATCH`, `DELETE`
+- [x] Gom `bff/test/` theo thư mục nguồn
+- [x] Xoá `tools/scratch/`; `tools/live-eval/` ở lại (không vào `ai/` vì `ai/` là bản sao của team); media `public/` đã sang `docs/site/media/`
 - [ ] Cần duyệt riêng: đổi cookie `casa_gais_session` -> `casa_staff_session` (đọc cả tên cũ 8 giờ); `/test` chưa đăng nhập trả 401 thay vì 302; chuyển media `public/` sang `docs/site/`
 
 ## E. Port sang team (xem `port-to-team-repo.md`)

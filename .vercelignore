@@ -25,3 +25,6 @@ docs/.demo-frames
 # One-off measurement scripts, moved out of the repo root by the structure cleanup.
 # Nothing in the app imports them, so they must not reach the bundle either.
 tools/scratch/
+
+# Demo videos and screenshots: kept in the repo, never shipped to the function.
+docs/site/

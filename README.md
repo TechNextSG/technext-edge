@@ -45,20 +45,24 @@ ai/               @casa/ai — guest message in, Trip and reply out. No pricing,
 bff/              @casa/bff — the Hono app (the studio and the WhatsApp channel)
   src/
     env.ts            every environment variable, named once; the only file that reads process.env
-    routes/           HTTP only: auth, admin, extractor, handoff, health, pages, whatsapp, quotes/ (seven small modules)
-    services/         use cases: the WhatsApp turn loop, estimator client + simulated estimator, quotation rules
-    store/            persistence: KV client (kv.ts), quotation, conversation and settings stores, secret box
-    auth/             demo sign-in: roles, signed session, login limiter
+    app.ts            builds the dependencies and middleware, then mounts the route groups with app.route()
+    auth/             keys (staff/admin key, sameSecret), session (signed cookie), rate-limit, guards, secretBox
+    store/            persistence: kv.ts (the one KV client), quotation, conversation and settings stores
     quote/            the quotation domain: priced draft, rates, validity window, trip diff, inquiry lead
+    estimator/        the pricing/booking engine behind one port: client (real), simulated, refusalCopy
+    channels/whatsapp/  Meta's Cloud API (meta.ts) and the per-phone turn loop (turn.ts)
+    ai/               the process-wide provider holder and providerFor
+    routes/           HTTP only, one sub-app per file; quotes/ is seven sub-apps plus service.ts
     views/            server-rendered pages; the staff editor is views/editor/{model,markup,styles,client}.ts
-  test/  scripts/ (WhatsApp and journey scripts, run from bff/)
+  test/             grouped like src: auth, store, estimator, channels, routes, views, quote
+  scripts/          WhatsApp and journey scripts, run from bff/
 api/index.ts      Vercel entry point; imports bff/src/app.ts
-public/           what the deployment publishes as static files (demo videos and captures only)
+public/           robots.txt only: Vercel publishes this folder, so it must exist and stay nearly empty
+docs/site/media/  demo videos and captures (kept out of the deployment by .vercelignore)
 docs/             adr | guides | specs | notes | diagrams | demo
 tools/
   ops/              upstream-check, mirror-check, check-boundaries, cleanup-quotations
-  live-eval/        scenario runs against a live provider key (not in CI)
-  scratch/          git-ignored scratch space
+  live-eval/        scenario runs against a live provider key (not in CI); outside ai/ because ai/ is a mirror
 ```
 
 `ai/` and `contracts/` are **byte-copies of the team repo** (`TechNextSG/tn-casa-quotation-estimator`): change them
@@ -71,8 +75,8 @@ Rules, enforced by `npm run check:boundaries` (part of `npm run verify` and CI) 
 - Across packages, import the barrel `<pkg>/src/index.ts`, never a file inside it.
 - Imports stay relative (`../../ai/src/index.ts`), not `@casa/*`: the workspace symlink did not
   resolve in the Vercel bundle (see the note at the top of `bff/src/app.ts`).
-- Inside `bff/src`: `process.env` only in `env.ts`; `auth/`, `store/` and `quote/` never import `views/`, `services/`
-  or `routes/` (`store/` may import `quote/`).
+- Inside `bff/src`: `process.env` only in `env.ts`; `auth/` and `quote/` import nothing but `env`; `store/` may use `quote/`
+  and `auth/secretBox` and nothing above; `views/` may name store types but never call a store.
 
 Inside a package, imports flow `infra → application → domain`; nothing in `domain/` imports
 `application/`.
