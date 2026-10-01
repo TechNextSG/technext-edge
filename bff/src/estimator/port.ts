@@ -21,8 +21,8 @@
 import { loadEnv, type Env } from "../env.ts";
 import type { BffTrip } from "../../../ai/src/index.ts";
 import type { RefusalIssue } from "./refusalCopy.ts";
-import { createEstimatorClient, estimatorAppUrl, estimatorBaseUrl } from "./estimatorClient.ts";
-import { createSimulatedEstimator } from "./simulatedEstimator.ts";
+import { createEstimatorClient, estimatorAppUrl, estimatorBaseUrl } from "./client.ts";
+import { createSimulatedEstimator } from "./simulated.ts";
 
 export type EstimatorMode = "simulated" | "remote";
 

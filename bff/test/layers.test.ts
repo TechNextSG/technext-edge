@@ -3,6 +3,7 @@
 //   env.ts                       the only file that touches process.env
 //   auth/   -> env               sessions and the login limiter; knows nothing of pages, stores or services
 //   store/  -> env, quote, auth  persistence; auth only for secretBox (encrypting stored keys); no views, services or routes
+//   views/  -> store (types only) pages render what they are given; they never fetch it
 //   quote/  -> env              the quotation domain (pricing view, drafts, validity); pure, no I/O layers above it
 import { describe, it, expect } from "vitest";
 import { readdirSync, readFileSync, statSync } from "node:fs";
@@ -59,6 +60,18 @@ describe("the environment is read in one place", () => {
   });
 });
 
+/** Imports of `folder` that carry values (anything but `import type`): a page may name a store type, never call a store. */
+export function valueImportsOf(folder: string, files: Array<[string, string]>, target: string): string[] {
+  const out: string[] = [];
+  for (const [file, source] of files) {
+    for (const m of source.matchAll(/import\s+(type\s+)?[^;]*?from\s+["'](\.{1,2}\/[^"']+)["']/g)) {
+      const resolved = path.relative(SRC, path.resolve(path.dirname(file), m[2]!)).split(path.sep)[0];
+      if (resolved === target && !m[1]) out.push(`${path.relative(SRC, file).split(path.sep).join("/")} imports ${folder === target ? "" : target + " "}as a value`);
+    }
+  }
+  return out;
+}
+
 describe("folders import downward only", () => {
   it("auth/ imports nothing but env", () => {
     expect(violations("auth", filesIn("auth"), ["env"])).toEqual([]);
@@ -66,6 +79,18 @@ describe("folders import downward only", () => {
 
   it("store/ does not import views, services or routes", () => {
     expect(violations("store", filesIn("store"), ["env", "quote", "auth"])).toEqual([]);
+  });
+
+  it("views/ names store types but never calls a store", () => {
+    expect(valueImportsOf("views", filesIn("views"), "store")).toEqual([]);
+  });
+
+  it("the type-only checker sees a value import of the store", () => {
+    const fake: Array<[string, string]> = [
+      [path.join(SRC, "views/x.ts"), `import type { A } from "../store/a.ts";
+import { b } from "../store/b.ts";`],
+    ];
+    expect(valueImportsOf("views", fake, "store")).toEqual(["views/x.ts imports store as a value"]);
   });
 
   it("quote/ imports nothing but env", () => {

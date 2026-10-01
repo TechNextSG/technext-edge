@@ -1,18 +1,17 @@
-import { loadEnv } from "./env.ts";
 import { Hono } from "hono";
 import { secureHeaders } from "hono/secure-headers";
-import { createProviderByName, type ExtractProvider } from "../../ai/src/index.ts";
+import type { ExtractProvider } from "../../ai/src/index.ts";
 import { saveQuotationDraft } from "./store/quotationStore.ts";
-import { createProviderHolder } from "./services/aiProvider.ts";
+import { createProviderFor, createProviderHolder } from "./ai/providerHolder.ts";
 import { createSettingsStore, type SettingsStore } from "./store/settingsStore.ts";
-import { createEstimatorPortFromEnv, type EstimatorPort } from "./services/estimatorPort.ts";
+import { createEstimatorPortFromEnv, type EstimatorPort } from "./estimator/index.ts";
 import { createConversationStoreFromEnv, type ConversationStore } from "./store/conversationStore.ts";
 import { setSession } from "./auth/session.ts";
 import { createLoginAttemptLimiter, type LoginAttemptLimiter } from "./auth/rate-limit.ts";
 import { createGuards } from "./auth/guards.ts";
 import { ADMIN_ONLY_HTML } from "./views/forbiddenPage.ts";
-import type { WhatsAppSendText } from "./services/whatsapp.ts";
-import { closeEnquiryQuotation, guestPendingQuotationNote } from "./services/whatsappTurnService.ts";
+import type { WhatsAppSendText } from "./channels/whatsapp/index.ts";
+import { closeEnquiryQuotation, guestPendingQuotationNote } from "./channels/whatsapp/index.ts";
 
 // Route modules
 import { registerAuthRoutes } from "./routes/auth.ts";
@@ -63,10 +62,7 @@ export function createApp(options: AppOptions = {}) {
   const { staffSession, staffWriter, adminGuard, handoffAuthorized } = createGuards({ adminOnlyHtml: ADMIN_ONLY_HTML });
   const loginLimiter = options.loginLimiter ?? createLoginAttemptLimiter();
 
-  async function providerFor(data: { provider?: string; apiKey?: string }): Promise<ExtractProvider> {
-    if (data.provider) return createProviderByName(data.provider, data.apiKey!, loadEnv());
-    return options.provider ?? (await providerHolder.get());
-  }
+  const providerFor = createProviderFor(providerHolder, options.provider);
 
   app.use(
     "*",

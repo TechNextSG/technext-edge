@@ -8,8 +8,8 @@
 import { buildBffTrip } from "../../ai/src/index.ts";
 import { describe, it, expect, vi, beforeEach, afterEach, beforeAll } from "vitest";
 import { createApp } from "../src/app.ts";
-import { createEstimatorClient } from "../src/services/estimatorClient.ts";
-import { createSimulatedEstimator } from "../src/services/simulatedEstimator.ts";
+import { createEstimatorClient } from "../src/estimator/index.ts";
+import { createSimulatedEstimator } from "../src/estimator/index.ts";
 import { buildHonoQuotationDraft } from "../src/quote/index.ts";
 import { saveQuotationDraft } from "../src/store/quotationStore.ts";
 

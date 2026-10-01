@@ -5,7 +5,7 @@ import type { Trip } from "../../../../ai/src/index.ts";
 import { buildHonoQuotationDraft, recalculateQuotationTotals, diffBffTrip, type HonoQuotationDraft } from "../../quote/index.ts";
 import { BffTrip } from "../../../../ai/src/index.ts";
 import { saveQuotationDraft, getQuotationByIdOrSlug } from "../../store/quotationStore.ts";
-import { buildEstimatePreview, estimateToRecord } from "../../services/quotationService.ts";
+import { buildEstimatePreview, estimateToRecord } from "./service.ts";
 import type { QuotesRouteDeps } from "./shared.ts";
 
 export function registerPricingRoutes(app: Hono, deps: QuotesRouteDeps): void {

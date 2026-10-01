@@ -3,7 +3,7 @@ import type { Hono } from "hono";
 import { themeCss } from "../../views/theme.ts";
 import { renderGuestQuotationCopyHtml } from "../../views/guestQuotationCopy.ts";
 import { getQuotationByIdOrSlug } from "../../store/quotationStore.ts";
-import { resortWhatsAppNumber } from "../../services/whatsappTurnService.ts";
+import { resortWhatsAppNumber } from "../../channels/whatsapp/index.ts";
 import type { QuotesRouteDeps } from "./shared.ts";
 
 export function registerGuestPageRoutes(app: Hono, _deps: QuotesRouteDeps): void {

@@ -4,9 +4,9 @@ import type { Hono } from "hono";
 import { type ExtractProvider, verifyGuestFacingText } from "../../../../ai/src/index.ts";
 import { guestLinkFor, synthesizeConfirmedQuotationReply, guestFacingFactsFor } from "../../quote/index.ts";
 import { saveQuotationDraft, getQuotationByIdOrSlug } from "../../store/quotationStore.ts";
-import { checkRecipient, explainMetaError, WhatsAppSendError, createWhatsAppSender, whatsAppConfig, type WhatsAppSendText } from "../../services/whatsapp.ts";
-import { absoluteUrl } from "../../services/whatsappTurnService.ts";
-import { partnerRefusalFor } from "../../services/quotationService.ts";
+import { checkRecipient, explainMetaError, WhatsAppSendError, createWhatsAppSender, whatsAppConfig, type WhatsAppSendText } from "../../channels/whatsapp/index.ts";
+import { absoluteUrl } from "../../channels/whatsapp/index.ts";
+import { partnerRefusalFor } from "./service.ts";
 import { canonicalOrigin, type QuotesRouteDeps } from "./shared.ts";
 
 export function registerPublishRoutes(app: Hono, deps: QuotesRouteDeps): void {

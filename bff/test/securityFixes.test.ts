@@ -6,7 +6,7 @@
 // inbox's deep link. They are grouped here so the reason they exist is readable in one place.
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { createApp } from "../src/app.ts";
-import { createEstimatorClient } from "../src/services/estimatorClient.ts";
+import { createEstimatorClient } from "../src/estimator/index.ts";
 import { saveQuotationDraft, listQuotations } from "../src/store/quotationStore.ts";
 import { buildHonoQuotationDraft } from "../src/quote/index.ts";
 import { renderLoginHtml } from "../src/views/loginPage.ts";

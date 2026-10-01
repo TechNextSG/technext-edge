@@ -2,7 +2,7 @@
 // empty); tests that need "a priced-by-the-sample-engine, unapproved, unpublished quotation" build it here.
 import { buildBffTrip, type Trip } from "../../../ai/src/index.ts";
 import { normalizePricing, recalculateQuotationTotals, type HonoQuotationDraft } from "../../src/quote/index.ts";
-import { buildSimulatedModel } from "../../src/services/simulatedEstimator.ts";
+import { buildSimulatedModel } from "../../src/estimator/index.ts";
 import { saveQuotationDraft } from "../../src/store/quotationStore.ts";
 
 export const SAMPLE_QUOTE_ID = "QT-1010-SKY";

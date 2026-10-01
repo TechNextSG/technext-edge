@@ -11,7 +11,7 @@
 //     their last message (Meta rejects free-form text outside that window)
 //   - handle voice notes / images; v1 reads text only, and transcription would
 //     be a new vendor with its own data-residency question (ADR-005a Gate A)
-import { loadEnv, type Env } from "../env.ts";
+import { loadEnv, type Env } from "../../env.ts";
 import { createHmac, timingSafeEqual } from "node:crypto";
 
 export interface WhatsAppConfig {

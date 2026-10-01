@@ -1,4 +1,4 @@
-import { loadEnv, type Env } from "../env.ts";
+import { loadEnv, type Env } from "../../env.ts";
 import {
   detectLanguage,
   fallbackReply,
@@ -16,24 +16,24 @@ import {
   type ExtractProvider,
   type GuestLanguage,
   type Trip,
-} from "../../../ai/src/index.ts";
+} from "../../../../ai/src/index.ts";
 import {
   converseWithQuotation,
   diffBffTrip,
   pricedFactsChanged,
   type HonoQuotationDraft,
-} from "../quote/index.ts";
+} from "../../quote/index.ts";
 import {
   saveQuotationDraft,
   findOpenQuotationForPhone,
-} from "../store/quotationStore.ts";
-import type { ConversationStore } from "../store/conversationStore.ts";
-import type { EstimatorPort } from "./estimatorPort.ts";
+} from "../../store/quotationStore.ts";
+import type { ConversationStore } from "../../store/conversationStore.ts";
+import type { EstimatorPort } from "../../estimator/index.ts";
 import {
   type InboundTextMessage,
   type WhatsAppSendText,
   type WhatsAppConfig,
-} from "./whatsapp.ts";
+} from "./meta.ts";
 
 // How long a parked thread stays quiet after the guest was told a person is on it.
 export const HOLD_REPEAT_MS = 10 * 60 * 1000;

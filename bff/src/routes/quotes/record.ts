@@ -4,7 +4,7 @@ import type { ExtractProvider } from "../../../../ai/src/index.ts";
 import { diffBffTrip, pricedFactsChanged, synthesizeConfirmedQuotationReply, type HonoQuotationDraft } from "../../quote/index.ts";
 import { BffTrip } from "../../../../ai/src/index.ts";
 import { saveQuotationDraft, getQuotationByIdOrSlug, listQuotations, duplicateQuotationIds, removeQuotation } from "../../store/quotationStore.ts";
-import { editableQuotationFields, alreadySharedRefusal, deletableByCleanup, buildEstimatePreview } from "../../services/quotationService.ts";
+import { editableQuotationFields, alreadySharedRefusal, deletableByCleanup, buildEstimatePreview } from "./service.ts";
 import type { QuotesRouteDeps } from "./shared.ts";
 
 export function registerRecordRoutes(app: Hono, deps: QuotesRouteDeps): void {

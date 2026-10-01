@@ -21,12 +21,12 @@ import {
   roomNamesFor,
   createSimulatedEstimator,
   type SimModel,
-} from "../src/services/simulatedEstimator.ts";
+} from "../src/estimator/index.ts";
 import {
   createEstimatorPortFromEnv,
   estimatorModeFromEnv,
   type SubmitInput,
-} from "../src/services/estimatorPort.ts";
+} from "../src/estimator/index.ts";
 
 import type { BffTrip } from "../../ai/src/index.ts";
 import type { Trip } from "../../ai/src/index.ts";

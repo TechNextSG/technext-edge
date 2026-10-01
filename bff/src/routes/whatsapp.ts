@@ -1,13 +1,13 @@
 import type { Hono } from "hono";
 import type { ExtractProvider } from "../../../ai/src/index.ts";
 import type { ConversationStore } from "../store/conversationStore.ts";
-import type { EstimatorPort } from "../services/estimatorPort.ts";
-import { whatsAppConfig, verifySignature, parseInboundTexts, checkSenderCredentials, createWhatsAppSender, type WhatsAppSendText, type InboundTextMessage } from "../services/whatsapp.ts";
+import type { EstimatorPort } from "../estimator/index.ts";
+import { whatsAppConfig, verifySignature, parseInboundTexts, checkSenderCredentials, createWhatsAppSender, type WhatsAppSendText, type InboundTextMessage } from "../channels/whatsapp/index.ts";
 import {
   processPhoneTurnBatch,
   closeEnquiryQuotation,
   type TurnBatchItem,
-} from "../services/whatsappTurnService.ts";
+} from "../channels/whatsapp/index.ts";
 
 export interface WhatsAppRouteDeps {
   store: ConversationStore;

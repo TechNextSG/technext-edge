@@ -8,7 +8,7 @@ import {
   parseInboundTexts,
   verifySignature,
   whatsAppConfig,
-} from "../src/services/whatsapp.ts";
+} from "../src/channels/whatsapp/index.ts";
 import { createInMemoryConversationStore, type ConversationStore } from "../src/store/conversationStore.ts";
 import { ASK_LIMIT, STALL_LIMIT } from "../../ai/src/index.ts";
 import type { ExtractProvider } from "../../ai/src/index.ts";

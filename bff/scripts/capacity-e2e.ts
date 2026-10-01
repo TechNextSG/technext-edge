@@ -34,7 +34,7 @@ for (const k of ["REDIS_URL", "KV_URL", "KV_REST_API_URL", "KV_REST_API_TOKEN"])
 
 const { createApp } = await import("../src/app.ts");
 const { getQuotationByIdOrSlug, saveQuotationDraft } = await import("../src/store/quotationStore.ts");
-const { createEstimatorPortFromEnv } = await import("../src/services/estimatorPort.ts");
+const { createEstimatorPortFromEnv } = await import("../src/estimator/index.ts");
 const { buildHonoQuotationDraft } = await import("../src/quote/index.ts");
 
 const f = (value: unknown, state = "stated") => ({ value, state, evidence: null });

@@ -40,7 +40,7 @@ import type {
   ShareResult,
   SubmitInput,
   SubmitResult,
-} from "./estimatorPort.ts";
+} from "./port.ts";
 
 // Re-exported so existing importers keep working. This type was defined here until the simulated
 // port needed the same definition; one type with two implementations is what keeps them honest.

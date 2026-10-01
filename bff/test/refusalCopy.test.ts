@@ -1,8 +1,8 @@
 import { buildBffTrip } from "../../ai/src/index.ts";
 import { describe, it, expect, vi } from "vitest";
-import { ISSUE_COPY, KNOWN_ISSUE_CODES, describeRefusal } from "../src/services/refusalCopy.ts";
-import { createEstimatorClient } from "../src/services/estimatorClient.ts";
-import { createSimulatedEstimator } from "../src/services/simulatedEstimator.ts";
+import { ISSUE_COPY, KNOWN_ISSUE_CODES, describeRefusal } from "../src/estimator/index.ts";
+import { createEstimatorClient } from "../src/estimator/index.ts";
+import { createSimulatedEstimator } from "../src/estimator/index.ts";
 
 import type { Trip } from "../../ai/src/index.ts";
 

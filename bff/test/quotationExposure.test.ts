@@ -16,7 +16,7 @@ import { validateBffTripPrecheck, buildBffTrip } from "../../ai/src/index.ts";
 import { describe, it, expect, beforeAll, afterAll, vi } from "vitest";
 import { randomUUID } from "node:crypto";
 import { createApp } from "../src/app.ts";
-import { createEstimatorClient } from "../src/services/estimatorClient.ts";
+import { createEstimatorClient } from "../src/estimator/index.ts";
 import {
   listQuotations,
   getQuotationByIdOrSlug,

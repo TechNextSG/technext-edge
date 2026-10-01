@@ -8,6 +8,7 @@
 import { loadEnv, type Env } from "../env.ts";
 import {
   buildProvider,
+  createProviderByName,
   createProviderFromEnv,
   createProviderFromSettings,
   keyFor,
@@ -47,6 +48,17 @@ export function createProviderHolder(store: SettingsStore, env: Env = loadEnv())
       current = { version: resolved.version, provider };
       return provider;
     },
+  };
+}
+
+/**
+ * Which provider answers one request: the one named in the request (the test console's own key, staff only), else
+ * the injected one (tests), else the process-wide holder.
+ */
+export function createProviderFor(holder: ProviderHolder, injected?: ExtractProvider, env: () => Env = loadEnv) {
+  return async function providerFor(data: { provider?: string; apiKey?: string }): Promise<ExtractProvider> {
+    if (data.provider) return createProviderByName(data.provider, data.apiKey!, env());
+    return injected ?? (await holder.get());
   };
 }
 

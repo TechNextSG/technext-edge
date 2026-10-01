@@ -12,7 +12,7 @@ import {
   estimatorBaseUrl,
   DEFAULT_ESTIMATOR_BASE_URL,
   ESTIMATE_PATH,
-} from "../src/services/estimatorClient.ts";
+} from "../src/estimator/index.ts";
 
 import type { BffTrip } from "../../ai/src/index.ts";
 import type { Trip } from "../../ai/src/index.ts";

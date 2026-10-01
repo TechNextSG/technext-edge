@@ -2,7 +2,7 @@ import { loadEnv, type Env } from "../env.ts";
 import type { Context, Hono } from "hono";
 import { z } from "zod";
 import { isKnownModel, PROVIDER_KINDS, type ModelChoice, type ProviderKind, type ProviderSettings } from "../../../ai/src/index.ts";
-import { testChoice, type TestResult } from "../services/aiProvider.ts";
+import { testChoice, type TestResult } from "../ai/providerHolder.ts";
 import {
   LIMITS,
   validateDeepseekBaseUrl,

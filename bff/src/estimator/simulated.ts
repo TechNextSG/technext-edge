@@ -58,7 +58,7 @@ import type {
   ShareResult,
   SubmitInput,
   SubmitResult,
-} from "./estimatorPort.ts";
+} from "./port.ts";
 
 /** Two decimals, because the captured card itself carries a 16400.01 deluxe band. */
 const r2 = (n: number) => Math.round(n * 100) / 100;
