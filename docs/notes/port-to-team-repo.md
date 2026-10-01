@@ -16,7 +16,7 @@ what has moved, what has not, and what must never move. Written 2026-10-01; the 
 | Piece | Here | What the move involves |
 |---|---|---|
 | WhatsApp channel (webhook, signature, turn loop, phone lock) | `bff/src/routes/whatsapp.ts`, `channels/whatsapp/`, `store/conversationStore.ts` | New route group in their `bff/`; the store becomes Postgres (their `supabase/`), not Redis. The turn loop (`channels/whatsapp/turn.ts`) is the part worth keeping verbatim |
-| Admin AI dashboard + KV settings | `routes/admin.ts`, `store/settingsStore.ts`, `auth/secretBox.ts`, `views/adminAiPage.ts` | Settings table in Postgres; key encryption stays. Decide first whether they want a dashboard at all (Q-021 is about which model may see guest text) |
+| Admin AI dashboard + KV settings | `routes/admin.ts`, `store/settingsStore.ts`, `crypto/secretBox.ts`, `views/adminAiPage.ts` | Settings table in Postgres; key encryption stays. Decide first whether they want a dashboard at all (Q-021 is about which model may see guest text) |
 | Handoff inbox | `routes/handoff.ts`, `views/handoffPage.ts` | Depends on the conversation store |
 | `toInquiryLead` (F10) | `bff/src/quote/application/inquiryLead.ts` | Their inquiry route does not exist yet (B-043, waiting for Phillip) |
 
@@ -25,7 +25,7 @@ what has moved, what has not, and what must never move. Written 2026-10-01; the 
 | Here (`bff/src/`) | Team repo (`bff/src/`) |
 |---|---|
 | `env.ts` | `env.ts` (add the WhatsApp and AI variables) |
-| `auth/` (keys, session, rate-limit, guards, secretBox) | `auth/` (Odoo login there; webhook secret checks and the admin key are the additions) |
+| `auth/` (keys, session, rate-limit, guards), `crypto/` | `auth/` (Odoo login there; webhook secret checks and the admin key are the additions) |
 | `store/` (KV) | `store/` (Postgres; conversation and settings are new tables) |
 | `estimator/` | `odoo/` + `model/` (the real engine; the simulation does not move) |
 | `channels/whatsapp/` | new folder |

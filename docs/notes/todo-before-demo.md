@@ -49,7 +49,7 @@ Kết quả lần kiểm 2026-10-01: tất cả xanh.
 
 - [x] `tsconfig.studio.json` -> `tsconfig.bff.json`, có ghi chú; CI nêu đúng 3 workspace; `.claude/` vào `.gitignore`
 - [x] Xoá ví dụ mẫu archify `example-trace-*`; `docs/demo/` -> `docs/archive/demo-2026-09/`; ghi chú phase1/2 và `lead-extractor-duplication` vào `docs/archive/notes/`; `anthony-decisions` bỏ chính sách Anthropic
-- [ ] `secretBox` sang `bff/src/crypto/`; `deps.ts` cho `app.ts`
+- [x] `secretBox` sang `bff/src/crypto/`; `deps.ts` cho `app.ts` (78 dòng)
 - [ ] Hỏi Lead: video 17 MB trong git (bỏ, LFS hay để nguyên); tách file lớn trong `ai/` (làm ở repo team); tách `views/editor/client.ts`, `estimator/simulated.ts`, `estimator/client.ts`
 
 ## E. Port sang team (xem `port-to-team-repo.md`)

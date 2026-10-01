@@ -45,8 +45,10 @@ ai/               @casa/ai — guest message in, Trip and reply out. No pricing,
 bff/              @casa/bff — the Hono app (the studio and the WhatsApp channel)
   src/
     env.ts            every environment variable, named once; the only file that reads process.env
-    app.ts            builds the dependencies and middleware, then mounts the route groups with app.route()
-    auth/             keys (staff/admin key, sameSecret), session (signed cookie), rate-limit, guards, secretBox
+    app.ts            error handler, security headers, and the app.route() lines
+    deps.ts           builds the stores, estimator, provider holder and guards (everything injectable for tests)
+    auth/             keys (staff/admin key, sameSecret), session (signed cookie), rate-limit, guards
+    crypto/           secretBox: encrypts the keys saved from the admin dashboard
     store/            persistence: kv.ts (the one KV client), quotation, conversation and settings stores
     quote/            the quotation domain: priced draft, rates, validity window, trip diff, inquiry lead
     estimator/        the pricing/booking engine behind one port: client (real), simulated, refusalCopy
@@ -75,8 +77,8 @@ Rules, enforced by `npm run check:boundaries` (part of `npm run verify` and CI) 
 - Across packages, import the barrel `<pkg>/src/index.ts`, never a file inside it.
 - Imports stay relative (`../../ai/src/index.ts`), not `@casa/*`: the workspace symlink did not
   resolve in the Vercel bundle (see the note at the top of `bff/src/app.ts`).
-- Inside `bff/src`: `process.env` only in `env.ts`; `auth/` and `quote/` import nothing but `env`; `store/` may use `quote/`
-  and `auth/secretBox` and nothing above; `views/` may name store types but never call a store.
+- Inside `bff/src`: `process.env` only in `env.ts`; `auth/`, `crypto/` and `quote/` import nothing but `env`; `store/` may use `quote/`
+  and `crypto/` and nothing above; `views/` may name store types but never call a store.
 
 Inside a package, imports flow `infra → application → domain`; nothing in `domain/` imports
 `application/`.

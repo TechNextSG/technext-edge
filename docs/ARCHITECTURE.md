@@ -51,17 +51,19 @@ Mỗi thư mục trả lời một câu hỏi; `bff/test/layers.test.ts` giữ c
 | Thư mục | Trả lời | Được import |
 |---|---|---|
 | `env.ts` | Biến môi trường nào tồn tại, tên gì. **Chỗ duy nhất đọc `process.env`.** | — |
-| `auth/` | Ai đang đăng nhập: `keys` (khoá staff/admin, `sameSecret`), `session` (cookie ký HMAC), `rate-limit`, `guards` (`staffSession`, `adminGuard`…), `secretBox`. | `env` |
-| `store/` | Dữ liệu nằm ở đâu: `kv.ts` (một client KV), kho báo giá, hội thoại, cài đặt AI. | `env`, `quote`, `auth` (chỉ `secretBox`) |
+| `auth/` | Ai đang đăng nhập: `keys` (khoá staff/admin, `sameSecret`), `session` (cookie ký HMAC), `rate-limit`, `guards` (`staffSession`, `adminGuard`…). | `env` |
+| `crypto/` | Mã hoá khoá lưu từ dashboard AI (`secretBox`). | `env` |
+| `store/` | Dữ liệu nằm ở đâu: `kv.ts` (một client KV), kho báo giá, hội thoại, cài đặt AI. | `env`, `quote`, `crypto` |
 | `quote/` | Báo giá là gì: bản nháp đã tính giá, bảng giá, hạn hiệu lực, diff chuyến, inquiry lead. Thuần, không I/O. | `env` |
 | `estimator/` | Ai tính giá: client gọi estimator thật, `simulated.ts` mô phỏng, `refusalCopy.ts` đổi mã lỗi thành câu cho staff. | `env`, `quote`, `store` |
 | `channels/whatsapp/` | Kênh WhatsApp: gọi Meta (`meta.ts`), vòng lặp tin nhắn theo số điện thoại (`turn.ts`). | `env`, `quote`, `store`, `estimator`, `auth` |
 | `ai/` | Provider AI dùng chung cả tiến trình (`providerHolder.ts`) và `providerFor`. | `env`, `store` |
 | `routes/` | HTTP: mỗi file là một sub-app Hono (`xxxRoutes(deps)`); `quotes/` gồm bảy sub-app và `service.ts`. | tất cả bên dưới |
 | `views/` | HTML/CSS/JS render phía server. | `env`, quote, auth (kiểu) |
-| `app.ts` | Lắp ráp: dựng dependency, middleware, rồi `app.route()` từng nhóm. Khoảng 100 dòng. | tất cả |
+| `deps.ts` | Dựng mọi dependency của app (store, estimator, provider, guards), tất cả có thể thay trong test. | tất cả |
+| `app.ts` | Lắp ráp: xử lý lỗi, security headers, rồi `app.route()` từng nhóm. Dưới 80 dòng. | tất cả |
 
-Quy tắc đã được test giữ (`bff/test/layers.test.ts`): `process.env` chỉ ở `env.ts`; `auth/` và `quote/` chỉ import `env`; `store/` chỉ import `env`, `quote`, `auth`;
+Quy tắc đã được test giữ (`bff/test/layers.test.ts`): `process.env` chỉ ở `env.ts`; `auth/`, `crypto/` và `quote/` chỉ import `env`; `store/` chỉ import `env`, `quote`, `crypto`;
 `views/` chỉ `import type` từ `store/`.
 `auth/`, `routes/`; `quote/` chỉ import `env`.
 
