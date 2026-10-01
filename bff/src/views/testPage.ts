@@ -1,6 +1,6 @@
 // A test page for people, not a production UI — the real estimator page
 // belongs to the Edge UI pod. This exists so anyone on the team can try
-// POST /v1/extract without curl or Postman. Served at GET /.
+// POST /v1/extract without curl or Postman. Served at GET /test, for staff only.
 // Visual identity matches apps/estimate-tool in casa-escondida-tools (same
 // fonts, same token names/values) so this doesn't read as a foreign tool.
 export const TEST_PAGE_HTML = `<!doctype html>

@@ -415,13 +415,11 @@ describe("the dashboard page", () => {
 });
 
 describe("deployment", () => {
-  it("vercel.json routes /admin to the function, or the dashboard page would 404 in production", async () => {
+  it("vercel.json sends every path to the function, so /admin and /v1 cannot be forgotten", async () => {
     const { readFileSync } = await import("node:fs");
     const config = JSON.parse(readFileSync(new URL("../../vercel.json", import.meta.url), "utf8")) as {
       rewrites: Array<{ source: string; destination: string }>;
     };
-    const sources = config.rewrites.map((r) => r.source);
-    expect(sources).toContain("/admin/:path*");
-    expect(sources).toContain("/v1/:path*"); // the dashboard's own API
+    expect(config.rewrites).toEqual([{ source: "/(.*)", destination: "/api" }]);
   });
 });

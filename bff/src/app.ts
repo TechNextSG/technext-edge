@@ -147,7 +147,7 @@ export function createApp(options: AppOptions = {}) {
   registerAuthRoutes(app, { loginLimiter, setSession: setDemoSession });
   registerAdminRoutes(app, { settings: aiSettings, guard: adminGuard });
   registerHealthRoutes(app);
-  registerPageRoutes(app);
+  registerPageRoutes(app, { staffSession });
   registerExtractorRoutes(app, {
     providerFor,
     staffWriter,

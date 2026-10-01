@@ -1,4 +1,4 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { createApp } from "../src/app.ts";
 
 describe("BFF Endpoints", () => {
@@ -18,30 +18,42 @@ describe("BFF Endpoints", () => {
     expect(body).toEqual({ ok: true });
   });
 
-  it("serves HTML on GET / (documentation & architecture hub)", async () => {
+  it("sends GET / to the studio, which sends a signed-out visitor on to sign in", async () => {
     const res = await app.request("/");
-    expect(res.status).toBe(200);
-    expect(res.headers.get("content-type")).toContain("text/html");
-    const html = await res.text();
-    expect(html).toContain("technext-edge");
-    expect(html).toContain("Extractor Pod Architecture &amp; Trust Boundaries");
+    expect(res.status).toBe(302);
+    expect(res.headers.get("location")).toBe("/quotes");
   });
 
-  it("serves HTML on GET /test (interactive test console)", async () => {
-    const res = await app.request("/test");
-    expect(res.status).toBe(200);
-    expect(res.headers.get("content-type")).toContain("text/html");
-    const html = await res.text();
-    // The console uses the server's model; it neither offers a provider list nor takes a key from the browser.
-    expect(html).toContain("admin dashboard");
-    expect(html).not.toContain('id="api-key"');
-    expect(html).not.toContain('id="provider-select"');
+  describe("the test console is for staff", () => {
+    const STAFF = "staff-key-console";
+    beforeEach(() => {
+      vi.stubEnv("STAFF_ACCESS_KEY", STAFF);
+      vi.stubEnv("WHATSAPP_VERIFY_TOKEN", STAFF);
+    });
+    afterEach(() => vi.unstubAllEnvs());
+
+    it.each(["/test", "/test-console", "/console"])("%s sends a signed-out visitor to sign in", async (path) => {
+      const res = await app.request(path);
+      expect(res.status).toBe(302);
+      expect(res.headers.get("location")).toBe("/login");
+    });
+
+    it.each(["/test", "/test-console", "/console"])("%s opens for a staff session", async (path) => {
+      const res = await app.request(path, { headers: { "x-verify-token": STAFF } });
+      expect(res.status).toBe(200);
+      expect(res.headers.get("content-type")).toContain("text/html");
+      const html = await res.text();
+      // The console uses the server's model; it neither offers a provider list nor takes a key from the browser.
+      expect(html).toContain("admin dashboard");
+      expect(html).not.toContain('id="api-key"');
+      expect(html).not.toContain('id="provider-select"');
+    });
   });
 
-  it("serves benchmark report on GET /benchmark and scenarios on /scenarios", async () => {
-    const resBench = await app.request("/benchmark");
-    expect(resBench.status).toBe(200);
-    const resScen = await app.request("/scenarios");
-    expect(resScen.status).toBe(200);
-  });
+  it.each(["/docs", "/hub", "/benchmark", "/scenarios", "/status", "/roadmap", "/guide", "/showcase", "/plan", "/architecture", "/demo", "/diagrams"])(
+    "no longer serves the documentation page %s",
+    async (path) => {
+      expect((await app.request(path)).status).toBe(404);
+    },
+  );
 });
