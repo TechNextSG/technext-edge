@@ -1,6 +1,6 @@
 /** Publishing: create the guest link, and send it to the guest on WhatsApp. */
 import { loadEnv } from "../../env.ts";
-import type { Hono } from "hono";
+import { Hono } from "hono";
 import { type ExtractProvider, verifyGuestFacingText } from "../../../../ai/src/index.ts";
 import { guestLinkFor, synthesizeConfirmedQuotationReply, guestFacingFactsFor } from "../../quote/index.ts";
 import { saveQuotationDraft, getQuotationByIdOrSlug } from "../../store/quotationStore.ts";
@@ -9,7 +9,8 @@ import { absoluteUrl } from "../../channels/whatsapp/index.ts";
 import { partnerRefusalFor } from "./service.ts";
 import { canonicalOrigin, type QuotesRouteDeps } from "./shared.ts";
 
-export function registerPublishRoutes(app: Hono, deps: QuotesRouteDeps): void {
+export function publishRoutes(deps: QuotesRouteDeps): Hono {
+  const app = new Hono();
   const { estimator, providerHolder, staffWriter } = deps;
 
   app.post("/v1/quotes/:id/publish", async (c) => {
@@ -296,4 +297,6 @@ export function registerPublishRoutes(app: Hono, deps: QuotesRouteDeps): void {
       );
     }
   });
+
+  return app;
 }

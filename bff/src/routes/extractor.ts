@@ -1,5 +1,5 @@
 import { loadEnv } from "../env.ts";
-import type { Context, Hono } from "hono";
+import { Hono, type Context } from "hono";
 import { z } from "zod";
 import {
   extract,
@@ -78,7 +78,8 @@ export interface ExtractorRouteDeps {
   saveQuotationDraft: (draft: HonoQuotationDraft) => Promise<HonoQuotationDraft>;
 }
 
-export function registerExtractorRoutes(app: Hono, deps: ExtractorRouteDeps): void {
+export function extractorRoutes(deps: ExtractorRouteDeps): Hono {
+  const app = new Hono();
   const { providerFor, staffWriter, staffSession, saveQuotationDraft } = deps;
 
   app.post("/v1/extract", async (c) => {
@@ -153,4 +154,6 @@ export function registerExtractorRoutes(app: Hono, deps: ExtractorRouteDeps): vo
       return handleExtractError(err);
     }
   });
+
+  return app;
 }

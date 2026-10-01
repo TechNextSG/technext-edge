@@ -1,12 +1,13 @@
 /** `/q/:slug` — the guest-facing quotation link, served without a credential. */
-import type { Hono } from "hono";
+import { Hono } from "hono";
 import { themeCss } from "../../views/theme.ts";
 import { renderGuestQuotationCopyHtml } from "../../views/guestQuotationCopy.ts";
 import { getQuotationByIdOrSlug } from "../../store/quotationStore.ts";
 import { resortWhatsAppNumber } from "../../channels/whatsapp/index.ts";
 import type { QuotesRouteDeps } from "./shared.ts";
 
-export function registerGuestPageRoutes(app: Hono, _deps: QuotesRouteDeps): void {
+export function guestPageRoutes(_deps: QuotesRouteDeps): Hono {
+  const app = new Hono();
   app.get("/q/:slug", async (c) => {
     const slug = c.req.param("slug");
     const found = await getQuotationByIdOrSlug(slug);
@@ -226,4 +227,6 @@ export function registerGuestPageRoutes(app: Hono, _deps: QuotesRouteDeps): void
       410,
     );
   });
+
+  return app;
 }

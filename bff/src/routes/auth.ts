@@ -1,4 +1,4 @@
-import type { Context, Hono } from "hono";
+import { Hono, type Context } from "hono";
 import { deleteCookie } from "hono/cookie";
 import { adminAccessKey, staffAccessKey } from "../auth/keys.ts";
 import { DEMO_SESSION_COOKIE, SAFE_NEXT_PREFIXES, type StaffRole } from "../auth/session.ts";
@@ -23,7 +23,8 @@ export interface AuthRouteDeps {
  * path both have to behave identically for both secrets — see loginHardening.test.ts,
  * which pins that the sign-in attempt is answered the same way however the key is guessed.
  */
-export function registerAuthRoutes(app: Hono, deps: AuthRouteDeps): void {
+export function authRoutes(deps: AuthRouteDeps): Hono {
+  const app = new Hono();
   const { loginLimiter, setSession } = deps;
 
   app.get("/login", (c) => c.html(renderLoginHtml(false, c.req.query("next") || "/quotes")));
@@ -75,4 +76,6 @@ export function registerAuthRoutes(app: Hono, deps: AuthRouteDeps): void {
   // tool, the guest's own view is the customer's `/quote/:token` page, and a "guest view" of the
   // studio is a screen no guest can ever reach — so the route went with it. The role is chosen at
   // sign-in (`POST /login` reads `role`), which is the one place it means anything.
+
+  return app;
 }

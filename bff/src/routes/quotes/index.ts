@@ -1,25 +1,28 @@
 /**
- * The quotation routes, in seven small modules. Registration order is part of the contract: Hono matches in the
- * order routes were added, and `GET /v1/quotes/estimator-status` must be added before `GET /v1/quotes/:id`.
+ * The quotation routes, in seven small sub-apps mounted in this order. The order is part of the contract: Hono matches
+ * in the order routes were added, and `GET /v1/quotes/estimator-status` must come before `GET /v1/quotes/:id`
+ * (`bff/test/routeTable.test.ts` pins the whole table).
  */
-import type { Hono } from "hono";
-import { registerPagesRoutes } from "./pages.ts";
-import { registerGuestPageRoutes } from "./guestPage.ts";
-import { registerListRoutes } from "./list.ts";
-import { registerRecordRoutes } from "./record.ts";
-import { registerPricingRoutes } from "./pricing.ts";
-import { registerPublishRoutes } from "./publish.ts";
-import { registerBookingRoutes } from "./booking.ts";
+import { Hono } from "hono";
+import { studioRoutes } from "./pages.ts";
+import { guestPageRoutes } from "./guestPage.ts";
+import { listRoutes } from "./list.ts";
+import { recordRoutes } from "./record.ts";
+import { pricingRoutes } from "./pricing.ts";
+import { publishRoutes } from "./publish.ts";
+import { bookingRoutes } from "./booking.ts";
 import type { QuotesRouteDeps } from "./shared.ts";
 
 export type { QuotesRouteDeps } from "./shared.ts";
 
-export function registerQuotesRoutes(app: Hono, deps: QuotesRouteDeps): void {
-  registerPagesRoutes(app, deps);
-  registerGuestPageRoutes(app, deps);
-  registerListRoutes(app, deps);
-  registerRecordRoutes(app, deps);
-  registerPricingRoutes(app, deps);
-  registerPublishRoutes(app, deps);
-  registerBookingRoutes(app, deps);
+export function quotesRoutes(deps: QuotesRouteDeps): Hono {
+  const app = new Hono();
+  app.route("/", studioRoutes(deps));
+  app.route("/", guestPageRoutes(deps));
+  app.route("/", listRoutes(deps));
+  app.route("/", recordRoutes(deps));
+  app.route("/", pricingRoutes(deps));
+  app.route("/", publishRoutes(deps));
+  app.route("/", bookingRoutes(deps));
+  return app;
 }

@@ -1,4 +1,4 @@
-import type { Hono } from "hono";
+import { Hono } from "hono";
 import type { ExtractProvider } from "../../../ai/src/index.ts";
 import type { ConversationStore } from "../store/conversationStore.ts";
 import type { EstimatorPort } from "../estimator/index.ts";
@@ -18,7 +18,8 @@ export interface WhatsAppRouteDeps {
   handoffAuthorized: (header: string | undefined) => boolean;
 }
 
-export function registerWhatsAppRoutes(app: Hono, deps: WhatsAppRouteDeps): void {
+export function whatsAppRoutes(deps: WhatsAppRouteDeps): Hono {
+  const app = new Hono();
   const { store, providerFor, estimator, handoffAuthorized } = deps;
 
   // Meta's subscription handshake, called once when the webhook URL is pointed at
@@ -152,4 +153,6 @@ export function registerWhatsAppRoutes(app: Hono, deps: WhatsAppRouteDeps): void
       sender: await checkSenderCredentials(config),
     });
   });
+
+  return app;
 }

@@ -1,4 +1,4 @@
-import type { Context, Hono } from "hono";
+import { Hono, type Context } from "hono";
 import type { ConversationStore } from "../store/conversationStore.ts";
 import { renderHandoffPageHtml } from "../views/handoffPage.ts";
 import type { StaffRole } from "../auth/session.ts";
@@ -13,7 +13,8 @@ export interface HandoffRouteDeps {
 /**
  * Human handoff management for paused WhatsApp threads.
  */
-export function registerHandoffRoutes(app: Hono, deps: HandoffRouteDeps): void {
+export function handoffRoutes(deps: HandoffRouteDeps): Hono {
+  const app = new Hono();
   const { store, staffSession, staffWriter, closeEnquiryQuotation } = deps;
 
   // Guarded by the same demo session as the studio: whoever can read quotations can read this,
@@ -42,4 +43,6 @@ export function registerHandoffRoutes(app: Hono, deps: HandoffRouteDeps): void {
     await store.clear(c.req.param("phone"));
     return c.redirect("/handoff");
   });
+
+  return app;
 }

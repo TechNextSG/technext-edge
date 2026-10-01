@@ -1,12 +1,13 @@
 /** The staff pages: the studio, one quotation in it, and its ops sheet. */
-import type { Hono } from "hono";
+import { Hono } from "hono";
 import { renderOpsSheetHtml } from "../../views/opsPage.ts";
 import { getQuotationByIdOrSlug, listQuotations } from "../../store/quotationStore.ts";
 import { renderHonoQuotationEditorHtml } from "../../views/quotationEditorPage.ts";
 import { renderEmptyStudioHtml } from "../../views/emptyStudio.ts";
 import type { QuotesRouteDeps } from "./shared.ts";
 
-export function registerPagesRoutes(app: Hono, deps: QuotesRouteDeps): void {
+export function studioRoutes(deps: QuotesRouteDeps): Hono {
+  const app = new Hono();
   const { estimator, staffSession } = deps;
 
   app.get("/quotes", async (c) => {
@@ -35,4 +36,6 @@ export function registerPagesRoutes(app: Hono, deps: QuotesRouteDeps): void {
     if (!found) return c.json({ error: "not_found" }, 404);
     return c.html(renderOpsSheetHtml(found));
   });
+
+  return app;
 }

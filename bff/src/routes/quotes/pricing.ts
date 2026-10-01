@@ -1,6 +1,6 @@
 /** Pricing: ask the estimator for a figure, re-sync a scenario, apply a trip edit. */
 import { randomUUID } from "node:crypto";
-import type { Hono } from "hono";
+import { Hono } from "hono";
 import type { Trip } from "../../../../ai/src/index.ts";
 import { buildHonoQuotationDraft, recalculateQuotationTotals, diffBffTrip, type HonoQuotationDraft } from "../../quote/index.ts";
 import { BffTrip } from "../../../../ai/src/index.ts";
@@ -8,7 +8,8 @@ import { saveQuotationDraft, getQuotationByIdOrSlug } from "../../store/quotatio
 import { buildEstimatePreview, estimateToRecord } from "./service.ts";
 import type { QuotesRouteDeps } from "./shared.ts";
 
-export function registerPricingRoutes(app: Hono, deps: QuotesRouteDeps): void {
+export function pricingRoutes(deps: QuotesRouteDeps): Hono {
+  const app = new Hono();
   const { estimator, staffWriter } = deps;
 
   app.post("/v1/quotes/compute", async (c) => {
@@ -263,4 +264,6 @@ export function registerPricingRoutes(app: Hono, deps: QuotesRouteDeps): void {
       quotation: saved,
     });
   });
+
+  return app;
 }

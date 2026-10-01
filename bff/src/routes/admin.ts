@@ -1,5 +1,5 @@
 import { loadEnv, type Env } from "../env.ts";
-import type { Context, Hono } from "hono";
+import { Hono, type Context } from "hono";
 import { z } from "zod";
 import { isKnownModel, PROVIDER_KINDS, type ModelChoice, type ProviderKind, type ProviderSettings } from "../../../ai/src/index.ts";
 import { testChoice, type TestResult } from "../ai/providerHolder.ts";
@@ -91,7 +91,8 @@ function candidate(current: ProviderSettings, patch: AiSettingsPatch): ProviderS
   };
 }
 
-export function registerAdminRoutes(app: Hono, deps: AdminRouteDeps): void {
+export function adminRoutes(deps: AdminRouteDeps): Hono {
+  const app = new Hono();
   const { settings: store, guard } = deps;
   const env = deps.env ?? loadEnv();
   // The audit records who; there is one admin key, so the actor is the role.
@@ -191,4 +192,6 @@ export function registerAdminRoutes(app: Hono, deps: AdminRouteDeps): void {
     if (denied) return denied;
     return c.json({ ok: true, entries: await store.audit() });
   });
+
+  return app;
 }

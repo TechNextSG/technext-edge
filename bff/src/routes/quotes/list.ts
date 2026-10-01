@@ -1,9 +1,10 @@
 /** The quotation list and the estimator's health, for the studio's queue and banner. */
-import type { Hono } from "hono";
+import { Hono } from "hono";
 import { listQuotations, filterQuotations } from "../../store/quotationStore.ts";
 import type { QuotesRouteDeps } from "./shared.ts";
 
-export function registerListRoutes(app: Hono, deps: QuotesRouteDeps): void {
+export function listRoutes(deps: QuotesRouteDeps): Hono {
+  const app = new Hono();
   const { estimator, staffSession } = deps;
 
   app.get("/v1/quotes", async (c) => {
@@ -51,4 +52,6 @@ export function registerListRoutes(app: Hono, deps: QuotesRouteDeps): void {
         : `no answer from ${baseUrl}/api/health`,
     });
   });
+
+  return app;
 }

@@ -1,12 +1,13 @@
 /** Booking: submit a quotation to the estimator and read the submission back. */
-import type { Hono } from "hono";
+import { Hono } from "hono";
 import type { Trip } from "../../../../ai/src/index.ts";
 import { buildHonoQuotationDraft, recalculateQuotationTotals, type QuotationSubmission } from "../../quote/index.ts";
 import { saveQuotationDraft, getQuotationByIdOrSlug } from "../../store/quotationStore.ts";
 import { buildEstimatePreview, ReservationContact } from "./service.ts";
 import type { QuotesRouteDeps } from "./shared.ts";
 
-export function registerBookingRoutes(app: Hono, deps: QuotesRouteDeps): void {
+export function bookingRoutes(deps: QuotesRouteDeps): Hono {
+  const app = new Hono();
   const { estimator, staffSession, staffWriter } = deps;
 
   app.post("/v1/quotes/submit", async (c) => {
@@ -112,4 +113,6 @@ export function registerBookingRoutes(app: Hono, deps: QuotesRouteDeps): void {
     if (!found) return c.json({ error: "not_found" }, 404);
     return c.json({ ok: true, submission: found.submission ?? null });
   });
+
+  return app;
 }

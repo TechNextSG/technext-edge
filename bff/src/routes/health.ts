@@ -1,4 +1,4 @@
-import type { Hono } from "hono";
+import { Hono } from "hono";
 
 /**
  * Health check endpoints.
@@ -11,7 +11,10 @@ import type { Hono } from "hono";
  * the estimator or the stores are the thing that is broken, so they must not acquire a
  * dependency on any of them.
  */
-export function registerHealthRoutes(app: Hono): void {
+export function healthRoutes(): Hono {
+  const app = new Hono();
   app.get("/v1/health", (c) => c.json({ ok: true }));
   app.get("/healthz", (c) => c.json({ ok: true }));
+
+  return app;
 }

@@ -1,5 +1,5 @@
 /** One quotation record: read it, save staff edits, approve, archive, repair a link, clean up duplicates. */
-import type { Hono } from "hono";
+import { Hono } from "hono";
 import type { ExtractProvider } from "../../../../ai/src/index.ts";
 import { diffBffTrip, pricedFactsChanged, synthesizeConfirmedQuotationReply, type HonoQuotationDraft } from "../../quote/index.ts";
 import { BffTrip } from "../../../../ai/src/index.ts";
@@ -7,7 +7,8 @@ import { saveQuotationDraft, getQuotationByIdOrSlug, listQuotations, duplicateQu
 import { editableQuotationFields, alreadySharedRefusal, deletableByCleanup, buildEstimatePreview } from "./service.ts";
 import type { QuotesRouteDeps } from "./shared.ts";
 
-export function registerRecordRoutes(app: Hono, deps: QuotesRouteDeps): void {
+export function recordRoutes(deps: QuotesRouteDeps): Hono {
+  const app = new Hono();
   const { estimator, providerHolder, staffSession, staffWriter } = deps;
 
   app.get("/v1/quotes/:id", async (c) => {
@@ -220,4 +221,6 @@ export function registerRecordRoutes(app: Hono, deps: QuotesRouteDeps): void {
       kept: all.length - removed.length,
     });
   });
+
+  return app;
 }

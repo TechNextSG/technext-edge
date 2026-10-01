@@ -14,14 +14,14 @@ import type { WhatsAppSendText } from "./channels/whatsapp/index.ts";
 import { closeEnquiryQuotation, guestPendingQuotationNote } from "./channels/whatsapp/index.ts";
 
 // Route modules
-import { registerAuthRoutes } from "./routes/auth.ts";
-import { registerAdminRoutes } from "./routes/admin.ts";
-import { registerHealthRoutes } from "./routes/health.ts";
-import { registerPageRoutes } from "./routes/pages.ts";
-import { registerExtractorRoutes } from "./routes/extractor.ts";
-import { registerHandoffRoutes } from "./routes/handoff.ts";
-import { registerWhatsAppRoutes } from "./routes/whatsapp.ts";
-import { registerQuotesRoutes } from "./routes/quotes/index.ts";
+import { authRoutes } from "./routes/auth.ts";
+import { adminRoutes } from "./routes/admin.ts";
+import { healthRoutes } from "./routes/health.ts";
+import { pageRoutes } from "./routes/pages.ts";
+import { extractorRoutes } from "./routes/extractor.ts";
+import { handoffRoutes } from "./routes/handoff.ts";
+import { whatsAppRoutes } from "./routes/whatsapp.ts";
+import { quotesRoutes } from "./routes/quotes/index.ts";
 
 export { guestPendingQuotationNote };
 
@@ -74,37 +74,27 @@ export function createApp(options: AppOptions = {}) {
     }),
   );
 
-  registerAuthRoutes(app, { loginLimiter, setSession: (c, role) => setSession(c, role) });
-  registerAdminRoutes(app, { settings: aiSettings, guard: adminGuard });
-  registerHealthRoutes(app);
-  registerPageRoutes(app, { staffSession });
-  registerExtractorRoutes(app, {
-    providerFor,
-    staffWriter,
-    staffSession,
-    saveQuotationDraft,
-  });
-  registerHandoffRoutes(app, {
-    store,
-    staffSession,
-    staffWriter,
-    closeEnquiryQuotation,
-  });
-  registerWhatsAppRoutes(app, {
-    store,
-    providerFor,
-    sendWhatsApp: options.sendWhatsApp,
-    estimator,
-    handoffAuthorized,
-  });
-  registerQuotesRoutes(app, {
-    estimator,
-    providerHolder,
-    optionsProvider: options.provider,
-    staffSession,
-    staffWriter,
-    sendWhatsApp: options.sendWhatsApp,
-  });
+  app.route("/", authRoutes({ loginLimiter, setSession: (c, role) => setSession(c, role) }));
+  app.route("/", adminRoutes({ settings: aiSettings, guard: adminGuard }));
+  app.route("/", healthRoutes());
+  app.route("/", pageRoutes({ staffSession }));
+  app.route("/", extractorRoutes({ providerFor, staffWriter, staffSession, saveQuotationDraft }));
+  app.route("/", handoffRoutes({ store, staffSession, staffWriter, closeEnquiryQuotation }));
+  app.route(
+    "/",
+    whatsAppRoutes({ store, providerFor, sendWhatsApp: options.sendWhatsApp, estimator, handoffAuthorized }),
+  );
+  app.route(
+    "/",
+    quotesRoutes({
+      estimator,
+      providerHolder,
+      optionsProvider: options.provider,
+      staffSession,
+      staffWriter,
+      sendWhatsApp: options.sendWhatsApp,
+    }),
+  );
 
   return app;
 }

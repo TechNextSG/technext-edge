@@ -1,4 +1,4 @@
-import type { Context, Hono } from "hono";
+import { Hono, type Context } from "hono";
 import { TEST_PAGE_HTML } from "../views/testPage.ts";
 import type { StaffRole } from "../auth/session.ts";
 
@@ -14,11 +14,14 @@ export interface PageRouteDeps {
  * tool like the rest: it calls `/v1/extract` and `/v1/converse`, both of which need a staff session anyway, so a
  * signed-out visitor is sent to sign in rather than shown a page that cannot work.
  */
-export function registerPageRoutes(app: Hono, deps: PageRouteDeps): void {
+export function pageRoutes(deps: PageRouteDeps): Hono {
+  const app = new Hono();
   app.get("/", (c) => c.redirect("/quotes"));
 
   const testConsole = (c: Context) => (deps.staffSession(c).ok ? c.html(TEST_PAGE_HTML) : c.redirect("/login"));
   app.get("/test", testConsole);
   app.get("/test-console", testConsole);
   app.get("/console", testConsole);
+
+  return app;
 }
