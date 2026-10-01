@@ -26,48 +26,53 @@ vars, the eval harness, and the gotchas that already cost an afternoon once.
 
 ## Layout
 
-Four workspaces, one dependency direction:
+Three workspaces, one dependency direction:
 
 ```text
-contracts  <-  ai  <-  quotation  <-  bff
+contracts  <-  ai  <-  bff
 ```
 
 ```text
 contracts/        @casa/contracts — the team estimator's Odoo contract (OpenAPI types, typed client, fixtures).
-                  A byte-copy of the team repo: change it there, then copy it back (`npm run mirror:check`).
 ai/               @casa/ai — guest message in, Trip and reply out. No pricing, no Odoo.
   src/
     domain/           Trip schema, dates, counts, house norms, conversation — no I/O
-    application/      extract, normalize, intent, questions, synthesis, naturalness, converse
+    application/      extract, normalize, intent, questions, synthesis, naturalness, converse, odooHandoff
     ports/            the provider interface
     infra/providers/  DeepSeek and Gemini adapters, env/settings factory
     index.ts          the package's only public import surface
   test/             vitest suite      eval/   Playbook threshold harness
-quotation/        @casa/quotation — from a finished Trip to a priced, editable draft
+bff/              @casa/bff — the Hono app (the studio and the WhatsApp channel)
   src/
-    domain/           pricing, rates, quotation draft types, validity window, trip diff
-    application/      quotationTool (build/reprice), odooHandoff (BffTrip, precheck),
-                      inquiryLead, converseWithQuotation
-    index.ts          public import surface
-  test/
-bff/              @casa/bff — the Hono app: routes, services, stores, auth, views
-  src/  test/  scripts/ (WhatsApp and journey scripts, run from bff/)
+    env.ts            every environment variable, named once; the only file that reads process.env
+    routes/           HTTP only: auth, admin, extractor, handoff, health, pages, whatsapp, quotes/ (seven small modules)
+    services/         use cases: the WhatsApp turn loop, estimator client + simulated estimator, quotation rules
+    store/            persistence: KV client (kv.ts), quotation, conversation and settings stores, secret box
+    auth/             demo sign-in: roles, signed session, login limiter
+    quote/            the quotation domain: priced draft, rates, validity window, trip diff, inquiry lead
+    views/            server-rendered pages; the staff editor is views/editor/{model,markup,styles,client}.ts
+  test/  scripts/ (WhatsApp and journey scripts, run from bff/)
 api/index.ts      Vercel entry point; imports bff/src/app.ts
-public/           the only directory the deployment publishes
+public/           what the deployment publishes as static files (demo videos and captures only)
 docs/             adr | guides | specs | notes | diagrams | demo
 tools/
-  ops/              upstream-check, check-boundaries, cleanup-quotations
+  ops/              upstream-check, mirror-check, check-boundaries, cleanup-quotations
   live-eval/        scenario runs against a live provider key (not in CI)
-  site/             generators for the pages in public/
   scratch/          git-ignored scratch space
 ```
 
-Rules, enforced by `npm run check:boundaries` (part of `npm run verify` and CI):
+`ai/` and `contracts/` are **byte-copies of the team repo** (`TechNextSG/tn-casa-quotation-estimator`): change them
+there, then copy them back. `npm run mirror:check` fails when they differ; pins and the rules are in
+[docs/notes/upstream-provenance.md](docs/notes/upstream-provenance.md).
+
+Rules, enforced by `npm run check:boundaries` (part of `npm run verify` and CI) and `bff/test/layers.test.ts`:
 
 - A package imports only the packages to its left in the chain above.
 - Across packages, import the barrel `<pkg>/src/index.ts`, never a file inside it.
 - Imports stay relative (`../../ai/src/index.ts`), not `@casa/*`: the workspace symlink did not
   resolve in the Vercel bundle (see the note at the top of `bff/src/app.ts`).
+- Inside `bff/src`: `process.env` only in `env.ts`; `auth/`, `store/` and `quote/` never import `views/`, `services/`
+  or `routes/` (`store/` may import `quote/`).
 
 Inside a package, imports flow `infra → application → domain`; nothing in `domain/` imports
 `application/`.
@@ -76,12 +81,11 @@ Inside a package, imports flow `infra → application → domain`; nothing in `d
 
 - `ai/` — Trip schema (zod), date/house-norm post-processing,
   provider adapters (Gemini, DeepSeek), eval-ready pipeline. Real and tested.
-- `quotation/` — the priced draft the studio edits and the `BffTrip` the
-  team estimator accepts. A simulation of their numbers, never the source of truth.
-- `contracts/` — the upstream BFF schema we mirror, pinned by commit.
+- `bff/src/quote/` — the priced draft the studio edits. A simulation of the team estimator's numbers, never the source of truth.
+- `contracts/` — the team estimator's contract, mirrored byte for byte.
 - `bff/` — Hono app: `POST /v1/extract`, `POST /v1/converse`, the
-  WhatsApp inbound webhook at `/v1/channels/whatsapp/webhook`, plus a test
-  console at `/`. Deployed at **https://technext-edge-casa-bff.vercel.app**.
+  WhatsApp inbound webhook at `/v1/channels/whatsapp/webhook`, plus a staff-only test
+  console at `/test`. Deployed at **https://technext-edge-casa-bff.vercel.app**.
 - `ai/eval/` — scores against the Playbook's 5 thresholds.
   Ships with a researched-but-synthetic dataset; real decisions wait for
   Eloa's 30 real messages.

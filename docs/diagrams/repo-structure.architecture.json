@@ -2,42 +2,345 @@
   "schema_version": 1,
   "diagram_type": "architecture",
   "meta": {
-    "title": "technext-edge — Bản đồ thư mục & code",
+    "title": "technext-edge — repo map",
     "output": "repo-structure.html",
     "quality_profile": "showcase",
+    "locale": "en",
     "views": [
-      { "id": "deploy-chain", "label": "Đường deploy chính", "focus": ["root", "extractor", "bff", "apientry", "vercel"], "note": "Code nằm ở đâu, đóng gói qua đâu, deploy lên đâu." },
-      { "id": "dev-tools", "label": "Công cụ dev & kiểm thử", "focus": ["scripts", "eval", "extractor", "bff"], "note": "scripts/ và eval/ gọi vào code thật để test, không phải chạy production." },
-      { "id": "docs-side", "label": "Tài liệu, không phải code chạy", "focus": ["root", "docs"], "note": "docs/ chỉ là văn bản (ADR, sơ đồ, báo cáo) — không được import, không ảnh hưởng runtime." }
+      {
+        "id": "layers",
+        "label": "Package layers",
+        "focus": [
+          "team",
+          "contracts",
+          "ai",
+          "bff",
+          "apientry",
+          "vercel"
+        ],
+        "note": "contracts <- ai <- bff. ai/ and contracts/ are byte-copies of the team repo."
+      },
+      {
+        "id": "inside-bff",
+        "label": "Inside bff/src",
+        "focus": [
+          "bff",
+          "routes",
+          "services",
+          "store",
+          "quote",
+          "auth",
+          "env"
+        ],
+        "note": "Routes call services and stores; store/, auth/ and quote/ import nothing above them."
+      }
     ]
   },
   "components": [
-    { "id": "root", "type": "backend", "label": "technext-edge", "sublabel": "repo root · npm workspaces", "pos": [20, 260], "size": [140, 64] },
-    { "id": "extractor", "type": "backend", "label": "ai", "sublabel": "Trip schema, extract(), providers", "pos": [230, 260], "size": [160, 64] },
-    { "id": "eval", "type": "database", "label": "extractor/eval", "sublabel": "dataset, runner, scorer", "pos": [230, 410], "size": [150, 64] },
-    { "id": "bff", "type": "backend", "label": "bff", "sublabel": "Hono: webhook, test console", "pos": [460, 260], "size": [160, 64] },
-    { "id": "scripts", "type": "backend", "label": "scripts/", "sublabel": "sim webhook, test-anilao-*", "pos": [460, 110], "size": [150, 64] },
-    { "id": "apientry", "type": "backend", "label": "api/index.ts", "sublabel": "entry point Vercel function", "pos": [680, 260], "size": [150, 64] },
-    { "id": "vercel", "type": "cloud", "label": "Vercel", "sublabel": "serverless deploy", "pos": [890, 260], "size": [130, 64] },
-    { "id": "docs", "type": "external", "label": "docs/", "sublabel": "ADR, roadmap, sơ đồ, báo cáo", "pos": [20, 110], "size": [140, 64] }
+    {
+      "id": "team",
+      "type": "external",
+      "label": "Team estimator repo",
+      "sublabel": "tn-casa-quotation-estimator",
+      "pos": [
+        60,
+        90
+      ],
+      "size": [
+        190,
+        64
+      ]
+    },
+    {
+      "id": "contracts",
+      "type": "backend",
+      "label": "contracts/",
+      "sublabel": "Odoo types, client, fixtures",
+      "pos": [
+        60,
+        290
+      ],
+      "size": [
+        170,
+        64
+      ]
+    },
+    {
+      "id": "ai",
+      "type": "backend",
+      "label": "ai/",
+      "sublabel": "extract, converse, odooHandoff",
+      "pos": [
+        290,
+        290
+      ],
+      "size": [
+        170,
+        64
+      ]
+    },
+    {
+      "id": "bff",
+      "type": "backend",
+      "label": "bff/src",
+      "sublabel": "Hono app: studio + WhatsApp",
+      "pos": [
+        520,
+        290
+      ],
+      "size": [
+        170,
+        64
+      ]
+    },
+    {
+      "id": "routes",
+      "type": "backend",
+      "label": "routes/ views/",
+      "sublabel": "HTTP in, HTML out",
+      "pos": [
+        520,
+        120
+      ],
+      "size": [
+        170,
+        64
+      ]
+    },
+    {
+      "id": "services",
+      "type": "backend",
+      "label": "services/",
+      "sublabel": "turn loop, estimator client",
+      "pos": [
+        740,
+        120
+      ],
+      "size": [
+        170,
+        64
+      ]
+    },
+    {
+      "id": "store",
+      "type": "database",
+      "label": "store/",
+      "sublabel": "kv.ts, quotations, threads",
+      "pos": [
+        740,
+        290
+      ],
+      "size": [
+        170,
+        64
+      ]
+    },
+    {
+      "id": "quote",
+      "type": "backend",
+      "label": "quote/",
+      "sublabel": "priced draft, rates, validity",
+      "pos": [
+        740,
+        450
+      ],
+      "size": [
+        170,
+        64
+      ]
+    },
+    {
+      "id": "auth",
+      "type": "security",
+      "label": "auth/",
+      "sublabel": "roles, session, login limiter",
+      "pos": [
+        520,
+        450
+      ],
+      "size": [
+        170,
+        64
+      ]
+    },
+    {
+      "id": "env",
+      "type": "security",
+      "label": "env.ts",
+      "sublabel": "the only process.env reader",
+      "pos": [
+        290,
+        450
+      ],
+      "size": [
+        170,
+        64
+      ]
+    },
+    {
+      "id": "apientry",
+      "type": "backend",
+      "label": "api/index.ts",
+      "sublabel": "Vercel function entry",
+      "pos": [
+        970,
+        290
+      ],
+      "size": [
+        150,
+        64
+      ]
+    },
+    {
+      "id": "vercel",
+      "type": "cloud",
+      "label": "Vercel",
+      "sublabel": "one catch-all rewrite",
+      "pos": [
+        970,
+        450
+      ],
+      "size": [
+        150,
+        64
+      ]
+    }
   ],
   "boundaries": [
-    { "kind": "region", "label": "Code chạy thật (import lẫn nhau)", "wraps": ["extractor", "eval", "bff", "scripts", "apientry"] }
+    {
+      "kind": "region",
+      "label": "Mirrored byte for byte",
+      "wraps": [
+        "contracts",
+        "ai"
+      ]
+    }
   ],
   "connections": [
-    { "id": "root-to-extractor", "from": "root", "to": "extractor", "label": "chứa", "labelDy": -26 },
-    { "id": "root-to-docs", "from": "root", "to": "docs", "label": "chứa (chỉ đọc)", "variant": "dashed", "fromSide": "top", "toSide": "bottom" },
-    { "id": "extractor-to-eval", "from": "extractor", "to": "eval", "label": "chứa", "fromSide": "bottom", "toSide": "top" },
-    { "id": "bff-to-extractor", "from": "bff", "to": "extractor", "label": "import tương đối", "labelAt": [425, 338] },
-    { "id": "scripts-to-extractor", "from": "scripts", "to": "extractor", "label": "gọi trực tiếp", "variant": "dashed", "fromSide": "left", "toSide": "top" },
-    { "id": "scripts-to-bff", "from": "scripts", "to": "bff", "label": "gọi qua HTTP", "variant": "dashed", "fromSide": "bottom", "toSide": "top" },
-    { "id": "eval-to-bff", "from": "eval", "to": "bff", "label": "gọi /v1/extract", "variant": "dashed", "fromSide": "right", "toSide": "bottom" },
-    { "id": "bff-to-apientry", "from": "bff", "to": "apientry", "label": "createApp()", "labelDy": -26 },
-    { "id": "apientry-to-vercel", "from": "apientry", "to": "vercel", "label": "deploy", "labelDy": -26 }
+    {
+      "id": "team-to-contracts",
+      "from": "team",
+      "to": "contracts",
+      "label": "mirror:check",
+      "variant": "dashed",
+      "fromSide": "bottom",
+      "toSide": "top"
+    },
+    {
+      "id": "contracts-to-ai",
+      "from": "contracts",
+      "to": "ai",
+      "label": "types",
+      "labelDy": -26
+    },
+    {
+      "id": "ai-to-bff",
+      "from": "ai",
+      "to": "bff",
+      "label": "barrel import",
+      "labelDy": -26
+    },
+    {
+      "id": "bff-to-routes",
+      "from": "bff",
+      "to": "routes",
+      "label": "contains",
+      "fromSide": "top",
+      "toSide": "bottom",
+      "labelAt": [
+        605,
+        286
+      ]
+    },
+    {
+      "id": "routes-to-services",
+      "from": "routes",
+      "to": "services",
+      "label": "calls",
+      "labelDy": -26
+    },
+    {
+      "id": "bff-to-store",
+      "from": "bff",
+      "to": "store",
+      "label": "contains",
+      "labelDy": -26
+    },
+    {
+      "id": "store-to-quote",
+      "from": "store",
+      "to": "quote",
+      "label": "draft type",
+      "fromSide": "bottom",
+      "toSide": "top",
+      "labelAt": [
+        825,
+        420
+      ]
+    },
+    {
+      "id": "bff-to-auth",
+      "from": "bff",
+      "to": "auth",
+      "label": "contains",
+      "fromSide": "bottom",
+      "toSide": "top",
+      "labelAt": [
+        605,
+        368
+      ]
+    },
+    {
+      "id": "auth-to-env",
+      "from": "auth",
+      "to": "env",
+      "label": "reads",
+      "labelDy": -26
+    },
+    {
+      "id": "bff-to-apientry",
+      "from": "store",
+      "to": "apientry",
+      "label": "createApp()",
+      "labelDy": -26
+    },
+    {
+      "id": "apientry-to-vercel",
+      "from": "apientry",
+      "to": "vercel",
+      "label": "deploy",
+      "fromSide": "bottom",
+      "toSide": "top",
+      "labelAt": [
+        1045,
+        382
+      ]
+    }
   ],
   "cards": [
-    { "dot": "cyan", "title": "ai — bộ não AI", "items": ["Trip schema (zod), extract() + postProcess(), providers Gemini/DeepSeek", "Không phụ thuộc bff — có thể test độc lập"] },
-    { "dot": "emerald", "title": "bff — máy chủ webhook", "items": ["Import extractor bằng đường dẫn tương đối (../../../ai/src), không phải tên package workspace", "1 file app.ts, dùng Hono, deploy qua api/index.ts"] },
-    { "dot": "rose", "title": "Không phải code chạy", "items": ["docs/ chỉ là văn bản — ADR, roadmap, sơ đồ, báo cáo benchmark", "scripts/ và eval/ là công cụ dev/test, không nằm trong đường deploy production"] }
+    {
+      "dot": "cyan",
+      "title": "ai/ and contracts/ are copies",
+      "items": [
+        "Change them in the team repo, then copy back",
+        "npm run mirror:check fails on any difference"
+      ]
+    },
+    {
+      "dot": "emerald",
+      "title": "bff/src layering",
+      "items": [
+        "process.env is read only in env.ts",
+        "store/, auth/ and quote/ never import views/, services/ or routes/"
+      ]
+    },
+    {
+      "dot": "rose",
+      "title": "Deployment",
+      "items": [
+        "api/index.ts calls createApp(); vercel.json rewrites every path to it",
+        "public/ holds only demo media"
+      ]
+    }
   ]
 }

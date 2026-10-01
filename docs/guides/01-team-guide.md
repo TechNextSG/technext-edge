@@ -101,11 +101,11 @@ curl -s localhost:8787/v1/extract -H 'content-type: application/json' \
   -d '{"text":"4 of us, next Saturday, 3 nights"}'
 ```
 
-## 4. The test console (`GET /`)
+## 4. The test console (`GET /test`, staff only)
 
 A plain page — **not the real estimator UI** (that belongs to the Edge UI
 pod) — for trying extraction without curl or Postman. Live at
-**https://technext-edge-casa-bff.vercel.app/**. Visual identity matches
+**https://technext-edge-casa-bff.vercel.app/test** after signing in at `/login` (a signed-out visitor is sent to `/login`; `/` goes to the studio). Visual identity matches
 `apps/estimate-tool` in `casa-escondida-tools` (same fonts/tokens) on purpose.
 
 It's behind Vercel's Deployment Protection (SSO wall) — anyone hitting the
@@ -113,7 +113,7 @@ bare URL without a session sees a login page, not the app. To get in, open
 this once per browser (sets a cookie for that browser):
 
 ```
-https://technext-edge-casa-bff.vercel.app/?x-vercel-protection-bypass=<secret>&x-vercel-set-bypass-cookie=true
+https://technext-edge-casa-bff.vercel.app/login?x-vercel-protection-bypass=<secret>&x-vercel-set-bypass-cookie=true
 ```
 
 Ask in the team channel for the current bypass secret (`vercel project

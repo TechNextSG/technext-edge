@@ -12,9 +12,8 @@ folders top-down — `adr/` first if you are changing anything the ADRs decide.
 | [`diagrams/`](diagrams/) | Draw.io sources and their PNG exports (flow, component, sequence diagrams). |
 | [`demo/`](demo/) | Demo artefacts: shooting script, staged HTML pages, subtitle file, screen captures, the walkthrough screenshots, the sprint tracker. |
 
-The published documentation site is **not** in here — it is served from
-[`public/`](../public/), which is the only directory the deployment publishes
-from. Pages that used to sit in this folder's root now live there.
+There is no documentation site any more: the app serves no documentation pages, and
+[`public/`](../public/) holds only the demo videos and captures. This folder is the documentation.
 
 ## guides/
 
