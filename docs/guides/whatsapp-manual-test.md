@@ -5,6 +5,8 @@
 > phải kiểm, và những câu phải nói thật khi demo. File này là bản chạy bằng script, dùng khi cần lặp lại
 > nhanh hoặc khi không muốn nhắn thật cho ai.
 
+> **Bộ test case mở rộng (KB12–KB42) để demo: xem `docs/guides/demo-test-cases.md`.**
+
 > **Chạy tự động được rồi (27/09).** Toàn bộ kịch bản dưới đây có một bản chạy bằng script, và nó đọc
 > **đúng tin nhắn mà khách sẽ nhận** thay vì chỉ tin rằng webhook trả `replied: 1`:
 >
