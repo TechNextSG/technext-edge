@@ -5,18 +5,19 @@
 // thread that had enough information minted a NEW quotation for the same phone. One manual test
 // left thirteen (`QT-1120-MIGU-*`, four inside the same minute), and every row in the studio looked
 // current.
+import { buildBffTrip } from "../../ai/src/index.ts";
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
-import { createApp } from "../src/app.js";
+import { createApp } from "../src/app.ts";
 import {
   duplicateQuotationIds,
   findOpenQuotationForPhone,
   saveQuotationDraft,
-} from "../src/stores/quotationStore.js";
-import { issueSession } from "../src/auth/demoAuth.js";
-import { buildHonoQuotationDraft } from "../../quotation/src/index.js";
-import { buildBffTrip } from "../../quotation/src/index.js";
-import type { HonoQuotationDraft } from "../../quotation/src/index.js";
-import type { Trip } from "../../ai/src/index.js";
+} from "../src/stores/quotationStore.ts";
+import { issueSession } from "../src/auth/demoAuth.ts";
+import { buildHonoQuotationDraft } from "../../quotation/src/index.ts";
+
+import type { HonoQuotationDraft } from "../../quotation/src/index.ts";
+import type { Trip } from "../../ai/src/index.ts";
 
 const VERIFY_TOKEN = "cleanup-token";
 

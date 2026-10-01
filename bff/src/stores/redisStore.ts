@@ -1,5 +1,5 @@
-import type { ConversationTurn } from "../../../ai/src/index.js";
-import { kvCommand } from "./kv.js";
+import type { ConversationTurn } from "../../../ai/src/index.ts";
+import { kvCommand } from "./kv.ts";
 import {
   type ConversationStore,
   type PausedThread,
@@ -9,8 +9,8 @@ import {
   THREAD_TTL_MS,
   IN_FLIGHT_CLAIM_TTL_MS,
   sameFieldSet,
-} from "./conversationStore.js";
-import type { StatedValueChange } from "../../../ai/src/index.js";
+} from "./conversationStore.ts";
+import type { StatedValueChange } from "../../../ai/src/index.ts";
 import { randomUUID } from "node:crypto";
 
 export interface RedisConfig {

@@ -5,14 +5,16 @@
  *   npm run upstream:check
  *
  * Run it before touching anything that prices a trip (estimatorClient, simulatedEstimator,
- * odooHandoff, the vendored contract). It runs `git fetch` in the source checkout and nothing else:
+ * odooHandoff, the mirrored ai/ and contracts/). It runs `git fetch` in the source checkout and nothing else:
  * no checkout, no pull, no write to either repo.
  *
  * What it prints, for `origin/main` and `origin/Stage1_Estimator_Tools`:
  *   - commits since the pinned contract commit that touch the paths that reach the chatbot, each
  *     marked [handled] (already in the behaviour snapshot) or [NEW];
- *   - the `TripIssueCode` union at the branch tip, diffed against `ISSUE_CODES` in
- *     `contracts/bff-contract/contract-spec.mjs`.
+ *   - the `TripIssueCode` union at the branch tip, diffed against the codes `bff/src/services/refusalCopy.ts`
+ *     has a sentence for.
+ *
+ * `npm run mirror:check` is the other half: it proves ai/ and contracts/ are still byte-copies.
  *
  * Env: UPSTREAM_REPO — path of the source checkout (default E:\tn-casa-quotation-estimator).
  */
@@ -48,13 +50,13 @@ if (!existsSync(path.join(repo, ".git"))) {
   process.exit(2);
 }
 
-// The pins, from PROVENANCE.md: the contract commit, and the behaviour snapshot's Stage 1 commit.
-const provenance = readFileSync(path.join(root, "contracts/bff-contract/PROVENANCE.md"), "utf8");
+// The pins, from docs/notes/upstream-provenance.md: the contract commit, and the behaviour snapshot's Stage 1 commit.
+const provenance = readFileSync(path.join(root, "docs/notes/upstream-provenance.md"), "utf8");
 const contractPin = /\| Commit \| `([0-9a-f]{7,40})`/.exec(provenance)?.[1];
 const behaviourPin = /transcribed from `Stage1_Estimator_Tools@([0-9a-f]{7,40})`/.exec(provenance)?.[1];
 const dsPin = /pinned at\s+`ds\/ai-room-type-required@([0-9a-f]{7,40})`/.exec(provenance)?.[1];
 if (!contractPin || !behaviourPin || !dsPin) {
-  console.error("Could not read the pinned commits from contracts/bff-contract/PROVENANCE.md.");
+  console.error("Could not read the pinned commits from docs/notes/upstream-provenance.md.");
   process.exit(2);
 }
 
@@ -64,8 +66,14 @@ try {
   console.error(`git fetch failed (${err.stderr?.toString().trim() || err.message}); reporting from what is already local.`);
 }
 
-const spec = await import(new URL("../../contracts/bff-contract/contract-spec.mjs", import.meta.url));
-const known = new Set(spec.ISSUE_CODES);
+// The codes this side has a sentence for: the keys of `ISSUE_COPY` in refusalCopy.ts.
+const copySrc = readFileSync(path.join(root, "bff/src/services/refusalCopy.ts"), "utf8").replace(/\r\n/g, "\n");
+const copyBlock = /export const ISSUE_COPY[^\n]*= \{\n([\s\S]*?)\n\};/.exec(copySrc)?.[1] ?? "";
+const known = new Set([...copyBlock.matchAll(/^\s*"([a-z0-9-]+)":/gm)].map((m) => m[1]));
+if (known.size === 0) {
+  console.error("Could not read the issue codes from bff/src/services/refusalCopy.ts.");
+  process.exit(2);
+}
 
 console.log(`Source repo   ${repo}`);
 console.log(`Contract pin  ${contractPin.slice(0, 7)}   Behaviour snapshot  Stage1@${behaviourPin.slice(0, 7)}   ds pin  ${dsPin.slice(0, 7)}`);
@@ -116,9 +124,9 @@ for (const ref of BRANCHES) {
   const gone = [...known].filter((c) => !codes.includes(c));
   if (fresh.length) {
     codeDrift = true;
-    console.log(`  !! not in ISSUE_CODES (add a sentence in refusalCopy.ts, then the snapshot): ${fresh.join(", ")}`);
+    console.log(`  !! no sentence in refusalCopy.ts yet (add one, then the ISSUE_CODES list in refusalCopy.test.ts): ${fresh.join(", ")}`);
   }
-  if (gone.length) console.log(`  -- in ISSUE_CODES but not at this ref: ${gone.join(", ")}`);
+  if (gone.length) console.log(`  -- has a sentence here but not at this ref: ${gone.join(", ")}`);
 }
 
 console.log(

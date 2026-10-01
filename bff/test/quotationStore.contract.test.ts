@@ -14,8 +14,8 @@ import {
   createInMemoryQuotationStore,
   createRedisQuotationStore,
   type QuotationStore,
-} from "../src/stores/quotationStoreClient.js";
-import type { HonoQuotationDraft } from "../../quotation/src/index.js";
+} from "../src/stores/quotationStoreClient.ts";
+import type { HonoQuotationDraft } from "../../quotation/src/index.ts";
 
 afterEach(() => {
   vi.restoreAllMocks();

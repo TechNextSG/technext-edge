@@ -5,12 +5,12 @@
 // thread back are guarded server-side rather than only hidden in the markup.
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { createHmac } from "node:crypto";
-import { createApp } from "../src/app.js";
+import { createApp } from "../src/app.ts";
 import {
   createInMemoryConversationStore,
   type ConversationStore,
-} from "../src/stores/conversationStore.js";
-import type { ExtractProvider } from "../../ai/src/index.js";
+} from "../src/stores/conversationStore.ts";
+import type { ExtractProvider } from "../../ai/src/index.ts";
 
 const VERIFY_TOKEN = "handoff-inbox-token";
 const APP_SECRET = "handoff-app-secret";

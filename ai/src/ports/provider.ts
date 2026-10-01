@@ -11,7 +11,7 @@ export interface ExtractCall {
   // Set only on the retry, and only when the first attempt's own output failed
   // validation (not on a transport/network failure, which the model can't fix).
   // Playbook: "call again once with the error attached."
-  retry?: { previousRaw: unknown; error: string };
+  retry?: { previousRaw: unknown; error: string } | undefined;
 }
 
 export interface ExtractResult {

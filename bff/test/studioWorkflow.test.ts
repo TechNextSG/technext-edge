@@ -11,9 +11,9 @@
 // running", because the page's own script necessarily contains the same words (it redraws the same
 // status after an action). Asserting on the whole document would pass for the wrong reason.
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
-import { createApp } from "../src/app.js";
-import { listQuotations, renderHonoQuotationEditorHtml, saveQuotationDraft } from "../src/stores/quotationStore.js";
-import type { HonoQuotationDraft } from "../../quotation/src/index.js";
+import { createApp } from "../src/app.ts";
+import { listQuotations, renderHonoQuotationEditorHtml, saveQuotationDraft } from "../src/stores/quotationStore.ts";
+import type { HonoQuotationDraft } from "../../quotation/src/index.ts";
 
 const STAFF_TOKEN = "studio-workflow-token";
 

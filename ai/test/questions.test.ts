@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { converse } from "../src/application/converse.js";
+import { converse } from "../src/application/converse.ts";
 import {
   fallbackReply,
   diveWindowIsGuessed,
@@ -12,12 +12,12 @@ import {
   partnerInvitationReply,
   HANDOFF_REQUIRED_FIELDS,
   NEVER_ASKED_FIELDS,
-} from "../src/application/questions.js";
-import { synthesizeHospitalityReply, verifySynthesizedReply } from "../src/application/synthesis.js";
-import { scoreReplyNaturalness } from "../src/application/naturalness.js";
-import type { ConversationTurn } from "../src/application/converse.js";
-import type { ExtractProvider } from "../src/ports/provider.js";
-import type { Trip } from "../src/domain/schema.js";
+} from "../src/application/questions.ts";
+import { synthesizeHospitalityReply, verifySynthesizedReply } from "../src/application/synthesis.ts";
+import { scoreReplyNaturalness } from "../src/application/naturalness.ts";
+import type { ConversationTurn } from "../src/application/converse.ts";
+import type { ExtractProvider } from "../src/ports/provider.ts";
+import type { Trip } from "../src/domain/schema.ts";
 
 beforeEach(() => {
   vi.useFakeTimers();
@@ -213,7 +213,7 @@ describe("the reply the guest gets back", () => {
       checkIn: { value: null, state: "stated", evidence: "next Saturday" },
       nights: { value: 3, state: "stated", evidence: "3 nights" },
       guests: { value: 2, state: "stated", evidence: "2 of us" },
-      roomType: { value: "standard", state: "stated", evidence: "a standard room" },
+      roomType: { value: "standard" as const, state: "stated", evidence: "a standard room" },
       diver: { value: false, state: "stated", evidence: "no diving" },
       contactName: { value: "Nhat", state: "stated", evidence: "Nhat" },
     };
@@ -266,7 +266,7 @@ describe("the reply the guest gets back", () => {
       nights: { value: 3, state: "stated" as const, evidence: "3 nights" },
       guests: { value: 2, state: "stated" as const, evidence: "2 of us" },
       rooms: { value: 1, state: "default" as const, evidence: null },
-      roomType: { value: "standard", state: "stated" as const, evidence: "a standard room" },
+      roomType: { value: "standard" as const, state: "stated" as const, evidence: "a standard room" },
       meals: { value: "full_board" as const, state: "default" as const, evidence: null },
       transport: { value: true, state: "stated" as const, evidence: "need pickup" },
       transportType: { value: "roundtrip" as const, state: "derived" as const, evidence: null },
@@ -285,7 +285,7 @@ describe("the reply the guest gets back", () => {
       nights: { value: 2, state: "stated" as const, evidence: "2 nights" },
       guests: { value: 3, state: "stated" as const, evidence: "3 are staying" },
       rooms: { value: 1, state: "default" as const, evidence: null },
-      roomType: { value: "standard", state: "stated" as const, evidence: "a standard room" },
+      roomType: { value: "standard" as const, state: "stated" as const, evidence: "a standard room" },
       meals: { value: "full_board" as const, state: "default" as const, evidence: null },
       transport: { value: false, state: "default" as const, evidence: null },
       diver: { value: true, state: "stated" as const, evidence: "will dive" },
@@ -310,7 +310,7 @@ describe("the reply the guest gets back", () => {
       nights: { value: 2, state: "stated" as const, evidence: "2 nights" },
       guests: { value: 3, state: "stated" as const, evidence: "3 are staying" },
       rooms: { value: 1, state: "default" as const, evidence: null },
-      roomType: { value: "standard", state: "stated" as const, evidence: "a standard room" },
+      roomType: { value: "standard" as const, state: "stated" as const, evidence: "a standard room" },
       meals: { value: "full_board" as const, state: "default" as const, evidence: null },
       transport: { value: false, state: "default" as const, evidence: null },
       diver: { value: true, state: "stated" as const, evidence: "will dive" },
@@ -391,7 +391,7 @@ describe("the reply the guest gets back", () => {
       checkIn: { value: null, state: "stated", evidence: "26/09/2026" },
       nights: { value: 3, state: "stated", evidence: "3晚" },
       guests: { value: 2, state: "stated", evidence: "2位" },
-      roomType: { value: "standard", state: "stated", evidence: "标准房" },
+      roomType: { value: "standard" as const, state: "stated", evidence: "标准房" },
       diver: { value: false, state: "stated", evidence: "不潜水" },
       contactName: { value: "Li", state: "stated", evidence: "Li" },
     };
@@ -579,7 +579,7 @@ describe("fallbacks", () => {
       checkIn: { value: "2026-10-10", state: "stated", evidence: "Oct 10" },
       nights: { value: 2, state: "stated", evidence: "2 nights" },
       guests: { value: 2, state: "stated", evidence: "2 of us" },
-      roomType: { value: "standard", state: "stated", evidence: "standard room" },
+      roomType: { value: "standard" as const, state: "stated", evidence: "standard room" },
       diver: { value: true, state: "stated", evidence: "we dive" },
       divers: { value: 2, state: "stated", evidence: "2 divers" },
       diveFrom: { value: "2026-10-11", state: "stated", evidence: "Oct 11" },
@@ -604,7 +604,7 @@ describe("Phase 1 Hybrid AI Guardrails: NEVER RE-ASK, Fact Gate & Staff Alerts",
       checkIn: { value: "2026-10-10", state: "stated", evidence: "Oct 10" },
       nights: { value: 2, state: "stated", evidence: "2 nights" },
       guests: { value: 6, state: "stated", evidence: "6 of us" },
-      roomType: { value: "standard", state: "stated", evidence: "standard room" },
+      roomType: { value: "standard" as const, state: "stated", evidence: "standard room" },
       diver: { value: true, state: "stated", evidence: "dives" },
       divers: { value: null, state: "missing", evidence: null }, // cannot collapse 1 vs 5 into single integer
       diveNotes: {
@@ -850,7 +850,7 @@ describe("a dive window the guest never gave", () => {
       nights: { value: 4, state: "stated", evidence: "4 nights" },
       guests: { value: 4, state: "stated", evidence: "family of 4" },
       rooms: { value: 2, state: "stated", evidence: "2 rooms" },
-      roomType: { value: "standard", state: "stated", evidence: "2 standard rooms" },
+      roomType: { value: "standard" as const, state: "stated", evidence: "2 standard rooms" },
       meals: { value: "full_board", state: "default", evidence: null },
       transport: { value: false, state: "stated", evidence: "we'll drive ourselves" },
       transportType: { value: "none", state: "derived", evidence: null },

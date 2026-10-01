@@ -1,8 +1,8 @@
 // The quotation draft as the studio, the store and the guest pages all see it. Types only: building,
 // pricing and repricing a draft is application work in quotationTool.ts.
-import type { BffTrip } from "../../../contracts/src/index.js";
-import type { StaffTripEdit } from "./tripDiff.js";
-import type { QuotationPricing } from "./pricing.js";
+import type { BffTrip } from "../../../ai/src/index.ts";
+import type { StaffTripEdit } from "./tripDiff.ts";
+import type { QuotationPricing } from "./pricing.ts";
 
 export interface QuotationLineItem {
   id: string;

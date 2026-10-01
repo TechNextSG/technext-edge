@@ -6,13 +6,14 @@
 // The engine is the simulated port (see simulatedEstimator.ts), which is the configuration the demo
 // runs in. That is deliberate: the state machine under test is ours, and it must be correct before
 // a real Odoo key is anywhere near it.
+import { buildBffTrip } from "../../ai/src/index.ts";
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { createApp } from "../src/app.js";
-import { createSimulatedEstimator } from "../src/services/simulatedEstimator.js";
-import { buildHonoQuotationDraft } from "../../quotation/src/index.js";
-import { saveQuotationDraft } from "../src/stores/quotationStore.js";
-import { buildBffTrip } from "../../quotation/src/index.js";
-import type { Trip } from "../../ai/src/index.js";
+import { createApp } from "../src/app.ts";
+import { createSimulatedEstimator } from "../src/services/simulatedEstimator.ts";
+import { buildHonoQuotationDraft } from "../../quotation/src/index.ts";
+import { saveQuotationDraft } from "../src/stores/quotationStore.ts";
+
+import type { Trip } from "../../ai/src/index.ts";
 
 const VERIFY_TOKEN = "reservation-token";
 

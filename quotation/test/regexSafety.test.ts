@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
-import type { Trip } from "../../ai/src/index.js";
-import { buildHonoQuotationDraft } from "../src/index.js";
+import type { Trip } from "../../ai/src/index.ts";
+import { buildHonoQuotationDraft } from "../src/index.ts";
 
 // The split-day dive parser reads the guest's diveNotes verbatim. It was rewritten to stay linear on
 // a long digit run (CodeQL js/polynomial-redos); this pins that, and that the count it reads is unchanged.

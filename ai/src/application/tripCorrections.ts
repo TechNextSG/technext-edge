@@ -23,7 +23,7 @@
  * the failure mode is "a human's correction survives and staff are told", never "the bot silently
  * overwrote a human with an old reading".
  */
-import type { Trip } from "../domain/schema.js";
+import type { Trip } from "../domain/schema.ts";
 
 /**
  * Which extracted fields a differing `BffTrip` path is a reading of.

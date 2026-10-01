@@ -18,7 +18,7 @@ import { fileURLToPath } from "node:url";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
 const ORDER = ["contracts", "ai", "quotation", "bff"];
-const ENTRIES = new Set(["src/index.js", "bff-contract/contract-spec.mjs"]);
+const ENTRIES = new Set(["src/index.ts"]);
 const SPEC = /(?:from|import)\s*\(?\s*["'](\.\.?\/[^"']+)["']/g;
 
 function* walk(dir) {
@@ -41,7 +41,7 @@ for (const pkg of ORDER) {
       if (!ORDER.includes(other) || other === pkg) continue;
       const where = `${path.relative(root, file)} -> ${spec}`;
       if (!allowed.has(other)) problems.push(`${where}\n    ${pkg} may not depend on ${other}`);
-      else if (!ENTRIES.has(target.slice(1).join("/"))) problems.push(`${where}\n    import ${other}/src/index.js, not a file inside it`);
+      else if (!ENTRIES.has(target.slice(1).join("/"))) problems.push(`${where}\n    import ${other}/src/index.ts, not a file inside it`);
     }
   }
 }

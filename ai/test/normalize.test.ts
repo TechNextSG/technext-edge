@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { detectLanguage, guestTextOf } from "../src/application/normalize.js";
+import { detectLanguage, guestTextOf } from "../src/application/normalize.ts";
 
 // Both functions only ever see one side of the conversation: the guest's. That is
 // the whole point of them, so the tests read like the two failure modes they were

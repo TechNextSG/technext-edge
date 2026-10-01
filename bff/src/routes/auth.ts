@@ -8,8 +8,8 @@ import {
   SAFE_NEXT_PREFIXES,
   type DemoRole,
   type LoginAttemptLimiter,
-} from "../auth/demoAuth.js";
-import { sameSecret } from "../services/whatsapp.js";
+} from "../auth/demoAuth.ts";
+import { sameSecret } from "../services/whatsapp.ts";
 
 export interface AuthRouteDeps {
   /**

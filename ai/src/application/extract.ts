@@ -1,15 +1,43 @@
-import { zodToJsonSchema } from "zod-to-json-schema";
+import { z } from "zod";
 import { ZodError } from "zod";
-import { Trip, HOUSE_NORM_FIELDS, type Trip as TripType, type Field, type FieldState } from "../domain/schema.js";
-import { HOUSE_NORMS } from "../domain/houseNorms.js";
-import { manilaToday, resolveRelativeDate, deriveCheckOut, deriveNightsFromRange, corroborateDatePhrase, isPlausibleStayDate, isPastDate } from "../domain/dates.js";
-import { corroborateCount } from "../domain/counts.js";
-import { normalize, detectLanguage, guestTextOf } from "./normalize.js";
-import { generateQuestions } from "./questions.js";
-import type { ExtractProvider } from "../ports/provider.js";
-import { MalformedArgumentsError } from "../ports/provider.js";
+import { Trip, HOUSE_NORM_FIELDS, type Trip as TripType, type Field, type FieldState } from "../domain/schema.ts";
+import { HOUSE_NORMS } from "../domain/houseNorms.ts";
+import { manilaToday, resolveRelativeDate, deriveCheckOut, deriveNightsFromRange, corroborateDatePhrase, isPlausibleStayDate, isPastDate } from "../domain/dates.ts";
+import { corroborateCount } from "../domain/counts.ts";
+import { normalize, detectLanguage, guestTextOf } from "./normalize.ts";
+import { generateQuestions } from "./questions.ts";
+import type { ExtractProvider } from "../ports/provider.ts";
+import { MalformedArgumentsError } from "../ports/provider.ts";
 
-const TRIP_JSON_SCHEMA = zodToJsonSchema(Trip, { $refStrategy: "none", target: "openApi3" });
+function toOpenApi3Schema(node: unknown): unknown {
+  if (Array.isArray(node)) return node.map(toOpenApi3Schema);
+  if (node === null || typeof node !== "object") return node;
+  const obj = { ...(node as Record<string, unknown>) };
+  delete obj.$schema;
+  delete obj.additionalProperties;
+  if (Array.isArray(obj.type)) {
+    const types = obj.type.filter((t) => t !== "null");
+    if (obj.type.includes("null")) obj.nullable = true;
+    obj.type = types[0] ?? "string";
+  }
+  if (Array.isArray(obj.anyOf)) {
+    const nonNull = obj.anyOf.filter(
+      (item) => typeof item === "object" && item !== null && (item as Record<string, unknown>).type !== "null",
+    );
+    const hasNull = obj.anyOf.length !== nonNull.length;
+    if (nonNull.length === 1 && typeof nonNull[0] === "object" && nonNull[0] !== null) {
+      const merged = toOpenApi3Schema(nonNull[0]) as Record<string, unknown>;
+      if (hasNull) merged.nullable = true;
+      return merged;
+    }
+  }
+  for (const [k, v] of Object.entries(obj)) {
+    obj[k] = toOpenApi3Schema(v);
+  }
+  return obj;
+}
+
+const TRIP_JSON_SCHEMA = toOpenApi3Schema(z.toJSONSchema(Trip)) as object;
 
 export interface ExtractionOutcome {
   trip: TripType;

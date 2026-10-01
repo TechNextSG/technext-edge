@@ -18,11 +18,11 @@
 // asserted is the behaviour of the channel rather than of a helper called on its behalf.
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { createHmac } from "node:crypto";
-import { createApp } from "../src/app.js";
-import { createInMemoryConversationStore } from "../src/stores/conversationStore.js";
-import { listQuotations, saveQuotationDraft } from "../src/stores/quotationStore.js";
-import type { ExtractProvider } from "../../ai/src/index.js";
-import type { HonoQuotationDraft } from "../../quotation/src/index.js";
+import { createApp } from "../src/app.ts";
+import { createInMemoryConversationStore } from "../src/stores/conversationStore.ts";
+import { listQuotations, saveQuotationDraft } from "../src/stores/quotationStore.ts";
+import type { ExtractProvider } from "../../ai/src/index.ts";
+import type { HonoQuotationDraft } from "../../quotation/src/index.ts";
 
 const VERIFY_TOKEN = "enquiry-token";
 const APP_SECRET = "enquiry-secret";

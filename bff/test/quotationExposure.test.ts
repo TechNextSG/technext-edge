@@ -12,22 +12,20 @@
 // Two root causes, both asserted below: `getQuotationByIdOrSlug` fell back to the newest
 // quotation for anything unknown (and cloned the seeded record for any `/^QT-/` id), and the
 // staff routes had no guard at all.
+import { validateBffTripPrecheck, buildBffTrip } from "../../ai/src/index.ts";
 import { describe, it, expect, beforeAll, afterAll, vi } from "vitest";
 import { randomUUID } from "node:crypto";
-import { createApp } from "../src/app.js";
-import { createEstimatorClient } from "../src/services/estimatorClient.js";
+import { createApp } from "../src/app.ts";
+import { createEstimatorClient } from "../src/services/estimatorClient.ts";
 import {
   listQuotations,
   getQuotationByIdOrSlug,
   saveQuotationDraft,
-} from "../src/stores/quotationStore.js";
-import { buildHonoQuotationDraft, recalculateQuotationTotals, synthesizeConfirmedQuotationReply } from "../../quotation/src/index.js";
-import {
-  validateBffTripPrecheck,
-  buildBffTrip,
-} from "../../quotation/src/index.js";
-import type { Trip } from "../../ai/src/index.js";
-import type { HonoQuotationDraft } from "../../quotation/src/index.js";
+} from "../src/stores/quotationStore.ts";
+import { buildHonoQuotationDraft, recalculateQuotationTotals, synthesizeConfirmedQuotationReply } from "../../quotation/src/index.ts";
+
+import type { Trip } from "../../ai/src/index.ts";
+import type { HonoQuotationDraft } from "../../quotation/src/index.ts";
 
 const STAFF_TOKEN = "test-staff-token";
 const savedToken = process.env.WHATSAPP_VERIFY_TOKEN;

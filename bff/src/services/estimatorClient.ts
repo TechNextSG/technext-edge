@@ -27,8 +27,8 @@
  * `/quote/<token>` link is noted at the bottom of this file; it is deliberately not implemented
  * because those endpoints are not on their `main`.
  */
-import type { BffTrip } from "../../../contracts/src/index.js";
-import { describeRefusal, refusalCode, refusalIssues } from "./refusalCopy.js";
+import type { BffTrip } from "../../../ai/src/index.ts";
+import { describeRefusal, refusalCode, refusalIssues } from "./refusalCopy.ts";
 import type {
   CommitResult,
   EstimateSendResult,
@@ -39,7 +39,7 @@ import type {
   ShareResult,
   SubmitInput,
   SubmitResult,
-} from "./estimatorPort.js";
+} from "./estimatorPort.ts";
 
 // Re-exported so existing importers keep working. This type was defined here until the simulated
 // port needed the same definition; one type with two implementations is what keeps them honest.

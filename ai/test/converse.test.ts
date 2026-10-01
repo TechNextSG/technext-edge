@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { converse } from "../src/application/converse.js";
-import type { ExtractProvider } from "../src/ports/provider.js";
+import { converse } from "../src/application/converse.ts";
+import type { ExtractProvider } from "../src/ports/provider.ts";
 
 beforeEach(() => {
   vi.useFakeTimers();
@@ -94,7 +94,7 @@ describe("converse", () => {
       provider,
     );
 
-    const sentText = (provider.call as ReturnType<typeof vi.fn>).mock.calls[0][0].text;
+    const sentText = (provider.call as ReturnType<typeof vi.fn>).mock.calls[0]![0].text;
     expect(sentText).toContain("Guest: Hi, next Saturday for 3 nights please");
     expect(sentText).toContain("Assistant: How many guests in total?");
     expect(sentText).toContain("Guest: 2 of us, 1 room");
@@ -128,13 +128,13 @@ describe("converse", () => {
   it("keeps early context instead of dropping it after an arbitrary turn count", async () => {
     const provider = providerReturning(PARTIAL_RAW);
     const turns = Array.from({ length: 12 }, (_, i) => ({
-      role: (i % 2 === 0 ? "guest" : "assistant") as const,
+      role: i % 2 === 0 ? ("guest" as const) : ("assistant" as const),
       text: `turn-marker-${i}`,
     }));
 
     await converse(turns, provider);
 
-    const sentText = (provider.call as ReturnType<typeof vi.fn>).mock.calls[0][0].text;
+    const sentText = (provider.call as ReturnType<typeof vi.fn>).mock.calls[0]![0].text;
     expect(sentText).toContain("turn-marker-0"); // early guest facts remain available
     expect(sentText).toContain("turn-marker-3");
     expect(sentText).toContain("turn-marker-11");
@@ -152,7 +152,7 @@ describe("converse", () => {
       provider,
     );
 
-    const sentText = (provider.call as ReturnType<typeof vi.fn>).mock.calls[0][0].text;
+    const sentText = (provider.call as ReturnType<typeof vi.fn>).mock.calls[0]![0].text;
     expect(sentText).toContain("Guest: We are 2 guests");
     expect(sentText).toContain("Guest: Please add 1 room and full board.");
   });

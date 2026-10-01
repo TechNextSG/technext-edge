@@ -4,12 +4,12 @@ import { secureHeaders } from "hono/secure-headers";
 import {
   createProviderByName,
   type ExtractProvider,
-} from "../../ai/src/index.js";
-import { saveQuotationDraft } from "./stores/quotationStore.js";
-import { createProviderHolder } from "./services/aiProvider.js";
-import { createSettingsStore, type SettingsStore } from "./stores/settingsStore.js";
-import { createEstimatorPortFromEnv, type EstimatorPort } from "./services/estimatorPort.js";
-import { createConversationStoreFromEnv, type ConversationStore } from "./stores/conversationStore.js";
+} from "../../ai/src/index.ts";
+import { saveQuotationDraft } from "./stores/quotationStore.ts";
+import { createProviderHolder } from "./services/aiProvider.ts";
+import { createSettingsStore, type SettingsStore } from "./stores/settingsStore.ts";
+import { createEstimatorPortFromEnv, type EstimatorPort } from "./services/estimatorPort.ts";
+import { createConversationStoreFromEnv, type ConversationStore } from "./stores/conversationStore.ts";
 import {
   DEMO_SESSION_COOKIE,
   createLoginAttemptLimiter,
@@ -19,25 +19,25 @@ import {
   verifySession,
   type DemoRole,
   adminAccessKey,
-} from "./auth/demoAuth.js";
+} from "./auth/demoAuth.ts";
 import {
   sameSecret,
   type WhatsAppSendText,
-} from "./services/whatsapp.js";
+} from "./services/whatsapp.ts";
 import {
   closeEnquiryQuotation,
   guestPendingQuotationNote,
-} from "./services/whatsappTurnService.js";
+} from "./services/whatsappTurnService.ts";
 
 // Route modules
-import { registerAuthRoutes } from "./routes/auth.js";
-import { registerAdminRoutes } from "./routes/admin.js";
-import { registerHealthRoutes } from "./routes/health.js";
-import { registerPageRoutes } from "./routes/pages.js";
-import { registerExtractorRoutes } from "./routes/extractor.js";
-import { registerHandoffRoutes } from "./routes/handoff.js";
-import { registerWhatsAppRoutes } from "./routes/whatsapp.js";
-import { registerQuotesRoutes } from "./routes/quotes.js";
+import { registerAuthRoutes } from "./routes/auth.ts";
+import { registerAdminRoutes } from "./routes/admin.ts";
+import { registerHealthRoutes } from "./routes/health.ts";
+import { registerPageRoutes } from "./routes/pages.ts";
+import { registerExtractorRoutes } from "./routes/extractor.ts";
+import { registerHandoffRoutes } from "./routes/handoff.ts";
+import { registerWhatsAppRoutes } from "./routes/whatsapp.ts";
+import { registerQuotesRoutes } from "./routes/quotes.ts";
 
 export { guestPendingQuotationNote };
 

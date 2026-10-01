@@ -17,10 +17,17 @@
     "verify": "npm run check:boundaries && npm run typecheck && npm test",
     "dev:bff": "npm run dev --workspace bff",
     "upstream:check": "node tools/ops/upstream-check.mjs",
+    "mirror:check": "node tools/ops/mirror-check.mjs",
     "check:boundaries": "node tools/ops/check-boundaries.mjs"
   },
   "engines": {
     "node": ">=18"
   },
-  "license": "UNLICENSED"
+  "license": "UNLICENSED",
+  "devDependencies": {
+    "@types/node": "^22.7.0",
+    "openapi-typescript": "^7.13.0",
+    "typescript": "^5.6.0",
+    "vitest": "^5.0.1"
+  }
 }

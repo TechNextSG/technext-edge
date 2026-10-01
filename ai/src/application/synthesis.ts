@@ -1,8 +1,8 @@
-import type { Trip } from "../domain/schema.js";
-import type { GuestQuestion, ReplyKind } from "./questions.js";
-import { diveWindowIsGuessed } from "./questions.js";
-import type { ExtractProvider } from "../ports/provider.js";
-import type { ConversationTurn } from "../domain/conversation.js";
+import type { Trip } from "../domain/schema.ts";
+import type { GuestQuestion, ReplyKind } from "./questions.ts";
+import { diveWindowIsGuessed } from "./questions.ts";
+import type { ExtractProvider } from "../ports/provider.ts";
+import type { ConversationTurn } from "../domain/conversation.ts";
 
 export interface SynthesisInput {
   turns: ConversationTurn[];

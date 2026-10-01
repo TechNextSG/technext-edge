@@ -1,13 +1,12 @@
 import { randomUUID } from "node:crypto";
-import type { Trip } from "../../../ai/src/index.js";
-import type { BffTrip } from "../../../contracts/src/index.js";
-import type { StaffTripEdit } from "../domain/tripDiff.js";
-import type { ExtractProvider } from "../../../ai/src/index.js";
-import { getStaffAlerts, diveWindowIsGuessed } from "../../../ai/src/index.js";
-import { buildBffTrip, datesBetweenInclusive } from "./odooHandoff.js";
-import { verifyGuestFacingText, withBudget, type GuestFacingFacts } from "../../../ai/src/index.js";
-import { quotationValidityLines, quotationValidUntil } from "../domain/quotationValidity.js";
-import type { QuotationPricing } from "../domain/pricing.js";
+import type { Trip } from "../../../ai/src/index.ts";
+import type { BffTrip } from "../../../ai/src/index.ts";
+import type { StaffTripEdit } from "../domain/tripDiff.ts";
+import type { ExtractProvider } from "../../../ai/src/index.ts";
+import { getStaffAlerts, diveWindowIsGuessed } from "../../../ai/src/index.ts";
+import { buildBffTrip, datesBetweenInclusive } from "../../../ai/src/index.ts";
+import { verifyGuestFacingText, withBudget, type GuestFacingFacts } from "../../../ai/src/index.ts";
+import { quotationValidityLines, quotationValidUntil } from "../domain/quotationValidity.ts";
 import {
   roomNightlyRate,
   diveTierPrice,
@@ -16,7 +15,7 @@ import {
   ROOM_TYPE_LABELS,
   vansForGuests,
   type RoomType,
-} from "../domain/rates.js";
+} from "../domain/rates.ts";
 import type {
   QuotationLineItem,
   QuotationSubmissionState,
@@ -25,7 +24,7 @@ import type {
   HonoQuotationDraft,
   QuotationEstimatorState,
   HonoToolCallTrace,
-} from "../domain/quotationDraft.js";
+} from "../domain/quotationDraft.ts";
 
 export type {
   QuotationLineItem,

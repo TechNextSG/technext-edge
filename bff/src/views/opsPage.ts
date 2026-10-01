@@ -14,9 +14,9 @@
  * A quotation that has not been priced has no operational data, and this says so instead of
  * inventing an empty day.
  */
-import { themeCss } from "./theme.js";
-import type { HonoQuotationDraft } from "../../../quotation/src/index.js";
-import { escapeHtml } from "./html.js";
+import { themeCss } from "./theme.ts";
+import type { HonoQuotationDraft } from "../../../quotation/src/index.ts";
+import { escapeHtml } from "./html.ts";
 
 const SHORT_MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 const SHORT_DAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];

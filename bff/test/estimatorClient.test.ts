@@ -4,6 +4,7 @@
 // `fetch` is the seam that gets faked, never our own serialization: `buildEstimateRequest()` is
 // real code under test, and `sendEstimate()` runs its real body-parsing and status mapping. That
 // is the difference between testing this layer and testing a mock of this layer.
+import { buildBffTrip } from "../../ai/src/index.ts";
 import { describe, it, expect, vi, afterEach } from "vitest";
 import {
   buildEstimateRequest,
@@ -11,10 +12,10 @@ import {
   estimatorBaseUrl,
   DEFAULT_ESTIMATOR_BASE_URL,
   ESTIMATE_PATH,
-} from "../src/services/estimatorClient.js";
-import { buildBffTrip } from "../../quotation/src/index.js";
-import type { BffTrip } from "../../contracts/src/index.js";
-import type { Trip } from "../../ai/src/index.js";
+} from "../src/services/estimatorClient.ts";
+
+import type { BffTrip } from "../../ai/src/index.ts";
+import type { Trip } from "../../ai/src/index.ts";
 
 afterEach(() => {
   vi.restoreAllMocks();

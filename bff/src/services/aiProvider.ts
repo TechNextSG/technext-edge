@@ -14,8 +14,8 @@ import {
   type ModelChoice,
   type ProviderOutcome,
   type ProviderSettings,
-} from "../../../ai/src/index.js";
-import type { SettingsStore } from "../stores/settingsStore.js";
+} from "../../../ai/src/index.ts";
+import type { SettingsStore } from "../stores/settingsStore.ts";
 
 export interface ProviderHolder {
   get(): Promise<ExtractProvider>;

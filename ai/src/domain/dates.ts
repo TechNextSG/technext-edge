@@ -19,7 +19,7 @@
 // Anything less than that stays `missing`, which is what turns the field back into
 // a question. The model proposes; this file decides.
 
-import type { GuestLanguage } from "./schema.js";
+import type { GuestLanguage } from "./schema.ts";
 
 const MANILA_OFFSET_MINUTES = 8 * 60; // UTC+8, no DST
 
@@ -129,9 +129,9 @@ export function resolveRelativeDate(phrase: string, today: string, language?: Gu
   if (isoDate || numericDate) {
     const [, isoYear, isoMonth, isoDay] = isoDate ?? [];
     const [, numericDay, numericMonth, numericYear] = numericDate ?? [];
-    const day = isoDay ?? numericDay;
-    const month = isoMonth ?? numericMonth;
-    const year = isoYear ?? numericYear;
+    const day = isoDay ?? numericDay ?? "";
+    const month = isoMonth ?? numericMonth ?? "";
+    const year = isoYear ?? numericYear ?? "";
     // "10/12/2026" is 10 December or 12 October, and both are real dates. This form used to be read
     // day-first without asking while the yearless form ("10/12") was read by the guest's language, so
     // one message could resolve two different ways. An explicit numeric date that has a second valid

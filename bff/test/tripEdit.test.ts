@@ -9,14 +9,15 @@
 // These tests are therefore about two things at once: that an edit really changes what the engine
 // charges (the deluxe-room case is ₱3,600 a night, and the simulated port prices it), and that an
 // edit cannot leave the quotation approved, published, or holding a second engine scenario.
+import { buildBffTrip } from "../../ai/src/index.ts";
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { createApp } from "../src/app.js";
-import { createEstimatorClient } from "../src/services/estimatorClient.js";
-import { buildHonoQuotationDraft } from "../../quotation/src/index.js";
-import { listQuotations, saveQuotationDraft } from "../src/stores/quotationStore.js";
-import { buildBffTrip } from "../../quotation/src/index.js";
-import type { BffTrip } from "../../contracts/src/index.js";
-import type { Trip } from "../../ai/src/index.js";
+import { createApp } from "../src/app.ts";
+import { createEstimatorClient } from "../src/services/estimatorClient.ts";
+import { buildHonoQuotationDraft } from "../../quotation/src/index.ts";
+import { listQuotations, saveQuotationDraft } from "../src/stores/quotationStore.ts";
+
+import type { BffTrip } from "../../ai/src/index.ts";
+import type { Trip } from "../../ai/src/index.ts";
 
 const VERIFY_TOKEN = "trip-edit-token";
 

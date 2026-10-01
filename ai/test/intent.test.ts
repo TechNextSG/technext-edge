@@ -5,9 +5,9 @@
 // "the pattern dismissed a real guest". So the cases below are deliberately split into the ones
 // that must fire and the ordinary-looking enquiries that must NOT.
 import { describe, it, expect } from "vitest";
-import { classifyEnquiry } from "../src/application/intent.js";
-import { stalledHandoffReply } from "../src/application/questions.js";
-import type { Trip } from "../src/domain/schema.js";
+import { classifyEnquiry } from "../src/application/intent.ts";
+import { stalledHandoffReply } from "../src/application/questions.ts";
+import type { Trip } from "../src/domain/schema.ts";
 
 describe("classifyEnquiry — a person is needed because of what the message is", () => {
   const escalating = [

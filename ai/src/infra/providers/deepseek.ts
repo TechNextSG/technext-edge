@@ -5,8 +5,8 @@
 // on DeepSeek's own infrastructure (data residency in the PRC — this is what
 // disqualified DeepSeek at Gate A), and the gateway itself logs every prompt
 // and response to the team's spend dashboard.
-import type { ExtractCall, ExtractProvider, ExtractResult, GuestsReadResult, CheckInReadResult, DiveWindowReadResult } from "../../ports/provider.js";
-import { MalformedArgumentsError } from "../../ports/provider.js";
+import type { ExtractCall, ExtractProvider, ExtractResult, GuestsReadResult, CheckInReadResult, DiveWindowReadResult } from "../../ports/provider.ts";
+import { MalformedArgumentsError } from "../../ports/provider.ts";
 
 // Trims trailing slashes with a loop rather than `/\/+$/`: the base URL is settings input, and that
 // regex backtracks polynomially on a long run of '/' (CodeQL js/polynomial-redos).

@@ -34,12 +34,9 @@
  *   * no partner discount: a partner rate comes from the partner's own Odoo key, not from the trip.
  */
 import { randomUUID } from "node:crypto";
-import type { BffGuest, BffTrip } from "../../../contracts/src/index.js";
-import {
-  datesBetweenInclusive,
-  validateBffTripPrecheck,
-} from "../../../quotation/src/index.js";
-import { DEFAULT_ROOM_CAPS, type RoomCaps } from "../../../ai/src/index.js";
+import type { BffGuest, BffTrip } from "../../../ai/src/index.ts";
+
+import { DEFAULT_ROOM_CAPS, type RoomCaps, datesBetweenInclusive, validateBffTripPrecheck } from "../../../ai/src/index.ts";
 import {
   COURSE_RATES,
   diveTierPrice,
@@ -49,8 +46,8 @@ import {
   vanLoads,
   vansForGuests,
   type RoomType,
-} from "../../../quotation/src/index.js";
-import { describeRefusal, refusalIssues } from "./refusalCopy.js";
+} from "../../../quotation/src/index.ts";
+import { describeRefusal, refusalIssues } from "./refusalCopy.ts";
 import type {
   CommitResult,
   EstimateSendResult,
@@ -61,7 +58,7 @@ import type {
   ShareResult,
   SubmitInput,
   SubmitResult,
-} from "./estimatorPort.js";
+} from "./estimatorPort.ts";
 
 /** Two decimals, because the captured card itself carries a 16400.01 deluxe band. */
 const r2 = (n: number) => Math.round(n * 100) / 100;

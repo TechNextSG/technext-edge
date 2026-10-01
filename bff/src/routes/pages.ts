@@ -1,5 +1,5 @@
 import type { Hono } from "hono";
-import { TEST_PAGE_HTML } from "../views/testPage.js";
+import { TEST_PAGE_HTML } from "../views/testPage.ts";
 import {
   getIndexHtml,
   getBenchmarkHtml,
@@ -17,7 +17,7 @@ import {
   getProjectArchitectureHtml,
   getInboundMessageFlowHtml,
   getDemoTheatreHtml,
-} from "../views/reportsHtml.js";
+} from "../views/reportsHtml.ts";
 
 /**
  * The pages that are not the product: the test console, the reports, the diagrams and the

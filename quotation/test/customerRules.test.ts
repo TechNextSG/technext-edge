@@ -1,12 +1,20 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { extract, partnerTypeOf } from "../../ai/src/index.js";
-import { detectLanguage } from "../../ai/src/index.js";
-import { buildBffTrip, buildOdooHandoffPayload } from "../src/application/odooHandoff.js";
-import { toInquiryLead } from "../src/application/inquiryLead.js";
-import { buildHonoQuotationDraft } from "../src/application/quotationTool.js";
-import type { ExtractProvider } from "../../ai/src/index.js";
-import type { Trip } from "../../ai/src/index.js";
-import * as spec from "../../contracts/bff-contract/contract-spec.mjs";
+import { extract, partnerTypeOf, detectLanguage, buildBffTrip, buildOdooHandoffPayload } from "../../ai/src/index.ts";
+import { toInquiryLead } from "../src/application/inquiryLead.ts";
+import { buildHonoQuotationDraft } from "../src/application/quotationTool.ts";
+import type { ExtractProvider } from "../../ai/src/index.ts";
+import type { Trip } from "../../ai/src/index.ts";
+
+/**
+ * F10 — the website enquiry as `toInquiryLead` prepares it: only the columns this side collects (the team estimator's
+ * own `leadId`, `name`, `email`, `phone`, `nights`, `travelMonth`, `checkin` and `sameStayLength` are theirs). Their plan
+ * `docs/superpowers/plans/2026-09-28-profile-certs-inquiry.md` (Task 7, `InquiryLead`) marks the shape "assumed", so it
+ * can change; `npm run upstream:check` shows when it does.
+ */
+const INQUIRY_LEAD = {
+  fields: ["totalGuests", "rooms", "mealPlan", "airportTransfer", "divers", "coursesInterest", "message"],
+  roomTypes: ["standard", "deluxe", "suite"],
+};
 
 beforeEach(() => {
   vi.useFakeTimers();
@@ -127,14 +135,14 @@ describe("meals, courses, diet and transfer", () => {
 describe("F10: the enquiry prepared for their inquiry route (nothing is sent)", () => {
   it("has exactly the columns their shape has, with their enums", () => {
     const lead = toInquiryLead(tripOf({ diver: f(true), divers: f(2), specialRequests: f("rollaway bed"), dietNotes: f("no pork") }));
-    expect(Object.keys(lead).sort()).toEqual([...spec.INQUIRY_LEAD.fields].sort());
+    expect(Object.keys(lead).sort()).toEqual([...INQUIRY_LEAD.fields].sort());
     expect(lead.totalGuests).toBe(3);
     expect(lead.rooms).toEqual([{ type: "standard", pax: 2 }, { type: "standard", pax: 1 }]);
     expect(lead.mealPlan).toBe("full_board");
     expect(lead.airportTransfer).toBe("no");
     expect(lead.divers).toBe(2);
     expect(lead.message).toBe("rollaway bed; no pork");
-    for (const room of lead.rooms) expect(spec.INQUIRY_LEAD.roomTypes).toContain(room.type);
+    for (const room of lead.rooms) expect(INQUIRY_LEAD.roomTypes).toContain(room.type);
   });
 
   it("says null for what the guest never said, and has no place for half board", () => {

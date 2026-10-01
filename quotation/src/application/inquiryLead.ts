@@ -1,14 +1,14 @@
-import type { Trip } from "../../../ai/src/index.js";
-import { buildBffTrip, courseAssignment } from "./odooHandoff.js";
+import type { Trip } from "../../../ai/src/index.ts";
+import { buildBffTrip, courseAssignment } from "../../../ai/src/index.ts";
 
 /**
  * The shape of the customer's website enquiry (their F10, `bff/src/inquiry/types.ts` on
  * `Stage1_Estimator_Tools@5fe2806`): the part a guest fills in on the Casa site, without the contact
  * columns (`name`, `email`, `phone`), the lead id and the timestamp, which are theirs to add.
  *
- * Vendored in `bff-contract/contract-spec.mjs` (`INQUIRY_LEAD`) and pinned by `bffContractParity.test.ts`.
+ * The column list is written out in `customerRules.test.ts` (`INQUIRY_LEAD`).
  * Their own comment on it: "assumed = InquiryRequest (OpenAPI Odoo) + lead_id + created_at; waiting for
- * Phillip (B-043)" — so the shape can still move, which is what the parity test is for.
+ * Phillip (B-043)" — so the shape can still move; `npm run upstream:check` shows when it does.
  */
 export interface InquiryLead {
   totalGuests: number | null;

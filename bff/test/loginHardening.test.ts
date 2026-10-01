@@ -5,8 +5,8 @@
 // webhook handshake and staff sign-in, no limit on attempts, no way out of a session, and no
 // security headers on pages that print a guest's own words.
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { createApp } from "../src/app.js";
-import { createLoginAttemptLimiter, staffAccessKey } from "../src/auth/demoAuth.js";
+import { createApp } from "../src/app.ts";
+import { createLoginAttemptLimiter, staffAccessKey } from "../src/auth/demoAuth.ts";
 
 const VERIFY_TOKEN = "meta-verify-token";
 const STAFF_KEY = "separate-staff-key";

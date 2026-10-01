@@ -20,7 +20,7 @@
  * grow it into one — when the real keys arrive, `verifySession` becomes a GAIS key check and
  * everything else stays.
  */
-import { themeCss } from "../views/theme.js";
+import { themeCss } from "../views/theme.ts";
 import { createHmac, timingSafeEqual } from "node:crypto";
 
 /**

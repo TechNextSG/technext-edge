@@ -1,5 +1,5 @@
-import { themeCss } from "./theme.js";
-import { escapeHtml } from "./html.js";
+import { themeCss } from "./theme.ts";
+import { escapeHtml } from "./html.ts";
 import {
   guestLinkFor,
   quotationValidityLines,
@@ -7,9 +7,9 @@ import {
   followUpWindowFromEnv,
   quotationValidUntil,
   type HonoQuotationDraft,
-} from "../../../quotation/src/index.js";
-import { type Trip } from "../../../ai/src/index.js";
-import { type DemoRole } from "../auth/demoAuth.js";
+} from "../../../quotation/src/index.ts";
+import { type Trip } from "../../../ai/src/index.ts";
+import { type DemoRole } from "../auth/demoAuth.ts";
 
 export function renderHonoQuotationEditorHtml(
   draft: HonoQuotationDraft,

@@ -12,9 +12,9 @@ import {
   type ConversationTurn,
   type ConverseOutcome,
   type ExtractProvider,
-} from "../../../ai/src/index.js";
-import { buildHonoQuotationDraft } from "./quotationTool.js";
-import type { HonoQuotationDraft, HonoToolCallTrace } from "../domain/quotationDraft.js";
+} from "../../../ai/src/index.ts";
+import { buildHonoQuotationDraft } from "./quotationTool.ts";
+import type { HonoQuotationDraft, HonoToolCallTrace } from "../domain/quotationDraft.ts";
 
 export interface QuotationConverseOutcome extends ConverseOutcome {
   toolCall?: HonoToolCallTrace; // AI -> Hono Tool Calling trace when quotation draft is submitted

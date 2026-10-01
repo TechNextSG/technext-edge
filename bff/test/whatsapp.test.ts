@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { createHmac } from "node:crypto";
-import { createApp } from "../src/app.js";
+import { createApp } from "../src/app.ts";
 import {
   checkRecipient,
   createWhatsAppSender,
@@ -8,11 +8,11 @@ import {
   parseInboundTexts,
   verifySignature,
   whatsAppConfig,
-} from "../src/services/whatsapp.js";
-import { createInMemoryConversationStore, type ConversationStore } from "../src/stores/conversationStore.js";
-import { ASK_LIMIT, STALL_LIMIT } from "../../ai/src/index.js";
-import type { ExtractProvider } from "../../ai/src/index.js";
-import { listQuotations } from "../src/stores/quotationStore.js";
+} from "../src/services/whatsapp.ts";
+import { createInMemoryConversationStore, type ConversationStore } from "../src/stores/conversationStore.ts";
+import { ASK_LIMIT, STALL_LIMIT } from "../../ai/src/index.ts";
+import type { ExtractProvider } from "../../ai/src/index.ts";
+import { listQuotations } from "../src/stores/quotationStore.ts";
 
 const VERIFY_TOKEN = "casa-verify-token";
 const APP_SECRET = "casa-app-secret";

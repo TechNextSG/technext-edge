@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
-import { BffTrip } from "../../contracts/src/index.js";
-import type { Trip } from "../../ai/src/index.js";
-import { buildBffTrip, buildOdooHandoffPayload, validateBffTripPrecheck } from "../src/index.js";
+import { BffTrip } from "../src/domain/bffTrip.ts";
+import type { Trip } from "../src/index.ts";
+import { buildBffTrip, buildOdooHandoffPayload, validateBffTripPrecheck } from "../src/index.ts";
 
 function makeCompleteSarahTrip(): Trip {
   return {

@@ -13,10 +13,10 @@
  * Reads only what the store already records. `missingFields` and `context` are best-effort: park
  * records written before those existed simply do not have them, and the row must still render.
  */
-import { themeCss } from "./theme.js";
-import type { PausedThread } from "../stores/conversationStore.js";
-import type { DemoRole } from "../auth/demoAuth.js";
-import { escapeHtml } from "./html.js";
+import { themeCss } from "./theme.ts";
+import type { PausedThread } from "../stores/conversationStore.ts";
+import type { DemoRole } from "../auth/demoAuth.ts";
+import { escapeHtml } from "./html.ts";
 
 /** A parked thread's reason, in words a person can act on. */
 const REASON_LABELS: Record<string, string> = {

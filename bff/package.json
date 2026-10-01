@@ -14,12 +14,11 @@
     "whatsapp:webhook": "node scripts/whatsapp-webhook.mjs"
   },
   "dependencies": {
-    "hono": "^4.6.0"
+    "hono": "^4.6.0",
+    "zod": "^4.6.5"
   },
   "devDependencies": {
     "@hono/node-server": "^1.13.0",
-    "tsx": "^4.19.0",
-    "typescript": "^5.6.0",
-    "vitest": "^2.1.0"
+    "tsx": "^4.19.0"
   }
 }

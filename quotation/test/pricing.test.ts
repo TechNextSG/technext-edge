@@ -4,7 +4,7 @@
 // form; a real Odoo answer may carry neither. Every read is defensive, and these tests are what
 // keep that from quietly becoming "assume the shape we saw first".
 import { describe, it, expect } from "vitest";
-import { normalizePricing, readWarnings } from "../src/domain/pricing.js";
+import { normalizePricing, readWarnings } from "../src/domain/pricing.ts";
 
 /** The captured `compute.retail-couple.json`, trimmed to the fields a page reads. */
 const COUPLE = {

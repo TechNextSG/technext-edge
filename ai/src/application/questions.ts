@@ -1,4 +1,4 @@
-import type { FieldState, Trip } from "../domain/schema.js";
+import type { FieldState, Trip } from "../domain/schema.ts";
 
 // Playbook: "Generate questions for missing fields in the backend's priority
 // order: dates, guest count, rooms, and only then meals and transport."
@@ -437,7 +437,7 @@ function isoParts(iso: string): { year: string; month: string; day: string } | n
   // Pure string slicing: an ISO date from dates.ts is already resolved in Manila
   // time, and a Date round-trip could shift it by a day.
   const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(iso);
-  return match ? { year: match[1], month: match[2], day: match[3] } : null;
+  return match ? { year: match[1] ?? "", month: match[2] ?? "", day: match[3] ?? "" } : null;
 }
 
 /** The date the way a guest writes it: "Sep 19, 2026" / "2026年9月19日". */
@@ -596,7 +596,7 @@ const NEED: Record<Lang, string> = {
 
 function joinList(items: string[], lang: Lang): string {
   if (items.length === 0) return "";
-  if (items.length === 1) return items[0];
+  if (items.length === 1) return items[0] ?? "";
   if (lang === "zh") return items.join("、");
   const last = items[items.length - 1];
   return `${items.slice(0, -1).join(", ")} and ${last}`;
@@ -1064,7 +1064,7 @@ export function fallbackReply(kind: FallbackKind, language: GuestLanguage | null
  * side — would never have a retail model to compare against, because there was never a partner
  * session behind it.
  *
- * The manual flow already answers this: an agent signs in on the team estimator, sees their own
+ * The manual flow already answers this: an agent signs in on the customer's own app, sees their own
  * rate, and books directly. So the bot's job is to say that, and to stay soft about it — the agent
  * signal is read from phrasing ("our agency", "partner rate") and a guest who happens to write like
  * an agency can simply say so. That is why this is an invitation rather than a redirect: the last

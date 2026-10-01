@@ -12,8 +12,8 @@
  * TTL: they are business records, not transient thread state, and a link must outlive the 24h
  * WhatsApp window.
  */
-import type { HonoQuotationDraft } from "../../../quotation/src/index.js";
-import { kvCommand } from "./kv.js";
+import type { HonoQuotationDraft } from "../../../quotation/src/index.ts";
+import { kvCommand } from "./kv.ts";
 
 export interface QuotationStore {
   get(idOrSlug: string): Promise<HonoQuotationDraft | undefined>;

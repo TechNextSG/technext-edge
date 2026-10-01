@@ -983,9 +983,9 @@ node ai/eval/runner.mjs --provider deepseek-flash
 
 ## 9. Before this becomes the real Extractor pod deliverable
 
-1. `ai/src/schema.ts` is no longer a guess about the *shape* of the Odoo
-   payload — the BFF contract is vendored in `contracts/bff-contract/` at commit
-   `4c48918` and `test/bffContractParity.test.ts` fails if the two copies drift. What is
+1. `ai/src/domain/schema.ts` is no longer a guess about the *shape* of the Odoo
+   payload — `ai/` and `contracts/` are byte-copies of the team repo (`npm run mirror:check` fails if they
+   drift; pins in `docs/notes/upstream-provenance.md`). What is
    still missing is the same thing this item was always about: nobody has confirmed the
    values that go *into* it. Two placeholder flags remain in the file —
    `HOUSE_NORM_FIELDS` (see item 2) and the comment at the top, which is now about which
@@ -993,9 +993,8 @@ node ai/eval/runner.mjs --provider deepseek-flash
    The extraction shape (`Trip` with `{value, state, evidence}`) is deliberately NOT that
    contract and should not be replaced by it: the BFF's schema assigns a `.default()` to
    every field, so it cannot represent "the guest has not answered", which is the entire
-   reason this pipeline exists. `buildBffTrip()` is the translation, and the
-   `STRICTNESS_GAPS` table in `bff-contract/contract-spec.mjs` records every place this
-   repo is deliberately stricter than the contract.
+   reason this pipeline exists. `buildBffTrip()` is the translation, and the tests in
+   `ai/test/bffSchemaContract.test.ts` record every place it is deliberately stricter than the contract.
 2. Confirm the real 4 house-norm fields and their default values with
    Jett/Eloa — `houseNorms.ts` is guessed.
 3. Get billing enabled on the Gemini API key (see §2, ADR-005a) — the free

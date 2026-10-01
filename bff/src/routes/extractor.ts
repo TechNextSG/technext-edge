@@ -7,12 +7,12 @@ import {
   KNOWN_PROVIDER_NAMES,
   type ConversationTurn,
   type ExtractProvider,
-} from "../../../ai/src/index.js";
+} from "../../../ai/src/index.ts";
 import {
   converseWithQuotation,
   type HonoQuotationDraft,
-} from "../../../quotation/src/index.js";
-import type { DemoRole } from "../auth/demoAuth.js";
+} from "../../../quotation/src/index.ts";
+import type { DemoRole } from "../auth/demoAuth.ts";
 
 const ProviderOverride = {
   provider: z.enum(KNOWN_PROVIDER_NAMES).optional(),

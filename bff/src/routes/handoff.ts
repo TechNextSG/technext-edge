@@ -1,7 +1,7 @@
 import type { Context, Hono } from "hono";
-import type { ConversationStore } from "../stores/conversationStore.js";
-import { renderHandoffPageHtml } from "../views/handoffPage.js";
-import type { DemoRole } from "../auth/demoAuth.js";
+import type { ConversationStore } from "../stores/conversationStore.ts";
+import { renderHandoffPageHtml } from "../views/handoffPage.ts";
+import type { DemoRole } from "../auth/demoAuth.ts";
 
 export interface HandoffRouteDeps {
   store: ConversationStore;

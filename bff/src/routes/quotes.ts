@@ -4,7 +4,7 @@ import {
   type ExtractProvider,
   type Trip,
   verifyGuestFacingText,
-} from "../../../ai/src/index.js";
+} from "../../../ai/src/index.ts";
 import {
   buildHonoQuotationDraft,
   recalculateQuotationTotals,
@@ -15,11 +15,11 @@ import {
   guestFacingFactsFor,
   type HonoQuotationDraft,
   type QuotationSubmission,
-} from "../../../quotation/src/index.js";
-import { BffTrip } from "../../../contracts/src/index.js";
-import { themeCss } from "../views/theme.js";
-import { renderGuestQuotationCopyHtml } from "../views/guestQuotationCopy.js";
-import { renderOpsSheetHtml } from "../views/opsPage.js";
+} from "../../../quotation/src/index.ts";
+import { BffTrip } from "../../../ai/src/index.ts";
+import { themeCss } from "../views/theme.ts";
+import { renderGuestQuotationCopyHtml } from "../views/guestQuotationCopy.ts";
+import { renderOpsSheetHtml } from "../views/opsPage.ts";
 import {
   saveQuotationDraft,
   getQuotationByIdOrSlug,
@@ -28,9 +28,9 @@ import {
   filterQuotations,
   removeQuotation,
   renderHonoQuotationEditorHtml,
-} from "../stores/quotationStore.js";
-import type { EstimatorPort } from "../services/estimatorPort.js";
-import type { DemoRole } from "../auth/demoAuth.js";
+} from "../stores/quotationStore.ts";
+import type { EstimatorPort } from "../services/estimatorPort.ts";
+import type { DemoRole } from "../auth/demoAuth.ts";
 import {
   checkRecipient,
   explainMetaError,
@@ -38,8 +38,8 @@ import {
   createWhatsAppSender,
   whatsAppConfig,
   type WhatsAppSendText,
-} from "../services/whatsapp.js";
-import { resortWhatsAppNumber, absoluteUrl } from "../services/whatsappTurnService.js";
+} from "../services/whatsapp.ts";
+import { resortWhatsAppNumber, absoluteUrl } from "../services/whatsappTurnService.ts";
 import {
   editableQuotationFields,
   alreadySharedRefusal,
@@ -48,7 +48,7 @@ import {
   buildEstimatePreview,
   estimateToRecord,
   ReservationContact,
-} from "../services/quotationService.js";
+} from "../services/quotationService.ts";
 
 function canonicalOrigin(c: Context): string {
   const envUrl = (process.env.PUBLIC_BASE_URL ?? "").trim().replace(/\/$/, "");

@@ -2,7 +2,7 @@ import { describe, it, expect } from "vitest";
 import { readFile } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 import path from "node:path";
-import { corroborateCount, countNumbersIn, type CountField } from "../src/domain/counts.js";
+import { corroborateCount, countNumbersIn, type CountField } from "../src/domain/counts.ts";
 
 // The reader that decides whether a count the model stated came from the guest's own words.
 // Two things are asserted here, and they pull in opposite directions on purpose:

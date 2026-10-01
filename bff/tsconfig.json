@@ -1,7 +1,9 @@
 {
-  "extends": "../tsconfig.base.json",
-  "compilerOptions": {
-    "outDir": "dist"
-  },
-  "include": ["src", "../ai/src", "../quotation/src", "../contracts/src"]
+  "extends": "../tsconfig.studio.json",
+  "include": [
+    "src",
+    "../ai/src",
+    "../quotation/src",
+    "../contracts/src"
+  ]
 }

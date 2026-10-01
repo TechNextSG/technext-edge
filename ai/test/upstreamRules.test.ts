@@ -1,9 +1,9 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { extract } from "../../ai/src/index.js";
-import { resolveRelativeDate } from "../../ai/src/index.js";
-import { buildBffTrip, buildOdooHandoffPayload, validateBffTripPrecheck } from "../src/application/odooHandoff.js";
-import type { ExtractProvider } from "../../ai/src/index.js";
-import type { Trip } from "../../ai/src/index.js";
+import { extract } from "../src/index.ts";
+import { resolveRelativeDate } from "../src/index.ts";
+import { buildBffTrip, buildOdooHandoffPayload, validateBffTripPrecheck } from "../src/application/odooHandoff.ts";
+import type { ExtractProvider } from "../src/index.ts";
+import type { Trip } from "../src/index.ts";
 
 // The customer's engine (bff/src/trip/validate.ts) refuses what these rules describe. The bot must ask the
 // guest again, or report the customer's own code — never fill in or clamp a value the guest did not give.
@@ -75,7 +75,7 @@ describe("counts", () => {
         diver: stated(true, "5 divers"), divers: stated(5, "5 divers"),
       }),
     );
-    expect(out.trip.divers.state).toBe("missing");
+    expect(out.trip.divers!.state).toBe("missing");
     expect(asked(out)).toContain("divers");
   });
 });

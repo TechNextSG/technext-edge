@@ -4,10 +4,10 @@
 // turn two arrives context-free ("3 nights" with no dates, no guest count, no
 // name) and the guest is asked to start over. This is the same reason the test
 // console sends its own `history` field instead of a bare `message`.
-import type { ConversationTurn } from "../../../ai/src/index.js";
-import type { StatedValueChange } from "../../../ai/src/index.js";
+import type { ConversationTurn } from "../../../ai/src/index.ts";
+import type { StatedValueChange } from "../../../ai/src/index.ts";
 import { randomUUID } from "node:crypto";
-import { createRedisConversationStore } from "./redisStore.js";
+import { createRedisConversationStore } from "./redisStore.ts";
 
 export interface ClaimResult {
   claimed: boolean;

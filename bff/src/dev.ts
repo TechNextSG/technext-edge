@@ -1,5 +1,5 @@
 import { serve } from "@hono/node-server";
-import { createApp } from "./app.js";
+import { createApp } from "./app.ts";
 
 try { process.loadEnvFile(".env.local"); } catch {}
 try { process.loadEnvFile("../.env.local"); } catch {}

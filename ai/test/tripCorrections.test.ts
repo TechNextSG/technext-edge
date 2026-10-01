@@ -10,8 +10,8 @@
 //     must drop;
 //   * "everything else is as we said" / "thanks!" — nothing stated, so the record keeps its trip.
 import { describe, it, expect } from "vitest";
-import { extractorFieldsForTripPath, pathsRestatedByGuest } from "../src/application/tripCorrections.js";
-import type { Trip } from "../src/domain/schema.js";
+import { extractorFieldsForTripPath, pathsRestatedByGuest } from "../src/application/tripCorrections.ts";
+import type { Trip } from "../src/domain/schema.ts";
 
 const f = (value: unknown, evidence: string | null, state = evidence ? "stated" : "missing") => ({
   value,

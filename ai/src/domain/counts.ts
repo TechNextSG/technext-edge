@@ -215,8 +215,8 @@ function extractCountWithPattern(text: string, pattern: RegExp): number | null {
 export function adultAndChildSum(text: string): number | null {
   const turns = text.split("\n").map((t) => t.trim()).filter(Boolean);
   for (let i = turns.length - 1; i >= 0; i--) {
-    const adults = extractCountWithPattern(turns[i], ADULT_PATTERN);
-    const children = extractCountWithPattern(turns[i], CHILD_PATTERN);
+    const adults = extractCountWithPattern(turns[i] ?? "", ADULT_PATTERN);
+    const children = extractCountWithPattern(turns[i] ?? "", CHILD_PATTERN);
     if (adults !== null && children !== null) {
       return adults + children;
     }
@@ -232,7 +232,7 @@ export function adultAndChildSum(text: string): number | null {
 export function stayingGuestsCount(text: string): number | null {
   const turns = text.split("\n").map((t) => t.trim()).filter(Boolean);
   for (let i = turns.length - 1; i >= 0; i--) {
-    const staying = extractCountWithPattern(turns[i], STAYING_PATTERN);
+    const staying = extractCountWithPattern(turns[i] ?? "", STAYING_PATTERN);
     if (staying !== null) return staying;
   }
   return extractCountWithPattern(text, STAYING_PATTERN);
@@ -274,7 +274,7 @@ export function corroborateCount(
   // resolves the earlier "group of 6 but only 3 staying" ambiguity.
   const turns = guestText.split("\n").map((t) => t.trim()).filter(Boolean);
   if (turns.length > 0) {
-    const lastTurn = turns[turns.length - 1];
+    const lastTurn = turns[turns.length - 1] ?? "";
     // `(?:(?:just|only)\s*)?` so the optional word is not flanked by two \s* that split spaces ambiguously.
     const bareMatch = /^\s*(?:(?:just|only)\s*)?(\d{1,3})\s*$/iu.exec(lastTurn);
     if (bareMatch && Number(bareMatch[1]) === proposed) {
@@ -284,7 +284,7 @@ export function corroborateCount(
 
   let stated: number[] = [];
   for (let i = turns.length - 1; i >= 0; i--) {
-    const inTurn = countNumbersIn(turns[i], field);
+    const inTurn = countNumbersIn(turns[i] ?? "", field);
     if (inTurn.length > 0) {
       stated = inTurn;
       break;

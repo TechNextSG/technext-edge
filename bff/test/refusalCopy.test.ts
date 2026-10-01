@@ -1,10 +1,26 @@
+import { buildBffTrip } from "../../ai/src/index.ts";
 import { describe, it, expect, vi } from "vitest";
-import { ISSUE_COPY, KNOWN_ISSUE_CODES, describeRefusal } from "../src/services/refusalCopy.js";
-import { createEstimatorClient } from "../src/services/estimatorClient.js";
-import { createSimulatedEstimator } from "../src/services/simulatedEstimator.js";
-import { buildBffTrip } from "../../quotation/src/index.js";
-import type { Trip } from "../../ai/src/index.js";
-import * as spec from "../../contracts/bff-contract/contract-spec.mjs";
+import { ISSUE_COPY, KNOWN_ISSUE_CODES, describeRefusal } from "../src/services/refusalCopy.ts";
+import { createEstimatorClient } from "../src/services/estimatorClient.ts";
+import { createSimulatedEstimator } from "../src/services/simulatedEstimator.ts";
+
+import type { Trip } from "../../ai/src/index.ts";
+
+/**
+ * The `TripIssueCode` union of the team estimator (`bff/src/trip/validate.ts`) as of the last `npm run upstream:check`.
+ * `divers-over-guests` is on their Stage 1 but not in the deployed fixture build (`dac70e6`).
+ */
+const ISSUE_CODES = [
+  "checkout-not-after-checkin",
+  "checkin-in-past",
+  "dive-window-reversed",
+  "dive-window-outside-stay",
+  "dive-days-outside-window",
+  "arrive-depart-outside-stay",
+  "room-over-capacity",
+  "room-empty",
+  "divers-over-guests",
+];
 
 const f = <T,>(value: T | null, state = "stated") => ({ value, state, evidence: null });
 
@@ -29,11 +45,11 @@ const OVER = {
 };
 
 describe("every issue code the source engine can raise has a sentence for staff", () => {
-  it.each([...spec.ISSUE_CODES])("%s", (code) => {
+  it.each([...ISSUE_CODES])("%s", (code) => {
     expect(KNOWN_ISSUE_CODES).toContain(code);
   });
   it("and nothing is described that the engine no longer raises", () => {
-    expect([...KNOWN_ISSUE_CODES].sort()).toEqual([...spec.ISSUE_CODES].sort());
+    expect([...KNOWN_ISSUE_CODES].sort()).toEqual([...ISSUE_CODES].sort());
   });
 });
 

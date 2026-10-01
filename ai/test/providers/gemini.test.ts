@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { createGeminiProvider } from "../../src/infra/providers/gemini.js";
+import { createGeminiProvider } from "../../src/infra/providers/gemini.ts";
 
 const REAL_FETCH = global.fetch;
 

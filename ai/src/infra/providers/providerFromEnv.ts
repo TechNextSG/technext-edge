@@ -1,6 +1,6 @@
-import type { ExtractProvider } from "../../ports/provider.js";
-import { DEFAULT_GEMINI_MODEL, createGeminiProvider } from "./gemini.js";
-import { createDeepSeekProvider } from "./deepseek.js";
+import type { ExtractProvider } from "../../ports/provider.ts";
+import { DEFAULT_GEMINI_MODEL, createGeminiProvider } from "./gemini.ts";
+import { createDeepSeekProvider } from "./deepseek.ts";
 
 export const KNOWN_PROVIDER_NAMES = [
   "gemini",
@@ -26,8 +26,8 @@ export type ProviderKind = "gemini" | "deepseek";
 
 /**
  * The part of the environment this package reads — passed in, never read from the process. The caller owns
- * parsing and validation; this package only says which names it looks at. Timeouts may arrive as numbers
- * (already parsed) or strings (a raw environment).
+ * parsing and validation (the BFF's `env.ts`); this package only says which names it looks at. Timeouts may arrive
+ * as numbers (already parsed) or strings (a raw environment).
  */
 export interface AiEnv {
   EXTRACTOR_PROVIDER?: string | undefined;
@@ -81,7 +81,7 @@ export interface ProviderSettings {
   synthesisEnabled: boolean;
   /** Decrypted keys from the dashboard. Missing ones fall back to the environment. */
   keys: Partial<Record<ProviderKind, string>>;
-  deepseekBaseUrl?: string;
+  deepseekBaseUrl?: string | undefined;
 }
 
 /** What one call did, for the dashboard's 7-day health table. */
@@ -131,8 +131,8 @@ export function choiceFromName(name: string, env: AiEnv): ModelChoice | null {
 // ---------------------------------------------------------------------------------------------------------------
 
 interface BuildTuning {
-  timeoutsMs?: { extract: number; synthesis: number };
-  deepseekBaseUrl?: string;
+  timeoutsMs?: { extract: number; synthesis: number } | undefined;
+  deepseekBaseUrl?: string | undefined;
 }
 
 export function buildProvider(choice: ModelChoice, apiKey: string, tuning: BuildTuning): ExtractProvider {
@@ -162,9 +162,9 @@ export function keyFor(kind: ProviderKind, settings: Pick<ProviderSettings, "key
 }
 
 export interface ResilienceOptions {
-  cooldownMs?: number;
-  authCooldownMs?: number;
-  onOutcome?: (outcome: ProviderOutcome) => void;
+  cooldownMs?: number | undefined;
+  authCooldownMs?: number | undefined;
+  onOutcome?: ((outcome: ProviderOutcome) => void) | undefined;
 }
 
 /**
@@ -180,7 +180,7 @@ export interface ResilienceOptions {
 export function createResilientProvider(
   primary: ExtractProvider,
   fallback: ExtractProvider | undefined,
-  kinds: { primary: ProviderKind; fallback?: ProviderKind },
+  kinds: { primary: ProviderKind; fallback?: ProviderKind | undefined },
   options: ResilienceOptions = {},
 ): ExtractProvider {
   const COOLDOWN_MS = options.cooldownMs ?? 60_000;

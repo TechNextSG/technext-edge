@@ -10,9 +10,9 @@ import {
   TRANSPORT_RATE,
   vanLoads,
   vansForGuests,
-} from "../src/domain/rates.js";
-import { buildHonoQuotationDraft } from "../src/application/quotationTool.js";
-import type { Trip } from "../../ai/src/index.js";
+} from "../src/domain/rates.ts";
+import { buildHonoQuotationDraft } from "../src/application/quotationTool.ts";
+import type { Trip } from "../../ai/src/index.ts";
 
 function f<T>(value: T | null, state = "stated") {
   return { value, state, evidence: null };

@@ -1,5 +1,5 @@
 {
   "extends": "../tsconfig.base.json",
-  "compilerOptions": { "outDir": "dist" },
-  "include": ["src", "../contracts/src"]
+  "compilerOptions": { "allowImportingTsExtensions": true, "types": ["node"] },
+  "include": ["src", "test"]
 }

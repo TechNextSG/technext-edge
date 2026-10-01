@@ -374,15 +374,13 @@ Ngoài `validate.ts`: `half_board` không có trong engine (`meals` chỉ true/f
 `meal_plan_needs_staff`; khoá học chỉ gán cho người khách nói (một thợ lặn, hoặc "all/everyone"), không rõ thì
 `course_assignee_unclear`; ăn kiêng và chiều đưa đón lưu ở bản ghi (`scenario.extras` phía họ), **không gửi engine**.
 
-**F10** (`toInquiryLead`, `X/application/inquiryLead.ts`): chuẩn bị dữ liệu đúng shape `InquiryLead` của khách (vendored trong
-`contract-spec.mjs`, pin bằng `customerRules.test.ts`). **Chưa gọi Odoo** và route BFF của họ chưa có (B-043, chờ Phillip).
+**F10** (`toInquiryLead`, `X/application/inquiryLead.ts`): chuẩn bị dữ liệu đúng shape `InquiryLead` của khách (ghi lại trong `customerRules.test.ts`). **Chưa gọi Odoo** và route BFF của họ chưa có (B-043, chờ Phillip).
 
 ### Cơ chế bám nguồn
 
 `npm run upstream:check` (chỉ đọc) liệt kê commit mới chạm `contracts/`, `bff/src/{routes,trip,model,odoo,auth}`,
 `ai/`, `docs/integration/`, `customer-questions.md` kể từ mốc ghim trong
-`contracts/bff-contract/PROVENANCE.md`, và in `TripIssueCode` hiện tại. Test
-`bffContractParity` (sức chứa) và `refusalCopy` (mọi issue code có câu tiếng Anh) là tripwire.
+`docs/notes/upstream-provenance.md`, và in `TripIssueCode` hiện tại. `npm run mirror:check` chứng minh `ai/` và `contracts/` vẫn là bản sao nguyên văn của repo team; test `refusalCopy` (mọi issue code có câu tiếng Anh) là tripwire.
 
 ## 9. Liên kết
 

@@ -2,12 +2,13 @@
 //   - a partner (agent / instructor) is quoted in the team estimator after signing in, so an
 //     enquiry from one is never published or sent as a guest link;
 //   - the message that carries the link goes through the same fact gate as a chat reply.
+import { buildBffTrip } from "../../ai/src/index.ts";
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { createApp } from "../src/app.js";
-import { buildHonoQuotationDraft } from "../../quotation/src/index.js";
-import { buildBffTrip } from "../../quotation/src/index.js";
-import { saveQuotationDraft } from "../src/stores/quotationStore.js";
-import type { Trip } from "../../ai/src/index.js";
+import { createApp } from "../src/app.ts";
+import { buildHonoQuotationDraft } from "../../quotation/src/index.ts";
+
+import { saveQuotationDraft } from "../src/stores/quotationStore.ts";
+import type { Trip } from "../../ai/src/index.ts";
 
 const TOKEN = "f08-token";
 const STAFF = `?token=${TOKEN}`;

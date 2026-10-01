@@ -1,6 +1,4 @@
-import type {
-  Trip,
-} from "../../../ai/src/index.js";
+import type { Trip } from "../domain/schema.ts";
 import type {
   BffTrip,
   BffRoom,
@@ -8,10 +6,10 @@ import type {
   BffDayPlanEntry,
   BffCourseCode,
   BffValidationIssue,
-} from "../../../contracts/src/index.js";
-import { DEFAULT_ROOM_CAPS, type RoomCaps } from "../../../ai/src/index.js";
-import { manilaToday } from "../../../ai/src/index.js";
-import { generateQuestions, getStaffAlerts, diveWindowIsGuessed } from "../../../ai/src/index.js";
+} from "../domain/bffTrip.ts";
+import { DEFAULT_ROOM_CAPS, type RoomCaps } from "../domain/houseNorms.ts";
+import { manilaToday } from "../domain/dates.ts";
+import { generateQuestions, getStaffAlerts, diveWindowIsGuessed } from "./questions.ts";
 
 export type OdooHandoffMode =
   | "incomplete_enquiry"

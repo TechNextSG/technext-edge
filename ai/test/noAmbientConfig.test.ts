@@ -2,8 +2,8 @@ import { describe, it, expect, vi, afterEach } from 'vitest';
 import { readFileSync, readdirSync, statSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { createProviderFromEnv, settingsFromEnv } from '../src/infra/providers/providerFromEnv.js';
-import { createDeepSeekProvider } from '../src/infra/providers/deepseek.js';
+import { createProviderFromEnv, settingsFromEnv } from '../src/infra/providers/providerFromEnv.ts';
+import { createDeepSeekProvider } from '../src/infra/providers/deepseek.ts';
 
 // ai/ is a library: it is handed its configuration and never reaches for the process's. And a provider must not
 // carry a host in its source — the caller says where guest text may go.

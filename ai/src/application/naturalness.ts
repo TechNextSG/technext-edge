@@ -1,6 +1,6 @@
-import type { Trip } from "../domain/schema.js";
-import type { GuestQuestion } from "./questions.js";
-import { verifySynthesizedReply } from "./synthesis.js";
+import type { Trip } from "../domain/schema.ts";
+import type { GuestQuestion } from "./questions.ts";
+import { verifySynthesizedReply } from "./synthesis.ts";
 
 export interface NaturalnessScoreBreakdown {
   /** 1.0 if the bot did NOT re-ask any diving/stay nuance already recorded in diveNotes or stated fields. */

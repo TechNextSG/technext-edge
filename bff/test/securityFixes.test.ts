@@ -5,13 +5,13 @@
 // that would send a price nobody had approved, and a sign-in page that quietly dropped the handoff
 // inbox's deep link. They are grouped here so the reason they exist is readable in one place.
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { createApp } from "../src/app.js";
-import { createEstimatorClient } from "../src/services/estimatorClient.js";
-import { saveQuotationDraft, listQuotations } from "../src/stores/quotationStore.js";
-import { buildHonoQuotationDraft } from "../../quotation/src/index.js";
-import { renderLoginHtml } from "../src/auth/demoAuth.js";
-import { escapeHtml } from "../src/views/html.js";
-import type { Trip } from "../../ai/src/index.js";
+import { createApp } from "../src/app.ts";
+import { createEstimatorClient } from "../src/services/estimatorClient.ts";
+import { saveQuotationDraft, listQuotations } from "../src/stores/quotationStore.ts";
+import { buildHonoQuotationDraft } from "../../quotation/src/index.ts";
+import { renderLoginHtml } from "../src/auth/demoAuth.ts";
+import { escapeHtml } from "../src/views/html.ts";
+import type { Trip } from "../../ai/src/index.ts";
 
 const VERIFY_TOKEN = "dot0-token";
 const STAFF = `?token=${VERIFY_TOKEN}`;
@@ -200,7 +200,7 @@ describe("the message a guest actually receives", () => {
     expect(stated, "the message names a date").toBeTruthy();
     expect(sentMs).toBeGreaterThan(0);
     // 72 hours after the send, in Manila — asserted through the formatter so a timezone bug shows.
-    const { formatManila } = await import("../../quotation/src/index.js");
+    const { formatManila } = await import("../../quotation/src/index.ts");
     expect(stated).toBe(formatManila(new Date(sentMs + windowHours * 3_600_000)));
   });
 });

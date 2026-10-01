@@ -1,8 +1,8 @@
 // The handoff envelope decides whether a finished Trip can be auto-priced or has to go to staff.
 // Moved from ai/test/questions.test.ts with the adapter itself: the AI package no longer builds it.
 import { describe, it, expect } from "vitest";
-import type { Trip } from "../../ai/src/index.js";
-import { buildOdooHandoffPayload } from "../src/index.js";
+import type { Trip } from "../src/index.ts";
+import { buildOdooHandoffPayload } from "../src/index.ts";
 
 const BLANK_RAW = {
   language: { value: null, state: "missing", evidence: null },

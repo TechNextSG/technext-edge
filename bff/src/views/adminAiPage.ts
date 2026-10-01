@@ -1,4 +1,4 @@
-import { themeCss } from "./theme.js";
+import { themeCss } from "./theme.ts";
 
 /**
  * `/admin/ai` — where the person who owns the deployment changes which AI model answers, without opening Vercel.

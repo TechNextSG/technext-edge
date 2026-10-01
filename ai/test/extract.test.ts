@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { extract, ExtractionValidationError } from "../src/application/extract.js";
-import type { ExtractProvider } from "../src/ports/provider.js";
-import { MalformedArgumentsError } from "../src/ports/provider.js";
+import { extract, ExtractionValidationError } from "../src/application/extract.ts";
+import type { ExtractProvider } from "../src/ports/provider.ts";
+import { MalformedArgumentsError } from "../src/ports/provider.ts";
 
 // Pins "today" to 2026-09-15 Manila time, matching dates.test.ts's anchor, so
 // the resolved check-in date below is predictable.
@@ -105,7 +105,7 @@ describe("extract", () => {
     expect(outcome.trip.nights.value).toBe(3); // the corrected second attempt, not the broken first
 
     expect(call).toHaveBeenCalledTimes(2);
-    const secondCallArg = call.mock.calls[1][0];
+    const secondCallArg = call.mock.calls[1]![0];
     expect(secondCallArg.retry).toBeDefined();
     expect(secondCallArg.retry.previousRaw).toEqual(broken);
     expect(secondCallArg.retry.error).toMatch(/nights/); // the real zod issue, not a generic message
@@ -133,7 +133,7 @@ describe("extract", () => {
     expect(call).toHaveBeenCalledTimes(2);
 
     // The whole point: the second call knows what was wrong, so the model can fix it.
-    const retry = call.mock.calls[1][0].retry;
+    const retry = call.mock.calls[1]![0].retry;
     expect(retry).toBeDefined();
     expect(retry.error).toMatch(/not valid JSON/);
     expect(retry.previousRaw).toBe('{"nights": }');
@@ -151,7 +151,7 @@ describe("extract", () => {
     await extract(MESSAGE, provider);
 
     expect(call).toHaveBeenCalledTimes(2);
-    expect(call.mock.calls[1][0].retry).toBeUndefined();
+    expect(call.mock.calls[1]![0].retry).toBeUndefined();
   });
 
   it("surfaces a transport-level failure (e.g. rate limit) as-is, not wrapped as a validation error", async () => {    // Found via the eval harness: a Gemini 429 on both attempts was being
@@ -361,8 +361,8 @@ describe("extract", () => {
         text,
         fakeProvider({ ...HAPPY_RAW, roomType: { value: expected, state: "stated", evidence } }),
       );
-      expect(outcome.trip.roomType.value, text).toBe(expected);
-      expect(outcome.trip.roomType.state, text).toBe("stated");
+      expect(outcome.trip.roomType!.value, text).toBe(expected);
+      expect(outcome.trip.roomType!.state, text).toBe("stated");
     }
 
     // "en suite" is a bathroom, not a room type — a guest who writes it must be asked, not
@@ -372,7 +372,7 @@ describe("extract", () => {
       "We want a room with an en suite bathroom",
       fakeProvider({ ...HAPPY_RAW, roomType: { value: "suite", state: "stated", evidence: "en suite" } }),
     );
-    expect(bathroom.trip.roomType.state).toBe("missing");
+    expect(bathroom.trip.roomType!.state).toBe("missing");
   });
 
   it("asks rather than prices a diving answer the guest never gave", async () => {    const ambiguous = {

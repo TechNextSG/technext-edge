@@ -11,8 +11,8 @@
 // and does not pretend to be one; it is the cheapest thing that fails when the wiring breaks.
 import { describe, it, expect } from "vitest";
 import { createContext, runInContext } from "node:vm";
-import { createApp } from "../src/app.js";
-import { listQuotations, saveQuotationDraft } from "../src/stores/quotationStore.js";
+import { createApp } from "../src/app.ts";
+import { listQuotations, saveQuotationDraft } from "../src/stores/quotationStore.ts";
 
 const STAFF_TOKEN = "studio-script-token";
 

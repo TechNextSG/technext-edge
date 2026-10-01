@@ -4,13 +4,14 @@
 // The ops sheet's defining property is what is NOT on it. It is printed and carried, so "no money
 // anywhere on the page" is asserted as a property of the whole document rather than checked field by
 // field — a price added later in any block fails this test.
+import { buildBffTrip } from "../../ai/src/index.ts";
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { createApp } from "../src/app.js";
-import { buildHonoQuotationDraft } from "../../quotation/src/index.js";
-import { saveQuotationDraft } from "../src/stores/quotationStore.js";
-import { issueSession } from "../src/auth/demoAuth.js";
-import { buildBffTrip } from "../../quotation/src/index.js";
-import type { Trip } from "../../ai/src/index.js";
+import { createApp } from "../src/app.ts";
+import { buildHonoQuotationDraft } from "../../quotation/src/index.ts";
+import { saveQuotationDraft } from "../src/stores/quotationStore.ts";
+import { issueSession } from "../src/auth/demoAuth.ts";
+
+import type { Trip } from "../../ai/src/index.ts";
 
 const VERIFY_TOKEN = "ops-sheet-token";
 

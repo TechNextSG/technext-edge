@@ -6,8 +6,8 @@
 // exactly that shape: the cookie works, a forged or expired one does not, the role rides along,
 // and the old header/query paths still work so nothing that used them breaks.
 import { describe, it, expect, beforeAll, afterAll, vi } from "vitest";
-import { createApp } from "../src/app.js";
-import { issueSession, verifySession, isDemoRole } from "../src/auth/demoAuth.js";
+import { createApp } from "../src/app.ts";
+import { issueSession, verifySession, isDemoRole } from "../src/auth/demoAuth.ts";
 
 const STAFF_TOKEN = "test-staff-token";
 /** The seeded studio record, so a deep link points at a quotation that exists. */

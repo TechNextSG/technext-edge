@@ -10,7 +10,7 @@ import { describe, it, expect } from "vitest";
 import { existsSync } from "node:fs";
 import { resolve, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
-import { SERVED_DOCUMENTS, getIndexHtml } from "../src/views/reportsHtml.js";
+import { SERVED_DOCUMENTS, getIndexHtml } from "../src/views/reportsHtml.ts";
 
 // test/ -> bff -> apps/ -> repo root
 const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), "../..");

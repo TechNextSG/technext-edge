@@ -1,23 +1,11 @@
-import { themeCss } from "../views/theme.js";
+import { themeCss } from "../views/theme.ts";
 import { randomUUID } from "node:crypto";
-import {
-  buildBffTrip,
-  normalizePricing,
-  recalculateQuotationTotals,
-  guestLinkFor,
-  quotationValidityLines,
-  followUpState,
-  followUpWindowFromEnv,
-  quotationValidUntil,
-  type HonoQuotationDraft,
-} from "../../../quotation/src/index.js";
-import {
-  type Trip,
-} from "../../../ai/src/index.js";
-import { buildSimulatedModel } from "../services/simulatedEstimator.js";
-import { createQuotationStoreFromEnv, type QuotationStore } from "./quotationStoreClient.js";
-import { type DemoRole } from "../auth/demoAuth.js";
-import { escapeHtml } from "../views/html.js";
+import { normalizePricing, recalculateQuotationTotals, guestLinkFor, quotationValidityLines, followUpState, followUpWindowFromEnv, quotationValidUntil, type HonoQuotationDraft } from "../../../quotation/src/index.ts";
+import { type Trip, buildBffTrip } from "../../../ai/src/index.ts";
+import { buildSimulatedModel } from "../services/simulatedEstimator.ts";
+import { createQuotationStoreFromEnv, type QuotationStore } from "./quotationStoreClient.ts";
+import { type DemoRole } from "../auth/demoAuth.ts";
+import { escapeHtml } from "../views/html.ts";
 
 /**
  * Lazily-built, so reading the env happens at first use rather than at import time. That keeps
@@ -371,4 +359,4 @@ export async function findOpenQuotationForPhone(phone: string): Promise<HonoQuot
 }
 
 // Re-exported from presentation layer for backwards compatibility
-export { renderHonoQuotationEditorHtml } from "../views/quotationEditorPage.js";
+export { renderHonoQuotationEditorHtml } from "../views/quotationEditorPage.ts";

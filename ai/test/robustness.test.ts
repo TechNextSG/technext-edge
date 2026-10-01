@@ -1,11 +1,11 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { extract, ExtractionValidationError } from "../src/application/extract.js";
-import { corroborateDatePhrase, isPlausibleStayDate, resolveRelativeDate } from "../src/domain/dates.js";
-import { corroborateCount } from "../src/domain/counts.js";
-import { detectLanguage, guestTextOf, maskForLogging, normalize } from "../src/application/normalize.js";
-import { HOUSE_NORMS } from "../src/domain/houseNorms.js";
-import { FieldState, Trip, type Field } from "../src/domain/schema.js";
-import type { ExtractProvider } from "../src/ports/provider.js";
+import { extract, ExtractionValidationError } from "../src/application/extract.ts";
+import { corroborateDatePhrase, isPlausibleStayDate, resolveRelativeDate } from "../src/domain/dates.ts";
+import { corroborateCount } from "../src/domain/counts.ts";
+import { detectLanguage, guestTextOf, maskForLogging, normalize } from "../src/application/normalize.ts";
+import { HOUSE_NORMS } from "../src/domain/houseNorms.ts";
+import { FieldState, Trip, type Field } from "../src/domain/schema.ts";
+import type { ExtractProvider } from "../src/ports/provider.ts";
 
 // The robustness layer, beside the two that already exist:
 //   * test/extract.test.ts, questions.test.ts, converse.test.ts — expected values, one
@@ -96,7 +96,7 @@ function assertTripContract(trip: Record<string, Field<unknown>>, sourceText: st
 
   // ADR-006 Decision 4: ask what money depends on, never infer it.
   for (const key of ["diver", "diveFrom", "diveTo"]) {
-    expect(["stated", "missing"], `${key} was guessed instead of asked`).toContain(trip[key].state);
+    expect(["stated", "missing"], `${key} was guessed instead of asked`).toContain(trip[key]!.state);
   }
 
   // A check-in is either the resolver's own reading of the guest's phrase, or a date the
@@ -128,21 +128,21 @@ function assertTripContract(trip: Record<string, Field<unknown>>, sourceText: st
   // being a supported input language) — and it is held to on every payload in this file,
   // including the 200 generated ones.
   for (const key of ["nights", "guests", "rooms"] as const) {
-    if (trip[key].state !== "stated") continue;
+    if (trip[key]!.state !== "stated") continue;
     expect(
-      corroborateCount(key, trip[key].value as number, guestText),
+      corroborateCount(key, trip[key]!.value as number, guestText),
       `${key} is stated as a number the guest's own words contradict`,
     ).not.toBe("conflicting");
   }
 
-  if (trip.checkOut.state === "derived") {
-    expect(trip.checkOut.value, "a checkOut was derived but carries no date").toBeTruthy();
-    expect(trip.checkOut.evidence, "a derived field carries evidence").toBeNull();
+  if (trip.checkOut!.state === "derived") {
+    expect(trip.checkOut!.value, "a checkOut was derived but carries no date").toBeTruthy();
+    expect(trip.checkOut!.evidence, "a derived field carries evidence").toBeNull();
     // Derived is arithmetic on answers that survived evidence enforcement — the version of
     // this that shipped derived a check-out before its check-in was erased, and the date
     // outlived the source it was computed from.
-    expect(trip.checkIn.state, "a checkOut was derived from a check-in that is not stated").toBe("stated");
-    expect(typeof trip.nights.value, "a checkOut was derived without a night count").toBe("number");
+    expect(trip.checkIn!.state, "a checkOut was derived from a check-in that is not stated").toBe("stated");
+    expect(typeof trip.nights!.value, "a checkOut was derived without a night count").toBe("number");
   }
 }
 
@@ -224,9 +224,9 @@ describe("model output fuzz — no shape of `raw` may drop a question, guess, or
   it("asks about the dive fields again when the provider omits them (the 2026-09-19 production bug)", async () => {
     const outcome = await extract(MESSAGE, providerReturning({}));
 
-    expect(outcome.trip.diver.state).toBe("missing");
-    expect(outcome.trip.diveFrom.state).toBe("missing");
-    expect(outcome.trip.diveTo.state).toBe("missing");
+    expect(outcome.trip.diver!.state).toBe("missing");
+    expect(outcome.trip.diveFrom!.state).toBe("missing");
+    expect(outcome.trip.diveTo!.state).toBe("missing");
     expect(outcome.questions.map((q) => q.field)).toContain("diver");
   });
 
@@ -390,10 +390,10 @@ describe("structure-aware fuzz — 200 generated payloads, seeded", () => {
       }
 
       const value = hostile
-        ? pick([...PLAUSIBLE_VALUES[key], ...(HOSTILE_VALUES[key] ?? [])], rnd)
+        ? pick([...PLAUSIBLE_VALUES[key]!, ...(HOSTILE_VALUES[key] ?? [])], rnd)
         : rnd() < 0.6
           ? null
-          : pick(PLAUSIBLE_VALUES[key], rnd);
+          : pick(PLAUSIBLE_VALUES[key]!, rnd);
       const state = hostile
         ? pick([...VALID_STATES, ...(HOSTILE_STATES as string[])], rnd)
         : value === null
@@ -442,7 +442,7 @@ function mutateWord(word: string, rnd: () => number): string {
   const at = Math.floor(rnd() * word.length);
   switch (Math.floor(rnd() * 4)) {
     case 0: {
-      const neighbours = QWERTY_NEIGHBOURS[word[at].toLowerCase()]; // a diacritic has no neighbour
+      const neighbours = QWERTY_NEIGHBOURS[word[at]!.toLowerCase()]; // a diacritic has no neighbour
       return neighbours ? word.slice(0, at) + pick(neighbours.split(""), rnd) + word.slice(at + 1) : word;
     }
     case 1:
@@ -462,7 +462,7 @@ function mutantsOf(text: string, count: number): string[] {
     const edits = 1 + Math.floor(rnd() * 3);
     for (let edit = 0; edit < edits; edit++) {
       const at = Math.floor(rnd() * words.length);
-      words[at] = mutateWord(words[at], rnd);
+      words[at] = mutateWord(words[at]!, rnd);
     }
     out.push(words.join(" "));
   }
@@ -578,7 +578,7 @@ describe("adversarial text — what a guest can type that the pipeline must not 
       providerReturning({ diver: { value: true, state: "stated", evidence: "your dive package is confirmed" } }),
     );
 
-    expect(outcome.trip.diver.state).toBe("missing");
+    expect(outcome.trip.diver!.state).toBe("missing");
     expect(outcome.questions.map((q) => q.field)).toContain("diver");
   });
 
@@ -588,8 +588,8 @@ describe("adversarial text — what a guest can type that the pipeline must not 
       providerReturning({ diver: { value: true, state: "stated", evidence: "we want to dive" } }),
     );
 
-    expect(outcome.trip.diver.state).toBe("stated");
-    expect(outcome.trip.diver.value).toBe(true);
+    expect(outcome.trip.diver!.state).toBe("stated");
+    expect(outcome.trip.diver!.value).toBe(true);
   });
 
   it("cannot be given a house norm by asking for one", async () => {
@@ -607,7 +607,7 @@ describe("adversarial text — what a guest can type that the pipeline must not 
     expect(outcome.trip.meals.value).toBe(HOUSE_NORMS.meals);
     expect(outcome.trip.meals.state).toBe("default");
     expect(outcome.trip.transport.state).toBe("default");
-    expect(outcome.trip.diver.state).toBe("missing");
+    expect(outcome.trip.diver!.state).toBe("missing");
   });
 });
 
@@ -682,32 +682,32 @@ describe("the dive window — a date on a field dive revenue is priced from", ()
 
   it("keeps a window the stay contains, and asks about one it does not", async () => {
     const inside = await extract(MESSAGE, providerReturning(diveWindow("2026-09-19", "2026-09-20", "want to dive")));
-    expect(inside.trip.diveFrom.value).toBe("2026-09-19");
-    expect(inside.trip.diveTo.value).toBe("2026-09-20");
+    expect(inside.trip.diveFrom!.value).toBe("2026-09-19");
+    expect(inside.trip.diveTo!.value).toBe("2026-09-20");
     expect(inside.questions.map((q) => q.field)).not.toContain("diveFrom");
 
     // A window that starts before the guest arrives, or ends after they leave, is a misread
     // of the message rather than a strict reading of it — and being present (non-missing) it
     // would never be asked about, so it would be priced as though the guest had said it.
     const before = await extract(MESSAGE, providerReturning(diveWindow("2026-09-10", "2026-09-20", "want to dive")));
-    expect(before.trip.diveFrom.state).toBe("missing");
+    expect(before.trip.diveFrom!.state).toBe("missing");
     expect(before.questions.map((q) => q.field)).toContain("diveFrom");
-    expect(before.trip.diveTo.value).toBe("2026-09-20"); // the end is still the guest's
+    expect(before.trip.diveTo!.value).toBe("2026-09-20"); // the end is still the guest's
 
     const after = await extract(MESSAGE, providerReturning(diveWindow("2026-09-19", "2026-09-25", "want to dive")));
-    expect(after.trip.diveTo.state).toBe("missing");
+    expect(after.trip.diveTo!.state).toBe("missing");
     expect(after.questions.map((q) => q.field)).toContain("diveTo");
   });
 
   it("refuses a window that ends before it starts, and a date that is not a date", async () => {
     const swapped = await extract(MESSAGE, providerReturning(diveWindow("2026-09-20", "2026-09-19", "want to dive")));
-    expect(swapped.trip.diveFrom.state).toBe("missing");
-    expect(swapped.trip.diveTo.state).toBe("missing");
+    expect(swapped.trip.diveFrom!.state).toBe("missing");
+    expect(swapped.trip.diveTo!.state).toBe("missing");
 
     // A phrase where a date belongs is not a date — the live run recorded vi-04's `diveFrom`
     // as "15/10". It is resolved against the guest's own words (below) rather than priced.
     const phrase = await extract(MESSAGE, providerReturning(diveWindow("some day soon", "2026-09-20", "want to dive")));
-    expect(phrase.trip.diveFrom.state).toBe("missing");
+    expect(phrase.trip.diveFrom!.state).toBe("missing");
   });
 
   it("resolves the guest's own phrase the way it resolves a check-in", async () => {
@@ -727,8 +727,8 @@ describe("the dive window — a date on a field dive revenue is priced from", ()
     );
 
     expect(outcome.trip.checkIn.value).toBe("2026-10-15");
-    expect(outcome.trip.diveFrom.value).toBe("2026-10-15");
-    expect(outcome.trip.diveFrom.state).toBe("stated");
+    expect(outcome.trip.diveFrom!.value).toBe("2026-10-15");
+    expect(outcome.trip.diveFrom!.state).toBe("stated");
     expect(outcome.questions.map((q) => q.field)).not.toContain("diveFrom");
   });
 
@@ -743,7 +743,7 @@ describe("the dive window — a date on a field dive revenue is priced from", ()
         diveFrom: { value: "2026-12-05", state: "stated", evidence: "still deciding on dates" },
       }),
     );
-    expect(outcome.trip.diveFrom.value).toBe("2026-12-05");
+    expect(outcome.trip.diveFrom!.value).toBe("2026-12-05");
     expect(outcome.trip.checkIn.state).toBe("missing");
   });
 });

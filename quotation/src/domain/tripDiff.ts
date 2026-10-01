@@ -21,7 +21,7 @@
  * was asked to price, before and after the correction — so it needs no access to the extraction
  * `Trip` and cannot disagree with what was actually sent.
  */
-import type { BffGuest, BffTrip } from "../../../contracts/src/index.js";
+import type { BffGuest, BffTrip } from "../../../ai/src/index.ts";
 
 /** One correction: when it happened, and which field paths it touched (never their values). */
 export interface StaffTripEdit {

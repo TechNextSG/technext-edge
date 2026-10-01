@@ -1,23 +1,33 @@
-import { extract, type ExtractionOutcome } from "./extract.js";
-import { isReadyForHandoff, renderReply } from "./questions.js";
-import type { ReplyKind } from "./questions.js";
-import type { ExtractProvider } from "../ports/provider.js";
-import { synthesizeHospitalityReply } from "./synthesis.js";
-import type { ConversationChannel, ConversationTurn } from "../domain/conversation.js";
+import { extract, type ExtractionOutcome } from "./extract.ts";
+import { isReadyForHandoff, renderReply } from "./questions.ts";
+import type { ReplyKind } from "./questions.ts";
+import type { ExtractProvider } from "../ports/provider.ts";
+import { synthesizeHospitalityReply } from "./synthesis.ts";
+import type { ConversationChannel, ConversationTurn } from "../domain/conversation.ts";
+import type { BffTrip, BffValidationIssue } from "../domain/bffTrip.ts";
+import {
+  buildBffTrip,
+  validateBffTripPrecheck,
+  buildOdooHandoffPayload,
+  type OdooHandoffEnvelope,
+} from "./odooHandoff.ts";
 
 export type { ConversationChannel, ConversationTurn };
 
 export interface ConversationInput {
   message: string;
-  history?: ConversationTurn[];
-  channel?: ConversationChannel;
-  conversationId?: string;
+  history?: ConversationTurn[] | undefined;
+  channel?: ConversationChannel | undefined;
+  conversationId?: string | undefined;
 }
 
 export interface ConverseOutcome extends ExtractionOutcome {
   reply: string; // natural-language message ready to send back to the guest
   replyKind: ReplyKind; // which of the three deterministic replies this is
-  done: boolean; // true once nothing is missing — the reply is then the summary
+  done: boolean; // true once nothing is missing AND the handoff payload passes the precheck
+  bffTrip: BffTrip | null; // canonical @casa/contracts TripShape ready for POST /api/estimates
+  bffValidationIssues: BffValidationIssue[]; // the precheck matching bff/src/trip/fill.ts
+  handoff: OdooHandoffEnvelope; // full P5 handoff envelope
 }
 
 const MAX_TRANSCRIPT_CHARS = 60_000;
@@ -47,7 +57,12 @@ export async function converse(
   // are kept consistent by isReadyForHandoff checking the same open-question pass that
   // renderReply uses, and by the coverage test that every required field is either asked
   // about or listed in NEVER_ASKED_FIELDS (see questions.ts).
-  const done = isReadyForHandoff(outcome.trip);
+  // The BFF prices whatever this hands it, so the payload and its precheck are built on every turn:
+  // a trip the extractor thinks is finished but that `fillTrip` would refuse is not finished.
+  const bffTrip = buildBffTrip(outcome.trip);
+  const bffValidationIssues = validateBffTripPrecheck(bffTrip);
+  const handoff = buildOdooHandoffPayload(outcome.trip);
+  const done = isReadyForHandoff(outcome.trip) && bffValidationIssues.length === 0;
   const { kind, text: fallbackText } = renderReply(outcome.trip, outcome.questions);
 
   const reply = await synthesizeHospitalityReply(
@@ -64,6 +79,6 @@ export async function converse(
     provider,
   );
 
-  return { ...outcome, reply, replyKind: kind, done };
+  return { ...outcome, reply, replyKind: kind, done, bffTrip, bffValidationIssues, handoff };
 }
 

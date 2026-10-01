@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { createApp } from "../src/app.js";
+import { createApp } from "../src/app.ts";
 
 describe("BFF Endpoints", () => {
   const app = createApp();

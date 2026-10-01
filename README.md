@@ -33,9 +33,8 @@ contracts  <-  ai  <-  quotation  <-  bff
 ```
 
 ```text
-contracts/        @casa/contracts — the BFF / Odoo estimator contract, mirrored from upstream
-  src/trip.zod.ts   Bff* schemas, GuestType, TransportType
-  bff-contract/     the vendored upstream spec + PROVENANCE.md (pinned commit and hashes)
+contracts/        @casa/contracts — the team estimator's Odoo contract (OpenAPI types, typed client, fixtures).
+                  A byte-copy of the team repo: change it there, then copy it back (`npm run mirror:check`).
 ai/               @casa/ai — guest message in, Trip and reply out. No pricing, no Odoo.
   src/
     domain/           Trip schema, dates, counts, house norms, conversation — no I/O
@@ -66,9 +65,8 @@ tools/
 Rules, enforced by `npm run check:boundaries` (part of `npm run verify` and CI):
 
 - A package imports only the packages to its left in the chain above.
-- Across packages, import the barrel `<pkg>/src/index.js`, never a file inside it. The one other
-  public entry is `contracts/bff-contract/contract-spec.mjs`.
-- Imports stay relative (`../../ai/src/index.js`), not `@casa/*`: the workspace symlink did not
+- Across packages, import the barrel `<pkg>/src/index.ts`, never a file inside it.
+- Imports stay relative (`../../ai/src/index.ts`), not `@casa/*`: the workspace symlink did not
   resolve in the Vercel bundle (see the note at the top of `bff/src/app.ts`).
 
 Inside a package, imports flow `infra → application → domain`; nothing in `domain/` imports

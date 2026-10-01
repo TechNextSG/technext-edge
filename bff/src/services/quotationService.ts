@@ -1,17 +1,13 @@
+import { validateBffTripPrecheck } from "../../../ai/src/index.ts";
 import { z } from "zod";
-import {
-  validateBffTripPrecheck,
-  normalizePricing,
-  isPartnerEnquiry,
-  type HonoQuotationDraft,
-} from "../../../quotation/src/index.js";
-import { protectedFromCleanup } from "../stores/quotationStore.js";
+import { normalizePricing, isPartnerEnquiry, type HonoQuotationDraft } from "../../../quotation/src/index.ts";
+import { protectedFromCleanup } from "../stores/quotationStore.ts";
 import {
   buildEstimateRequest,
   DEFAULT_ESTIMATOR_BASE_URL,
   ESTIMATE_PATH,
-} from "./estimatorClient.js";
-import type { EstimatorPort } from "./estimatorPort.js";
+} from "./estimatorClient.ts";
+import type { EstimatorPort } from "./estimatorPort.ts";
 
 export const EDITABLE_QUOTATION_FIELDS = [
   "guestName",

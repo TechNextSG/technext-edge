@@ -8,8 +8,8 @@ import {
   DEFAULT_MODELS,
   type ProviderSettings,
   type ProviderOutcome,
-} from "../../src/infra/providers/providerFromEnv.js";
-import type { ExtractProvider } from "../../src/ports/provider.js";
+} from "../../src/infra/providers/providerFromEnv.ts";
+import type { ExtractProvider } from "../../src/ports/provider.ts";
 
 afterEach(() => {
   vi.restoreAllMocks();

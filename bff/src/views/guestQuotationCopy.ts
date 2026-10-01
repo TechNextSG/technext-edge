@@ -28,10 +28,10 @@
  *      booked here and offers the WhatsApp reply that the guest already has.
  *   4. shows nothing staff-facing: no phone number, no internal notes, no cost, no other guest.
  */
-import type { HonoQuotationDraft } from "../../../quotation/src/index.js";
-import { quotationValidityLines, quotationValidUntil } from "../../../quotation/src/index.js";
-import { escapeHtml } from "./html.js";
-import { themeCss } from "./theme.js";
+import type { HonoQuotationDraft } from "../../../quotation/src/index.ts";
+import { quotationValidityLines, quotationValidUntil } from "../../../quotation/src/index.ts";
+import { escapeHtml } from "./html.ts";
+import { themeCss } from "./theme.ts";
 
 const esc = escapeHtml;
 

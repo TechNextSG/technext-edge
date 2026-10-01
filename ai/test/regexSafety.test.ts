@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
-import { maskForLogging } from "../src/application/normalize.js";
-import { verifyGuestFacingText } from "../src/application/synthesis.js";
-import { corroborateCount } from "../src/domain/counts.js";
+import { maskForLogging } from "../src/application/normalize.ts";
+import { verifyGuestFacingText } from "../src/application/synthesis.ts";
+import { corroborateCount } from "../src/domain/counts.ts";
 
 // Guest text reaches these regexes verbatim. Each was rewritten to stay linear on the input CodeQL
 // named (js/polynomial-redos); these pin both halves of that change: the hostile input returns

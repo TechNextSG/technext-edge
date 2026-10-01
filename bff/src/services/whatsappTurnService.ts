@@ -15,24 +15,24 @@ import {
   type ExtractProvider,
   type GuestLanguage,
   type Trip,
-} from "../../../ai/src/index.js";
+} from "../../../ai/src/index.ts";
 import {
   converseWithQuotation,
   diffBffTrip,
   pricedFactsChanged,
   type HonoQuotationDraft,
-} from "../../../quotation/src/index.js";
+} from "../../../quotation/src/index.ts";
 import {
   saveQuotationDraft,
   findOpenQuotationForPhone,
-} from "../stores/quotationStore.js";
-import type { ConversationStore } from "../stores/conversationStore.js";
-import type { EstimatorPort } from "./estimatorPort.js";
+} from "../stores/quotationStore.ts";
+import type { ConversationStore } from "../stores/conversationStore.ts";
+import type { EstimatorPort } from "./estimatorPort.ts";
 import {
   type InboundTextMessage,
   type WhatsAppSendText,
   type WhatsAppConfig,
-} from "./whatsapp.js";
+} from "./whatsapp.ts";
 
 // How long a parked thread stays quiet after the guest was told a person is on it.
 export const HOLD_REPEAT_MS = 10 * 60 * 1000;

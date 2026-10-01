@@ -5,9 +5,9 @@
 // Verify GEMINI_MODEL against https://ai.google.dev/gemini-api/docs/models
 // before a real deploy — model names in this family change often and the
 // value below is a placeholder, not a confirmed-current id.
-import type { ExtractCall, ExtractProvider, ExtractResult, GuestsReadResult, CheckInReadResult, DiveWindowReadResult } from "../../ports/provider.js";
-import { MalformedArgumentsError } from "../../ports/provider.js";
-import { EXTRACT_SYSTEM_PROMPT } from "./extractPrompt.js";
+import type { ExtractCall, ExtractProvider, ExtractResult, GuestsReadResult, CheckInReadResult, DiveWindowReadResult } from "../../ports/provider.ts";
+import { MalformedArgumentsError } from "../../ports/provider.ts";
+import { EXTRACT_SYSTEM_PROMPT } from "./extractPrompt.ts";
 
 const API_BASE = "https://generativelanguage.googleapis.com/v1beta/models";
 
@@ -125,9 +125,9 @@ const DIVE_WINDOW_SCHEMA = {
 
 export interface GeminiOptions {
   /** Per-call timeout for the extraction passes. Default 15s. */
-  timeoutMs?: number;
+  timeoutMs?: number | undefined;
   /** Timeout for the written reply (`generateText`). Default 8s. */
-  synthesisTimeoutMs?: number;
+  synthesisTimeoutMs?: number | undefined;
 }
 
 export function createGeminiProvider(
@@ -342,7 +342,7 @@ export function createGeminiProvider(
             if (retryInfo?.retryDelay) {
               const match = String(retryInfo.retryDelay).match(/(\d+(?:\.\d+)?)/);
               if (match) {
-                waitMs = Math.ceil(parseFloat(match[1]) * 1000);
+                waitMs = Math.ceil(parseFloat(match[1] ?? "0") * 1000);
               }
             }
           } catch {

@@ -1,14 +1,14 @@
 import type { Context, Hono } from "hono";
 import { z } from "zod";
-import { isKnownModel, PROVIDER_KINDS, type ModelChoice, type ProviderKind, type ProviderSettings } from "../../../ai/src/index.js";
-import { testChoice, type TestResult } from "../services/aiProvider.js";
+import { isKnownModel, PROVIDER_KINDS, type ModelChoice, type ProviderKind, type ProviderSettings } from "../../../ai/src/index.ts";
+import { testChoice, type TestResult } from "../services/aiProvider.ts";
 import {
   LIMITS,
   validateDeepseekBaseUrl,
   type AiSettingsPatch,
   type SettingsStore,
-} from "../stores/settingsStore.js";
-import { renderAdminAiPage } from "../views/adminAiPage.js";
+} from "../stores/settingsStore.ts";
+import { renderAdminAiPage } from "../views/adminAiPage.ts";
 
 export interface AdminRouteDeps {
   settings: SettingsStore;

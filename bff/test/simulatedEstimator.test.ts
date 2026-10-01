@@ -11,8 +11,9 @@
 //   Ana   room 7,600 + meals 3,000 + one boat-dive day 10,000 = 20,600
 //   Ben   room 7,600 + meals 3,000                             = 10,600
 //   total 31,200, rpgn 7,800, room 15,200 / meals 6,000 / dive 10,000
+import { buildBffTrip } from "../../ai/src/index.ts";
 import { describe, it, expect, vi } from "vitest";
-import { createApp } from "../src/app.js";
+import { createApp } from "../src/app.ts";
 import {
   buildSimulatedEnvelope,
   buildSimulatedModel,
@@ -20,15 +21,15 @@ import {
   roomNamesFor,
   createSimulatedEstimator,
   type SimModel,
-} from "../src/services/simulatedEstimator.js";
+} from "../src/services/simulatedEstimator.ts";
 import {
   createEstimatorPortFromEnv,
   estimatorModeFromEnv,
   type SubmitInput,
-} from "../src/services/estimatorPort.js";
-import { buildBffTrip } from "../../quotation/src/index.js";
-import type { BffTrip } from "../../contracts/src/index.js";
-import type { Trip } from "../../ai/src/index.js";
+} from "../src/services/estimatorPort.ts";
+
+import type { BffTrip } from "../../ai/src/index.ts";
+import type { Trip } from "../../ai/src/index.ts";
 
 /** The couple in the captured fixture: Ana dives one day, Ben does not, both full board. */
 function retailCoupleSource(overrides: Partial<Record<keyof Trip, unknown>> = {}): Trip {

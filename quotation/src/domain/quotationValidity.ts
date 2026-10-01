@@ -12,7 +12,7 @@
  * here is the validity of the QUOTATION — which is ours to promise — and any stronger wording ("we are
  * holding your room") has to come from the resort, not from a constant in our code.
  */
-import type { HonoQuotationDraft } from "./quotationDraft.js";
+import type { HonoQuotationDraft } from "./quotationDraft.ts";
 
 /** Hours after the guest was sent the quotation. Timings are the resort's own, so they are config. */
 export interface FollowUpWindow {

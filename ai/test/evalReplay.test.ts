@@ -2,8 +2,8 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { readFile } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 import path from "node:path";
-import { extract } from "../src/application/extract.js";
-import type { ExtractProvider } from "../src/ports/provider.js";
+import { extract } from "../src/application/extract.ts";
+import type { ExtractProvider } from "../src/ports/provider.ts";
 import { checkEvidence, scoreCase, checkPricedFields, REQUIRED_FIELDS } from "../eval/score.mjs";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -75,7 +75,7 @@ const baselineById = new Map<
 //     kept by this replay any more — robustness.test.ts pins the same phrase-resolution rule;
 //   * vi-09's `guests: 8` count is no longer replayed here — robustness.test.ts replays it.
 const VI_CASE = /^vi-/;
-const replayable = (dataset as Array<{ id: string; text: string }>).filter((item) => !VI_CASE.test(item.id));
+const replayable = (dataset as Array<{ id: string; text: string; expected: Record<string, { state: string; value?: unknown }> }>).filter((item) => !VI_CASE.test(item.id));
 
 
 // The cases whose check-in the pre-fix pipeline deleted, marked by the generator rather than
@@ -297,7 +297,7 @@ describe("eval replay — the recorded deepseek-flash run, re-run offline", () =
       // `oneway` for a message that only says "need van from NAIA airport" — a guess, not a
       // quote, and one the guest would have been priced for. No fixture states a transfer type
       // of its own, so those two shapes are the only ones this replay can produce.
-      if (after.transport.value === true) {
+      if (after.transport!.value === true) {
         expect(after.transportType, `${item.id}.transportType must not be guessed from a wanted transfer`).toEqual({
           value: null,
           state: "missing",
@@ -313,14 +313,14 @@ describe("eval replay — the recorded deepseek-flash run, re-run offline", () =
 
       // A date that run had already resolved must resolve to the same day — this is the
       // guard on the phrase table: adding entries must not move a date that was right.
-      if (before.checkIn.state === "stated") {
+      if (before.checkIn!.state === "stated") {
         expect(after.checkIn, `${item.id}.checkIn was already right and moved`).toEqual(before.checkIn);
       }
 
       // A date it deleted is either back (and marked as such in the fixture) or still
       // missing because no model ever offered one (en-09: the run returned nothing at all
       // for that message, which is a model problem, not a date-parsing one).
-      if (before.checkIn.state === "missing" && after.checkIn.state === "stated") {
+      if (before.checkIn!.state === "missing" && after.checkIn!.state === "stated") {
         changedDates.push(item.id);
         expect(
           recoveredReplayable.map((c: { id: string }) => c.id),
@@ -329,12 +329,12 @@ describe("eval replay — the recorded deepseek-flash run, re-run offline", () =
       }
 
       // check-out is arithmetic on the guest's own answers, never the model's date.
-      if (after.checkIn.state === "stated" && typeof after.nights.value === "number") {
-        expect(after.checkOut.value).toBe(addDays(after.checkIn.value as string, after.nights.value as number));
+      if (after.checkIn!.state === "stated" && typeof after.nights!.value === "number") {
+        expect(after.checkOut!.value).toBe(addDays(after.checkIn!.value as string, after.nights!.value as number));
       } else {
-        expect(after.checkOut.state, `${item.id}.checkOut outlived its check-in`).toBe("missing");
+        expect(after.checkOut!.state, `${item.id}.checkOut outlived its check-in`).toBe("missing");
       }
-      expect(after.checkOut.state === "derived" || after.checkOut.state === "missing").toBe(true);
+      expect(after.checkOut!.state === "derived" || after.checkOut!.state === "missing").toBe(true);
     }
 
     expect(changedDates.sort()).toEqual(recoveredReplayable.map((c: { id: string }) => c.id).sort());
@@ -347,16 +347,16 @@ describe("eval replay — the recorded deepseek-flash run, re-run offline", () =
     for (const item of replayable) {
       const before = baselineById.get(item.id)!.trip;
       const after = trips.get(item.id)!;
-      const stayFrom = after.checkIn.state === "stated" ? (after.checkIn.value as string) : null;
-      const stayTo = after.checkOut.state === "derived" ? (after.checkOut.value as string) : null;
+      const stayFrom = after.checkIn!.state === "stated" ? (after.checkIn!.value as string) : null;
+      const stayTo = after.checkOut!.state === "derived" ? (after.checkOut!.value as string) : null;
 
       for (const field of DIVE_FIELDS) {
         // ADR-006 Decision 4: dive revenue is priced from `diver` and the window, so
         // anything the run inferred — and anything code cannot settle as a date the stay
         // contains — has to be a question. `diver` is the field that gates the other two.
-        if (after[field].state !== "stated") {
-          expect(after[field].state, `${item.id}.${field} is a money field and must be asked about`).toBe("missing");
-          expect(before[field].state, `${item.id}.${field} was missing in that run too`).not.toBe("stated");
+        if (after[field]!.state !== "stated") {
+          expect(after[field]!.state, `${item.id}.${field} is a money field and must be asked about`).toBe("missing");
+          expect(before[field]!.state, `${item.id}.${field} was missing in that run too`).not.toBe("stated");
           continue;
         }
         if (field === "diver") {
@@ -364,11 +364,11 @@ describe("eval replay — the recorded deepseek-flash run, re-run offline", () =
           continue;
         }
         windowsKept.push(`${item.id}.${field}`);
-        expect(after[field].value, `${item.id}.${field} is stated as something that is not a date`).toMatch(
+        expect(after[field]!.value, `${item.id}.${field} is stated as something that is not a date`).toMatch(
           /^\d{4}-\d{2}-\d{2}$/,
         );
-        if (stayFrom) expect((after[field].value as string) >= stayFrom, `${item.id}.${field} starts before the stay`).toBe(true);
-        if (stayTo) expect((after[field].value as string) <= stayTo, `${item.id}.${field} ends after the stay`).toBe(true);
+        if (stayFrom) expect((after[field]!.value as string) >= stayFrom, `${item.id}.${field} starts before the stay`).toBe(true);
+        if (stayTo) expect((after[field]!.value as string) <= stayTo, `${item.id}.${field} ends after the stay`).toBe(true);
       }
     }
 
@@ -393,11 +393,11 @@ describe("eval replay — the recorded deepseek-flash run, re-run offline", () =
         if (item.expected[field]?.state !== "stated") continue;
         stated += 1;
         const actual = trip[field];
-        if (actual.state === "stated") {
+        if (actual!.state === "stated") {
           // Stated means the guest gave it. A value that is not the one the dataset's own
           // text contains is the money bug this work is about: it is priced as an answer.
-          if (item.expected[field].value !== undefined && actual.value !== item.expected[field].value) {
-            keptWrong.push(`${item.id}.${field}=${String(actual.value)}`);
+          if (item.expected[field]!.value !== undefined && actual!.value !== item.expected[field]!.value) {
+            keptWrong.push(`${item.id}.${field}=${String(actual!.value)}`);
           }
           continue;
         }
@@ -433,17 +433,17 @@ describe("eval replay — the recorded deepseek-flash run, re-run offline", () =
     for (const [id, trip] of trips) {
       const expected = GUEST_DATE[id];
       expect(expected, `${id} has no entry in GUEST_DATE`).toBeDefined();
-      if (trip.checkIn.state !== "stated") {
-        expect(trip.checkIn.value, `${id} kept a value while not being stated`).toBeNull();
+      if (trip.checkIn!.state !== "stated") {
+        expect(trip.checkIn!.value, `${id} kept a value while not being stated`).toBeNull();
         continue;
       }
-      expect(expected.kind, `${id} ended up with a date, but the message has none`).not.toBe("noDate");
-      if (expected.kind === "monthDay") {
-        expect(String(trip.checkIn.value)).toMatch(new RegExp(`-${expected.value}$`));
-      } else {
-        expect(trip.checkIn.value).toBe(addDays(RECORDED_TODAY, expected.value));
+      expect(expected!.kind, `${id} ended up with a date, but the message has none`).not.toBe("noDate");
+      if (expected!.kind === "monthDay") {
+        expect(String(trip.checkIn!.value)).toMatch(new RegExp(`-${expected!.value}$`));
+      } else if (expected!.kind === "addDays") {
+        expect(trip.checkIn!.value).toBe(addDays(RECORDED_TODAY, expected!.value));
       }
-      expect(trip.checkIn.evidence, `${id} has a date but no quote from the guest`).not.toBeNull();
+      expect(trip.checkIn!.evidence, `${id} has a date but no quote from the guest`).not.toBeNull();
     }
   });
 
@@ -497,14 +497,14 @@ describe("eval replay — what the pipeline does with the date a model offers", 
 
     for (const [id, trip] of trips) {
       const expected = GUEST_DATE[id];
-      if (expected.kind === "noDate") {
-        expect(trip.checkIn.state, `${id} has no date in it and must still be asked about`).toBe("missing");
+      if (expected!.kind === "noDate") {
+        expect(trip.checkIn!.state, `${id} has no date in it and must still be asked about`).toBe("missing");
         expect(questions.get(id)).toContain("checkIn");
         continue;
       }
-      expect(trip.checkIn.state, `${id} states a date and must not be re-asked for it`).toBe("stated");
-      expect(trip.checkIn.value).toBe(guestIso(id));
-      expect(trip.checkIn.evidence).not.toBeNull();
+      expect(trip.checkIn!.state, `${id} states a date and must not be re-asked for it`).toBe("stated");
+      expect(trip.checkIn!.value).toBe(guestIso(id));
+      expect(trip.checkIn!.evidence).not.toBeNull();
       expect(questions.get(id), `${id} has its date, so it must not be asked again`).not.toContain("checkIn");
     }
   });
@@ -513,10 +513,10 @@ describe("eval replay — what the pipeline does with the date a model offers", 
     const { trips } = await replay(withWeekLateDates);
 
     for (const [id, trip] of trips) {
-      if (trip.checkIn.state !== "stated") continue;
+      if (trip.checkIn!.state !== "stated") continue;
       // Whatever the model said, a stated date is the guest's own day: either the
       // resolver read the phrase itself, or corroboration checked it against the words.
-      expect(trip.checkIn.value, `${id} recorded a date the guest did not write`).toBe(guestIso(id));
+      expect(trip.checkIn!.value, `${id} recorded a date the guest did not write`).toBe(guestIso(id));
     }
 
     // Nothing is left to the model any more. The two cases that were — the ambiguous day/month
@@ -524,7 +524,7 @@ describe("eval replay — what the pipeline does with the date a model offers", 
     // replay (see VI_CASE). dates.test.ts and extract.test.ts pin the same mechanism for zh,
     // where the detected language settles a yearless pair before the model's date is consulted.
     expect(modelDecided).toEqual([]);
-    expect(languageRead.filter((id) => !VI_CASE.test(id))).toEqual([]);
+    expect(languageRead.filter((id: string) => !VI_CASE.test(id))).toEqual([]);
   });
 
   it("refuses a date the guest's own words do not support", async () => {
@@ -533,9 +533,9 @@ describe("eval replay — what the pipeline does with the date a model offers", 
     // zh-02 asks only what a dive package costs: no day, no month and no weekday anywhere in
     // it. A model offering the 30th is guessing, and a guessed check-in is a wrong price
     // (dates.ts, corroborateDatePhrase).
-    expect(trip.checkIn.state).toBe("missing");
-    expect(trip.checkIn.value).toBeNull();
-    expect(trip.checkIn.evidence).toBeNull();
+    expect(trip.checkIn!.state).toBe("missing");
+    expect(trip.checkIn!.value).toBeNull();
+    expect(trip.checkIn!.evidence).toBeNull();
     expect(questions.get("zh-02-missing-most")).toContain("checkIn");
   });
 });

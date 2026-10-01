@@ -5,11 +5,14 @@
 // enough to unblock the extractor pipeline and its tests.
 
 import { z } from "zod";
-import { GuestType, TransportType } from "../../../contracts/src/index.js";
+import { GuestTypeSchema, TransportTypeSchema } from "@casa/contracts";
 
-// GuestType and TransportType are Odoo's enums, owned by contracts/. Re-exported because they are
-// also the Trip's own vocabulary.
-export { GuestType, TransportType };
+// GuestType and TransportType are Odoo's enums, owned by @casa/contracts. Re-exported under the
+// extractor's names because they are also the Trip's own vocabulary.
+export const GuestType = GuestTypeSchema;
+export type GuestType = z.infer<typeof GuestTypeSchema>;
+export const TransportType = TransportTypeSchema;
+export type TransportType = z.infer<typeof TransportTypeSchema>;
 
 export const FieldState = z.enum([
   "stated", // model found it verbatim in the message
@@ -83,7 +86,7 @@ export const Trip = z.object({
   diveNotes: field(z.string()).optional(), // specific notes about diver schedule / breakdown (e.g. "1 diver day 1, 5 divers both days")
   specialRequests: field(z.string()).optional(), // special requirements or custom notes (e.g. "3 day visitors")
   guestNames: field(z.array(z.string())).optional(), // optional voluntary guest roster if provided by booker
-  // Kitchen and transfer facts the team estimator keeps on the app side (`scenario.extras`), NOT in the
+  // Kitchen and transfer facts the customer's tool keeps on the app side (`scenario.extras`), NOT in the
   // engine's Trip: what people cannot eat, and which way the van runs. Read from the guest's words, only
   // ever `stated`; `buildBffTrip` does not send them, so they cannot change a price.
   dietNotes: field(z.string()).optional(), // e.g. "one guest is vegetarian, nut allergy"
