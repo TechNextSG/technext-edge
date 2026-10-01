@@ -1,0 +1,111 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Cấu trúc technext-edge và team estimator</title>
+<style>
+:root{--bg:#f6f7f9;--card:#fff;--text:#1b2430;--muted:#5d6b7a;--line:#d8dee6;--mirror:#dff3e6;--mirror-b:#2f9e5a;--new:#fff1d6;--new-b:#d08a00;--never:#f1f1f3;--never-b:#8a94a0;--code:#f0f3f7}
+@media (prefers-color-scheme:dark){:root{--bg:#10151b;--card:#18202a;--text:#e6ebf1;--muted:#93a0af;--line:#2b3644;--mirror:#173424;--mirror-b:#3fbf74;--new:#3a2d10;--new-b:#e0a63a;--never:#202833;--never-b:#6b7785;--code:#1f2832}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--text);font:14px/1.5 system-ui,-apple-system,"Segoe UI",sans-serif;padding:24px 16px}
+h1{font-size:22px;margin:0 0 4px}
+.sub{color:var(--muted);margin:0 0 18px}
+.legend{display:flex;gap:14px;flex-wrap:wrap;margin:0 0 18px;font-size:13px}
+.legend span{display:inline-flex;align-items:center;gap:6px}
+.sw{width:14px;height:14px;border-radius:3px;border:2px solid}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;max-width:1300px;margin:0 auto}
+@media(max-width:860px){.grid{grid-template-columns:1fr}}
+.col{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:16px}
+.col h2{font-size:16px;margin:0 0 2px}
+.col .tag{color:var(--muted);font-size:12px;margin-bottom:12px}
+.node{border:1px solid var(--line);border-left:4px solid var(--line);border-radius:8px;padding:8px 10px;margin:8px 0;background:var(--code)}
+.node b{font-family:ui-monospace,Consolas,monospace;font-size:13px}
+.node small{display:block;color:var(--muted);margin-top:2px}
+.mirror{background:var(--mirror);border-left-color:var(--mirror-b)}
+.new{background:var(--new);border-left-color:var(--new-b)}
+.never{background:var(--never);border-left-color:var(--never-b)}
+.kids{margin:6px 0 0 14px;display:flex;flex-wrap:wrap;gap:6px}
+.kid{font-family:ui-monospace,Consolas,monospace;font-size:12px;border:1px solid var(--line);border-radius:6px;padding:2px 7px;background:var(--card)}
+.kid.new{background:var(--new);border-color:var(--new-b)}
+.kid.never{background:var(--never);border-color:var(--never-b);text-decoration:line-through;color:var(--muted)}
+.rule{max-width:1300px;margin:16px auto 0;background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px 16px}
+.rule h3{margin:0 0 6px;font-size:15px}
+.rule ul{margin:0;padding-left:20px}
+code{font-family:ui-monospace,Consolas,monospace;font-size:12.5px;background:var(--code);padding:1px 5px;border-radius:4px}
+</style>
+</head>
+<body>
+<h1>Cấu trúc code: technext-edge (hiện tại) và team estimator (dự kiến)</h1>
+<p class="sub">Trái: <code>main</code> của technext-edge, đã push (<code>7b6c316</code>). Phải: <code>tn-casa-quotation-estimator</code> sau khi merge PR #5 và port kênh WhatsApp. Phần bên phải là đề xuất, chưa ai duyệt.</p>
+<div class="legend">
+  <span><i class="sw" style="background:var(--mirror);border-color:var(--mirror-b)"></i>giống từng byte ở cả hai repo</span>
+  <span><i class="sw" style="background:var(--new);border-color:var(--new-b)"></i>sẽ thêm vào team khi port</span>
+  <span><i class="sw" style="background:var(--never);border-color:var(--never-b)"></i>chỉ ở technext-edge, không port</span>
+</div>
+
+<div class="grid">
+  <section class="col">
+    <h2>technext-edge</h2>
+    <div class="tag">3 workspace: contracts ← ai ← bff</div>
+
+    <div class="node mirror"><b>contracts/</b><small>kiểu OpenAPI Odoo, client, fixtures, trip.zod.ts</small></div>
+    <div class="node mirror"><b>ai/</b><small>extractor, providers (Gemini, DeepSeek), odooHandoff</small>
+      <div class="kids"><span class="kid">domain/</span><span class="kid">application/</span><span class="kid">ports/</span><span class="kid">infra/providers/</span></div></div>
+
+    <div class="node"><b>bff/src/</b><small>ứng dụng Hono: studio và kênh WhatsApp</small>
+      <div class="kids">
+        <span class="kid">env.ts</span><span class="kid">app.ts</span>
+        <span class="kid">auth/</span><span class="kid">store/ (KV)</span>
+        <span class="kid">services/</span><span class="kid">routes/ + routes/quotes/</span>
+        <span class="kid never">quote/</span><span class="kid never">views/ + views/editor/</span>
+      </div></div>
+    <div class="node never"><b>studio</b><small>/quotes, editor, simulatedEstimator, ops sheet, /q/:slug, đăng nhập demo</small></div>
+    <div class="node"><b>api/index.ts</b><small>điểm vào Vercel, vercel.json một rewrite catch-all</small></div>
+    <div class="node"><b>tools/ops/</b><small>upstream-check, <b>mirror-check</b>, check-boundaries</small></div>
+    <div class="node"><b>docs/ · public/</b><small>public/ chỉ còn video, ảnh demo</small></div>
+  </section>
+
+  <section class="col">
+    <h2>tn-casa-quotation-estimator</h2>
+    <div class="tag">3 workspace: contracts, ai, bff (Postgres/Supabase, Odoo thật)</div>
+
+    <div class="node mirror"><b>contracts/</b><small>chép nguyên từ technext-edge (hoặc ngược lại)</small></div>
+    <div class="node mirror"><b>ai/</b><small>PR #5 chưa merge; sau merge là nguồn gốc</small></div>
+
+    <div class="node"><b>bff/src/</b><small>BFF của team</small>
+      <div class="kids">
+        <span class="kid">env.ts</span><span class="kid">auth/ (Odoo login)</span>
+        <span class="kid">odoo/</span><span class="kid">model/</span><span class="kid">trip/</span>
+        <span class="kid">booking/</span><span class="kid">certs/</span><span class="kid">files/</span>
+        <span class="kid">inquiry/</span><span class="kid">preview/</span>
+        <span class="kid">store/ (Postgres)</span><span class="kid">routes/ (14 file)</span>
+      </div></div>
+
+    <div class="node new"><b>sẽ thêm khi port</b>
+      <div class="kids">
+        <span class="kid new">routes/extract.ts (PR #5)</span>
+        <span class="kid new">channels/whatsapp/ (meta, turn, webhook)</span>
+        <span class="kid new">store/conversation/ (Redis → Postgres)</span>
+        <span class="kid new">routes/handoff.ts</span>
+        <span class="kid new">routes/admin-ai.ts + store/ai-settings (nếu Anthony muốn)</span>
+        <span class="kid new">inquiry/ ← inquiryLead (chờ B-043)</span>
+      </div></div>
+
+    <div class="node never"><b>không port</b><small>Odoo, trang /quote/&lt;token&gt; và đăng nhập Odoo đã làm các việc đó</small>
+      <div class="kids"><span class="kid never">/quotes + editor</span><span class="kid never">simulatedEstimator</span><span class="kid never">quote/ (nháp local)</span><span class="kid never">ops sheet</span><span class="kid never">/q/:slug</span></div></div>
+
+    <div class="node"><b>docs/</b><small>flows F00–F10, ledgers, product; kênh AI cần số flow mới (F11)</small></div>
+  </section>
+</div>
+
+<div class="rule">
+  <h3>Trước khi merge PR #5</h3>
+  <ul>
+    <li>Đánh số lại: F08 bên <code>main</code> là hồ sơ đại lý; Q-021, D-064, L-044 cũng trùng.</li>
+    <li><code>git merge origin/main</code> vào nhánh sẽ xung đột ở ledgers, <code>bff/.env.example</code>, <code>scripts/suites.json</code>.</li>
+    <li>Quyết định của Anthony: Q-021 (tin khách thật đi qua model nào) và có bật <code>EXTRACT_ENABLED</code> hay không.</li>
+  </ul>
+</div>
+</body>
+</html>
