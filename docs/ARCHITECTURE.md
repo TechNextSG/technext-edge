@@ -72,7 +72,7 @@ và `quotes/` — bảy module nhỏ: `pages` (studio), `guestPage` (`/q/:slug`)
 ### Views (`views/`)
 `quotationEditorPage.ts` là điểm vào 27 dòng; trang studio gồm `editor/model.ts` (suy ra trạng thái, bước, nhắc theo dõi),
 `editor/markup.ts` (HTML), `editor/styles.ts` (CSS), `editor/client.ts` (script trình duyệt). Văn bản được chuyển nguyên
-văn, và `bff/test/editorSnapshot.test.ts` giữ 12 trạng thái của trang từng byte một — đổi một ký tự CSS hay script là đỏ.
+văn, và `bff/test/views/editorSnapshot.test.ts` giữ 12 trạng thái của trang từng byte một — đổi một ký tự CSS hay script là đỏ.
 Còn lại: `handoffPage`, `guestQuotationCopy`, `opsPage`, `loginPage`, `adminAiPage`, `emptyStudio`, `testPage`, `theme`.
 
 ### Trạng thái và dữ liệu mẫu
