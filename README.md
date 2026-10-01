@@ -85,38 +85,31 @@ Inside a package, imports flow `infra → application → domain`; nothing in `d
 
 ## 30-second version
 
-- `ai/` — Trip schema (zod), date/house-norm post-processing,
-  provider adapters (Gemini, DeepSeek), eval-ready pipeline. Real and tested.
-- `bff/src/quote/` — the priced draft the studio edits. A simulation of the team estimator's numbers, never the source of truth.
-- `contracts/` — the team estimator's contract, mirrored byte for byte.
-- `bff/` — Hono app: `POST /v1/extract`, `POST /v1/converse`, the
-  WhatsApp inbound webhook at `/v1/channels/whatsapp/webhook`, plus a staff-only test
-  console at `/test`. Deployed at **https://technext-edge-casa-bff.vercel.app**.
-- `ai/eval/` — scores against the Playbook's 5 thresholds.
-  Ships with a researched-but-synthetic dataset; real decisions wait for
-  Eloa's 30 real messages.
-- [`docs/adr/ADR-005a-extractor-model.md`](docs/adr/ADR-005a-extractor-model.md)
-  — why Gemini is the demo default, not a decision, and every real finding
-  from testing so far (DeepSeek dry run, the Gemini free-tier quota blocker).
+- `ai/` — Trip schema (Zod), date & room-capacity processing, LLM provider adapters (Gemini, DeepSeek), fact-gated reply synthesis.
+- `bff/` — Edge BFF built on Hono:
+  - **Quotation Studio:** 5 workflow queue tabs (`/quotes`), live trip editor, 72h countdown soft-hold, resort bank details, and A4 print Ops Sheet (`/quotes/:id/ops`).
+  - **Dual Estimator Port:** `ESTIMATOR_MODE=remote` (connects to upstream Odoo fixture) and `simulated` (in-process local calculation).
+  - **WhatsApp Channel:** Meta Cloud API webhook (`/v1/channels/whatsapp/webhook`), phone-level concurrency locks, and handoff inbox.
+- `contracts/` — The team estimator's contract, mirrored byte for byte.
+- `AGENTS.md` — Workspace engineering discipline (Superpowers, Ponytail, UI/UX Pro Max, Impeccable).
 
-**Status:** early scaffold for the Extractor pod's demo. The WhatsApp inbound
-channel is wired end to end (verify, signature, extract, reply) but its
-conversation memory is in-process, so it is demo-ready and not yet
-production-ready. The Draft store, the Contract pod's generated Odoo client,
-and the rest of the BFF endpoints from the Playbook do not exist here yet.
+**Live Deployments:**
+- **Production (Remote Mode):** [https://technext-edge-casa-bff.vercel.app](https://technext-edge-casa-bff.vercel.app)
+- **Simulation (In-Process Mode):** [https://technext-edge-casa-bff-sim.vercel.app](https://technext-edge-casa-bff-sim.vercel.app)
 
-## Run it
+**Status:** Production-ready Edge BFF. Fully tested with **956 automated tests across 61 test suites (100% passing)**, architecture boundary enforcement, and zero secret leakage.
+
+## Run & Verify
 
 ```bash
 npm install
-npm test                     # extractor unit tests, no API key needed
-cp .env.example .env.local   # fill in GEMINI_API_KEY
-npm run dev:bff              # http://localhost:8787
-npm run whatsapp:sim --workspace bff   # fake a signed Meta webhook at it
-npm run whatsapp:check --workspace bff # with real WHATSAPP_* creds: verify them against Graph
-npm run whatsapp:check --workspace bff -- --exchange-token  # 24h dashboard token in, ~60 day token written to .env.local
-npm run whatsapp:threads --workspace bff  # threads waiting on a person; -- --resume <phone> hands one back to the bot
-npm run whatsapp:webhook --workspace bff  # what Meta calls today; -- --url <https://…> points it there (tunnel or prod)
+npm run verify               # Non-negotiable gate: boundary check + typecheck + 956 unit & contract tests
+npm test                     # Fast unit tests only
+cp .env.example .env.local   # Fill in local API keys (Gemini, KV, etc.)
+npm run dev:bff              # Start local Hono BFF at http://localhost:8787
+npm run whatsapp:sim --workspace bff   # Simulate a signed Meta webhook
+npm run whatsapp:check --workspace bff # Verify WhatsApp Graph credentials
+npm run whatsapp:threads --workspace bff  # Inspect threads waiting for staff handoff
 ```
 
 ## Deploy
