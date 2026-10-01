@@ -1,0 +1,140 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Báo cáo benchmark và latency</title>
+<style>
+:root{--bg:#f5f7fa;--card:#fff;--text:#18212b;--muted:#5c6b7b;--line:#d9e0e8;--accent:#1f6feb;--ok:#1a7f4b;--okbg:#dff3e7;--bad:#b42318;--badbg:#fde4e1;--warn:#9a6700;--warnbg:#fff1cc;--bar:#4c8df6;--barw:#e0a526;--code:#eef2f6}
+@media (prefers-color-scheme:dark){:root{--bg:#0f141a;--card:#171e27;--text:#e5ebf1;--muted:#92a0af;--line:#2a3441;--accent:#6aa5ff;--ok:#56d08c;--okbg:#14301f;--bad:#ff8a7f;--badbg:#3a1a17;--warn:#f0c14b;--warnbg:#352a0d;--bar:#5b9bff;--barw:#e0a526;--code:#1d2733}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--text);font:15px/1.55 system-ui,-apple-system,"Segoe UI",sans-serif;padding:28px 16px 60px}
+main{max-width:1080px;margin:0 auto}
+h1{font-size:26px;margin:0 0 4px}
+h2{font-size:19px;margin:34px 0 10px;padding-top:6px;border-top:1px solid var(--line)}
+h3{font-size:15px;margin:18px 0 6px}
+.sub{color:var(--muted);margin:0 0 20px}
+.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px;margin:14px 0}
+.card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px 16px}
+.card.ok{border-left:5px solid var(--ok)}.card.bad{border-left:5px solid var(--bad)}.card.warn{border-left:5px solid var(--barw)}
+.ct{color:var(--muted);font-size:12.5px;text-transform:uppercase;letter-spacing:.04em}
+.cv{font-size:28px;font-weight:700;margin:2px 0}
+.cs{color:var(--muted);font-size:13px}
+table{width:100%;border-collapse:collapse;background:var(--card);border:1px solid var(--line);border-radius:10px;overflow:hidden;margin:8px 0;font-size:14px}
+th,td{text-align:left;padding:8px 10px;border-bottom:1px solid var(--line);vertical-align:top}
+th{background:var(--code);font-size:12.5px;text-transform:uppercase;letter-spacing:.03em;color:var(--muted)}
+td.n,th.n{text-align:right;font-variant-numeric:tabular-nums}
+tr:last-child td{border-bottom:0}
+.pill{display:inline-block;padding:1px 9px;border-radius:999px;font-size:12.5px;font-weight:600}
+.pill.ok{background:var(--okbg);color:var(--ok)}.pill.bad{background:var(--badbg);color:var(--bad)}.pill.warn{background:var(--warnbg);color:var(--warn)}
+.bars{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:10px 12px}
+.brow{display:grid;grid-template-columns:minmax(120px,300px) 1fr 84px;gap:10px;align-items:center;padding:2px 0;font-size:13px}
+.bl{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-family:ui-monospace,Consolas,monospace;font-size:12px}
+.bt{background:var(--code);border-radius:6px;height:12px;overflow:hidden}
+.bar{display:block;height:100%;background:var(--bar);border-radius:6px}.bar.warn{background:var(--barw)}
+.bv{text-align:right;font-variant-numeric:tabular-nums;color:var(--muted)}
+.note{background:var(--card);border:1px solid var(--line);border-left:5px solid var(--accent);border-radius:8px;padding:10px 14px;margin:10px 0}
+.note.warn{border-left-color:var(--barw)}.note.bad{border-left-color:var(--bad)}.note.ok{border-left-color:var(--ok)}
+code{background:var(--code);padding:1px 5px;border-radius:4px;font-size:13px}
+ul{margin:6px 0 6px 20px;padding:0}
+.small{color:var(--muted);font-size:13px}
+@media(max-width:700px){.brow{grid-template-columns:100px 1fr 70px}}
+</style>
+</head>
+<body>
+<main>
+<h1>Báo cáo benchmark và latency</h1>
+<p class="sub">Kênh AI của technext-edge (extractor + kênh WhatsApp). Chạy ngày 2026-10-01, trên máy phát triển (win32, Node v22.20.0), model <code>google:gemini-3.1-flash-lite</code>, gói miễn phí của Gemini.</p>
+
+<h2>1. Tóm tắt</h2>
+<div class="cards">
+<div class="card ok"><div class="ct">Bịa dữ kiện</div><div class="cv">0</div><div class="cs">trên 42 tin đã trả lời; ngưỡng là 0</div></div>
+<div class="card ok"><div class="ct">Trường bắt buộc đúng</div><div class="cv">97%</div><div class="cs">112/116; ngưỡng ≥ 95%</div></div>
+<div class="card ok"><div class="ct">Bằng chứng đúng nguyên văn</div><div class="cv">100%</div><div class="cs">205/205; ngưỡng 100%</div></div>
+<div class="card warn"><div class="ct">Extract p50 / p95</div><div class="cv">5.3 s / 9.6 s</div><div class="cs">ngưỡng p95 ≤ 8.0 s; 42 lời gọi</div></div>
+<div class="card ok"><div class="ct">Một lượt WhatsApp có model</div><div class="cv">7.0 s</div><div class="cs">lớn nhất 8.5 s; hạn của Meta 20.0 s</div></div>
+<div class="card ok"><div class="ct">Route không dùng model</div><div class="cv">1–3 ms</div><div class="cs">trang studio, danh sách, đọc, tính giá mô phỏng (chạy cục bộ)</div></div>
+</div>
+<div class="note ok"><b>Kết luận ngắn.</b> Độ chính xác: không bịa trường nào, 97% trường bắt buộc đúng, bằng chứng 100% nguyên văn; <b>trường có giá chỉ đúng 24/25</b> (một tin khoá PADI không suy ra được <code>transport</code>, bỏ sót chứ không đưa nhầm dòng giá vào báo giá). Độ trễ: một lượt WhatsApp có model nằm quanh 7.0 s, còn dư rất nhiều so với hạn 20 giây của Meta; <b>tiêu chí p95 ≤ 8 s của extract chưa đạt</b> (9.6 s), và gần như toàn bộ thời gian đó là lời gọi model. Hai trên 44 lời gọi bị Gemini từ chối vì hết quota (429).</div>
+
+<h2>2. Độ chính xác (benchmark)</h2>
+<p class="small">Hai bộ dữ liệu giả lập trong <code>ai/eval/</code> (không phải 30 tin thật của Eloa, nên không dùng để chọn model), chấm bằng cùng luật <code>ai/eval/score.mjs</code> với runner và bài replay offline. Mỗi tin gọi <code>POST /v1/extract</code> một lần.</p>
+<table>
+<tr><th>Bộ dữ liệu</th><th class="n">Tin</th><th class="n">Lỗi gọi</th><th class="n">Bịa</th><th class="n">Bắt buộc đúng</th><th class="n">Bằng chứng</th><th class="n">Trường có giá</th><th class="n">Token vào / ra</th></tr>
+<tr><td><code>mock-30</code></td><td class="n">30</td><td class="n">1</td><td class="n">0</td><td class="n">82/84 (98%)</td><td class="n">159/159</td><td class="n">19/20</td><td class="n">46,519 / 23,458</td></tr><tr><td><code>synthetic</code></td><td class="n">14</td><td class="n">1</td><td class="n">0</td><td class="n">30/32 (94%)</td><td class="n">46/46</td><td class="n">5/5</td><td class="n">20,162 / 9,345</td></tr>
+<tr><td><b>Tổng</b></td><td class="n"><b>44</b></td><td class="n"><b>2</b></td><td class="n"><b>0</b></td><td class="n"><b>112/116 (97%)</b></td><td class="n"><b>205/205</b></td><td class="n"><b>24/25</b></td><td class="n"><b>66,681 / 32,803</b></td></tr>
+</table>
+<table>
+<tr><th>Tiêu chí</th><th>Ngưỡng</th><th>Kết quả</th><th>Trạng thái</th></tr>
+<tr><td>Trường bịa ra</td><td>0</td><td>0</td><td><span class="pill ok">đạt</span></td></tr>
+<tr><td>Trường bắt buộc đúng (checkIn, nights, guests, rooms)</td><td>≥ 95%</td><td>97%</td><td><span class="pill ok">đạt</span></td></tr>
+<tr><td>Bằng chứng là chuỗi nguyên văn</td><td>100%</td><td>100%</td><td><span class="pill ok">đạt</span></td></tr>
+<tr><td>Trường có giá đúng (transport)</td><td>tất cả</td><td>24/25</td><td><span class="pill bad">chưa đạt</span></td></tr>
+<tr><td>p95 latency của extract</td><td>≤ 8.0 s</td><td>9.6 s</td><td><span class="pill bad">chưa đạt</span></td></tr>
+</table>
+
+<h3>Các chỗ lệch so với đáp án</h3>
+<table>
+<tr><th>Bộ</th><th>Tin</th><th>Trường</th><th>Đáp án</th><th>Nhận được</th><th>Đánh giá</th></tr>
+<tr><td><code>mock-30</code></td><td><code>vi-01-complete</code></td><td>checkIn</td><td><code>{&quot;state&quot;:&quot;stated&quot;}</code></td><td><code>{&quot;state&quot;:&quot;missing&quot;,&quot;value&quot;:null}</code></td><td><span class="pill warn">bỏ sót, không bịa</span></td></tr><tr><td><code>mock-30</code></td><td><code>vi-06-gia-dinh-nghi-duong</code></td><td>checkIn</td><td><code>{&quot;state&quot;:&quot;stated&quot;}</code></td><td><code>{&quot;state&quot;:&quot;missing&quot;,&quot;value&quot;:null}</code></td><td><span class="pill warn">bỏ sót, không bịa</span></td></tr><tr><td><code>mock-30</code></td><td><code>zh-04-padi-ow-course</code></td><td>transport</td><td><code>{&quot;state&quot;:&quot;stated&quot;,&quot;value&quot;:true}</code></td><td><code>{&quot;state&quot;:&quot;missing&quot;,&quot;value&quot;:null}</code></td><td><span class="pill warn">bỏ sót, không bịa</span> (tính vào trường có giá)</td></tr><tr><td><code>synthetic</code></td><td><code>en-07-bare-group-vs-staying-word-number</code></td><td>guests</td><td><code>{&quot;state&quot;:&quot;stated&quot;,&quot;value&quot;:4}</code></td><td><code>{&quot;state&quot;:&quot;missing&quot;,&quot;value&quot;:null}</code></td><td><span class="pill warn">bỏ sót, không bịa</span></td></tr><tr><td><code>synthetic</code></td><td><code>en-09-day-visitors-staying-overnight-verbatim</code></td><td>guests</td><td><code>{&quot;state&quot;:&quot;stated&quot;,&quot;value&quot;:4}</code></td><td><code>{&quot;state&quot;:&quot;missing&quot;,&quot;value&quot;:null}</code></td><td><span class="pill warn">bỏ sót, không bịa</span></td></tr>
+</table>
+<ul>
+<li><b>7 lệch ở trường <code>rooms</code></b> (mock-30: en-01-complete, en-02-missing-most, vi-01-complete, vi-08-hoi-gia-chung; synthetic: en-01-complete, en-02-missing-most, vi-01-complete): đáp án ghi <code>missing</code>, hệ thống trả <code>default</code> = 1 theo quy ước nhà. Đây là khác biệt về nhãn, không phải số bịa; trường vẫn được gắn <code>default</code> nên nhân viên thấy là giá trị giả định.</li>
+<li><b>Các lệch còn lại là bỏ sót, không phải bịa:</b> hai ngày check-in tiếng Việt không đọc ra (<code>vi-01</code>, <code>vi-06</code>), một khoá học PADI không suy ra <code>transport</code> (<code>zh-04</code>), và hai tin nhập nhằng "nhóm bao nhiêu người, ở lại bao nhiêu" (<code>en-07</code>, <code>en-09</code>) mà hệ thống chủ ý chuyển thành câu hỏi thay vì đoán.</li>
+<li><b>2 lời gọi lỗi 429</b> (en-05-relative-date-idiom, en-03-trap-unrelated-number): Gemini từ chối vì hết quota, không phải lỗi của sản phẩm; hai tin này không được chấm.</li>
+</ul>
+
+<h2>3. Latency</h2>
+<h3>3.1 Gọi model</h3>
+<table>
+<tr><th>Đường</th><th class="n">Số lần</th><th class="n">min</th><th class="n">p50</th><th class="n">p90</th><th class="n">p95</th><th class="n">max</th><th class="n">trung bình</th></tr>
+<tr><td>POST /v1/extract (trích xuất)</td><td class="n">42</td><td class="n">2.9 s</td><td class="n">5.3 s</td><td class="n">9.2 s</td><td class="n">9.6 s</td><td class="n">11.7 s</td><td class="n">5.8 s</td></tr><tr><td>POST /v1/converse (cả lượt: trích xuất, câu hỏi, câu trả lời)</td><td class="n">10</td><td class="n">5.0 s</td><td class="n">7.6 s</td><td class="n">11.9 s</td><td class="n">11.9 s</td><td class="n">11.9 s</td><td class="n">7.6 s</td></tr>
+</table>
+<p class="small">Theo từng bộ: <code>mock-30</code> p50 5.5 s, p95 10.2 s; <code>synthetic</code> p50 4.8 s, p95 7.9 s. Thời gian phía server (<code>meta.ms</code>) gần như bằng thời gian đo ở client (chênh dưới 5 ms), nên gần như toàn bộ là lời gọi Gemini.</p>
+<h3>Từng tin, từ chậm đến nhanh (cột vàng: vượt 8 s)</h3>
+<div class="bars"><div class="brow"><span class="bl" title="m/vi-07-cuoi-tuan-lan-bien">m/vi-07-cuoi-tuan-lan-bien</span><span class="bt"><span class="bar warn" style="width:100%"></span></span><span class="bv">11.7 s</span></div><div class="brow"><span class="bl" title="m/en-10-solo-diver">m/en-10-solo-diver</span><span class="bt"><span class="bar warn" style="width:87%"></span></span><span class="bv">10.2 s</span></div><div class="brow"><span class="bl" title="m/zh-05-fun-dive-club">m/zh-05-fun-dive-club</span><span class="bt"><span class="bar warn" style="width:82%"></span></span><span class="bv">9.6 s</span></div><div class="brow"><span class="bl" title="m/en-07-fun-diving-package">m/en-07-fun-diving-package</span><span class="bt"><span class="bar warn" style="width:81%"></span></span><span class="bv">9.4 s</span></div><div class="brow"><span class="bl" title="m/zh-02-missing-most">m/zh-02-missing-most</span><span class="bt"><span class="bar warn" style="width:79%"></span></span><span class="bv">9.2 s</span></div><div class="brow"><span class="bl" title="s/en-04-agent-multiple-rooms">s/en-04-agent-multiple-rooms</span><span class="bt"><span class="bar" style="width:67%"></span></span><span class="bv">7.9 s</span></div><div class="brow"><span class="bl" title="m/vi-02-missing-dates">m/vi-02-missing-dates</span><span class="bt"><span class="bar" style="width:65%"></span></span><span class="bv">7.7 s</span></div><div class="brow"><span class="bl" title="m/en-08-family-non-divers">m/en-08-family-non-divers</span><span class="bt"><span class="bar" style="width:62%"></span></span><span class="bv">7.2 s</span></div><div class="brow"><span class="bl" title="m/zh-01-complete">m/zh-01-complete</span><span class="bt"><span class="bar" style="width:61%"></span></span><span class="bv">7.2 s</span></div><div class="brow"><span class="bl" title="m/vi-01-complete">m/vi-01-complete</span><span class="bt"><span class="bar" style="width:61%"></span></span><span class="bv">7.1 s</span></div><div class="brow"><span class="bl" title="s/en-05-relative-date-idiom">s/en-05-relative-date-idiom</span><span class="bt"><span class="bar" style="width:60%"></span></span><span class="bv">7.0 s</span></div><div class="brow"><span class="bl" title="m/en-06-padi-open-water">m/en-06-padi-open-water</span><span class="bt"><span class="bar" style="width:59%"></span></span><span class="bv">6.9 s</span></div><div class="brow"><span class="bl" title="m/vi-04-khoa-hoc-lan-ow">m/vi-04-khoa-hoc-lan-ow</span><span class="bt"><span class="bar" style="width:55%"></span></span><span class="bv">6.4 s</span></div><div class="brow"><span class="bl" title="s/vi-03-trap-price-number">s/vi-03-trap-price-number</span><span class="bt"><span class="bar" style="width:52%"></span></span><span class="bv">6.1 s</span></div><div class="brow"><span class="bl" title="s/en-09-day-visitors-staying-overnight-verbatim">s/en-09-day-visitors-staying-overnight-verbatim</span><span class="bt"><span class="bar" style="width:52%"></span></span><span class="bv">6.0 s</span></div><div class="brow"><span class="bl" title="m/vi-10-thue-xe-rieng">m/vi-10-thue-xe-rieng</span><span class="bt"><span class="bar" style="width:51%"></span></span><span class="bv">5.9 s</span></div><div class="brow"><span class="bl" title="m/en-04-agent-multiple-rooms">m/en-04-agent-multiple-rooms</span><span class="bt"><span class="bar" style="width:48%"></span></span><span class="bv">5.7 s</span></div><div class="brow"><span class="bl" title="m/en-03-trap-unrelated-number">m/en-03-trap-unrelated-number</span><span class="bt"><span class="bar" style="width:48%"></span></span><span class="bv">5.6 s</span></div><div class="brow"><span class="bl" title="m/zh-06-agency-booking">m/zh-06-agency-booking</span><span class="bt"><span class="bar" style="width:47%"></span></span><span class="bv">5.5 s</span></div><div class="brow"><span class="bl" title="m/zh-09-room-only">m/zh-09-room-only</span><span class="bt"><span class="bar" style="width:46%"></span></span><span class="bv">5.4 s</span></div><div class="brow"><span class="bl" title="m/zh-08-relative-date">m/zh-08-relative-date</span><span class="bt"><span class="bar" style="width:45%"></span></span><span class="bv">5.3 s</span></div><div class="brow"><span class="bl" title="s/en-06-bare-group-vs-staying-digits">s/en-06-bare-group-vs-staying-digits</span><span class="bt"><span class="bar" style="width:43%"></span></span><span class="bv">5.0 s</span></div><div class="brow"><span class="bl" title="m/en-01-complete">m/en-01-complete</span><span class="bt"><span class="bar" style="width:43%"></span></span><span class="bv">5.0 s</span></div><div class="brow"><span class="bl" title="m/vi-09-bay-so-dien-thoai">m/vi-09-bay-so-dien-thoai</span><span class="bt"><span class="bar" style="width:42%"></span></span><span class="bv">4.9 s</span></div><div class="brow"><span class="bl" title="s/en-02-missing-most">s/en-02-missing-most</span><span class="bt"><span class="bar" style="width:41%"></span></span><span class="bv">4.8 s</span></div><div class="brow"><span class="bl" title="m/vi-06-gia-dinh-nghi-duong">m/vi-06-gia-dinh-nghi-duong</span><span class="bt"><span class="bar" style="width:41%"></span></span><span class="bv">4.8 s</span></div><div class="brow"><span class="bl" title="s/en-01-complete">s/en-01-complete</span><span class="bt"><span class="bar" style="width:41%"></span></span><span class="bv">4.8 s</span></div><div class="brow"><span class="bl" title="s/en-07-bare-group-vs-staying-word-number">s/en-07-bare-group-vs-staying-word-number</span><span class="bt"><span class="bar" style="width:41%"></span></span><span class="bv">4.8 s</span></div><div class="brow"><span class="bl" title="m/en-02-missing-most">m/en-02-missing-most</span><span class="bt"><span class="bar" style="width:40%"></span></span><span class="bv">4.7 s</span></div><div class="brow"><span class="bl" title="m/vi-08-hoi-gia-chung">m/vi-08-hoi-gia-chung</span><span class="bt"><span class="bar" style="width:40%"></span></span><span class="bv">4.7 s</span></div><div class="brow"><span class="bl" title="s/vi-01-complete">s/vi-01-complete</span><span class="bt"><span class="bar" style="width:39%"></span></span><span class="bv">4.6 s</span></div><div class="brow"><span class="bl" title="m/en-09-trap-price-inquiry">m/en-09-trap-price-inquiry</span><span class="bt"><span class="bar" style="width:39%"></span></span><span class="bv">4.6 s</span></div><div class="brow"><span class="bl" title="m/zh-03-trap-phone-wechat">m/zh-03-trap-phone-wechat</span><span class="bt"><span class="bar" style="width:39%"></span></span><span class="bv">4.6 s</span></div><div class="brow"><span class="bl" title="s/zh-02-missing-most">s/zh-02-missing-most</span><span class="bt"><span class="bar" style="width:38%"></span></span><span class="bv">4.5 s</span></div><div class="brow"><span class="bl" title="m/zh-10-trap-price-inquiry">m/zh-10-trap-price-inquiry</span><span class="bt"><span class="bar" style="width:36%"></span></span><span class="bv">4.2 s</span></div><div class="brow"><span class="bl" title="m/zh-04-padi-ow-course">m/zh-04-padi-ow-course</span><span class="bt"><span class="bar" style="width:35%"></span></span><span class="bv">4.1 s</span></div><div class="brow"><span class="bl" title="m/vi-05-dai-ly-dat-doan">m/vi-05-dai-ly-dat-doan</span><span class="bt"><span class="bar" style="width:35%"></span></span><span class="bv">4.1 s</span></div><div class="brow"><span class="bl" title="s/vi-02-missing-dates">s/vi-02-missing-dates</span><span class="bt"><span class="bar" style="width:34%"></span></span><span class="bv">3.9 s</span></div><div class="brow"><span class="bl" title="m/vi-03-trap-price-number">m/vi-03-trap-price-number</span><span class="bt"><span class="bar" style="width:33%"></span></span><span class="bv">3.8 s</span></div><div class="brow"><span class="bl" title="s/zh-01-complete">s/zh-01-complete</span><span class="bt"><span class="bar" style="width:30%"></span></span><span class="bv">3.5 s</span></div><div class="brow"><span class="bl" title="m/zh-07-family-trip">m/zh-07-family-trip</span><span class="bt"><span class="bar" style="width:27%"></span></span><span class="bv">3.1 s</span></div><div class="brow"><span class="bl" title="s/en-08-bare-group-vs-staying-reordered">s/en-08-bare-group-vs-staying-reordered</span><span class="bt"><span class="bar" style="width:25%"></span></span><span class="bv">2.9 s</span></div></div>
+
+<h3>3.2 Một lượt WhatsApp, từ lúc webhook ký nhận tới lúc tin tới khách</h3>
+<table>
+<tr><th>Loại lượt</th><th class="n">Số lượt</th><th class="n">p50</th><th class="n">lớn nhất</th></tr>
+<tr><td>Có gọi model (trích xuất, hỏi tiếp hoặc tóm tắt)</td><td class="n">6</td><td class="n">7.0 s</td><td class="n">8.5 s</td></tr>
+<tr><td>Chuyển người ngay, không gọi model (huỷ, hỏi ngoài đặt phòng)</td><td class="n">4</td><td class="n">3 ms</td><td class="n">5 ms</td></tr>
+</table>
+<div class="bars"><div class="brow"><span class="bl" title="#1 complete enquiry (1 message)">#1 complete enquiry (1 message)</span><span class="bt"><span class="bar" style="width:35%"></span></span><span class="bv">7.0 s</span></div><div class="brow"><span class="bl" title="#2 vague enquiry, message 1">#2 vague enquiry, message 1</span><span class="bt"><span class="bar" style="width:43%"></span></span><span class="bv">8.5 s</span></div><div class="brow"><span class="bl" title="#3 vague enquiry, message 2 (answers)">#3 vague enquiry, message 2 (answers)</span><span class="bt"><span class="bar" style="width:28%"></span></span><span class="bv">5.6 s</span></div><div class="brow"><span class="bl" title="#4 cancel request">#4 cancel request</span><span class="bt"><span class="bar" style="width:1%"></span></span><span class="bv">3 ms</span></div><div class="brow"><span class="bl" title="#5 wifi question (not a booking)">#5 wifi question (not a booking)</span><span class="bt"><span class="bar" style="width:1%"></span></span><span class="bv">3 ms</span></div><div class="brow"><span class="bl" title="#6 5 guests, rooms unstated">#6 5 guests, rooms unstated</span><span class="bt"><span class="bar" style="width:32%"></span></span><span class="bv">6.5 s</span></div><div class="brow"><span class="bl" title="#7 complete enquiry (1 message)">#7 complete enquiry (1 message)</span><span class="bt"><span class="bar" style="width:34%"></span></span><span class="bv">6.7 s</span></div><div class="brow"><span class="bl" title="#8 vague enquiry, message 1">#8 vague enquiry, message 1</span><span class="bt"><span class="bar" style="width:36%"></span></span><span class="bv">7.2 s</span></div><div class="brow"><span class="bl" title="#9 vague enquiry, message 2 (thread already with a person)">#9 vague enquiry, message 2 (thread already with a person)</span><span class="bt"><span class="bar" style="width:1%"></span></span><span class="bv">no reply (thread with a person)</span></div><div class="brow"><span class="bl" title="#10 cancel request">#10 cancel request</span><span class="bt"><span class="bar" style="width:1%"></span></span><span class="bv">5 ms</span></div></div>
+<div class="note ok">Lượt chậm nhất là 8.5 s, bằng 43% hạn 20.0 s của Meta (quá hạn Meta sẽ gửi lại cùng tin; hệ thống chặn gửi trùng nên không sinh bản nháp thứ hai, xem KB37). Các lượt chuyển người mất vài mili giây vì không đi qua model.</div>
+<div class="note warn">Lượt 9 không có phản hồi: luồng đó đã được chuyển cho người ở lượt 8 nên bot im lặng theo thiết kế. Lượt 8 chuyển người ngay ở tin đầu của kịch bản "hỏi mơ hồ" là kết quả của lần chạy này, chưa phân tích thêm.</div>
+
+<h3>3.3 Các route không dùng model (cục bộ, 19 bản ghi trong bộ nhớ)</h3>
+<table>
+<tr><th>Route</th><th class="n">Số lần</th><th class="n">p50</th><th class="n">p95</th><th class="n">max</th></tr>
+<tr><td>GET /v1/health</td><td class="n">30</td><td class="n">1 ms</td><td class="n">1 ms</td><td class="n">1 ms</td></tr><tr><td>GET /v1/quotes (list)</td><td class="n">30</td><td class="n">1 ms</td><td class="n">1 ms</td><td class="n">1 ms</td></tr><tr><td>GET /v1/quotes/:id</td><td class="n">30</td><td class="n">1 ms</td><td class="n">1 ms</td><td class="n">1 ms</td></tr><tr><td>GET /quotes/:id (studio page, 112 KB)</td><td class="n">30</td><td class="n">2 ms</td><td class="n">3 ms</td><td class="n">3 ms</td></tr><tr><td>POST /v1/quotes/compute (simulated estimator)</td><td class="n">20</td><td class="n">1 ms</td><td class="n">3 ms</td><td class="n">3 ms</td></tr>
+</table>
+<p class="small">Đây là thời gian xử lý trong một tiến trình cục bộ với kho bộ nhớ, không có mạng và không có KV. Trên Vercel sẽ cộng thêm thời gian mạng, khởi động nguội và một vòng gọi Redis cho mỗi lần đọc/ghi bản ghi.</p>
+
+<h2>4. Diễn giải</h2>
+<ul>
+<li><b>Chất lượng.</b> Không có trường nào bị bịa trong 42 lời gọi; mọi bằng chứng là chuỗi có trong tin của khách. Lỗi còn lại đều là bỏ sót (và hệ thống hỏi lại hoặc để nhân viên điền), không phải điền sai, nên không dẫn tới báo giá sai âm thầm.</li>
+<li><b>Độ trễ.</b> 5.3 s cho một lần trích xuất và 7.6 s cho một lượt đầy đủ là giá của một lời gọi Gemini <code>flash-lite</code>; vài lời gọi chạm 9–12 s. Mỗi lượt WhatsApp có model ở mức 7.0 s, đủ nhanh cho hội thoại, và dưới hạn 20 s của Meta với biên rộng.</li>
+<li><b>Mức độ tin cậy của số đo.</b> Đo trên gói miễn phí, lời gọi tuần tự, một máy. Hai lời gọi bị 429 và hai lời gọi converse phải thử lại; với key có quota cao, số p95 có thể tốt hơn. Số đo là khoảng đại diện, không phải cam kết.</li>
+</ul>
+
+<h2>5. Khuyến nghị</h2>
+<ul>
+<li><b>Về tiêu chí p95 ≤ 8 s.</b> Hoặc dùng key có quota cao hơn và đo lại, hoặc nới ngưỡng của <code>extract</code> lên khoảng 10 s (một lượt WhatsApp vẫn dưới 9 s), hoặc rút bớt các lời gọi phụ trong một lượt. Cần Lead chọn; mình chưa đổi ngưỡng nào.</li>
+<li><b>Đo lại trên bản deploy.</b> Số ở đây là cục bộ; bản preview đang nằm sau SSO của Vercel nên chưa đo được. Chạy <code>node tools/live-eval/benchmark.mjs --base &lt;url&gt;</code> với link bypass để có số có mạng và khởi động nguội.</li>
+<li><b>Chạy trên 30 tin thật của Eloa</b> khi có (<code>dataset.real.json</code>); đó mới là số dùng để chọn model.</li>
+<li><b>Hai lỗ hổng ở bộ test demo</b> (câu sửa mềm "we are 3 now", khiếu nại không có chữ cancel/refund) nằm ở <code>ai/</code>, phải sửa ở repo team rồi mirror về.</li>
+</ul>
+
+<h2>6. Phương pháp và cách chạy lại</h2>
+<ul>
+<li>Server: <code>ENABLE_HONO_QUOTATION_TOOL=true PORT=8799 WHATSAPP_GRAPH_BASE_URL=http://127.0.0.1:8899 npx tsx bff/src/dev.ts</code>.</li>
+<li>Chạy: <code>node tools/live-eval/benchmark.mjs --base http://127.0.0.1:8799 --capture 8899 --delay 4500 --turns 10 --fast 30</code> (ghi một file JSON).</li>
+<li>Báo cáo: <code>node tools/live-eval/benchmark-report.mjs docs/reports/benchmark-2026-10-01.json docs/reports/benchmark-latency-2026-10-01.html</code>.</li>
+<li>Mỗi bộ đếm giờ bắt đầu lúc gửi request; khoảng nghỉ <code>--delay</code> giữa các lời gọi (để tránh quota 15 yêu cầu/phút) không nằm trong số đo, còn thời gian thử lại 429 bên trong provider thì có.</li>
+<li>Mô hình: Gemini <code>gemini-3.1-flash-lite</code>, gói miễn phí; DeepSeek không dùng (khoá trong <code>.env.local</code> đã chết).</li>
+<li>Dữ liệu thô: <code>docs/reports/benchmark-2026-10-01.json</code>.</li>
+</ul>
+</main>
+</body>
+</html>

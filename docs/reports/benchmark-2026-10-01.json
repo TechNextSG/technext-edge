@@ -1,0 +1,1124 @@
+{
+  "ranAt": "2026-10-01T05:20:40.644Z",
+  "base": "http://127.0.0.1:8799",
+  "node": "v22.20.0",
+  "platform": "win32",
+  "accuracy": {
+    "mock-30": {
+      "cases": 30,
+      "failedCalls": 1,
+      "fabricated": 0,
+      "required": {
+        "correct": 82,
+        "total": 84
+      },
+      "evidence": {
+        "ok": 159,
+        "total": 159
+      },
+      "priced": {
+        "correct": 19,
+        "total": 20
+      },
+      "tokens": {
+        "in": 46519,
+        "out": 23458
+      },
+      "retriedCalls": 0,
+      "wallMs": {
+        "n": 29,
+        "min": 3140,
+        "p50": 5474,
+        "p90": 9598,
+        "p95": 10155,
+        "max": 11697,
+        "mean": 6152
+      },
+      "serverMs": {
+        "n": 29,
+        "min": 3137,
+        "p50": 5471,
+        "p90": 9595,
+        "p95": 10151,
+        "max": 11691,
+        "mean": 6148
+      },
+      "rows": [
+        {
+          "id": "en-01-complete",
+          "wallMs": 4988,
+          "serverMs": 4981,
+          "tokensIn": 1767,
+          "tokensOut": 851,
+          "retried": false,
+          "provider": "google:gemini-3.1-flash-lite",
+          "fabricated": 0,
+          "requiredTotal": 3,
+          "requiredCorrect": 3,
+          "evidenceStated": 5,
+          "evidenceOk": 5,
+          "pricedTotal": 1,
+          "pricedBad": 0,
+          "bad": [
+            {
+              "field": "rooms",
+              "expected": {
+                "state": "missing"
+              },
+              "actual": {
+                "state": "default",
+                "value": 1
+              },
+              "fabrication": false
+            }
+          ]
+        },
+        {
+          "id": "en-02-missing-most",
+          "wallMs": 4724,
+          "serverMs": 4719,
+          "tokensIn": 1691,
+          "tokensOut": 789,
+          "retried": false,
+          "provider": "google:gemini-3.1-flash-lite",
+          "fabricated": 0,
+          "requiredTotal": 0,
+          "requiredCorrect": 0,
+          "evidenceStated": 1,
+          "evidenceOk": 1,
+          "pricedTotal": 0,
+          "pricedBad": 0,
+          "bad": [
+            {
+              "field": "rooms",
+              "expected": {
+                "state": "missing"
+              },
+              "actual": {
+                "state": "default",
+                "value": 1
+              },
+              "fabrication": false
+            }
+          ]
+        },
+        {
+          "id": "en-03-trap-unrelated-number",
+          "wallMs": 5634,
+          "serverMs": 5630,
+          "tokensIn": 1540,
+          "tokensOut": 835,
+          "retried": false,
+          "provider": "google:gemini-3.1-flash-lite",
+          "fabricated": 0,
+          "requiredTotal": 3,
+          "requiredCorrect": 3,
+          "evidenceStated": 5,
+          "evidenceOk": 5,
+          "pricedTotal": 0,
+          "pricedBad": 0,
+          "bad": []
+        },
+        {
+          "id": "en-04-agent-multiple-rooms",
+          "wallMs": 5669,
+          "serverMs": 5665,
+          "tokensIn": 1787,
+          "tokensOut": 860,
+          "retried": false,
+          "provider": "google:gemini-3.1-flash-lite",
+          "fabricated": 0,
+          "requiredTotal": 4,
+          "requiredCorrect": 4,
+          "evidenceStated": 8,
+          "evidenceOk": 8,
+          "pricedTotal": 1,
+          "pricedBad": 0,
+          "bad": []
+        },
+        {
+          "id": "en-05-relative-date-idiom",
+          "error": "HTTP 429: {\"error\":\"provider_rate_limited\",\"detail\":\"the AI provider is rate-limited — try again shortly\"}",
+          "wallMs": 7112
+        },
+        {
+          "id": "en-06-padi-open-water",
+          "wallMs": 6929,
+          "serverMs": 6923,
+          "tokensIn": 992,
+          "tokensOut": 822,
+          "retried": false,
+          "provider": "google:gemini-3.1-flash-lite",
+          "fabricated": 0,
+          "requiredTotal": 3,
+          "requiredCorrect": 3,
+          "evidenceStated": 9,
+          "evidenceOk": 9,
+          "pricedTotal": 1,
+          "pricedBad": 0,
+          "bad": []
+        },
+        {
+          "id": "en-07-fun-diving-package",
+          "wallMs": 9423,
+          "serverMs": 9417,
+          "tokensIn": 1755,
+          "tokensOut": 955,
+          "retried": false,
+          "provider": "google:gemini-3.1-flash-lite",
+          "fabricated": 0,
+          "requiredTotal": 3,
+          "requiredCorrect": 3,
+          "evidenceStated": 7,
+          "evidenceOk": 7,
+          "pricedTotal": 1,
+          "pricedBad": 0,
+          "bad": []
+        },
+        {
+          "id": "en-08-family-non-divers",
+          "wallMs": 7215,
+          "serverMs": 7204,
+          "tokensIn": 1751,
+          "tokensOut": 836,
+          "retried": false,
+          "provider": "google:gemini-3.1-flash-lite",
+          "fabricated": 0,
+          "requiredTotal": 4,
+          "requiredCorrect": 4,
+          "evidenceStated": 6,
+          "evidenceOk": 6,
+          "pricedTotal": 1,
+          "pricedBad": 0,
+          "bad": []
+        },
+        {
+          "id": "en-09-trap-price-inquiry",
+          "wallMs": 4569,
+          "serverMs": 4565,
+          "tokensIn": 1747,
+          "tokensOut": 852,
+          "retried": false,
+          "provider": "google:gemini-3.1-flash-lite",
+          "fabricated": 0,
+          "requiredTotal": 3,
+          "requiredCorrect": 3,
+          "evidenceStated": 3,
+          "evidenceOk": 3,
+          "pricedTotal": 0,
+          "pricedBad": 0,
+          "bad": []
+        },
+        {
+          "id": "en-10-solo-diver",
+          "wallMs": 10155,
+          "serverMs": 10151,
+          "tokensIn": 1727,
+          "tokensOut": 890,
+          "retried": false,
+          "provider": "google:gemini-3.1-flash-lite",
+          "fabricated": 0,
+          "requiredTotal": 4,
+          "requiredCorrect": 4,
+          "evidenceStated": 7,
+          "evidenceOk": 7,
+          "pricedTotal": 1,
+          "pricedBad": 0,
+          "bad": []
+        },
+        {
+          "id": "vi-01-complete",
+          "wallMs": 7118,
+          "serverMs": 7113,
+          "tokensIn": 1242,
+          "tokensOut": 784,
+          "retried": false,
+          "provider": "google:gemini-3.1-flash-lite",
+          "fabricated": 0,
+          "requiredTotal": 3,
+          "requiredCorrect": 2,
+          "evidenceStated": 5,
+          "evidenceOk": 5,
+          "pricedTotal": 1,
+          "pricedBad": 0,
+          "bad": [
+            {
+              "field": "checkIn",
+              "expected": {
+                "state": "stated"
+              },
+              "actual": {
+                "state": "missing",
+                "value": null
+              },
+              "fabrication": false
+            },
+            {
+              "field": "rooms",
+              "expected": {
+                "state": "missing"
+              },
+              "actual": {
+                "state": "default",
+                "value": 1
+              },
+              "fabrication": false
+            }
+          ]
+        },
+        {
+          "id": "vi-02-missing-dates",
+          "wallMs": 7652,
+          "serverMs": 7649,
+          "tokensIn": 1508,
+          "tokensOut": 761,
+          "retried": false,
+          "provider": "google:gemini-3.1-flash-lite",
+          "fabricated": 0,
+          "requiredTotal": 1,
+          "requiredCorrect": 1,
+          "evidenceStated": 2,
+          "evidenceOk": 2,
+          "pricedTotal": 0,
+          "pricedBad": 0,
+          "bad": []
+        },
+        {
+          "id": "vi-03-trap-price-number",
+          "wallMs": 3837,
+          "serverMs": 3834,
+          "tokensIn": 1739,
+          "tokensOut": 472,
+          "retried": false,
+          "provider": "google:gemini-3.1-flash-lite",
+          "fabricated": 0,
+          "requiredTotal": 3,
+          "requiredCorrect": 3,
+          "evidenceStated": 3,
+          "evidenceOk": 3,
+          "pricedTotal": 0,
+          "pricedBad": 0,
+          "bad": []
+        },
+        {
+          "id": "vi-04-khoa-hoc-lan-ow",
+          "wallMs": 6428,
+          "serverMs": 6424,
+          "tokensIn": 1835,
+          "tokensOut": 1004,
+          "retried": false,
+          "provider": "google:gemini-3.1-flash-lite",
+          "fabricated": 0,
+          "requiredTotal": 3,
+          "requiredCorrect": 3,
+          "evidenceStated": 10,
+          "evidenceOk": 10,
+          "pricedTotal": 1,
+          "pricedBad": 0,
+          "bad": []
+        },
+        {
+          "id": "vi-05-dai-ly-dat-doan",
+          "wallMs": 4066,
+          "serverMs": 4063,
+          "tokensIn": 1571,
+          "tokensOut": 845,
+          "retried": false,
+          "provider": "google:gemini-3.1-flash-lite",
+          "fabricated": 0,
+          "requiredTotal": 4,
+          "requiredCorrect": 4,
+          "evidenceStated": 7,
+          "evidenceOk": 7,
+          "pricedTotal": 1,
+          "pricedBad": 0,
+          "bad": []
+        },
+        {
+          "id": "vi-06-gia-dinh-nghi-duong",
+          "wallMs": 4804,
+          "serverMs": 4801,
+          "tokensIn": 1492,
+          "tokensOut": 798,
+          "retried": false,
+          "provider": "google:gemini-3.1-flash-lite",
+          "fabricated": 0,
+          "requiredTotal": 4,
+          "requiredCorrect": 3,
+          "evidenceStated": 6,
+          "evidenceOk": 6,
+          "pricedTotal": 1,
+          "pricedBad": 0,
+          "bad": [
+            {
+              "field": "checkIn",
+              "expected": {
+                "state": "stated"
+              },
+              "actual": {
+                "state": "missing",
+                "value": null
+              },
+              "fabrication": false
+            }
+          ]
+        },
+        {
+          "id": "vi-07-cuoi-tuan-lan-bien",
+          "wallMs": 11697,
+          "serverMs": 11691,
+          "tokensIn": 1771,
+          "tokensOut": 499,
+          "retried": false,
+          "provider": "google:gemini-3.1-flash-lite",
+          "fabricated": 0,
+          "requiredTotal": 3,
+          "requiredCorrect": 3,
+          "evidenceStated": 5,
+          "evidenceOk": 5,
+          "pricedTotal": 1,
+          "pricedBad": 0,
+          "bad": []
+        },
+        {
+          "id": "vi-08-hoi-gia-chung",
+          "wallMs": 4678,
+          "serverMs": 4674,
+          "tokensIn": 1711,
+          "tokensOut": 794,
+          "retried": false,
+          "provider": "google:gemini-3.1-flash-lite",
+          "fabricated": 0,
+          "requiredTotal": 0,
+          "requiredCorrect": 0,
+          "evidenceStated": 1,
+          "evidenceOk": 1,
+          "pricedTotal": 0,
+          "pricedBad": 0,
+          "bad": [
+            {
+              "field": "rooms",
+              "expected": {
+                "state": "missing"
+              },
+              "actual": {
+                "state": "default",
+                "value": 1
+              },
+              "fabrication": false
+            }
+          ]
+        },
+        {
+          "id": "vi-09-bay-so-dien-thoai",
+          "wallMs": 4857,
+          "serverMs": 4853,
+          "tokensIn": 1569,
+          "tokensOut": 896,
+          "retried": false,
+          "provider": "google:gemini-3.1-flash-lite",
+          "fabricated": 0,
+          "requiredTotal": 3,
+          "requiredCorrect": 3,
+          "evidenceStated": 6,
+          "evidenceOk": 6,
+          "pricedTotal": 0,
+          "pricedBad": 0,
+          "bad": []
+        },
+        {
+          "id": "vi-10-thue-xe-rieng",
+          "wallMs": 5916,
+          "serverMs": 5912,
+          "tokensIn": 1489,
+          "tokensOut": 844,
+          "retried": false,
+          "provider": "google:gemini-3.1-flash-lite",
+          "fabricated": 0,
+          "requiredTotal": 3,
+          "requiredCorrect": 3,
+          "evidenceStated": 6,
+          "evidenceOk": 6,
+          "pricedTotal": 1,
+          "pricedBad": 0,
+          "bad": []
+        },
+        {
+          "id": "zh-01-complete",
+          "wallMs": 7179,
+          "serverMs": 7176,
+          "tokensIn": 1453,
+          "tokensOut": 840,
+          "retried": false,
+          "provider": "google:gemini-3.1-flash-lite",
+          "fabricated": 0,
+          "requiredTotal": 3,
+          "requiredCorrect": 3,
+          "evidenceStated": 5,
+          "evidenceOk": 5,
+          "pricedTotal": 1,
+          "pricedBad": 0,
+          "bad": []
+        },
+        {
+          "id": "zh-02-missing-most",
+          "wallMs": 9198,
+          "serverMs": 9195,
+          "tokensIn": 963,
+          "tokensOut": 661,
+          "retried": false,
+          "provider": "google:gemini-3.1-flash-lite",
+          "fabricated": 0,
+          "requiredTotal": 0,
+          "requiredCorrect": 0,
+          "evidenceStated": 1,
+          "evidenceOk": 1,
+          "pricedTotal": 0,
+          "pricedBad": 0,
+          "bad": []
+        },
+        {
+          "id": "zh-03-trap-phone-wechat",
+          "wallMs": 4569,
+          "serverMs": 4566,
+          "tokensIn": 1827,
+          "tokensOut": 911,
+          "retried": false,
+          "provider": "google:gemini-3.1-flash-lite",
+          "fabricated": 0,
+          "requiredTotal": 3,
+          "requiredCorrect": 3,
+          "evidenceStated": 8,
+          "evidenceOk": 8,
+          "pricedTotal": 1,
+          "pricedBad": 0,
+          "bad": []
+        },
+        {
+          "id": "zh-04-padi-ow-course",
+          "wallMs": 4067,
+          "serverMs": 4064,
+          "tokensIn": 1779,
+          "tokensOut": 873,
+          "retried": false,
+          "provider": "google:gemini-3.1-flash-lite",
+          "fabricated": 0,
+          "requiredTotal": 3,
+          "requiredCorrect": 3,
+          "evidenceStated": 7,
+          "evidenceOk": 7,
+          "pricedTotal": 1,
+          "pricedBad": 1,
+          "bad": [
+            {
+              "field": "transport",
+              "expected": {
+                "state": "stated",
+                "value": true
+              },
+              "actual": {
+                "state": "missing",
+                "value": null
+              },
+              "fabrication": false
+            }
+          ]
+        },
+        {
+          "id": "zh-05-fun-dive-club",
+          "wallMs": 9598,
+          "serverMs": 9595,
+          "tokensIn": 1811,
+          "tokensOut": 912,
+          "retried": false,
+          "provider": "google:gemini-3.1-flash-lite",
+          "fabricated": 0,
+          "requiredTotal": 4,
+          "requiredCorrect": 4,
+          "evidenceStated": 8,
+          "evidenceOk": 8,
+          "pricedTotal": 1,
+          "pricedBad": 0,
+          "bad": []
+        },
+        {
+          "id": "zh-06-agency-booking",
+          "wallMs": 5474,
+          "serverMs": 5471,
+          "tokensIn": 1533,
+          "tokensOut": 874,
+          "retried": false,
+          "provider": "google:gemini-3.1-flash-lite",
+          "fabricated": 0,
+          "requiredTotal": 4,
+          "requiredCorrect": 4,
+          "evidenceStated": 8,
+          "evidenceOk": 8,
+          "pricedTotal": 1,
+          "pricedBad": 0,
+          "bad": []
+        },
+        {
+          "id": "zh-07-family-trip",
+          "wallMs": 3140,
+          "serverMs": 3137,
+          "tokensIn": 1240,
+          "tokensOut": 408,
+          "retried": false,
+          "provider": "google:gemini-3.1-flash-lite",
+          "fabricated": 0,
+          "requiredTotal": 4,
+          "requiredCorrect": 4,
+          "evidenceStated": 6,
+          "evidenceOk": 6,
+          "pricedTotal": 1,
+          "pricedBad": 0,
+          "bad": []
+        },
+        {
+          "id": "zh-08-relative-date",
+          "wallMs": 5272,
+          "serverMs": 5269,
+          "tokensIn": 1715,
+          "tokensOut": 862,
+          "retried": false,
+          "provider": "google:gemini-3.1-flash-lite",
+          "fabricated": 0,
+          "requiredTotal": 3,
+          "requiredCorrect": 3,
+          "evidenceStated": 5,
+          "evidenceOk": 5,
+          "pricedTotal": 1,
+          "pricedBad": 0,
+          "bad": []
+        },
+        {
+          "id": "zh-09-room-only",
+          "wallMs": 5356,
+          "serverMs": 5353,
+          "tokensIn": 1743,
+          "tokensOut": 877,
+          "retried": false,
+          "provider": "google:gemini-3.1-flash-lite",
+          "fabricated": 0,
+          "requiredTotal": 3,
+          "requiredCorrect": 3,
+          "evidenceStated": 5,
+          "evidenceOk": 5,
+          "pricedTotal": 1,
+          "pricedBad": 0,
+          "bad": []
+        },
+        {
+          "id": "zh-10-trap-price-inquiry",
+          "wallMs": 4190,
+          "serverMs": 4186,
+          "tokensIn": 1771,
+          "tokensOut": 853,
+          "retried": false,
+          "provider": "google:gemini-3.1-flash-lite",
+          "fabricated": 0,
+          "requiredTotal": 3,
+          "requiredCorrect": 3,
+          "evidenceStated": 4,
+          "evidenceOk": 4,
+          "pricedTotal": 0,
+          "pricedBad": 0,
+          "bad": []
+        }
+      ]
+    },
+    "synthetic": {
+      "cases": 14,
+      "failedCalls": 1,
+      "fabricated": 0,
+      "required": {
+        "correct": 30,
+        "total": 32
+      },
+      "evidence": {
+        "ok": 46,
+        "total": 46
+      },
+      "priced": {
+        "correct": 5,
+        "total": 5
+      },
+      "tokens": {
+        "in": 20162,
+        "out": 9345
+      },
+      "retriedCalls": 0,
+      "wallMs": {
+        "n": 13,
+        "min": 2895,
+        "p50": 4779,
+        "p90": 6989,
+        "p95": 7879,
+        "max": 7879,
+        "mean": 5068
+      },
+      "serverMs": {
+        "n": 13,
+        "min": 2892,
+        "p50": 4776,
+        "p90": 6985,
+        "p95": 7876,
+        "max": 7876,
+        "mean": 5065
+      },
+      "rows": [
+        {
+          "id": "en-01-complete",
+          "wallMs": 4779,
+          "serverMs": 4776,
+          "tokensIn": 1767,
+          "tokensOut": 832,
+          "retried": false,
+          "provider": "google:gemini-3.1-flash-lite",
+          "fabricated": 0,
+          "requiredTotal": 3,
+          "requiredCorrect": 3,
+          "evidenceStated": 5,
+          "evidenceOk": 5,
+          "pricedTotal": 1,
+          "pricedBad": 0,
+          "bad": [
+            {
+              "field": "rooms",
+              "expected": {
+                "state": "missing"
+              },
+              "actual": {
+                "state": "default",
+                "value": 1
+              },
+              "fabrication": false
+            }
+          ]
+        },
+        {
+          "id": "en-02-missing-most",
+          "wallMs": 4820,
+          "serverMs": 4817,
+          "tokensIn": 1469,
+          "tokensOut": 726,
+          "retried": false,
+          "provider": "google:gemini-3.1-flash-lite",
+          "fabricated": 0,
+          "requiredTotal": 0,
+          "requiredCorrect": 0,
+          "evidenceStated": 1,
+          "evidenceOk": 1,
+          "pricedTotal": 0,
+          "pricedBad": 0,
+          "bad": [
+            {
+              "field": "rooms",
+              "expected": {
+                "state": "missing"
+              },
+              "actual": {
+                "state": "default",
+                "value": 1
+              },
+              "fabrication": false
+            }
+          ]
+        },
+        {
+          "id": "en-03-trap-unrelated-number",
+          "error": "HTTP 429: {\"error\":\"provider_rate_limited\",\"detail\":\"the AI provider is rate-limited — try again shortly\"}",
+          "wallMs": 7214
+        },
+        {
+          "id": "en-04-agent-multiple-rooms",
+          "wallMs": 7879,
+          "serverMs": 7876,
+          "tokensIn": 991,
+          "tokensOut": 767,
+          "retried": false,
+          "provider": "google:gemini-3.1-flash-lite",
+          "fabricated": 0,
+          "requiredTotal": 4,
+          "requiredCorrect": 4,
+          "evidenceStated": 7,
+          "evidenceOk": 7,
+          "pricedTotal": 1,
+          "pricedBad": 0,
+          "bad": []
+        },
+        {
+          "id": "vi-01-complete",
+          "wallMs": 4606,
+          "serverMs": 4603,
+          "tokensIn": 1767,
+          "tokensOut": 878,
+          "retried": false,
+          "provider": "google:gemini-3.1-flash-lite",
+          "fabricated": 0,
+          "requiredTotal": 3,
+          "requiredCorrect": 3,
+          "evidenceStated": 6,
+          "evidenceOk": 6,
+          "pricedTotal": 1,
+          "pricedBad": 0,
+          "bad": [
+            {
+              "field": "rooms",
+              "expected": {
+                "state": "missing"
+              },
+              "actual": {
+                "state": "default",
+                "value": 1
+              },
+              "fabrication": false
+            }
+          ]
+        },
+        {
+          "id": "vi-02-missing-dates",
+          "wallMs": 3948,
+          "serverMs": 3945,
+          "tokensIn": 1743,
+          "tokensOut": 831,
+          "retried": false,
+          "provider": "google:gemini-3.1-flash-lite",
+          "fabricated": 0,
+          "requiredTotal": 1,
+          "requiredCorrect": 1,
+          "evidenceStated": 2,
+          "evidenceOk": 2,
+          "pricedTotal": 0,
+          "pricedBad": 0,
+          "bad": []
+        },
+        {
+          "id": "vi-03-trap-price-number",
+          "wallMs": 6121,
+          "serverMs": 6117,
+          "tokensIn": 1739,
+          "tokensOut": 458,
+          "retried": false,
+          "provider": "google:gemini-3.1-flash-lite",
+          "fabricated": 0,
+          "requiredTotal": 3,
+          "requiredCorrect": 3,
+          "evidenceStated": 3,
+          "evidenceOk": 3,
+          "pricedTotal": 0,
+          "pricedBad": 0,
+          "bad": []
+        },
+        {
+          "id": "zh-01-complete",
+          "wallMs": 3522,
+          "serverMs": 3520,
+          "tokensIn": 1453,
+          "tokensOut": 838,
+          "retried": false,
+          "provider": "google:gemini-3.1-flash-lite",
+          "fabricated": 0,
+          "requiredTotal": 3,
+          "requiredCorrect": 3,
+          "evidenceStated": 5,
+          "evidenceOk": 5,
+          "pricedTotal": 1,
+          "pricedBad": 0,
+          "bad": []
+        },
+        {
+          "id": "zh-02-missing-most",
+          "wallMs": 4497,
+          "serverMs": 4494,
+          "tokensIn": 1454,
+          "tokensOut": 710,
+          "retried": false,
+          "provider": "google:gemini-3.1-flash-lite",
+          "fabricated": 0,
+          "requiredTotal": 0,
+          "requiredCorrect": 0,
+          "evidenceStated": 1,
+          "evidenceOk": 1,
+          "pricedTotal": 0,
+          "pricedBad": 0,
+          "bad": []
+        },
+        {
+          "id": "en-05-relative-date-idiom",
+          "wallMs": 6989,
+          "serverMs": 6985,
+          "tokensIn": 1251,
+          "tokensOut": 745,
+          "retried": false,
+          "provider": "google:gemini-3.1-flash-lite",
+          "fabricated": 0,
+          "requiredTotal": 3,
+          "requiredCorrect": 3,
+          "evidenceStated": 4,
+          "evidenceOk": 4,
+          "pricedTotal": 0,
+          "pricedBad": 0,
+          "bad": []
+        },
+        {
+          "id": "en-06-bare-group-vs-staying-digits",
+          "wallMs": 5011,
+          "serverMs": 5008,
+          "tokensIn": 1743,
+          "tokensOut": 482,
+          "retried": false,
+          "provider": "google:gemini-3.1-flash-lite",
+          "fabricated": 0,
+          "requiredTotal": 3,
+          "requiredCorrect": 3,
+          "evidenceStated": 3,
+          "evidenceOk": 3,
+          "pricedTotal": 0,
+          "pricedBad": 0,
+          "bad": []
+        },
+        {
+          "id": "en-07-bare-group-vs-staying-word-number",
+          "wallMs": 4776,
+          "serverMs": 4773,
+          "tokensIn": 1485,
+          "tokensOut": 785,
+          "retried": false,
+          "provider": "google:gemini-3.1-flash-lite",
+          "fabricated": 0,
+          "requiredTotal": 3,
+          "requiredCorrect": 2,
+          "evidenceStated": 2,
+          "evidenceOk": 2,
+          "pricedTotal": 0,
+          "pricedBad": 0,
+          "bad": [
+            {
+              "field": "guests",
+              "expected": {
+                "state": "stated",
+                "value": 4
+              },
+              "actual": {
+                "state": "missing",
+                "value": null
+              },
+              "fabrication": false
+            }
+          ]
+        },
+        {
+          "id": "en-08-bare-group-vs-staying-reordered",
+          "wallMs": 2895,
+          "serverMs": 2892,
+          "tokensIn": 1743,
+          "tokensOut": 456,
+          "retried": false,
+          "provider": "google:gemini-3.1-flash-lite",
+          "fabricated": 0,
+          "requiredTotal": 3,
+          "requiredCorrect": 3,
+          "evidenceStated": 3,
+          "evidenceOk": 3,
+          "pricedTotal": 0,
+          "pricedBad": 0,
+          "bad": []
+        },
+        {
+          "id": "en-09-day-visitors-staying-overnight-verbatim",
+          "wallMs": 6039,
+          "serverMs": 6036,
+          "tokensIn": 1557,
+          "tokensOut": 837,
+          "retried": false,
+          "provider": "google:gemini-3.1-flash-lite",
+          "fabricated": 0,
+          "requiredTotal": 3,
+          "requiredCorrect": 2,
+          "evidenceStated": 4,
+          "evidenceOk": 4,
+          "pricedTotal": 1,
+          "pricedBad": 0,
+          "bad": [
+            {
+              "field": "guests",
+              "expected": {
+                "state": "stated",
+                "value": 4
+              },
+              "actual": {
+                "state": "missing",
+                "value": null
+              },
+              "fabrication": false
+            }
+          ]
+        }
+      ]
+    }
+  },
+  "latency": {
+    "extract": {
+      "n": 42,
+      "min": 2895,
+      "p50": 5272,
+      "p90": 9198,
+      "p95": 9598,
+      "max": 11697,
+      "mean": 5816
+    },
+    "converse": {
+      "n": 10,
+      "min": 5018,
+      "p50": 7628,
+      "p90": 11902,
+      "p95": 11902,
+      "max": 11902,
+      "mean": 7587,
+      "retriedCalls": 2
+    },
+    "whatsappTurn": {
+      "webhook": {
+        "n": 10,
+        "min": 2,
+        "p50": 6473,
+        "p90": 8540,
+        "p95": 8540,
+        "max": 8540,
+        "mean": 4157
+      },
+      "toGuest": {
+        "n": 9,
+        "min": 2,
+        "p50": 6472,
+        "p90": 8539,
+        "p95": 8539,
+        "max": 8539,
+        "mean": 4618
+      },
+      "metaDeadlineMs": 20000,
+      "turns": [
+        {
+          "n": 1,
+          "script": "complete enquiry (1 message)",
+          "ms": 7034,
+          "handoff": true,
+          "model": true
+        },
+        {
+          "n": 2,
+          "script": "vague enquiry, message 1",
+          "ms": 8540,
+          "handoff": false,
+          "model": true
+        },
+        {
+          "n": 3,
+          "script": "vague enquiry, message 2 (answers)",
+          "ms": 5571,
+          "handoff": false,
+          "model": true
+        },
+        {
+          "n": 4,
+          "script": "cancel request",
+          "ms": 3,
+          "handoff": true,
+          "model": false
+        },
+        {
+          "n": 5,
+          "script": "wifi question (not a booking)",
+          "ms": 3,
+          "handoff": true,
+          "model": false
+        },
+        {
+          "n": 6,
+          "script": "5 guests, rooms unstated",
+          "ms": 6473,
+          "handoff": false,
+          "model": true
+        },
+        {
+          "n": 7,
+          "script": "complete enquiry (1 message)",
+          "ms": 6700,
+          "handoff": false,
+          "model": true
+        },
+        {
+          "n": 8,
+          "script": "vague enquiry, message 1",
+          "ms": 7242,
+          "handoff": true,
+          "model": true
+        },
+        {
+          "n": 9,
+          "script": "vague enquiry, message 2 (thread already with a person)",
+          "ms": 2,
+          "handoff": false,
+          "model": false,
+          "replied": 0
+        },
+        {
+          "n": 10,
+          "script": "cancel request",
+          "ms": 5,
+          "handoff": true,
+          "model": false
+        }
+      ]
+    },
+    "health": {
+      "n": 30,
+      "min": 0,
+      "p50": 1,
+      "p90": 1,
+      "p95": 1,
+      "max": 1,
+      "mean": 1
+    },
+    "quotationsInStore": 19,
+    "quotationList": {
+      "n": 30,
+      "min": 1,
+      "p50": 1,
+      "p90": 1,
+      "p95": 1,
+      "max": 1,
+      "mean": 1
+    },
+    "quotationRead": {
+      "n": 30,
+      "min": 1,
+      "p50": 1,
+      "p90": 1,
+      "p95": 1,
+      "max": 1,
+      "mean": 1
+    },
+    "studioPage": {
+      "n": 30,
+      "min": 1,
+      "p50": 2,
+      "p90": 2,
+      "p95": 3,
+      "max": 3,
+      "mean": 2
+    },
+    "studioPageBytes": 114820,
+    "estimatorCompute": {
+      "n": 20,
+      "min": 1,
+      "p50": 1,
+      "p90": 2,
+      "p95": 3,
+      "max": 3,
+      "mean": 1
+    }
+  }
+}
