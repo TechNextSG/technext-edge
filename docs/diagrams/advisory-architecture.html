@@ -115,7 +115,7 @@
 <header>
   <h1>Advisory architecture</h1>
   <span class="src">proposal <code>docs/adr/ADR-008-advisory-agent.md</code>: the booking flow is unchanged, advice is a new branch</span>
-  <span class="tag">ADR-008 · proposed</span>
+  <span class="tag">ADR-008 · ADR-009 · proposed</span>
   <span class="tag">dashed = not in code yet</span>
 </header>
 <div id="stage"><svg id="svg" aria-label="Advisory architecture, proposed"><g id="world"></g></svg></div>
@@ -158,7 +158,7 @@
     model: '--c-model', wa: '--c-wa', stop: '--c-stop', respond: '--c-respond' };
 
   // ---------------- Nodes (x, y = top-left on the canvas) ----------------
-  // status: omitted = exists in code today; 'changed' = exists, ADR-008 changes it; 'proposed' = does not exist yet; 'phase3' = only if ADR-008 phase 3 happens (LangGraph.js).
+  // status: omitted = exists in code today; 'changed' = exists, ADR-008 changes it; 'proposed' = does not exist yet; 'phase3' = only if ADR-009 is accepted and its triggers fire (LangGraph.js).
   var NODES = [
     { id: 'in', x: 0, y: 460, kind: 'trigger', icon: 'webhook', name: 'Guest turn', sub: 'after lock · reset · append',
       type: 'Entry point (see whatsapp-turn.html)', file: 'bff/src/channels/whatsapp/turn.ts · processPhoneTurnBatch',
@@ -183,7 +183,7 @@
 
     { id: 'agent', x: 400, y: 720, kind: 'ai', icon: 'ai', name: 'Advisory agent', sub: '≤ 3 model steps', ai: true, status: 'proposed',
       type: 'AI · tool loop (own code)', file: 'ai/src/application/advise.ts (new)',
-      what: 'A hand-written loop, not a framework: at most 3 model steps inside the time left of the 20 s turn deadline (budgeted like <code>synthesisBudgetMs</code>, <code>turn.ts:240</code>). Each step the model either calls a tool or answers. The answer must say which knowledge entries it used. <b>No tool returns a price.</b> Moves to LangGraph.js only when the flow needs saved multi-step state or a human approval in the middle (ADR-008, phase 3).' },
+      what: 'A hand-written loop, not a framework: at most 3 model steps inside the time left of the 20 s turn deadline (budgeted like <code>synthesisBudgetMs</code>, <code>turn.ts:240</code>). Each step the model either calls a tool or answers. The answer must say which knowledge entries it used. <b>No tool returns a price.</b> Moves to LangGraph.js only when a measured trigger fires and the store is on Postgres: see <b>ADR-009</b> (the triggers, the graph, the checkpointer).' },
     { id: 'agate', x: 700, y: 720, kind: 'if', icon: 'shield', name: 'Advice gate', sub: 'no price · cites a source', outs: ['pass', 'blocked'], status: 'proposed',
       type: 'IF · symbolic check', file: 'ai/src/application/synthesis.ts:205 · verifyAdvisoryText (new)',
       what: 'Two checks, both by code. (1) The existing <code>verifyGuestFacingText(text, {})</code>: no price, no false booking confirmation. It is called <b>without</b> <code>roomTypes</code>, because that option wrongly blocks an answer that lists several room types (judge report, s17 and s20). (2) New <code>verifyAdvisoryText</code>: the answer must cite ids of entries the agent actually retrieved, and every number or clock time in it must appear in a cited entry. A claim with no source is blocked.' },
@@ -198,31 +198,31 @@
       type: 'Tool (read-only)', file: 'ai/src/domain/houseNorms.ts:22,29',
       what: 'Answers "how many people fit in a deluxe room" from <code>DEFAULT_ROOM_CAPS</code> / <code>roomCapsFromRates()</code>, the same numbers the booking flow uses to split rooms. Nothing else is exposed to the model: <b>there is no price tool for guests</b>.' },
 
-    // ---- Phase 3 (ADR-008): the same advisory flow as a LangGraph.js StateGraph. Not built; shown so the swap is visible. ----
+    // ---- Phase 3 (ADR-009): the same advisory flow as a LangGraph.js StateGraph. Not built; shown so the swap is visible. ----
     { id: 'lgRoute', x: 400, y: 1210, kind: 'if', icon: 'split', name: 'Route', sub: 'conditional edge', outs: ['pure question', 'mixed'], status: 'phase3',
       type: 'StateGraph · conditional edge', file: '@langchain/langgraph (not added) · ai/src/application/advise.ts',
-      what: 'The first node of the graph, and the one that replaces the 3-step loop. A <b>pure question</b> goes to retrieval. A <b>mixed</b> message (a booking and a question in one) goes to the booking subgraph: the question is answered, then the booking carries on. Its state is saved per phone by the checkpointer, so the next turn continues where this one stopped.' },
+      what: 'The first node of the graph, and the one that replaces the 3-step loop. A <b>pure question</b> goes to retrieval. A <b>mixed</b> message (a booking and a question in one) goes to the booking subgraph: the question is answered, then the booking carries on. Its state is saved per phone by the checkpointer, so the next turn continues where this one stopped. <i>ADR-009 section 4.</i>' },
     { id: 'lgRetrieve', x: 600, y: 1210, kind: 'code', icon: 'code', name: 'Retrieve', sub: 'same two tools', status: 'phase3',
       type: 'Graph node · code', file: 'contracts/knowledge/*.json · ai/src/domain/houseNorms.ts:22,29',
-      what: 'Calls <code>searchKnowledge</code> and <code>roomCapacity</code>, the <b>same read-only tools</b> as phase 1. Still no price tool.' },
+      what: 'Calls <code>searchKnowledge</code> and <code>roomCapacity</code>, the <b>same read-only tools</b> as phase 1. Still no price tool. <i>ADR-009 section 4.</i>' },
     { id: 'lgAnswer', x: 800, y: 1210, kind: 'ai', icon: 'ai', name: 'Answer', sub: 'chatWithTools', status: 'phase3',
       type: 'Graph node · model call', file: 'ai/src/ports/provider.ts:79-116 (chatWithTools?)',
-      what: 'Calls <code>ExtractProvider.chatWithTools</code>, the <b>same model port</b> as phase 1. It does <b>not</b> use a LangChain model adapter, so the flexible model (Gemini, DeepSeek, the fallback and the breaker) stays one setting in <code>/admin/ai</code>.' },
+      what: 'Calls <code>ExtractProvider.chatWithTools</code>, the <b>same model port</b> as phase 1. It does <b>not</b> use a LangChain model adapter, so the flexible model (Gemini, DeepSeek, the fallback and the breaker) stays one setting in <code>/admin/ai</code>. <i>ADR-009 section 3.</i>' },
     { id: 'lgGate', x: 1000, y: 1210, kind: 'if', icon: 'shield', name: 'Advice gate', sub: 'same two checks', outs: ['pass', 'unsure'], status: 'phase3',
       type: 'Graph node · symbolic check', file: 'ai/src/application/synthesis.ts:205 · verifyAdvisoryText (new)',
-      what: 'The <b>same</b> checks as phase 1: <code>verifyGuestFacingText</code> and <code>verifyAdvisoryText</code> (cites a retrieved entry, every number appears in it). The difference is the second exit: an answer the gate cannot clear goes to a person for review (<b>unsure</b>) instead of straight to a fixed hand-off.' },
+      what: 'The <b>same</b> checks as phase 1: <code>verifyGuestFacingText</code> and <code>verifyAdvisoryText</code> (cites a retrieved entry, every number appears in it). The difference is the second exit: an answer the gate cannot clear goes to a person for review (<b>unsure</b>) instead of straight to a fixed hand-off. A <b>blocked</b> answer (a price, a false confirmation) is never offered for review: it goes to the normal hand-off. <i>ADR-009 section 4.</i>' },
     { id: 'lgReply', x: 1300, y: 1210, kind: 'respond', icon: 'respond', name: 'Reply', sub: '→ Send reply', status: 'phase3',
       type: 'Graph node · end', file: 'bff/src/channels/whatsapp/meta.ts',
-      what: 'An answer that passed the gate, or that staff approved, goes to <b>Send reply</b>. Never a price.' },
+      what: 'An answer that passed the gate, or that staff approved, goes to <b>Send reply</b>. Never a price. For a mixed message it waits for both branches and puts the answer first. <i>ADR-009 section 4.</i>' },
     { id: 'lgBooking', x: 600, y: 1400, kind: 'ai', icon: 'ai', name: 'Booking flow (subgraph)', sub: 'converse() as is', status: 'phase3',
       type: 'Subgraph', file: 'ai/src/application/converse.ts',
-      what: 'For a <b>mixed</b> message: answer the question part, then run today’s <code>converse()</code> unchanged as a subgraph, so the quotation core is not rewritten.' },
-    { id: 'lgInterrupt', x: 1160, y: 1400, kind: 'wa', icon: 'pause', name: 'interrupt() · staff review', sub: 'graph stops', status: 'phase3',
-      type: 'Graph node · human in the loop', file: 'bff/src/routes/handoff.ts (existing inbox)',
-      what: 'Stops the graph. A staff member reviews or edits the proposed answer in <code>/handoff</code>, then the graph <b>resumes</b> and sends it. Phase 1 has no way to wait for a person in the middle of a flow; this is one of the reasons to move to a graph.' },
-    { id: 'lgCkpt', x: 400, y: 1400, kind: 'kv', icon: 'db', name: 'Checkpointer', sub: 'Redis · per phone', status: 'phase3',
-      type: 'State store', file: 'bff/src/store/redisStore.ts (existing Redis)',
-      what: 'The graph state saved per phone number in Redis. It replaces the phase 1 loop, which remembers nothing between turns.' }
+      what: 'For a <b>mixed</b> message: answer the question part, then run today’s <code>converse()</code> unchanged as a subgraph, so the quotation core is not rewritten. It runs side by side with Retrieve and Answer. <i>ADR-009 section 4.</i>' },
+    { id: 'lgReview', x: 1160, y: 1400, kind: 'wa', icon: 'pause', name: 'Staff review', sub: 'interrupt() · /handoff', status: 'phase3',
+      type: 'Graph node · human in the loop', file: 'bff/src/routes/handoff.ts:22,30 (a new review route beside the existing ones)',
+      what: '<code>interrupt()</code> stops the graph. The thread shows in <code>/handoff</code> with the proposed answer; staff approve, edit or reject through a <b>new</b> route (the existing <code>/handoff/:phone/resume</code> means "give the thread back to the bot"). The graph resumes under the phone lock, and <b>the approved text still passes the gate</b>. If the guest writes again meanwhile, the guest wins and the review is dropped. It must finish inside the 24-hour WhatsApp window. <i>ADR-009 section 6.</i>' },
+    { id: 'lgCkpt', x: 400, y: 1400, kind: 'kv', icon: 'db', name: 'Checkpointer', sub: 'PostgresSaver · Supabase', status: 'phase3',
+      type: 'State store (Postgres)', file: 'supabase/migrations/ in the team repo (after the store port)',
+      what: 'Graph state per phone (<code>thread_id</code> = phone) in <b>Postgres</b>, not Redis: the store moves to Supabase when the code is ported to the team repo, and phase 3 comes after that. Only graph-internal state is kept here; the conversation history stays in the conversation store. Rows are deleted when the thread expires (24 h). Connecting from Vercel through the Supabase pooler is a spike to run first. <i>ADR-009 section 5.</i>' }
   ];
 
   // [from, outputIndex, to, label?, style?]
@@ -236,8 +236,8 @@
     ['agent', 0, 'lgRoute', 'phase 3 replaces', 'swap'],
     ['lgRoute', 0, 'lgRetrieve'], ['lgRoute', 1, 'lgBooking'],
     ['lgRetrieve', 0, 'lgAnswer'], ['lgAnswer', 0, 'lgGate'],
-    ['lgGate', 0, 'lgReply'], ['lgGate', 1, 'lgInterrupt'],
-    ['lgInterrupt', 0, 'lgReply', 'approved']
+    ['lgGate', 0, 'lgReply'], ['lgGate', 1, 'lgReview'],
+    ['lgReview', 0, 'lgReply', 'approved']
   ];
   // Sub-node wires: the agent calls the model and its two tools.
   var AI_WIRES = [['agent', 'kmodel'], ['agent', 'ktool'], ['agent', 'rtool'], ['lgRoute', 'lgCkpt']];
@@ -246,7 +246,7 @@
     { x: 370, y: 90, w: 820, h: 270, title: 'Quotation core: unchanged', body: ['Extract, precheck, write the reply, save the draft.', 'The guest is never given a price.'] },
     { x: 370, y: 390, w: 260, h: 200, title: 'Hand-off: unchanged', body: ['Same fixed reply and', '/handoff inbox as today.'] },
     { x: 270, y: 620, w: 900, h: 430, title: 'Advisory branch: proposed, behind ENABLE_ADVISORY', body: ['A pure property question is answered from a small knowledge store,', 'or handed to staff with a new reason (advice_unanswered). Never guessed.'] },
-    { x: 270, y: 1110, w: 1180, h: 480, dx: 210, title: 'Phase 3 · LangGraph.js: replaces only the Advisory agent loop (not built)', body: ['Same gate, same tools, same model port. Adds saved state across turns,', 'mixed messages, and a staff approval in the middle of the flow.'] }
+    { x: 270, y: 1110, w: 1180, h: 480, dx: 210, title: 'Phase 3 · LangGraph.js (ADR-009): replaces only the Advisory agent loop', body: ['Same gate, same tools, same model port. Adds saved state across turns, mixed', 'messages and staff review. Not built; waits for the Postgres store port.'] }
   ];
 
   // ---------------- Render ----------------

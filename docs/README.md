@@ -54,6 +54,7 @@ kept out of the deployment by `.vercelignore`. This folder is the documentation.
 - [ADR-006](adr/ADR-006-reply-contract.md) — the reply contract: one deterministic message per guest turn.
 - [ADR-007](adr/ADR-007-neuro-symbolic-synthesis.md) — neuro-symbolic synthesis, fact gate and the never-re-ask contract.
 - [ADR-008](adr/ADR-008-advisory-agent.md) — **proposed**: an advisory agent next to the quotation flow, answering from a small knowledge store ([diagram](diagrams/advisory-architecture.html)).
+- [ADR-009](adr/ADR-009-advisory-langgraph.md) — **proposed**: when and how to move the advisory loop to LangGraph.js (phase 3), with a Postgres checkpointer; waits for the store port.
 
 ## Conventions
 

@@ -4,6 +4,7 @@
 - **Date:** 2026-10-02
 - **Deciders:** Lead (Duy), Anthony. Proposed by the TechNext Edge pod (`aidev1-technext`).
 - **Extends:** [ADR-006](./ADR-006-reply-contract.md), [ADR-007](./ADR-007-neuro-symbolic-synthesis.md)
+- **Followed by:** [ADR-009](./ADR-009-advisory-langgraph.md) (phase 3: moving the loop to LangGraph.js)
 - **Diagram:** [advisory-architecture.html](../diagrams/advisory-architecture.html) (dashed nodes do not exist in code yet)
 
 ---
