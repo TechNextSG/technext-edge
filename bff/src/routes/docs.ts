@@ -22,6 +22,7 @@ export const DOCUMENTS: readonly DocEntry[] = [
   { slug: "whatsapp-turn", file: "diagrams/whatsapp-turn.html", group: "Architecture", title: "One WhatsApp turn", about: "From a signed webhook to a draft quotation and the reply, step by step." },
   { slug: "quotation-lifecycle", file: "diagrams/quotation-lifecycle.html", group: "Architecture", title: "Quotation lifecycle", about: "Enquiry, draft, priced, approved, link sent; re-price and archive." },
   { slug: "repo-structure", file: "diagrams/repo-structure.html", group: "Architecture", title: "Repo map", about: "Packages, folders and the boundaries between them." },
+  { slug: "advisory-architecture", file: "diagrams/advisory-architecture.html", group: "Architecture", title: "Advisory architecture (proposed)", about: "ADR-008: a tool-using advisory branch next to the quotation flow. Dashed nodes are not in code yet." },
   { slug: "structure-compare", file: "notes/structure-compare.html", group: "Architecture", title: "This repo and the team repo", about: "What is mirrored, what moves to the team estimator, what never does." },
 ];
 

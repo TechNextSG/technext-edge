@@ -1,0 +1,417 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Advisory Architecture (proposed)</title>
+<meta name="description" content="Proposed advisory branch next to the quotation flow (ADR-008): the gate routes advice questions to a tool-using agent whose answers must cite a knowledge entry. Dashed nodes do not exist in code yet." />
+<style>
+  :root {
+    --canvas: #f2f2f4;
+    --dot: #c9c9d1;
+    --node-bg: #ffffff;
+    --node-border: #c4c4cc;
+    --node-border-hover: #ff6d5a;
+    --text: #2f2f37;
+    --muted: #7a7a86;
+    --wire: #9b9ba6;
+    --wire-ai: #8c8c98;
+    --wire-hot: #ff6d5a;
+    --port: #9b9ba6;
+    --label-bg: #f2f2f4;
+    --panel-bg: #ffffff;
+    --panel-border: #dcdce2;
+    --sticky: #fff5d6;
+    --sticky-border: #f0dfa6;
+    --sticky-text: #5c4f22;
+    --c-trigger: #ff6d5a;
+    --c-if: #3fb07a;
+    --c-code: #7f6cf0;
+    --c-kv: #3b8fd9;
+    --c-ai: #ff8a3d;
+    --c-model: #6a6af0;
+    --c-wa: #25a35a;
+    --c-stop: #e25555;
+    --c-respond: #2fa7b8;
+    --toolbar-bg: #ffffff;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --canvas: #232327; --dot: #3a3a42; --node-bg: #2f2f36; --node-border: #4a4a55; --text: #ececf1;
+      --muted: #9d9daa; --wire: #6f6f7c; --wire-ai: #6f6f7c; --port: #7f7f8c; --label-bg: #232327;
+      --panel-bg: #2b2b31; --panel-border: #44444e; --sticky: #3a3527; --sticky-border: #5a5033;
+      --sticky-text: #e9dcb4; --toolbar-bg: #2f2f36;
+    }
+  }
+  :root[data-theme="dark"] {
+    --canvas: #232327; --dot: #3a3a42; --node-bg: #2f2f36; --node-border: #4a4a55; --text: #ececf1;
+    --muted: #9d9daa; --wire: #6f6f7c; --wire-ai: #6f6f7c; --port: #7f7f8c; --label-bg: #232327;
+    --panel-bg: #2b2b31; --panel-border: #44444e; --sticky: #3a3527; --sticky-border: #5a5033;
+    --sticky-text: #e9dcb4; --toolbar-bg: #2f2f36;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; background: var(--canvas); color: var(--text);
+    font-family: "Open Sans", "Segoe UI", system-ui, -apple-system, sans-serif; overflow: hidden; }
+  header { position: absolute; top: 0; left: 0; right: 0; z-index: 5; display: flex; align-items: center;
+    gap: 12px; padding: 12px 16px; pointer-events: none; }
+  header h1 { margin: 0; font-size: 15px; font-weight: 600; pointer-events: auto; }
+  header .src { font-size: 12px; color: var(--muted); pointer-events: auto; }
+  header code { font-family: ui-monospace, "SFMono-Regular", Consolas, monospace; font-size: 11.5px; }
+  .tag { display: inline-block; padding: 2px 8px; border-radius: 10px; background: var(--toolbar-bg);
+    border: 1px solid var(--panel-border); font-size: 11px; color: var(--muted); pointer-events: auto; }
+  #stage { position: absolute; inset: 0; cursor: grab;
+    background-image: radial-gradient(var(--dot) 1px, transparent 1.2px); background-size: 20px 20px; }
+  #stage.dragging { cursor: grabbing; }
+  svg { display: block; width: 100%; height: 100%; user-select: none; touch-action: none; }
+  .wire { fill: none; stroke: var(--wire); stroke-width: 2; }
+  .wire.ai { stroke: var(--wire-ai); stroke-dasharray: 6 5; }
+  .wire.err { stroke: var(--c-stop); stroke-opacity: .55; }
+  .wire.hot { stroke: var(--wire-hot); stroke-width: 2.5; }
+  .wlabel rect { fill: var(--label-bg); }
+  .wlabel text { font-size: 11px; fill: var(--muted); }
+  .port { fill: var(--node-bg); stroke: var(--port); stroke-width: 2; }
+  .port.ai { fill: var(--node-bg); }
+  .plabel { font-size: 10.5px; fill: var(--muted); }
+  .node rect.box { fill: var(--node-bg); stroke: var(--node-border); stroke-width: 2; }
+  .node:hover rect.box, .node.sel rect.box { stroke: var(--node-border-hover); }
+  .node.proposed rect.box { stroke-dasharray: 7 5; }
+  .node .status { font-size: 9.5px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; }
+  .node .status.proposed { fill: var(--c-ai); }
+  .node .status.changed { fill: var(--c-code); }
+  #panel .badge { display: inline-block; margin-left: 6px; padding: 1px 7px; border-radius: 9px; font-size: 10.5px; font-weight: 700;
+    letter-spacing: .05em; text-transform: uppercase; border: 1px solid var(--panel-border); color: var(--muted); }
+  #panel .badge.proposed { color: var(--c-ai); border-color: var(--c-ai); }
+  #panel .badge.changed { color: var(--c-code); border-color: var(--c-code); }
+  .node { cursor: pointer; }
+  .node .name { font-size: 12.5px; font-weight: 600; fill: var(--text); }
+  .node .sub { font-size: 11px; fill: var(--muted); }
+  .node.dim, .wire.dim, .wlabel.dim { opacity: .25; }
+  .sticky rect { fill: var(--sticky); stroke: var(--sticky-border); stroke-width: 1; }
+  .sticky .st-title { font-size: 13px; font-weight: 700; fill: var(--sticky-text); }
+  .sticky .st-body { font-size: 11.5px; fill: var(--sticky-text); }
+  .toolbar { position: absolute; left: 16px; bottom: 16px; z-index: 5; display: flex; gap: 6px; }
+  .toolbar button { width: 34px; height: 34px; border-radius: 6px; border: 1px solid var(--panel-border);
+    background: var(--toolbar-bg); color: var(--text); font-size: 16px; cursor: pointer; }
+  .toolbar button:hover { border-color: var(--node-border-hover); }
+  #panel { position: absolute; top: 56px; right: 16px; width: 340px; max-height: calc(100% - 80px); overflow: auto;
+    z-index: 6; background: var(--panel-bg); border: 1px solid var(--panel-border); border-radius: 8px;
+    box-shadow: 0 6px 24px rgba(0,0,0,.12); padding: 14px 16px; display: none; font-size: 13px; line-height: 1.5; }
+  #panel.open { display: block; }
+  #panel h2 { margin: 0 0 2px; font-size: 15px; }
+  #panel .kind { font-size: 11px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); margin-bottom: 10px; }
+  #panel dl { margin: 0; }
+  #panel dt { font-size: 11px; color: var(--muted); margin-top: 8px; }
+  #panel dd { margin: 2px 0 0; }
+  #panel code { font-family: ui-monospace, Consolas, monospace; font-size: 12px; }
+  #panel .close { position: absolute; top: 8px; right: 10px; border: 0; background: none; color: var(--muted); font-size: 18px; cursor: pointer; }
+  .hint { position: absolute; right: 16px; bottom: 16px; z-index: 5; font-size: 11.5px; color: var(--muted); }
+  @media (max-width: 640px) { #panel { left: 16px; width: auto; } header .src, .hint { display: none; } }
+</style>
+</head>
+<body>
+<header>
+  <h1>Advisory architecture</h1>
+  <span class="src">proposal <code>docs/adr/ADR-008-advisory-agent.md</code>: the booking flow is unchanged, advice is a new branch</span>
+  <span class="tag">ADR-008 · proposed</span>
+  <span class="tag">dashed = not in code yet</span>
+</header>
+<div id="stage"><svg id="svg" aria-label="Advisory architecture, proposed"><g id="world"></g></svg></div>
+<div class="toolbar">
+  <button id="fit" title="Fit to view" aria-label="Fit to view">⤢</button>
+  <button id="zin" title="Zoom in" aria-label="Zoom in">+</button>
+  <button id="zout" title="Zoom out" aria-label="Zoom out">−</button>
+  <button id="theme" title="Light / dark" aria-label="Toggle theme">◐</button>
+</div>
+<div class="hint">Drag to pan · scroll to zoom · click a node for details</div>
+<aside id="panel" aria-live="polite"><button class="close" aria-label="Close">×</button><div id="panelBody"></div></aside>
+
+<script>
+(function () {
+  var NS = 'http://www.w3.org/2000/svg';
+  var W = 100, H = 100;
+
+  // Icons are 24x24 line glyphs drawn at the centre of each node.
+  var ICON = {
+    webhook: '<path d="M13 2L4 14h7l-1 8 9-12h-7z" fill="currentColor" stroke="none"/>',
+    shield: '<path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><path d="M9 12l2 2 4-4"/>',
+    split: '<path d="M4 12h6"/><path d="M10 12c3 0 4-6 8-6"/><path d="M10 12c3 0 4 6 8 6"/><path d="M16 4l2 2-2 2M16 16l2 2-2 2"/>',
+    code: '<path d="M8 8l-4 4 4 4M16 8l4 4-4 4M13 6l-2 12"/>',
+    db: '<ellipse cx="12" cy="5" rx="7" ry="3"/><path d="M5 5v14c0 1.7 3.1 3 7 3s7-1.3 7-3V5"/><path d="M5 12c0 1.7 3.1 3 7 3s7-1.3 7-3"/>',
+    loop: '<path d="M17 2l4 4-4 4"/><path d="M3 11V9a3 3 0 0 1 3-3h15"/><path d="M7 22l-4-4 4-4"/><path d="M21 13v2a3 3 0 0 1-3 3H3"/>',
+    lock: '<rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/>',
+    ai: '<rect x="4" y="7" width="16" height="12" rx="3"/><path d="M12 3v4"/><circle cx="9" cy="13" r="1.4" fill="currentColor"/><circle cx="15" cy="13" r="1.4" fill="currentColor"/>',
+    model: '<path d="M12 3l2 5 5 2-5 2-2 5-2-5-5-2 5-2z"/>',
+    wa: '<path d="M21 12a9 9 0 0 1-13.6 7.7L3 21l1.4-4.3A9 9 0 1 1 21 12z"/><path d="M9 9.5c0 3 2.5 5.5 5.5 5.5"/>',
+    stop: '<circle cx="12" cy="12" r="9"/><path d="M9 9l6 6M15 9l-6 6"/>',
+    respond: '<path d="M9 14L4 9l5-5"/><path d="M4 9h10a6 6 0 0 1 0 12h-2"/>',
+    alert: '<path d="M10.3 3.9L1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/><path d="M12 9v4M12 17h.01"/>',
+    pause: '<circle cx="12" cy="12" r="9"/><path d="M10 9v6M14 9v6"/>',
+    check: '<path d="M20 6L9 17l-5-5"/>',
+    quiet: '<path d="M11 5L6 9H2v6h4l5 4z"/><path d="M22 9l-6 6M16 9l6 6"/>'
+  };
+
+  // kind -> icon colour. "trigger" also gets the rounded left edge n8n uses for triggers.
+  var COLOR = { trigger: '--c-trigger', if: '--c-if', code: '--c-code', kv: '--c-kv', ai: '--c-ai',
+    model: '--c-model', wa: '--c-wa', stop: '--c-stop', respond: '--c-respond' };
+
+  // ---------------- Nodes (x, y = top-left on the canvas) ----------------
+  // status: omitted = exists in code today; 'changed' = exists, ADR-008 changes it; 'proposed' = does not exist yet.
+  var NODES = [
+    { id: 'in', x: 0, y: 460, kind: 'trigger', icon: 'webhook', name: 'Guest turn', sub: 'after lock · reset · append',
+      type: 'Entry point (see whatsapp-turn.html)', file: 'bff/src/channels/whatsapp/turn.ts · processPhoneTurnBatch',
+      what: 'Everything before the gate is unchanged: signature check, one claim per message id, one batch per phone, the phone lock with its 20 s deadline, the reset command, and appending the guest turn to the thread.' },
+    { id: 'gate', x: 200, y: 460, kind: 'if', icon: 'split', name: 'Gate', sub: 'booking · hand off · advice', outs: ['booking', 'hand off', 'advice'], status: 'changed',
+      type: 'Switch', file: 'bff/src/channels/whatsapp/turn.ts:218-237 · ai/src/application/intent.ts:33',
+      what: '<b>Today</b> two routes: the extractor, or park + hand off (a person asked for, a complaint or cancellation, or <code>not_booking</code> such as wifi or parking).<br><br><b>Proposed</b> a third route. <code>EnquiryIntent</code> gains <code>"advice"</code>, decided by regex in phase 1 (no model call). Order of precedence: a person asked for / complaint / cancellation first; then a message that carries booking facts (dates, counts, a room type) is <b>booking</b> even if it also asks a question; only a pure property question is <b>advice</b>. Spam and links stay hand-off. With <code>ENABLE_ADVISORY</code> off, <code>advice</code> behaves exactly like today’s <code>not_booking</code>.' },
+
+    { id: 'booking', x: 400, y: 200, kind: 'ai', icon: 'ai', name: 'Booking flow', sub: 'unchanged', ai: false,
+      type: 'AI · converse()', file: 'ai/src/application/converse.ts · bff/src/quote/application/converseWithQuotation.ts',
+      what: 'Extract the trip, build and precheck it, write the reply behind the fact gate, stall and partner checks, save the draft for staff. See whatsapp-turn.html for every step. <b>Nothing here changes.</b> The guest is never given a price.' },
+    { id: 'send', x: 1000, y: 200, kind: 'wa', icon: 'wa', name: 'Send reply', sub: 'Graph API',
+      type: 'WhatsApp · send', file: 'bff/src/channels/whatsapp/meta.ts',
+      what: 'Appends the assistant turn and sends it. Today only the booking flow reaches this node; with ADR-008 an advice answer that passed its gate does too. Never a price, never a booking promise.' },
+
+    { id: 'park', x: 400, y: 460, kind: 'wa', icon: 'pause', name: 'Park + hand-off reply', sub: '→ /handoff',
+      type: 'WhatsApp · send', file: 'bff/src/channels/whatsapp/turn.ts:222-236',
+      what: 'Thread paused with its reason (<code>guest_asked_for_human</code>, <code>complaint_or_cancel</code>, <code>not_booking</code>), fixed reply sent, staff see it in <code>/handoff</code>. <b>Unchanged.</b> It is also where every advice question lands while <code>ENABLE_ADVISORY</code> is off.' },
+    { id: 'parka', x: 1000, y: 720, kind: 'wa', icon: 'pause', name: 'Park · no answer', sub: 'advice_unanswered', status: 'proposed',
+      type: 'WhatsApp · send', file: 'bff/src/channels/whatsapp/turn.ts (new reason)',
+      what: 'The agent found nothing in the knowledge store, ran out of time or steps, or its answer was blocked by the advice gate. The guest gets the same fixed hand-off reply as today; the thread is parked with the new reason <code>advice_unanswered</code> so staff can see which questions the knowledge store could not answer. <b>The bot never guesses.</b>' },
+
+    { id: 'agent', x: 400, y: 720, kind: 'ai', icon: 'ai', name: 'Advisory agent', sub: '≤ 3 model steps', ai: true, status: 'proposed',
+      type: 'AI · tool loop (own code)', file: 'ai/src/application/advise.ts (new)',
+      what: 'A hand-written loop, not a framework: at most 3 model steps inside the time left of the 20 s turn deadline (budgeted like <code>synthesisBudgetMs</code>, <code>turn.ts:240</code>). Each step the model either calls a tool or answers. The answer must say which knowledge entries it used. <b>No tool returns a price.</b> Moves to LangGraph.js only when the flow needs saved multi-step state or a human approval in the middle (ADR-008, phase 3).' },
+    { id: 'agate', x: 700, y: 720, kind: 'if', icon: 'shield', name: 'Advice gate', sub: 'no price · cites a source', outs: ['pass', 'blocked'], status: 'proposed',
+      type: 'IF · symbolic check', file: 'ai/src/application/synthesis.ts:205 · verifyAdvisoryText (new)',
+      what: 'Two checks, both by code. (1) The existing <code>verifyGuestFacingText(text, {})</code>: no price, no false booking confirmation. It is called <b>without</b> <code>roomTypes</code>, because that option wrongly blocks an answer that lists several room types (judge report, s17 and s20). (2) New <code>verifyAdvisoryText</code>: the answer must cite ids of entries the agent actually retrieved, and every number or clock time in it must appear in a cited entry. A claim with no source is blocked.' },
+
+    { id: 'kmodel', x: 300, y: 960, kind: 'model', icon: 'model', name: 'Chat model', sub: 'chatWithTools?', status: 'changed',
+      type: 'Model (sub-node)', file: 'ai/src/ports/provider.ts:79-116 · ai/src/infra/providers/providerFromEnv.ts:180',
+      what: 'The same flexible model as today (Gemini or DeepSeek, primary + fallback chosen in <code>/admin/ai</code>). The port gains an optional <code>chatWithTools?(messages, tools)</code>; adapters in <code>gemini.ts</code> and <code>deepseek.ts</code>, wrapped by <code>createResilientProvider</code> so the fallback and the circuit breaker work as for every other method. Today the port only has one-shot calls (<code>call</code>, <code>generateText</code>), so this is the main new code.' },
+    { id: 'ktool', x: 480, y: 960, kind: 'model', icon: 'db', name: 'searchKnowledge', sub: 'query → entries + ids', status: 'proposed',
+      type: 'Tool (read-only)', file: 'contracts/knowledge/*.json (new)',
+      what: 'Returns knowledge entries with their <code>id</code>. Each entry: <code>id</code>, <code>topic</code>, <code>text</code>, <code>source</code> (URL or document), <code>owner</code>, <code>reviewedAt</code>. Phase 1: the store is small enough to put in the prompt, no vector database. <b>No price figures in the store.</b> Entries are only seeded where two sources agree (see ADR-008).' },
+    { id: 'rtool', x: 660, y: 960, kind: 'model', icon: 'code', name: 'roomCapacity', sub: 'type → guests per room', status: 'proposed',
+      type: 'Tool (read-only)', file: 'ai/src/domain/houseNorms.ts:22,29',
+      what: 'Answers "how many people fit in a deluxe room" from <code>DEFAULT_ROOM_CAPS</code> / <code>roomCapsFromRates()</code>, the same numbers the booking flow uses to split rooms. Nothing else is exposed to the model: <b>there is no price tool for guests</b>.' }
+  ];
+
+  // [from, outputIndex, to, label?, style?]
+  var EDGES = [
+    ['in', 0, 'gate'],
+    ['gate', 0, 'booking'], ['gate', 1, 'park'], ['gate', 2, 'agent'],
+    ['booking', 0, 'send'],
+    ['agent', 0, 'agate'],
+    ['agate', 0, 'send', 'cites a source'], ['agate', 1, 'parka', 'unsupported']
+  ];
+  // Sub-node wires: the agent calls the model and its two tools.
+  var AI_WIRES = [['agent', 'kmodel'], ['agent', 'ktool'], ['agent', 'rtool']];
+
+  var STICKIES = [
+    { x: 370, y: 90, w: 820, h: 270, title: 'Quotation core: unchanged', body: ['Extract, precheck, write the reply, save the draft.', 'The guest is never given a price.'] },
+    { x: 370, y: 390, w: 260, h: 200, title: 'Hand-off: unchanged', body: ['Same fixed reply and', '/handoff inbox as today.'] },
+    { x: 270, y: 620, w: 900, h: 430, title: 'Advisory branch: proposed, behind ENABLE_ADVISORY', body: ['A pure property question is answered from a small knowledge store,', 'or handed to staff with a new reason (advice_unanswered). Never guessed.'] }
+  ];
+
+  // ---------------- Render ----------------
+  var world = document.getElementById('world');
+  var byId = {};
+  NODES.forEach(function (n) { byId[n.id] = n; });
+
+  function el(tag, attrs, parent) {
+    var e = document.createElementNS(NS, tag);
+    for (var k in attrs) e.setAttribute(k, attrs[k]);
+    if (parent) parent.appendChild(e);
+    return e;
+  }
+  function outPort(n, i) {
+    var c = (n.outs && n.outs.length) || 1;
+    var gap = c === 1 ? 0 : (c === 2 ? 34 : 26);
+    return { x: n.x + W, y: n.y + H / 2 + (i - (c - 1) / 2) * gap };
+  }
+  function inPort(n) { return { x: n.x, y: n.y + H / 2 }; }
+  function bez(a, b) {
+    var dx = Math.max(60, Math.abs(b.x - a.x) * 0.5);
+    if (b.x < a.x + 40) dx = 120;
+    return 'M' + a.x + ',' + a.y + ' C' + (a.x + dx) + ',' + a.y + ' ' + (b.x - dx) + ',' + b.y + ' ' + b.x + ',' + b.y;
+  }
+
+  var gSticky = el('g', {}, world), gWire = el('g', {}, world), gLabel = el('g', {}, world), gNode = el('g', {}, world);
+
+  STICKIES.forEach(function (s) {
+    var g = el('g', { 'class': 'sticky' }, gSticky);
+    el('rect', { x: s.x, y: s.y, width: s.w, height: s.h, rx: 8 }, g);
+    var t = el('text', { x: s.x + 14, y: s.y + 24, 'class': 'st-title' }, g); t.textContent = s.title;
+    s.body.forEach(function (line, i) {
+      var b = el('text', { x: s.x + 14, y: s.y + 44 + i * 16, 'class': 'st-body' }, g); b.textContent = line;
+    });
+  });
+
+  var wires = [];
+  EDGES.forEach(function (e) {
+    var a = byId[e[0]], b = byId[e[2]];
+    var p = outPort(a, e[1]), q = inPort(b);
+    var path = el('path', { d: bez(p, q), 'class': 'wire' + (e[4] === 'err' ? ' err' : '') }, gWire);
+    var rec = { from: e[0], to: e[2], path: path, label: null };
+    if (e[3]) {
+      var lg = el('g', { 'class': 'wlabel' }, gLabel);
+      var mx = (p.x + q.x) / 2, my = (p.y + q.y) / 2;
+      var tw = e[3].length * 6.2 + 10;
+      el('rect', { x: mx - tw / 2, y: my - 9, width: tw, height: 18, rx: 4 }, lg);
+      var tx = el('text', { x: mx, y: my + 4, 'text-anchor': 'middle' }, lg); tx.textContent = e[3];
+      rec.label = lg;
+    }
+    wires.push(rec);
+  });
+  AI_WIRES.forEach(function (w) {
+    var a = byId[w[0]], b = byId[w[1]];
+    var p = { x: a.x + W / 2, y: a.y + H }, q = { x: b.x + W / 2, y: b.y };
+    var d = 'M' + p.x + ',' + p.y + ' C' + p.x + ',' + (p.y + 70) + ' ' + q.x + ',' + (q.y - 70) + ' ' + q.x + ',' + q.y;
+    wires.push({ from: w[0], to: w[1], path: el('path', { d: d, 'class': 'wire ai' }, gWire), label: null });
+  });
+
+  NODES.forEach(function (n) {
+    var g = el('g', { 'class': 'node' + (n.status === 'proposed' ? ' proposed' : ''), 'data-id': n.id, tabindex: 0, role: 'button', 'aria-label': n.name + (n.status ? ' (' + n.status + ')' : '') }, gNode);
+    if (n.kind === 'trigger') {
+      el('rect', { 'class': 'box', x: n.x, y: n.y, width: W, height: H, rx: 12 }, g);
+      el('path', { d: 'M' + (n.x + 50) + ',' + n.y + ' A50,50 0 0 0 ' + (n.x + 50) + ',' + (n.y + H), fill: 'none' }, g);
+    } else if (n.kind === 'model') {
+      el('rect', { 'class': 'box', x: n.x + 10, y: n.y, width: W - 20, height: W - 20, rx: 40 }, g);
+    } else {
+      el('rect', { 'class': 'box', x: n.x, y: n.y, width: W, height: H, rx: 8 }, g);
+    }
+    if (n.kind === 'trigger') g.querySelector('rect').setAttribute('rx', 12);
+    var cy = n.kind === 'model' ? n.y + 40 : n.y + H / 2;
+    var ig = el('g', { transform: 'translate(' + (n.x + W / 2 - 18) + ',' + (cy - 18) + ') scale(1.5)', fill: 'none',
+      stroke: 'currentColor', 'stroke-width': 1.8, 'stroke-linecap': 'round', 'stroke-linejoin': 'round' }, g);
+    ig.style.color = 'var(' + COLOR[n.kind] + ')';
+    ig.innerHTML = ICON[n.icon];
+    if (n.kind !== 'trigger' && n.kind !== 'model') el('circle', { 'class': 'port', cx: n.x, cy: n.y + H / 2, r: 5 }, g);
+    if (n.kind !== 'model') {
+      var c = (n.outs && n.outs.length) || 1;
+      if (!(n.kind === 'stop' || (n.kind === 'respond'))) {
+        for (var i = 0; i < c; i++) {
+          var op = outPort(n, i);
+          el('circle', { 'class': 'port', cx: op.x, cy: op.y, r: 5 }, g);
+          if (c > 1) { var pl = el('text', { 'class': 'plabel', x: op.x + 9, y: op.y - 6 }, g); pl.textContent = n.outs[i]; }
+        }
+      }
+    }
+    if (n.ai) {
+      el('rect', { 'class': 'port ai', x: n.x + W / 2 - 5, y: n.y + H - 5, width: 10, height: 10, transform: 'rotate(45 ' + (n.x + W / 2) + ' ' + (n.y + H) + ')' }, g);
+    }
+    if (n.kind === 'model') {
+      el('rect', { 'class': 'port ai', x: n.x + W / 2 - 5, y: n.y - 5, width: 10, height: 10, transform: 'rotate(45 ' + (n.x + W / 2) + ' ' + n.y + ')' }, g);
+    }
+    var ny = n.kind === 'model' ? n.y + W - 20 + 20 : n.y + H + 20;
+    var t1 = el('text', { 'class': 'name', x: n.x + W / 2, y: ny, 'text-anchor': 'middle' }, g); t1.textContent = n.name;
+    var t2 = el('text', { 'class': 'sub', x: n.x + W / 2, y: ny + 16, 'text-anchor': 'middle' }, g); t2.textContent = n.sub;
+    if (n.status) { var st = el('text', { 'class': 'status ' + n.status, x: n.kind === 'model' ? n.x + W / 2 : n.x, y: n.kind === 'model' ? n.y + 132 : n.y - 8, 'text-anchor': n.kind === 'model' ? 'middle' : 'start' }, g); st.textContent = n.status; }
+    g.addEventListener('click', function (ev) { ev.stopPropagation(); select(n.id); });
+    g.addEventListener('keydown', function (ev) { if (ev.key === 'Enter' || ev.key === ' ') { ev.preventDefault(); select(n.id); } });
+    g.addEventListener('mouseenter', function () { highlight(n.id); });
+    g.addEventListener('mouseleave', function () { highlight(selected); });
+  });
+
+  // ---------------- Highlight + detail panel ----------------
+  var selected = null;
+  function highlight(id) {
+    var nodes = gNode.querySelectorAll('.node');
+    if (!id) {
+      nodes.forEach(function (g) { g.classList.remove('dim', 'sel'); });
+      wires.forEach(function (w) { w.path.classList.remove('dim', 'hot'); if (w.label) w.label.classList.remove('dim'); });
+      return;
+    }
+    var keep = {}; keep[id] = true;
+    wires.forEach(function (w) {
+      var on = w.from === id || w.to === id;
+      if (on) { keep[w.from] = true; keep[w.to] = true; }
+      w.path.classList.toggle('hot', on); w.path.classList.toggle('dim', !on);
+      if (w.label) w.label.classList.toggle('dim', !on);
+    });
+    nodes.forEach(function (g) {
+      var nid = g.getAttribute('data-id');
+      g.classList.toggle('dim', !keep[nid]); g.classList.toggle('sel', nid === selected);
+    });
+  }
+  var panel = document.getElementById('panel'), body = document.getElementById('panelBody');
+  function select(id) {
+    selected = id;
+    var n = byId[id];
+    body.innerHTML = '<h2>' + n.name + (n.status ? '<span class="badge ' + n.status + '">' + n.status + '</span>' : '') + '</h2><div class="kind">' + n.type + '</div><dl>' +
+      '<dt>What happens</dt><dd>' + n.what + '</dd>' +
+      '<dt>Code</dt><dd><code>' + n.file + '</code></dd></dl>';
+    panel.classList.add('open');
+    highlight(id);
+  }
+  function closePanel() { selected = null; panel.classList.remove('open'); highlight(null); }
+  panel.querySelector('.close').addEventListener('click', closePanel);
+  document.addEventListener('keydown', function (e) { if (e.key === 'Escape') closePanel(); });
+
+  // ---------------- Pan / zoom ----------------
+  var svg = document.getElementById('svg'), stage = document.getElementById('stage');
+  var view = { x: 0, y: 0, k: 1 };
+  function apply() {
+    world.setAttribute('transform', 'translate(' + view.x + ',' + view.y + ') scale(' + view.k + ')');
+    stage.style.backgroundPosition = view.x + 'px ' + view.y + 'px';
+    stage.style.backgroundSize = (20 * view.k) + 'px ' + (20 * view.k) + 'px';
+  }
+  function fit() {
+    var bb = world.getBBox(), r = svg.getBoundingClientRect(), pad = 40, top = 56;
+    var k = Math.min((r.width - pad * 2) / bb.width, (r.height - top - pad) / bb.height, 1.2);
+    view.k = k;
+    view.x = (r.width - bb.width * k) / 2 - bb.x * k;
+    view.y = top + (r.height - top - bb.height * k) / 2 - bb.y * k;
+    apply();
+  }
+  function zoomAt(f, cx, cy) {
+    var nk = Math.max(0.15, Math.min(2.5, view.k * f));
+    view.x = cx - (cx - view.x) * (nk / view.k);
+    view.y = cy - (cy - view.y) * (nk / view.k);
+    view.k = nk; apply();
+  }
+  svg.addEventListener('wheel', function (e) {
+    e.preventDefault();
+    var r = svg.getBoundingClientRect();
+    zoomAt(e.deltaY < 0 ? 1.1 : 1 / 1.1, e.clientX - r.left, e.clientY - r.top);
+  }, { passive: false });
+  var drag = null;
+  svg.addEventListener('pointerdown', function (e) {
+    if (e.target.closest && e.target.closest('.node')) return;
+    drag = { x: e.clientX, y: e.clientY, vx: view.x, vy: view.y, moved: false };
+    stage.classList.add('dragging'); svg.setPointerCapture(e.pointerId);
+  });
+  svg.addEventListener('pointermove', function (e) {
+    if (!drag) return;
+    var dx = e.clientX - drag.x, dy = e.clientY - drag.y;
+    if (Math.abs(dx) + Math.abs(dy) > 3) drag.moved = true;
+    view.x = drag.vx + dx; view.y = drag.vy + dy; apply();
+  });
+  svg.addEventListener('pointerup', function () {
+    if (drag && !drag.moved) closePanel();
+    drag = null; stage.classList.remove('dragging');
+  });
+  document.getElementById('fit').addEventListener('click', fit);
+  document.getElementById('zin').addEventListener('click', function () { var r = svg.getBoundingClientRect(); zoomAt(1.2, r.width / 2, r.height / 2); });
+  document.getElementById('zout').addEventListener('click', function () { var r = svg.getBoundingClientRect(); zoomAt(1 / 1.2, r.width / 2, r.height / 2); });
+  document.getElementById('theme').addEventListener('click', function () {
+    var root = document.documentElement;
+    var dark = root.getAttribute('data-theme') === 'dark' ||
+      (!root.getAttribute('data-theme') && window.matchMedia('(prefers-color-scheme: dark)').matches);
+    root.setAttribute('data-theme', dark ? 'light' : 'dark');
+  });
+  // Open readable from the trigger, like n8n after a small zoom-in; the fit button shows everything.
+  function start() {
+    fit();
+    if (view.k >= 0.6) return;
+    var bb = world.getBBox(), r = svg.getBoundingClientRect();
+    view.k = 0.6;
+    view.x = 24 - bb.x * view.k;
+    view.y = 56 + Math.max(0, (r.height - 56 - bb.height * view.k) / 2) - bb.y * view.k;
+    apply();
+  }
+  start();
+})();
+</script>
+</body>
+</html>

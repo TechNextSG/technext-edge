@@ -13,6 +13,7 @@ Nhân viên đã đăng nhập xem được các tài liệu HTML này ngay trê
 | [whatsapp-turn.html](diagrams/whatsapp-turn.html) | Một lượt WhatsApp từ tin của khách tới bản nháp, từng bước |
 | [quotation-lifecycle.html](diagrams/quotation-lifecycle.html) | Một báo giá đi qua các trạng thái nào, ai làm bước nào |
 | [repo-structure.html](diagrams/repo-structure.html) | Cây thư mục và ranh giới giữa các gói |
+| [advisory-architecture.html](diagrams/advisory-architecture.html) | **Đề xuất, chưa có trong code** (ADR-008): nhánh tư vấn bên cạnh luồng báo giá; nút nét đứt là phần chưa làm |
 
 ---
 

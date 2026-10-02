@@ -53,6 +53,7 @@ kept out of the deployment by `.vercelignore`. This folder is the documentation.
 - [ADR-005a](adr/ADR-005a-extractor-model.md) — model choice for the AI extractor, and every finding from testing so far.
 - [ADR-006](adr/ADR-006-reply-contract.md) — the reply contract: one deterministic message per guest turn.
 - [ADR-007](adr/ADR-007-neuro-symbolic-synthesis.md) — neuro-symbolic synthesis, fact gate and the never-re-ask contract.
+- [ADR-008](adr/ADR-008-advisory-agent.md) — **proposed**: an advisory agent next to the quotation flow, answering from a small knowledge store ([diagram](diagrams/advisory-architecture.html)).
 
 ## Conventions
 
