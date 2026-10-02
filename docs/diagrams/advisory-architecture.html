@@ -78,10 +78,13 @@
   .node .status { font-size: 9.5px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; }
   .node .status.proposed { fill: var(--c-ai); }
   .node .status.changed { fill: var(--c-code); }
+  .node .status.phase3 { fill: var(--c-model); }
+  .wire.swap { stroke: var(--c-model); stroke-dasharray: 7 5; stroke-width: 2.2; }
   #panel .badge { display: inline-block; margin-left: 6px; padding: 1px 7px; border-radius: 9px; font-size: 10.5px; font-weight: 700;
     letter-spacing: .05em; text-transform: uppercase; border: 1px solid var(--panel-border); color: var(--muted); }
   #panel .badge.proposed { color: var(--c-ai); border-color: var(--c-ai); }
   #panel .badge.changed { color: var(--c-code); border-color: var(--c-code); }
+  #panel .badge.phase3 { color: var(--c-model); border-color: var(--c-model); }
   .node { cursor: pointer; }
   .node .name { font-size: 12.5px; font-weight: 600; fill: var(--text); }
   .node .sub { font-size: 11px; fill: var(--muted); }
@@ -155,7 +158,7 @@
     model: '--c-model', wa: '--c-wa', stop: '--c-stop', respond: '--c-respond' };
 
   // ---------------- Nodes (x, y = top-left on the canvas) ----------------
-  // status: omitted = exists in code today; 'changed' = exists, ADR-008 changes it; 'proposed' = does not exist yet.
+  // status: omitted = exists in code today; 'changed' = exists, ADR-008 changes it; 'proposed' = does not exist yet; 'phase3' = only if ADR-008 phase 3 happens (LangGraph.js).
   var NODES = [
     { id: 'in', x: 0, y: 460, kind: 'trigger', icon: 'webhook', name: 'Guest turn', sub: 'after lock · reset · append',
       type: 'Entry point (see whatsapp-turn.html)', file: 'bff/src/channels/whatsapp/turn.ts · processPhoneTurnBatch',
@@ -193,7 +196,33 @@
       what: 'Returns knowledge entries with their <code>id</code>. Each entry: <code>id</code>, <code>topic</code>, <code>text</code>, <code>source</code> (URL or document), <code>owner</code>, <code>reviewedAt</code>. Phase 1: the store is small enough to put in the prompt, no vector database. <b>No price figures in the store.</b> Entries are only seeded where two sources agree (see ADR-008).' },
     { id: 'rtool', x: 660, y: 960, kind: 'model', icon: 'code', name: 'roomCapacity', sub: 'type → guests per room', status: 'proposed',
       type: 'Tool (read-only)', file: 'ai/src/domain/houseNorms.ts:22,29',
-      what: 'Answers "how many people fit in a deluxe room" from <code>DEFAULT_ROOM_CAPS</code> / <code>roomCapsFromRates()</code>, the same numbers the booking flow uses to split rooms. Nothing else is exposed to the model: <b>there is no price tool for guests</b>.' }
+      what: 'Answers "how many people fit in a deluxe room" from <code>DEFAULT_ROOM_CAPS</code> / <code>roomCapsFromRates()</code>, the same numbers the booking flow uses to split rooms. Nothing else is exposed to the model: <b>there is no price tool for guests</b>.' },
+
+    // ---- Phase 3 (ADR-008): the same advisory flow as a LangGraph.js StateGraph. Not built; shown so the swap is visible. ----
+    { id: 'lgRoute', x: 400, y: 1210, kind: 'if', icon: 'split', name: 'Route', sub: 'conditional edge', outs: ['pure question', 'mixed'], status: 'phase3',
+      type: 'StateGraph · conditional edge', file: '@langchain/langgraph (not added) · ai/src/application/advise.ts',
+      what: 'The first node of the graph, and the one that replaces the 3-step loop. A <b>pure question</b> goes to retrieval. A <b>mixed</b> message (a booking and a question in one) goes to the booking subgraph: the question is answered, then the booking carries on. Its state is saved per phone by the checkpointer, so the next turn continues where this one stopped.' },
+    { id: 'lgRetrieve', x: 600, y: 1210, kind: 'code', icon: 'code', name: 'Retrieve', sub: 'same two tools', status: 'phase3',
+      type: 'Graph node · code', file: 'contracts/knowledge/*.json · ai/src/domain/houseNorms.ts:22,29',
+      what: 'Calls <code>searchKnowledge</code> and <code>roomCapacity</code>, the <b>same read-only tools</b> as phase 1. Still no price tool.' },
+    { id: 'lgAnswer', x: 800, y: 1210, kind: 'ai', icon: 'ai', name: 'Answer', sub: 'chatWithTools', status: 'phase3',
+      type: 'Graph node · model call', file: 'ai/src/ports/provider.ts:79-116 (chatWithTools?)',
+      what: 'Calls <code>ExtractProvider.chatWithTools</code>, the <b>same model port</b> as phase 1. It does <b>not</b> use a LangChain model adapter, so the flexible model (Gemini, DeepSeek, the fallback and the breaker) stays one setting in <code>/admin/ai</code>.' },
+    { id: 'lgGate', x: 1000, y: 1210, kind: 'if', icon: 'shield', name: 'Advice gate', sub: 'same two checks', outs: ['pass', 'unsure'], status: 'phase3',
+      type: 'Graph node · symbolic check', file: 'ai/src/application/synthesis.ts:205 · verifyAdvisoryText (new)',
+      what: 'The <b>same</b> checks as phase 1: <code>verifyGuestFacingText</code> and <code>verifyAdvisoryText</code> (cites a retrieved entry, every number appears in it). The difference is the second exit: an answer the gate cannot clear goes to a person for review (<b>unsure</b>) instead of straight to a fixed hand-off.' },
+    { id: 'lgReply', x: 1300, y: 1210, kind: 'respond', icon: 'respond', name: 'Reply', sub: '→ Send reply', status: 'phase3',
+      type: 'Graph node · end', file: 'bff/src/channels/whatsapp/meta.ts',
+      what: 'An answer that passed the gate, or that staff approved, goes to <b>Send reply</b>. Never a price.' },
+    { id: 'lgBooking', x: 600, y: 1400, kind: 'ai', icon: 'ai', name: 'Booking flow (subgraph)', sub: 'converse() as is', status: 'phase3',
+      type: 'Subgraph', file: 'ai/src/application/converse.ts',
+      what: 'For a <b>mixed</b> message: answer the question part, then run today’s <code>converse()</code> unchanged as a subgraph, so the quotation core is not rewritten.' },
+    { id: 'lgInterrupt', x: 1160, y: 1400, kind: 'wa', icon: 'pause', name: 'interrupt() · staff review', sub: 'graph stops', status: 'phase3',
+      type: 'Graph node · human in the loop', file: 'bff/src/routes/handoff.ts (existing inbox)',
+      what: 'Stops the graph. A staff member reviews or edits the proposed answer in <code>/handoff</code>, then the graph <b>resumes</b> and sends it. Phase 1 has no way to wait for a person in the middle of a flow; this is one of the reasons to move to a graph.' },
+    { id: 'lgCkpt', x: 400, y: 1400, kind: 'kv', icon: 'db', name: 'Checkpointer', sub: 'Redis · per phone', status: 'phase3',
+      type: 'State store', file: 'bff/src/store/redisStore.ts (existing Redis)',
+      what: 'The graph state saved per phone number in Redis. It replaces the phase 1 loop, which remembers nothing between turns.' }
   ];
 
   // [from, outputIndex, to, label?, style?]
@@ -202,15 +231,22 @@
     ['gate', 0, 'booking'], ['gate', 1, 'park'], ['gate', 2, 'agent'],
     ['booking', 0, 'send'],
     ['agent', 0, 'agate'],
-    ['agate', 0, 'send', 'cites a source'], ['agate', 1, 'parka', 'unsupported']
+    ['agate', 0, 'send', 'cites a source'], ['agate', 1, 'parka', 'unsupported'],
+    // Phase 3: the loop is replaced by a graph.
+    ['agent', 0, 'lgRoute', 'phase 3 replaces', 'swap'],
+    ['lgRoute', 0, 'lgRetrieve'], ['lgRoute', 1, 'lgBooking'],
+    ['lgRetrieve', 0, 'lgAnswer'], ['lgAnswer', 0, 'lgGate'],
+    ['lgGate', 0, 'lgReply'], ['lgGate', 1, 'lgInterrupt'],
+    ['lgInterrupt', 0, 'lgReply', 'approved']
   ];
   // Sub-node wires: the agent calls the model and its two tools.
-  var AI_WIRES = [['agent', 'kmodel'], ['agent', 'ktool'], ['agent', 'rtool']];
+  var AI_WIRES = [['agent', 'kmodel'], ['agent', 'ktool'], ['agent', 'rtool'], ['lgRoute', 'lgCkpt']];
 
   var STICKIES = [
     { x: 370, y: 90, w: 820, h: 270, title: 'Quotation core: unchanged', body: ['Extract, precheck, write the reply, save the draft.', 'The guest is never given a price.'] },
     { x: 370, y: 390, w: 260, h: 200, title: 'Hand-off: unchanged', body: ['Same fixed reply and', '/handoff inbox as today.'] },
-    { x: 270, y: 620, w: 900, h: 430, title: 'Advisory branch: proposed, behind ENABLE_ADVISORY', body: ['A pure property question is answered from a small knowledge store,', 'or handed to staff with a new reason (advice_unanswered). Never guessed.'] }
+    { x: 270, y: 620, w: 900, h: 430, title: 'Advisory branch: proposed, behind ENABLE_ADVISORY', body: ['A pure property question is answered from a small knowledge store,', 'or handed to staff with a new reason (advice_unanswered). Never guessed.'] },
+    { x: 270, y: 1110, w: 1180, h: 480, dx: 210, title: 'Phase 3 · LangGraph.js: replaces only the Advisory agent loop (not built)', body: ['Same gate, same tools, same model port. Adds saved state across turns,', 'mixed messages, and a staff approval in the middle of the flow.'] }
   ];
 
   // ---------------- Render ----------------
@@ -241,21 +277,26 @@
   STICKIES.forEach(function (s) {
     var g = el('g', { 'class': 'sticky' }, gSticky);
     el('rect', { x: s.x, y: s.y, width: s.w, height: s.h, rx: 8 }, g);
-    var t = el('text', { x: s.x + 14, y: s.y + 24, 'class': 'st-title' }, g); t.textContent = s.title;
+    var t = el('text', { x: s.x + 14 + (s.dx || 0), y: s.y + 24, 'class': 'st-title' }, g); t.textContent = s.title;
     s.body.forEach(function (line, i) {
-      var b = el('text', { x: s.x + 14, y: s.y + 44 + i * 16, 'class': 'st-body' }, g); b.textContent = line;
+      var b = el('text', { x: s.x + 14 + (s.dx || 0), y: s.y + 44 + i * 16, 'class': 'st-body' }, g); b.textContent = line;
     });
   });
 
   var wires = [];
   EDGES.forEach(function (e) {
     var a = byId[e[0]], b = byId[e[2]];
-    var p = outPort(a, e[1]), q = inPort(b);
-    var path = el('path', { d: bez(p, q), 'class': 'wire' + (e[4] === 'err' ? ' err' : '') }, gWire);
+    var isSwap = e[4] === 'swap';
+    var p = isSwap ? { x: a.x + W / 2, y: a.y + H } : outPort(a, e[1]);
+    var q = isSwap ? { x: b.x + W / 2, y: b.y } : inPort(b);
+    var d = isSwap
+      ? 'M' + p.x + ',' + p.y + ' C' + p.x + ',' + (p.y + 120) + ' ' + q.x + ',' + (q.y - 120) + ' ' + q.x + ',' + q.y
+      : bez(p, q);
+    var path = el('path', { d: d, 'class': 'wire' + (e[4] === 'err' ? ' err' : '') + (isSwap ? ' swap' : '') }, gWire);
     var rec = { from: e[0], to: e[2], path: path, label: null };
     if (e[3]) {
       var lg = el('g', { 'class': 'wlabel' }, gLabel);
-      var mx = (p.x + q.x) / 2, my = (p.y + q.y) / 2;
+      var mx = (p.x + q.x) / 2, my = isSwap ? q.y - 130 : (p.y + q.y) / 2;
       var tw = e[3].length * 6.2 + 10;
       el('rect', { x: mx - tw / 2, y: my - 9, width: tw, height: 18, rx: 4 }, lg);
       var tx = el('text', { x: mx, y: my + 4, 'text-anchor': 'middle' }, lg); tx.textContent = e[3];
@@ -271,7 +312,7 @@
   });
 
   NODES.forEach(function (n) {
-    var g = el('g', { 'class': 'node' + (n.status === 'proposed' ? ' proposed' : ''), 'data-id': n.id, tabindex: 0, role: 'button', 'aria-label': n.name + (n.status ? ' (' + n.status + ')' : '') }, gNode);
+    var g = el('g', { 'class': 'node' + (n.status === 'proposed' || n.status === 'phase3' ? ' proposed' : ''), 'data-id': n.id, tabindex: 0, role: 'button', 'aria-label': n.name + (n.status ? ' (' + n.status + ')' : '') }, gNode);
     if (n.kind === 'trigger') {
       el('rect', { 'class': 'box', x: n.x, y: n.y, width: W, height: H, rx: 12 }, g);
       el('path', { d: 'M' + (n.x + 50) + ',' + n.y + ' A50,50 0 0 0 ' + (n.x + 50) + ',' + (n.y + H), fill: 'none' }, g);
@@ -306,7 +347,7 @@
     var ny = n.kind === 'model' ? n.y + W - 20 + 20 : n.y + H + 20;
     var t1 = el('text', { 'class': 'name', x: n.x + W / 2, y: ny, 'text-anchor': 'middle' }, g); t1.textContent = n.name;
     var t2 = el('text', { 'class': 'sub', x: n.x + W / 2, y: ny + 16, 'text-anchor': 'middle' }, g); t2.textContent = n.sub;
-    if (n.status) { var st = el('text', { 'class': 'status ' + n.status, x: n.kind === 'model' ? n.x + W / 2 : n.x, y: n.kind === 'model' ? n.y + 132 : n.y - 8, 'text-anchor': n.kind === 'model' ? 'middle' : 'start' }, g); st.textContent = n.status; }
+    if (n.status) { var st = el('text', { 'class': 'status ' + n.status, x: n.kind === 'model' ? n.x + W / 2 : n.x, y: n.kind === 'model' ? n.y + 132 : n.y - 8, 'text-anchor': n.kind === 'model' ? 'middle' : 'start' }, g); st.textContent = n.status === 'phase3' ? 'phase 3' : n.status; }
     g.addEventListener('click', function (ev) { ev.stopPropagation(); select(n.id); });
     g.addEventListener('keydown', function (ev) { if (ev.key === 'Enter' || ev.key === ' ') { ev.preventDefault(); select(n.id); } });
     g.addEventListener('mouseenter', function () { highlight(n.id); });
@@ -338,7 +379,7 @@
   function select(id) {
     selected = id;
     var n = byId[id];
-    body.innerHTML = '<h2>' + n.name + (n.status ? '<span class="badge ' + n.status + '">' + n.status + '</span>' : '') + '</h2><div class="kind">' + n.type + '</div><dl>' +
+    body.innerHTML = '<h2>' + n.name + (n.status ? '<span class="badge ' + n.status + '">' + (n.status === 'phase3' ? 'phase 3' : n.status) + '</span>' : '') + '</h2><div class="kind">' + n.type + '</div><dl>' +
       '<dt>What happens</dt><dd>' + n.what + '</dd>' +
       '<dt>Code</dt><dd><code>' + n.file + '</code></dd></dl>';
     panel.classList.add('open');
