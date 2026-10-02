@@ -23,6 +23,7 @@ export const DOCUMENTS: readonly DocEntry[] = [
   { slug: "quotation-lifecycle", file: "diagrams/quotation-lifecycle.html", group: "Architecture", title: "Quotation lifecycle", about: "Enquiry, draft, priced, approved, link sent; re-price and archive." },
   { slug: "repo-structure", file: "diagrams/repo-structure.html", group: "Architecture", title: "Repo map", about: "Packages, folders and the boundaries between them." },
   { slug: "advisory-architecture", file: "diagrams/advisory-architecture.html", group: "Architecture", title: "Advisory architecture (proposed)", about: "ADR-008: a tool-using advisory branch next to the quotation flow. Dashed nodes are not in code yet." },
+  { slug: "handoff-flow", file: "diagrams/handoff-flow.html", group: "Architecture", title: "Staff hand-off (proposed)", about: "ADR-010: how staff are told when the bot hands a guest over, and where they reply. Dashed nodes are not in code yet." },
   { slug: "structure-compare", file: "notes/structure-compare.html", group: "Architecture", title: "This repo and the team repo", about: "What is mirrored, what moves to the team estimator, what never does." },
 ];
 

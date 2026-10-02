@@ -55,6 +55,7 @@ kept out of the deployment by `.vercelignore`. This folder is the documentation.
 - [ADR-007](adr/ADR-007-neuro-symbolic-synthesis.md) — neuro-symbolic synthesis, fact gate and the never-re-ask contract.
 - [ADR-008](adr/ADR-008-advisory-agent.md) — **proposed**: an advisory agent next to the quotation flow, answering from a small knowledge store ([diagram](diagrams/advisory-architecture.html)).
 - [ADR-009](adr/ADR-009-advisory-langgraph.md) — **proposed**: when and how to move the advisory loop to LangGraph.js (phase 3), with a Postgres checkpointer; waits for the store port.
+- [ADR-010](adr/ADR-010-staff-handoff.md) — **proposed**: how staff are told when the bot hands a guest over, and where they reply (notify, reply from `/handoff`, Coexistence) ([diagram](diagrams/handoff-flow.html)).
 
 ## Conventions
 
