@@ -11,7 +11,7 @@ const sameSet = (a, b) => a.length === b.length && [...a].sort().every((v, i) =>
  * @param ai        { converse, classifyEnquiry, wantsHuman, declinesPartner, fallbackReply, stalledHandoffReply,
  *                    partnerInvitationReply, detectLanguage, ASK_LIMIT, STALL_LIMIT }
  */
-export async function simulateScenario(scenario, provider, ai, { signInUrl = "https://example.invalid/signin" } = {}) {
+export async function simulateScenario(scenario, provider, ai, { signInUrl = "https://example.invalid/signin", afterTurn } = {}) {
   const history = [];
   const turns = [];
   let parked = false;
@@ -19,6 +19,8 @@ export async function simulateScenario(scenario, provider, ai, { signInUrl = "ht
   let previousOpen = [];
 
   for (let i = 0; i < scenario.turns.length; i++) {
+    // A pause between turns, outside every model call: a delay inside a call would eat the reply's own time budget.
+    if (i > 0) await afterTurn?.();
     const message = scenario.turns[i];
     const n = i + 1;
     history.push({ role: "guest", text: message });

@@ -43,7 +43,7 @@ const here = path.dirname(fileURLToPath(import.meta.url));
 try { process.loadEnvFile(path.join(here, "../../.env.local")); } catch { /* keys may come from the shell */ }
 
 export function parseArgs(argv) {
-  const flags = new Set(["dry-run", "allow-real", "allow-self-preference"]);
+  const flags = new Set(["dry-run", "allow-real", "allow-self-preference", "generate-only"]);
   const out = {};
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i];
@@ -127,16 +127,19 @@ async function main() {
     return;
   }
 
-  if (!args.judge) throw new Error("--judge <provider:model> is required");
+  const generateOnly = Boolean(args["generate-only"]);
+  if (!args.judge && !generateOnly) throw new Error("--judge <provider:model> is required (or --generate-only to write the replies for a person to grade)");
   if (!args.candidate && !args.pairwise) throw new Error("give --candidate <spec[,spec]> or --pairwise <specA,specB>");
 
   const specParser = { choiceFromName, isKnownModel, env: aiEnv };
-  const judgeChoice = parseModelSpec(args.judge, specParser);
+  const judgeChoice = generateOnly ? null : parseModelSpec(args.judge, specParser);
   const pairwise = args.pairwise ? args.pairwise.split(",").map((s) => s.trim()) : null;
   if (pairwise && pairwise.length !== 2) throw new Error("--pairwise takes exactly two models: A,B");
   const candidateSpecs = pairwise ?? args.candidate.split(",").map((s) => s.trim());
   const candidates = candidateSpecs.map((s) => parseModelSpec(s, specParser));
-  const { selfPreference } = assertIndependentJudge(judgeChoice, candidates, { allowSelfPreference: Boolean(args["allow-self-preference"]) });
+  const { selfPreference } = generateOnly
+    ? { selfPreference: false }
+    : assertIndependentJudge(judgeChoice, candidates, { allowSelfPreference: Boolean(args["allow-self-preference"]) });
 
   const scenarioFile = path.resolve(args.scenarios ?? path.join(here, "scenarios.json"));
   const file = loadJson(scenarioFile);
@@ -151,9 +154,13 @@ async function main() {
   const runs = Number(args.runs ?? 3);
   const maxCalls = Number(args["max-calls"] ?? 300);
   const estimate = estimateCalls({ scenarios, candidates: candidates.length, judgeRuns: runs, pairwise: Boolean(pairwise) });
+  if (generateOnly) {
+    estimate.judge = 0;
+    estimate.total = estimate.generate;
+  }
 
   console.log(`scenarios: ${scenarios.length} (${estimate.guestTurns} guest turns) from ${path.relative(process.cwd(), scenarioFile)}`);
-  console.log(`candidates: ${candidates.map(modelId).join(", ")}   judge: ${modelId(judgeChoice)}${selfPreference ? "  (SAME VENDOR: biased)" : ""}`);
+  console.log(`candidates: ${candidates.map(modelId).join(", ")}   judge: ${generateOnly ? "none (generate only)" : modelId(judgeChoice)}${selfPreference ? "  (SAME VENDOR: biased)" : ""}`);
   console.log(`expected model calls: ${estimate.generate} to write replies (worst case) + ${estimate.judge} to judge = ${estimate.total}; budget ${maxCalls}`);
   if (args["dry-run"]) {
     console.log("dry run: nothing was called.");
@@ -169,26 +176,37 @@ async function main() {
   const outDir = path.resolve(args.out ?? path.join(here, "results", startedAt.replace(/[:.]/g, "-")));
   mkdirSync(outDir, { recursive: true });
 
-  const judgeProvider = makeProvider(judgeChoice, budget, delayMs);
+  const judgeProvider = generateOnly ? null : makeProvider(judgeChoice, budget, delayMs);
   const results = {};
   const maskRun = (r) => (masked ? { ...r, turns: r.turns.map((t) => ({ ...t, guest: maskForLogging(t.guest), reply: t.reply ? maskForLogging(t.reply) : t.reply })) } : r);
 
   try {
     for (const choice of candidates) {
       const id = modelId(choice);
-      const provider = makeProvider(choice, budget, delayMs);
+      // No per-call delay on the candidate: it would count against the reply's own time budget and push every reply onto
+      // its fallback text. Pace by turn instead: wait delayMs for each model call the last turn used.
+      const provider = makeProvider(choice, budget, 0);
+      let paced = budget.used;
+      const pace = async () => {
+        const used = budget.used - paced;
+        paced = budget.used;
+        if (delayMs > 0 && used > 0) await new Promise((r) => setTimeout(r, used * delayMs));
+      };
       results[id] = {};
       for (const scenario of scenarios) {
         process.stdout.write(`  ${id} ${scenario.id} ... `);
-        const run = await simulateScenario(scenario, provider, ai);
+        const run = await simulateScenario(scenario, provider, ai, { afterTurn: pace });
         const checks = runCodeChecks({ scenario, run, verifyGuestFacingText });
         results[id][scenario.id] = { run, checks };
         console.log("replied");
+        await pace();
       }
     }
 
     let scores = { scores: {} };
-    if (pairwise) {
+    if (generateOnly) {
+      // Replies and machine checks only; a person grades them.
+    } else if (pairwise) {
       const [a, b] = candidates.map(modelId);
       scores = { pairwise: {} };
       for (const scenario of scenarios) {
@@ -223,7 +241,7 @@ async function main() {
 
     const meta = {
       startedAt,
-      judge: modelId(judgeChoice),
+      judge: generateOnly ? null : modelId(judgeChoice),
       rubricVersion: rubric.version,
       promptHash: promptHash(rubric),
       candidates: candidates.map(modelId),
@@ -238,6 +256,10 @@ async function main() {
     writeFileSync(path.join(outDir, "meta.json"), JSON.stringify(meta, null, 2));
     writeFileSync(path.join(outDir, "transcripts.json"), JSON.stringify({ scenarios, results: stripToRuns(results) }, null, 2));
     writeFileSync(path.join(outDir, "scores.json"), JSON.stringify(scores, null, 2));
+    if (generateOnly) {
+      console.log(`\ndone: ${budget.used} model calls. Replies and machine checks are in ${outDir} (transcripts.json); there is no summary without a judge.`);
+      return;
+    }
     const merged = pairwise ? null : mergeResults(stripToRuns(results), scores.scores);
     writeFileSync(
       path.join(outDir, "summary.md"),

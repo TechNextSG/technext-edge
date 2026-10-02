@@ -227,3 +227,12 @@ describe("calibration", () => {
     expect(md).toContain("deepseek:deepseek-flash");
   });
 });
+
+describe("pacing between turns", () => {
+  it("calls afterTurn before every turn except the first, never inside a model call", async () => {
+    const events = [];
+    const ai = makeAi({ converse: async () => { events.push("model"); return { reply: "ok thanks, and the next thing?", questions: [{ field: `f${events.length}` }], trip: {}, done: false, replyKind: "questions" }; } });
+    await simulateScenario({ id: "x", turns: ["a", "b", "c"] }, {}, ai, { afterTurn: async () => { events.push("pause"); } });
+    expect(events).toEqual(["model", "pause", "model", "pause", "model"]);
+  });
+});

@@ -51,8 +51,13 @@ npm run judge -- --pairwise gemini:gemini-3.8-flash,gemini:gemini-3.1-flash-lite
 ```
 
 Other flags: `--only s01,s13` (some scenarios), `--runs 3` (judge repeats), `--max-calls 300` (hard cap; a run that is expected
-to exceed it refuses to start, and one that reaches it stops), `--delay-ms 2000` (space the calls out on a rate-limited key),
-`--out <dir>`.
+to exceed it refuses to start, and one that reaches it stops), `--delay-ms 4500` (pace a rate-limited key: the candidate waits
+that long per model call it just used, between turns, never inside a call, because a delay inside a call eats the reply's own
+4-second budget and every reply falls back to its fixed text; the judge waits before each call), `--out <dir>`.
+
+`--generate-only` (no `--judge` needed) writes the replies and the machine checks and stops, so a person grades the
+transcripts and fills `labels.human.json`. A first example is in `labels.claude.json` and
+`docs/reports/judge-claude-graded-2026-10-02.md`.
 
 Keys come from the environment (or `.env.local`): `GEMINI_API_KEY`, `DEEPSEEK_GATEWAY_KEY`, `DEEPSEEK_BASE_URL`. They are read
 by the CLI only and never written to a file.
