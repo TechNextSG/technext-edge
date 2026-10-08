@@ -3,82 +3,82 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Casa Escondida Anilao — ERD Trực Quan Kênh AI & WhatsApp (PostgreSQL / Supabase Migration)</title>
+  <title>Casa Escondida Anilao — ERD Diagram Kênh AI & Supabase Postgres</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   
   <style>
     :root {
-      --font-sans: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-      --font-mono: 'JetBrains Mono', Consolas, Monaco, monospace;
+      --font-sans: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+      --font-mono: 'JetBrains Mono', Consolas, monospace;
 
-      /* Dark Theme (Default) */
-      --bg-canvas: #090d16;
-      --bg-surface: #0f172a;
-      --bg-surface-elevated: #1e293b;
-      --bg-surface-glass: rgba(15, 23, 42, 0.88);
-      --border-subtle: #1e293b;
-      --border-strong: #334155;
-      --border-accent: #38bdf8;
+      /* Dark Theme */
+      --bg-app: #080c14;
+      --bg-panel: #0d1322;
+      --bg-card: #111827;
+      --bg-card-hover: #17223b;
+      --bg-input: #1e293b;
       
+      --border-subtle: #1e293b;
+      --border-card: #27354f;
+      --border-strong: #3b4f74;
+      --border-active: #38bdf8;
+
       --text-main: #f8fafc;
       --text-muted: #94a3b8;
       --text-faint: #64748b;
-      
-      --brand-primary: #38bdf8;
-      --brand-primary-rgb: 56, 189, 248;
-      --brand-secondary: #818cf8;
-      --brand-accent: #34d399;
-      --brand-amber: #fbbf24;
-      --brand-rose: #f43f5e;
-      --brand-violet: #a855f7;
-      
-      --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
-      --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.25), 0 2px 4px -2px rgba(0, 0, 0, 0.2);
-      --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.4), 0 4px 6px -4px rgba(0, 0, 0, 0.3);
-      --shadow-glow: 0 0 20px rgba(56, 189, 248, 0.2);
-      
+
+      --accent-ai: #38bdf8;
+      --accent-ai-glow: rgba(56, 189, 248, 0.25);
+      --accent-core: #818cf8;
+      --accent-core-glow: rgba(129, 140, 248, 0.25);
+      --accent-extractor: #34d399;
+      --accent-extractor-glow: rgba(52, 211, 153, 0.25);
+
+      --tag-pk: #f43f5e;
+      --tag-fk: #38bdf8;
+      --tag-uq: #10b981;
+      --tag-pii: #f59e0b;
+
       --header-h: 70px;
-      --sidebar-w: 460px;
+      --sidebar-w: 480px;
     }
 
     [data-theme="light"] {
-      --bg-canvas: #f8fafc;
-      --bg-surface: #ffffff;
-      --bg-surface-elevated: #f1f5f9;
-      --bg-surface-glass: rgba(255, 255, 255, 0.92);
+      --bg-app: #f8fafc;
+      --bg-panel: #ffffff;
+      --bg-card: #ffffff;
+      --bg-card-hover: #f1f5f9;
+      --bg-input: #f1f5f9;
+
       --border-subtle: #e2e8f0;
-      --border-strong: #cbd5e1;
-      --border-accent: #0284c7;
-      
+      --border-card: #cbd5e1;
+      --border-strong: #94a3b8;
+      --border-active: #0284c7;
+
       --text-main: #0f172a;
       --text-muted: #475569;
       --text-faint: #94a3b8;
-      
-      --brand-primary: #0284c7;
-      --brand-primary-rgb: 2, 132, 199;
-      --brand-secondary: #4f46e5;
-      --brand-accent: #059669;
-      --brand-amber: #d97706;
-      --brand-rose: #e11d48;
-      --brand-violet: #7c3aed;
-      
-      --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
-      --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -2px rgba(0, 0, 0, 0.06);
-      --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -4px rgba(0, 0, 0, 0.05);
-      --shadow-glow: 0 0 20px rgba(2, 132, 199, 0.15);
+
+      --accent-ai: #0284c7;
+      --accent-ai-glow: rgba(2, 132, 199, 0.15);
+      --accent-core: #4f46e5;
+      --accent-core-glow: rgba(79, 70, 229, 0.15);
+      --accent-extractor: #059669;
+      --accent-extractor-glow: rgba(5, 150, 105, 0.15);
+
+      --tag-pk: #e11d48;
+      --tag-fk: #0284c7;
+      --tag-uq: #059669;
+      --tag-pii: #d97706;
     }
 
-    * {
-      box-sizing: border-box;
-      margin: 0;
-      padding: 0;
-    }
-
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    
     body {
       font-family: var(--font-sans);
-      background-color: var(--bg-canvas);
+      background-color: var(--bg-app);
       color: var(--text-main);
       overflow: hidden;
       height: 100vh;
@@ -86,134 +86,83 @@
       display: flex;
       flex-direction: column;
       user-select: none;
-      -webkit-font-smoothing: antialiased;
     }
 
-    /* TOP HEADER */
+    /* HEADER */
     header {
       height: var(--header-h);
-      background: var(--bg-surface-glass);
-      backdrop-filter: blur(12px);
+      background: var(--bg-panel);
       border-bottom: 1px solid var(--border-subtle);
       display: flex;
       align-items: center;
       justify-content: space-between;
-      padding: 0 20px;
-      z-index: 40;
-      position: relative;
+      padding: 0 24px;
+      z-index: 50;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.15);
     }
 
-    .brand-section {
+    .brand-group {
       display: flex;
       align-items: center;
       gap: 14px;
     }
 
-    .brand-badge {
-      width: 42px;
-      height: 42px;
-      border-radius: 12px;
-      background: linear-gradient(135deg, #0284c7 0%, #6366f1 100%);
+    .brand-logo {
+      width: 40px;
+      height: 40px;
+      border-radius: 10px;
+      background: linear-gradient(135deg, #0284c7, #6366f1);
       display: flex;
       align-items: center;
       justify-content: center;
-      box-shadow: var(--shadow-glow);
-      color: white;
       font-weight: 800;
-      font-size: 18px;
+      color: white;
+      font-size: 16px;
       letter-spacing: -0.5px;
+      box-shadow: 0 0 16px var(--accent-ai-glow);
     }
 
-    .brand-title {
+    .brand-meta h1 {
       font-size: 16px;
       font-weight: 700;
-      letter-spacing: -0.3px;
-      color: var(--text-main);
       display: flex;
       align-items: center;
       gap: 8px;
     }
 
-    .brand-title .badge {
-      font-size: 11px;
-      font-weight: 600;
-      padding: 2px 8px;
-      border-radius: 20px;
-      background: rgba(56, 189, 248, 0.15);
-      color: var(--brand-primary);
-      border: 1px solid rgba(56, 189, 248, 0.3);
-    }
-
-    .brand-sub {
+    .brand-meta p {
       font-size: 12px;
       color: var(--text-muted);
       margin-top: 2px;
     }
 
-    /* TABS */
-    .nav-tabs {
-      display: flex;
-      background: var(--bg-surface-elevated);
-      padding: 4px;
+    .badge-chip {
+      font-size: 11px;
+      font-weight: 600;
+      padding: 2px 8px;
       border-radius: 12px;
+      background: rgba(56, 189, 248, 0.15);
+      color: var(--accent-ai);
+      border: 1px solid rgba(56, 189, 248, 0.3);
+    }
+
+    /* VIEW TABS */
+    .view-tabs {
+      display: flex;
+      background: var(--bg-input);
+      padding: 4px;
+      border-radius: 10px;
       border: 1px solid var(--border-subtle);
       gap: 4px;
     }
 
-    .tab-btn {
+    .tab-item {
       background: transparent;
       border: none;
       color: var(--text-muted);
       padding: 8px 14px;
-      border-radius: 8px;
-      font-size: 13px;
-      font-weight: 600;
-      cursor: pointer;
-      display: flex;
-      align-items: center;
-      gap: 6px;
-      transition: all 0.2s ease;
-      font-family: var(--font-sans);
-    }
-
-    .tab-btn:hover {
-      color: var(--text-main);
-      background: rgba(255, 255, 255, 0.05);
-    }
-
-    .tab-btn.active {
-      background: var(--bg-surface);
-      color: var(--brand-primary);
-      box-shadow: var(--shadow-sm);
-      border: 1px solid var(--border-subtle);
-    }
-
-    .tab-btn .count {
-      font-size: 10px;
-      padding: 1px 6px;
-      border-radius: 10px;
-      background: rgba(148, 163, 184, 0.2);
-    }
-
-    .tab-btn.active .count {
-      background: rgba(56, 189, 248, 0.2);
-      color: var(--brand-primary);
-    }
-
-    /* HEADER ACTIONS */
-    .header-actions {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-    }
-
-    .action-btn {
-      background: var(--bg-surface-elevated);
-      border: 1px solid var(--border-subtle);
-      color: var(--text-main);
-      padding: 8px 12px;
-      border-radius: 8px;
-      font-size: 13px;
+      border-radius: 6px;
+      font-size: 12px;
       font-weight: 600;
       cursor: pointer;
       display: flex;
@@ -223,35 +172,78 @@
       font-family: var(--font-sans);
     }
 
-    .action-btn:hover {
-      background: var(--border-strong);
+    .tab-item:hover {
+      color: var(--text-main);
+      background: rgba(255, 255, 255, 0.05);
+    }
+
+    .tab-item.active {
+      background: var(--bg-panel);
+      color: var(--accent-ai);
+      box-shadow: 0 1px 4px rgba(0,0,0,0.1);
+      border: 1px solid var(--border-subtle);
+    }
+
+    .tab-count {
+      font-size: 10px;
+      padding: 1px 5px;
+      border-radius: 8px;
+      background: rgba(148, 163, 184, 0.2);
+    }
+
+    .tab-item.active .tab-count {
+      background: rgba(56, 189, 248, 0.25);
+      color: var(--accent-ai);
+    }
+
+    /* ACTIONS */
+    .header-actions {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .btn-action {
+      background: var(--bg-input);
+      border: 1px solid var(--border-subtle);
+      color: var(--text-main);
+      padding: 7px 12px;
+      border-radius: 8px;
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-family: var(--font-sans);
+      transition: all 0.15s;
+    }
+
+    .btn-action:hover {
+      background: var(--border-card);
       border-color: var(--text-faint);
     }
 
-    .action-btn.primary {
-      background: var(--brand-primary);
-      color: #0b1120;
-      border-color: var(--brand-primary);
+    .btn-action.primary {
+      background: var(--accent-ai);
+      color: #080c14;
+      border-color: var(--accent-ai);
     }
 
-    .action-btn.primary:hover {
-      filter: brightness(1.1);
-    }
-
-    /* MAIN WORKSPACE */
+    /* WORKSPACE */
     .workspace {
       display: flex;
       flex: 1;
-      height: calc(100vh - var(--header-h) - 34px);
+      height: calc(100vh - var(--header-h) - 32px);
       position: relative;
       overflow: hidden;
     }
 
-    /* CANVAS VIEWPORT */
-    .canvas-container {
+    /* CANVAS */
+    .canvas-viewport {
       flex: 1;
       position: relative;
-      background: radial-gradient(circle at 50% 50%, rgba(56, 189, 248, 0.03) 0%, transparent 80%),
+      background: radial-gradient(circle at 50% 50%, rgba(56, 189, 248, 0.02) 0%, transparent 80%),
                   repeating-linear-gradient(0deg, var(--border-subtle) 0, var(--border-subtle) 1px, transparent 1px, transparent 40px),
                   repeating-linear-gradient(90deg, var(--border-subtle) 0, var(--border-subtle) 1px, transparent 1px, transparent 40px);
       background-size: 100% 100%, 40px 40px, 40px 40px;
@@ -259,7 +251,7 @@
       cursor: grab;
     }
 
-    .canvas-container:active {
+    .canvas-viewport:active {
       cursor: grabbing;
     }
 
@@ -269,35 +261,71 @@
       left: 0;
       transform-origin: 0 0;
       transition: transform 0.05s ease-out;
-      padding: 60px;
-      min-width: 1400px;
-      min-height: 1000px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
+      width: 4000px;
+      height: 3000px;
     }
 
-    /* FLOATING CANVAS CONTROLS */
-    .canvas-controls {
+    /* SVG CONNECTOR LAYER */
+    .connector-svg {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+      z-index: 10;
+    }
+
+    .rel-line {
+      fill: none;
+      stroke: #475569;
+      stroke-width: 2;
+      stroke-dasharray: none;
+      transition: stroke 0.2s, stroke-width 0.2s, filter 0.2s;
+    }
+
+    .rel-line.active {
+      stroke: var(--accent-ai);
+      stroke-width: 3.5;
+      filter: drop-shadow(0 0 8px var(--accent-ai-glow));
+    }
+
+    .rel-line.dashed {
+      stroke-dasharray: 6 4;
+    }
+
+    .rel-badge {
+      font-family: var(--font-mono);
+      font-size: 11px;
+      fill: var(--text-muted);
+      font-weight: 600;
+    }
+
+    .rel-badge.active {
+      fill: var(--accent-ai);
+      font-weight: 800;
+    }
+
+    /* FLOATING CONTROLS */
+    .canvas-dock {
       position: absolute;
       bottom: 24px;
       left: 24px;
-      background: var(--bg-surface-glass);
-      backdrop-filter: blur(8px);
-      border: 1px solid var(--border-subtle);
-      border-radius: 12px;
+      background: var(--bg-panel);
+      border: 1px solid var(--border-card);
+      border-radius: 10px;
       padding: 6px;
       display: flex;
       align-items: center;
       gap: 4px;
-      box-shadow: var(--shadow-lg);
-      z-index: 30;
+      box-shadow: 0 10px 25px rgba(0,0,0,0.3);
+      z-index: 40;
     }
 
-    .control-btn {
-      width: 34px;
-      height: 34px;
-      border-radius: 8px;
+    .dock-btn {
+      width: 32px;
+      height: 32px;
+      border-radius: 6px;
       background: transparent;
       border: none;
       color: var(--text-main);
@@ -305,98 +333,41 @@
       align-items: center;
       justify-content: center;
       cursor: pointer;
-      font-size: 16px;
-      font-weight: 600;
+      font-size: 15px;
+      font-weight: 700;
       transition: all 0.15s;
     }
 
-    .control-btn:hover {
-      background: var(--bg-surface-elevated);
-      color: var(--brand-primary);
+    .dock-btn:hover {
+      background: var(--bg-input);
+      color: var(--accent-ai);
     }
 
-    .zoom-level {
+    .zoom-text {
       font-size: 12px;
       font-family: var(--font-mono);
       color: var(--text-muted);
       padding: 0 8px;
-      font-weight: 500;
     }
-
-    /* QUICK FILTER PILLS */
-    .filter-bar {
-      position: absolute;
-      top: 20px;
-      left: 24px;
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      z-index: 30;
-    }
-
-    .filter-chip {
-      background: var(--bg-surface-glass);
-      backdrop-filter: blur(8px);
-      border: 1px solid var(--border-subtle);
-      padding: 6px 14px;
-      border-radius: 20px;
-      font-size: 12px;
-      font-weight: 600;
-      color: var(--text-muted);
-      cursor: pointer;
-      display: flex;
-      align-items: center;
-      gap: 6px;
-      box-shadow: var(--shadow-sm);
-      transition: all 0.2s;
-    }
-
-    .filter-chip:hover {
-      border-color: var(--border-strong);
-      color: var(--text-main);
-    }
-
-    .filter-chip.active {
-      background: var(--bg-surface);
-      border-color: var(--brand-primary);
-      color: var(--brand-primary);
-    }
-
-    .filter-chip .dot {
-      width: 8px;
-      height: 8px;
-      border-radius: 50%;
-    }
-
-    .dot-ai { background: #38bdf8; box-shadow: 0 0 8px #38bdf8; }
-    .dot-core { background: #818cf8; box-shadow: 0 0 8px #818cf8; }
-    .dot-extractor { background: #34d399; box-shadow: 0 0 8px #34d399; }
 
     /* SEARCH FLOATER */
-    .search-box {
+    .search-floater {
       position: absolute;
       top: 20px;
       right: calc(var(--sidebar-w) + 24px);
-      background: var(--bg-surface-glass);
-      backdrop-filter: blur(8px);
-      border: 1px solid var(--border-subtle);
+      background: var(--bg-panel);
+      border: 1px solid var(--border-card);
       border-radius: 10px;
       padding: 6px 12px;
       display: flex;
       align-items: center;
       gap: 8px;
-      box-shadow: var(--shadow-md);
-      z-index: 30;
-      width: 260px;
-      transition: width 0.2s ease, border-color 0.2s ease;
+      box-shadow: 0 6px 20px rgba(0,0,0,0.25);
+      z-index: 40;
+      width: 280px;
     }
 
-    .search-box:focus-within {
-      width: 320px;
-      border-color: var(--brand-primary);
-    }
-
-    .search-box input {
+    .search-floater input {
       background: transparent;
       border: none;
       outline: none;
@@ -406,44 +377,191 @@
       width: 100%;
     }
 
-    .search-box input::placeholder {
-      color: var(--text-faint);
+    /* DOMAIN BOUNDARY CONTAINERS */
+    .domain-boundary {
+      position: absolute;
+      border: 2px dashed var(--border-strong);
+      border-radius: 20px;
+      padding: 24px;
+      pointer-events: none;
+      z-index: 1;
     }
 
-    /* RIGHT DRAWER: SCHEMA & DICTIONARY INSPECTOR */
-    .inspector-sidebar {
+    .domain-boundary.ai {
+      border-color: rgba(56, 189, 248, 0.4);
+      background: rgba(56, 189, 248, 0.02);
+    }
+
+    .domain-boundary.core {
+      border-color: rgba(129, 140, 248, 0.4);
+      background: rgba(129, 140, 248, 0.02);
+    }
+
+    .domain-boundary.extractor {
+      border-color: rgba(52, 211, 153, 0.4);
+      background: rgba(52, 211, 153, 0.02);
+    }
+
+    .domain-tag {
+      position: absolute;
+      top: -14px;
+      left: 24px;
+      background: var(--bg-panel);
+      padding: 2px 14px;
+      border-radius: 20px;
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: 0.5px;
+      border: 1px solid var(--border-card);
+    }
+
+    .domain-tag.ai { color: var(--accent-ai); border-color: var(--accent-ai); }
+    .domain-tag.core { color: var(--accent-core); border-color: var(--accent-core); }
+    .domain-tag.extractor { color: var(--accent-extractor); border-color: var(--accent-extractor); }
+
+    /* ERD TABLE CARD */
+    .erd-table {
+      position: absolute;
+      width: 280px;
+      background: var(--bg-card);
+      border: 1px solid var(--border-card);
+      border-radius: 12px;
+      box-shadow: 0 10px 25px rgba(0,0,0,0.3);
+      overflow: hidden;
+      z-index: 20;
+      transition: transform 0.2s, box-shadow 0.2s, border-color 0.2s, opacity 0.2s;
+      cursor: pointer;
+    }
+
+    .erd-table:hover {
+      transform: translateY(-3px);
+      box-shadow: 0 15px 35px rgba(0,0,0,0.45);
+      border-color: var(--border-active);
+    }
+
+    .erd-table.active-table {
+      border-color: var(--accent-ai);
+      box-shadow: 0 0 20px var(--accent-ai-glow);
+    }
+
+    .erd-table.dimmed {
+      opacity: 0.25;
+    }
+
+    /* CARD HEADER */
+    .table-header {
+      padding: 10px 14px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      border-bottom: 1px solid var(--border-subtle);
+      background: rgba(255,255,255,0.02);
+    }
+
+    .table-title {
+      font-family: var(--font-mono);
+      font-size: 13px;
+      font-weight: 700;
+      color: var(--text-main);
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .table-domain-pill {
+      font-size: 9px;
+      font-weight: 700;
+      text-transform: uppercase;
+      padding: 2px 6px;
+      border-radius: 4px;
+    }
+
+    .pill-ai { background: rgba(56, 189, 248, 0.15); color: var(--accent-ai); }
+    .pill-core { background: rgba(129, 140, 248, 0.15); color: var(--accent-core); }
+    .pill-extractor { background: rgba(52, 211, 153, 0.15); color: var(--accent-extractor); }
+
+    /* COLUMN LIST */
+    .col-list {
+      list-style: none;
+      padding: 6px 0;
+      font-size: 11px;
+    }
+
+    .col-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 5px 14px;
+      transition: background 0.1s;
+    }
+
+    .col-row:hover {
+      background: rgba(255, 255, 255, 0.04);
+    }
+
+    .col-left {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-family: var(--font-mono);
+    }
+
+    .key-badge {
+      font-size: 8px;
+      font-weight: 800;
+      padding: 1px 4px;
+      border-radius: 3px;
+    }
+
+    .key-pk { background: rgba(244, 63, 94, 0.2); color: var(--tag-pk); }
+    .key-fk { background: rgba(56, 189, 248, 0.2); color: var(--tag-fk); }
+    .key-uq { background: rgba(16, 185, 129, 0.2); color: var(--tag-uq); }
+    .key-pii { background: rgba(245, 158, 11, 0.2); color: var(--tag-pii); }
+
+    .col-name {
+      color: var(--text-main);
+      font-weight: 600;
+    }
+
+    .col-type {
+      font-family: var(--font-mono);
+      font-size: 10px;
+      color: var(--text-muted);
+    }
+
+    /* RIGHT DRAWER INSPECTOR */
+    .inspector-panel {
       width: var(--sidebar-w);
-      background: var(--bg-surface);
+      background: var(--bg-panel);
       border-left: 1px solid var(--border-subtle);
       display: flex;
       flex-direction: column;
-      z-index: 35;
-      box-shadow: var(--shadow-lg);
+      z-index: 45;
+      box-shadow: -5px 0 25px rgba(0,0,0,0.3);
       transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1);
     }
 
-    .inspector-sidebar.collapsed {
+    .inspector-panel.collapsed {
       transform: translateX(var(--sidebar-w));
     }
 
-    .sidebar-header {
-      padding: 16px 20px;
+    .drawer-header {
+      padding: 18px 20px;
       border-bottom: 1px solid var(--border-subtle);
       display: flex;
       align-items: center;
       justify-content: space-between;
     }
 
-    .sidebar-title {
+    .drawer-title {
       font-size: 15px;
       font-weight: 700;
-      color: var(--text-main);
       display: flex;
       align-items: center;
       gap: 8px;
     }
 
-    .sidebar-content {
+    .drawer-body {
       flex: 1;
       overflow-y: auto;
       padding: 20px;
@@ -453,115 +571,9 @@
       user-select: text;
     }
 
-    /* TABLE DETAIL CARD IN SIDEBAR */
-    .table-card {
-      background: var(--bg-surface-elevated);
-      border: 1px solid var(--border-subtle);
-      border-radius: 12px;
-      padding: 16px;
-      position: relative;
-    }
-
-    .table-badge-row {
-      display: flex;
-      align-items: center;
-      gap: 6px;
-      margin-bottom: 8px;
-      flex-wrap: wrap;
-    }
-
-    .badge-pill {
-      font-size: 11px;
-      font-weight: 700;
-      padding: 2px 8px;
-      border-radius: 6px;
-      text-transform: uppercase;
-      letter-spacing: 0.5px;
-    }
-
-    .badge-ai { background: rgba(56, 189, 248, 0.15); color: var(--brand-primary); border: 1px solid rgba(56, 189, 248, 0.3); }
-    .badge-core { background: rgba(129, 140, 248, 0.15); color: var(--brand-secondary); border: 1px solid rgba(129, 140, 248, 0.3); }
-    .badge-extractor { background: rgba(52, 211, 153, 0.15); color: var(--brand-accent); border: 1px solid rgba(52, 211, 153, 0.3); }
-    .badge-kv { background: rgba(251, 191, 36, 0.15); color: var(--brand-amber); border: 1px solid rgba(251, 191, 36, 0.3); }
-
-    .table-name {
-      font-size: 18px;
-      font-weight: 800;
-      font-family: var(--font-mono);
-      color: var(--text-main);
-      margin-bottom: 6px;
-    }
-
-    .table-desc {
-      font-size: 13px;
-      color: var(--text-muted);
-      line-height: 1.5;
-    }
-
-    .section-label {
-      font-size: 11px;
-      font-weight: 700;
-      text-transform: uppercase;
-      letter-spacing: 0.8px;
-      color: var(--text-faint);
-      margin-bottom: 10px;
-      display: flex;
-      align-items: center;
-      gap: 6px;
-    }
-
-    /* COLUMNS TABLE */
-    .cols-table {
-      width: 100%;
-      border-collapse: collapse;
-      font-size: 12px;
-      margin-top: 6px;
-    }
-
-    .cols-table th {
-      text-align: left;
-      padding: 8px 6px;
-      color: var(--text-faint);
-      border-bottom: 1px solid var(--border-subtle);
-      font-weight: 600;
-      font-size: 11px;
-    }
-
-    .cols-table td {
-      padding: 8px 6px;
-      border-bottom: 1px solid var(--border-subtle);
-      vertical-align: top;
-    }
-
-    .col-name {
-      font-family: var(--font-mono);
-      font-weight: 600;
-      color: var(--text-main);
-      display: flex;
-      align-items: center;
-      gap: 4px;
-    }
-
-    .col-type {
-      font-family: var(--font-mono);
-      color: var(--brand-primary);
-      font-size: 11px;
-    }
-
-    .col-meta {
-      font-size: 11px;
-      color: var(--text-muted);
-      line-height: 1.4;
-    }
-
-    .pk-tag { color: #f43f5e; font-weight: 800; font-size: 9px; padding: 1px 4px; background: rgba(244, 63, 94, 0.15); border-radius: 4px; }
-    .fk-tag { color: #38bdf8; font-weight: 800; font-size: 9px; padding: 1px 4px; background: rgba(56, 189, 248, 0.15); border-radius: 4px; }
-    .uq-tag { color: #34d399; font-weight: 800; font-size: 9px; padding: 1px 4px; background: rgba(52, 211, 153, 0.15); border-radius: 4px; }
-    .pii-tag { color: #fbbf24; font-weight: 800; font-size: 9px; padding: 1px 4px; background: rgba(251, 191, 36, 0.15); border-radius: 4px; }
-
     /* CODE BOX */
     .code-box {
-      background: var(--bg-canvas);
+      background: var(--bg-app);
       border: 1px solid var(--border-subtle);
       border-radius: 8px;
       padding: 12px;
@@ -577,14 +589,13 @@
       position: absolute;
       top: 8px;
       right: 8px;
-      background: var(--bg-surface-elevated);
+      background: var(--bg-input);
       border: 1px solid var(--border-subtle);
       color: var(--text-muted);
       border-radius: 6px;
       padding: 4px 8px;
       font-size: 11px;
       cursor: pointer;
-      font-family: var(--font-sans);
     }
 
     .copy-btn:hover {
@@ -592,996 +603,185 @@
       background: var(--border-strong);
     }
 
-    /* BOTTOM STATUS FOOTER */
+    /* FOOTER */
     footer {
-      height: 34px;
-      background: var(--bg-surface);
+      height: 32px;
+      background: var(--bg-panel);
       border-top: 1px solid var(--border-subtle);
       display: flex;
       align-items: center;
       justify-content: space-between;
-      padding: 0 16px;
+      padding: 0 20px;
       font-size: 11px;
       color: var(--text-muted);
-      z-index: 40;
-    }
-
-    .footer-items {
-      display: flex;
-      align-items: center;
-      gap: 16px;
-    }
-
-    .status-indicator {
-      display: flex;
-      align-items: center;
-      gap: 6px;
+      z-index: 50;
     }
 
     .status-dot {
       width: 7px;
       height: 7px;
       border-radius: 50%;
-      background: var(--brand-accent);
-      box-shadow: 0 0 8px var(--brand-accent);
-    }
-
-    /* MATRIX VIEW (TAB 5) */
-    .matrix-container {
-      width: 100%;
-      height: 100%;
-      overflow: auto;
-      padding: 40px;
-      user-select: text;
-    }
-
-    .matrix-table {
-      width: 100%;
-      max-width: 1200px;
-      margin: 0 auto;
-      border-collapse: collapse;
-      background: var(--bg-surface);
-      border: 1px solid var(--border-subtle);
-      border-radius: 12px;
-      overflow: hidden;
-      box-shadow: var(--shadow-lg);
-    }
-
-    .matrix-table th {
-      background: var(--bg-surface-elevated);
-      padding: 14px 16px;
-      text-align: left;
-      font-size: 12px;
-      font-weight: 700;
-      color: var(--text-muted);
-      border-bottom: 1px solid var(--border-subtle);
-      text-transform: uppercase;
-      letter-spacing: 0.5px;
-    }
-
-    .matrix-table td {
-      padding: 14px 16px;
-      font-size: 13px;
-      border-bottom: 1px solid var(--border-subtle);
-      vertical-align: top;
-      line-height: 1.5;
-    }
-
-    .matrix-table tr:hover td {
-      background: rgba(255, 255, 255, 0.02);
-    }
-
-    /* MERMAID SVG TWEAKS */
-    .mermaid-wrapper {
-      transform-origin: center center;
-      transition: opacity 0.2s ease;
-    }
-
-    .mermaid svg {
-      max-width: none !important;
-      height: auto !important;
-      filter: drop-shadow(0 10px 25px rgba(0,0,0,0.3));
-    }
-
-    /* MODAL FOR SQL / INFO */
-    .modal-backdrop {
-      position: fixed;
-      inset: 0;
-      background: rgba(0, 0, 0, 0.7);
-      backdrop-filter: blur(4px);
-      z-index: 100;
-      display: none;
-      align-items: center;
-      justify-content: center;
-    }
-
-    .modal-backdrop.open {
-      display: flex;
-    }
-
-    .modal-box {
-      background: var(--bg-surface);
-      border: 1px solid var(--border-strong);
-      border-radius: 16px;
-      width: 90%;
-      max-width: 860px;
-      max-height: 85vh;
-      display: flex;
-      flex-direction: column;
-      box-shadow: var(--shadow-lg);
-      overflow: hidden;
-    }
-
-    .modal-header {
-      padding: 16px 24px;
-      border-bottom: 1px solid var(--border-subtle);
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-    }
-
-    .modal-body {
-      padding: 24px;
-      overflow-y: auto;
-      flex: 1;
-      user-select: text;
-    }
-
-    /* SCROLLBAR */
-    ::-webkit-scrollbar {
-      width: 6px;
-      height: 6px;
-    }
-    ::-webkit-scrollbar-track {
-      background: transparent;
-    }
-    ::-webkit-scrollbar-thumb {
-      background: var(--border-strong);
-      border-radius: 4px;
-    }
-    ::-webkit-scrollbar-thumb:hover {
-      background: var(--text-faint);
+      background: #10b981;
+      box-shadow: 0 0 8px #10b981;
     }
   </style>
-  
-  <!-- Mermaid.js Library -->
-  <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
 </head>
 <body>
 
-  <!-- 1. TOP HEADER -->
+  <!-- TOP HEADER -->
   <header>
-    <div class="brand-section">
-      <div class="brand-badge">CE</div>
-      <div>
-        <div class="brand-title">
+    <div class="brand-group">
+      <div class="brand-logo">ERD</div>
+      <div class="brand-meta">
+        <h1>
           Casa Escondida Anilao
-          <span class="badge">ERD Kênh AI & WhatsApp</span>
-          <span class="badge" style="background:rgba(52,211,153,0.15); color:var(--brand-accent); border-color:rgba(52,211,153,0.3);">PostgreSQL / Supabase PG 17+</span>
-        </div>
-        <div class="brand-sub">Chuyển đổi toàn diện từ Redis KV sang Supabase · Kết nối Hình A, B & C</div>
+          <span class="badge-chip">ERD Diagram Postgres / Supabase</span>
+        </h1>
+        <p>Kiến trúc cơ sở dữ liệu quan hệ cho Kênh AI & WhatsApp (Thay thế Redis KV)</p>
       </div>
     </div>
 
     <!-- VIEW TABS -->
-    <div class="nav-tabs">
-      <button class="tab-btn active" onclick="switchView('full')" id="tab-full">
-        <span>Toàn Cảnh Hệ Thống</span>
-        <span class="count">28 Bảng</span>
+    <div class="view-tabs">
+      <button class="tab-item active" onclick="switchDomainView('ai')" id="tab-ai">
+        <span>Kênh AI / WhatsApp (Hình C)</span>
+        <span class="tab-count">9 Bảng Mới</span>
       </button>
-      <button class="tab-btn" onclick="switchView('ai')" id="tab-ai">
-        <span>Kênh AI / WhatsApp</span>
-        <span class="count">9 Bảng Mới</span>
+      <button class="tab-item" onclick="switchDomainView('all')" id="tab-all">
+        <span>Toàn Cảnh Tích Hợp</span>
+        <span class="tab-count">28 Thực Thể</span>
       </button>
-      <button class="tab-btn" onclick="switchView('extractor')" id="tab-extractor">
+      <button class="tab-item" onclick="switchDomainView('core')" id="tab-core">
+        <span>Supabase Core Team (Hình B)</span>
+        <span class="tab-count">10 Bảng</span>
+      </button>
+      <button class="tab-item" onclick="switchDomainView('extractor')" id="tab-extractor">
         <span>Payload Extractor (Hình A)</span>
-        <span class="count">Zod Trip</span>
-      </button>
-      <button class="tab-btn" onclick="switchView('core')" id="tab-core">
-        <span>Supabase Core (Hình B)</span>
-        <span class="count">10 Bảng</span>
-      </button>
-      <button class="tab-btn" onclick="switchView('matrix')" id="tab-matrix">
-        <span>Ma Trận KV → Postgres</span>
+        <span class="tab-count">Zod Trip</span>
       </button>
     </div>
 
-    <!-- ACTION BUTTONS -->
+    <!-- ACTIONS -->
     <div class="header-actions">
-      <button class="action-btn" onclick="toggleTheme()" title="Đổi giao diện Sáng / Tối">
+      <button class="btn-action" onclick="toggleTheme()" title="Đổi màu giao diện">
         <span id="theme-icon">🌙</span> <span id="theme-label">Tối</span>
       </button>
-      <button class="action-btn" onclick="exportSvg()" title="Xuất SVG sơ đồ hiện tại">
-        <span>📥 Xuất SVG</span>
-      </button>
-      <button class="action-btn" onclick="openSqlModal()">
-        <span>📄 DDL Migration</span>
-      </button>
-      <button class="action-btn primary" onclick="toggleInspector()">
-        <span>🔍 Tra Cứu Bảng</span>
+      <button class="btn-action primary" onclick="toggleInspector()">
+        <span>📋 Chi Tiết Lược Đồ</span>
       </button>
     </div>
   </header>
 
-  <!-- 2. MAIN WORKSPACE -->
+  <!-- WORKSPACE -->
   <div class="workspace">
     
-    <!-- CANVAS CONTAINER -->
-    <div class="canvas-container" id="canvas-container">
+    <!-- CANVAS -->
+    <div class="canvas-viewport" id="canvas-viewport">
       
-      <!-- FILTER PILLS -->
-      <div class="filter-bar" id="filter-bar">
-        <div class="filter-chip active" onclick="filterDomain('all', event)">
-          <span>Tất cả phân hệ</span>
-        </div>
-        <div class="filter-chip" onclick="filterDomain('ai', event)">
-          <span class="dot dot-ai"></span>
-          <span>Kênh AI (9 bảng mới)</span>
-        </div>
-        <div class="filter-chip" onclick="filterDomain('core', event)">
-          <span class="dot dot-core"></span>
-          <span>Team Core Supabase</span>
-        </div>
-        <div class="filter-chip" onclick="filterDomain('extractor', event)">
-          <span class="dot dot-extractor"></span>
-          <span>Extractor Contract</span>
-        </div>
-      </div>
-
-      <!-- SEARCH BOX -->
-      <div class="search-box">
+      <!-- SEARCH -->
+      <div class="search-floater">
         <span style="color:var(--text-faint);">🔎</span>
-        <input type="text" id="table-search" placeholder="Tìm bảng, cột (vd: phone, lease, odoo)..." oninput="handleSearch(this.value)">
+        <input type="text" id="erd-search" placeholder="Tìm bảng, cột (vd: phone, lease, scenario)..." oninput="handleErdSearch(this.value)">
       </div>
 
-      <!-- DIAGRAM STAGE (DRAGGABLE & ZOOMABLE) -->
+      <!-- DIAGRAM STAGE (DRAGGABLE / ZOOMABLE) -->
       <div class="diagram-stage" id="diagram-stage">
         
-        <!-- MERMAID WRAPPER -->
-        <div class="mermaid-wrapper" id="mermaid-wrapper">
-          <div class="mermaid" id="mermaid-target">
-            <!-- Mermaid diagram dynamically rendered here -->
-          </div>
+        <!-- SVG CONNECTOR OVERLAY -->
+        <svg class="connector-svg" id="connector-svg"></svg>
+
+        <!-- DOMAIN BOUNDARIES -->
+        <div class="domain-boundary ai" id="boundary-ai" style="left: 40px; top: 40px; width: 1420px; height: 960px;">
+          <div class="domain-tag ai">PHÂN HỆ KÊNH AI / WHATSAPP (9 BẢNG POSTGRESQL MỚI THAY THẾ KV)</div>
         </div>
 
-        <!-- MATRIX HTML VIEW (HIDDEN BY DEFAULT) -->
-        <div class="matrix-container" id="matrix-wrapper" style="display: none;">
-          <table class="matrix-table">
-            <thead>
-              <tr>
-                <th style="width: 18%;">Redis KV Hiện Tại</th>
-                <th style="width: 20%;">Bảng & Cột Postgres Mới</th>
-                <th style="width: 24%;">Cơ Chế Đồng Thời & Ràng Buộc</th>
-                <th style="width: 20%;">Chỉ Mục & Hiệu Năng</th>
-                <th style="width: 18%;">Chính Sách TTL / PII</th>
-              </tr>
-            </thead>
-            <tbody id="matrix-body">
-              <!-- Rendered via JS -->
-            </tbody>
-          </table>
+        <div class="domain-boundary core" id="boundary-core" style="left: 1520px; top: 40px; width: 1300px; height: 960px;">
+          <div class="domain-tag core">PHÂN HỆ SUPABASE CORE TEAM (BẢNG TEAM ĐÃ CÓ)</div>
+        </div>
+
+        <div class="domain-boundary extractor" id="boundary-extractor" style="left: 40px; top: 1040px; width: 2780px; height: 600px;">
+          <div class="domain-tag extractor">HÌNH A: EXTRACTOR PAYLOAD CONTRACT (HỢP ĐỒNG ZOD TRIP & EXTRAS)</div>
+        </div>
+
+        <!-- ERD TABLES CONTAINER -->
+        <div id="tables-container">
+          <!-- Dynamically populated tables -->
         </div>
 
       </div>
 
-      <!-- FLOATING CANVAS CONTROLS -->
-      <div class="canvas-controls">
-        <button class="control-btn" onclick="zoomStep(-0.15)" title="Thu nhỏ (Scroll down)">−</button>
-        <span class="zoom-level" id="zoom-text">100%</span>
-        <button class="control-btn" onclick="zoomStep(0.15)" title="Phóng to (Scroll up)">+</button>
-        <button class="control-btn" onclick="resetZoom()" title="Reset về 100%">⟲</button>
-        <button class="control-btn" onclick="fitToScreen()" title="Canh vừa màn hình">⛶</button>
+      <!-- DOCK CONTROLS -->
+      <div class="canvas-dock">
+        <button class="dock-btn" onclick="zoomDelta(-0.15)">−</button>
+        <span class="zoom-text" id="zoom-indicator">100%</span>
+        <button class="dock-btn" onclick="zoomDelta(0.15)">+</button>
+        <button class="dock-btn" onclick="resetCanvas()">⟲</button>
+        <button class="dock-btn" onclick="fitView()">⛶</button>
       </div>
 
     </div>
 
-    <!-- 3. RIGHT DRAWER: TABLE & SCHEMA INSPECTOR -->
-    <aside class="inspector-sidebar" id="inspector-sidebar">
-      <div class="sidebar-header">
-        <div class="sidebar-title">
+    <!-- RIGHT DRAWER INSPECTOR -->
+    <aside class="inspector-panel collapsed" id="inspector-panel">
+      <div class="drawer-header">
+        <div class="drawer-title">
           <span>📋 Chi Tiết Lược Đồ DDL</span>
         </div>
-        <button class="control-btn" onclick="toggleInspector()" title="Đóng drawer">✕</button>
+        <button class="dock-btn" onclick="toggleInspector()">✕</button>
       </div>
 
-      <div class="sidebar-content" id="sidebar-content">
-        <!-- Default State: Quick Table List -->
-        <div id="inspector-placeholder" style="padding: 10px 0;">
-          <div style="text-align: center; margin-bottom: 20px; color: var(--text-muted);">
-            <div style="font-size: 28px; margin-bottom: 8px;">👆</div>
-            <p style="font-weight: 600; font-size: 13px; margin-bottom: 4px;">Bấm vào bảng bất kỳ trên sơ đồ</p>
-            <p style="font-size: 12px; color: var(--text-faint);">hoặc chọn bảng từ danh sách bên dưới để xem chi tiết cột, khoá, ràng buộc đồng thời và mã SQL DDL.</p>
-          </div>
-          
-          <div style="margin-top: 16px;">
-            <div class="section-label">1. Kênh AI / WhatsApp Mới (9 Bảng):</div>
-            <div style="display: flex; flex-direction: column; gap: 5px;" id="quick-list-ai"></div>
-
-            <div class="section-label" style="margin-top: 20px;">2. Supabase Core Team (10 Bảng):</div>
-            <div style="display: flex; flex-direction: column; gap: 5px;" id="quick-list-core"></div>
-
-            <div class="section-label" style="margin-top: 20px;">3. Payload Extractor (9 Thực Thể):</div>
-            <div style="display: flex; flex-direction: column; gap: 5px;" id="quick-list-extractor"></div>
-          </div>
+      <div class="drawer-body" id="drawer-body">
+        <div id="inspector-empty" style="text-align:center; padding:40px 10px; color:var(--text-muted);">
+          <div style="font-size:32px; margin-bottom:10px;">👆</div>
+          <p style="font-weight:600; font-size:14px; margin-bottom:4px;">Bấm vào một bảng bất kỳ trên ERD</p>
+          <p style="font-size:12px; color:var(--text-faint);">để xem chi tiết tất cả các cột, kiểu dữ liệu, ràng buộc check, cơ chế khóa lease và mã DDL Postgres.</p>
         </div>
-
-        <div id="inspector-detail" style="display: none;">
-          <!-- Dynamically filled by showTableDetails() -->
-        </div>
+        <div id="inspector-content" style="display:none;"></div>
       </div>
     </aside>
 
   </div>
 
-  <!-- 4. BOTTOM FOOTER BAR -->
+  <!-- FOOTER -->
   <footer>
-    <div class="footer-items">
-      <div class="status-indicator">
-        <span class="status-dot"></span>
-        <span>PostgreSQL 17+ (Supabase) Sẵn Sàng · Test Suite 100% Passed</span>
-      </div>
-      <span>•</span>
-      <span>9 Bảng AI Kênh WhatsApp Mới</span>
-      <span>•</span>
-      <span>RLS Enabled: 100% (No Public Leak)</span>
-      <span>•</span>
-      <span>Distributed Lease (No Long Advisory Locks)</span>
+    <div style="display:flex; align-items:center; gap:8px;">
+      <span class="status-dot"></span>
+      <span>PostgreSQL 17+ (Supabase) · 9 Bảng AI mới sẵn sàng · RLS Enabled 100%</span>
     </div>
-    <div class="footer-items">
-      <a href="javascript:void(0)" onclick="openSqlModal()" style="color:var(--brand-primary); text-decoration:none; font-weight:600;">Xem file 20261009000000_ai_channel.sql ↗</a>
+    <div>
+      <span>Kéo để di chuyển • Cuộn chuột để phóng to/thu nhỏ • Hover đường nối để làm sáng quan hệ</span>
     </div>
   </footer>
 
-  <!-- 5. SQL MODAL -->
-  <div class="modal-backdrop" id="sql-modal">
-    <div class="modal-box">
-      <div class="modal-header">
-        <div style="font-weight:700; font-size:15px; display:flex; align-items:center; gap:8px;">
-          <span>📄 Migration DDL: 20261009000000_ai_channel.sql</span>
-        </div>
-        <button class="control-btn" onclick="closeSqlModal()">✕</button>
-      </div>
-      <div class="modal-body">
-        <p style="font-size: 13px; color: var(--text-muted); margin-bottom: 14px;">
-          Toàn bộ migration đã được kiểm thử 100% qua file <code>ai_channel.test.sql</code> trên PostgreSQL 18.4 engine. Kế thừa nguyên vẹn <code>scenario</code> và <code>revision</code> của team, bổ sung 9 bảng kênh AI với RLS bật toàn diện.
-        </p>
-        <div class="code-box">
-          <button class="copy-btn" onclick="copyFullSql()">Copy SQL</button>
-          <pre id="full-sql-code">-- Migration kênh AI / WhatsApp cho Supabase (PG 17+).
--- Thay thế hoàn toàn Redis KV: hội thoại, chống trùng lặp tin nhắn (claim), chuyển giao nhân viên (handoff),
--- khóa phân tán theo số điện thoại (phone lease), lưu trữ trích xuất và cấu hình AI.
---
--- RLS bật trên tất cả các bảng mới, KHÔNG tạo policy: chỉ BFF (DATABASE_URL qua service_role/postgres) đọc/ghi.
--- Quy ước: tên bảng/cột tiếng Anh, chú thích tiếng Việt, enum thay bằng text + check.
-
--- 1. wa_conversation: thay cho thread:{phone} và phonelock:{phone}
-create table wa_conversation (
-  id uuid primary key default gen_random_uuid(),
-  phone text not null check (phone ~ '^[0-9]{6,15}$'),
-  language text not null default 'en' check (language in ('en', 'zh')),
-  open_fields text[] not null default '{}',
-  stall_count int not null default 0 check (stall_count >= 0),
-  stated_values jsonb not null default '{}'::jsonb,
-  last_guest_at timestamptz,
-  started_at timestamptz not null default now(),
-  ended_at timestamptz,
-  end_reason text check (end_reason is null or end_reason in ('reset', 'expired')),
-  lock_token uuid,
-  lock_until timestamptz,
-  created_at timestamptz not null default now(),
-  updated_at timestamptz not null default now(),
-  constraint wa_conversation_ended_pair check ((ended_at is null) = (end_reason is null)),
-  constraint wa_conversation_lock_pair check ((lock_token is null) = (lock_until is null))
-);
-
-create unique index wa_conversation_active_phone_uidx on wa_conversation (phone)
-  where ended_at is null;
-
-create index wa_conversation_phone_started_idx on wa_conversation (phone, started_at desc);
-
--- 2. wa_message: lịch sử lượt chat thay cho mảng tin nhắn trong thread:{phone}
-create table wa_message (
-  id bigserial primary key,
-  conversation_id uuid not null references wa_conversation(id) on delete cascade,
-  role text not null check (role in ('guest', 'assistant', 'staff')),
-  body text not null check (char_length(body) > 0 and char_length(body) <= 4096),
-  wa_message_id text,
-  reply_kind text check (reply_kind is null or reply_kind in (
-    'converse', 'handoff', 'not_booking', 'stalled',
-    'asking_limit', 'partner_invitation', 'apology', 'reset', 'staff'
-  )),
-  staff_ref text,
-  created_at timestamptz not null default now(),
-  constraint wa_message_staff_ref_check check ((role = 'staff') = (staff_ref is not null))
-);
-
-create index wa_message_conversation_created_idx on wa_message (conversation_id, created_at desc);
-create index wa_message_wamid_idx on wa_message (wa_message_id) where wa_message_id is not null;
-
--- 3. wa_inbound_claim: thay cho claim:{wa_message_id} trong KV chống xử lý trùng tin nhắn từ Meta webhook
-create table wa_inbound_claim (
-  wa_message_id text primary key,
-  state text not null check (state in ('in_flight', 'done')),
-  fence_token uuid not null,
-  expires_at timestamptz not null,
-  created_at timestamptz not null default now(),
-  updated_at timestamptz not null default now()
-);
-
-create index wa_inbound_claim_expires_idx on wa_inbound_claim (expires_at);
-
--- 4. wa_handoff: thay cho pause:{phone} và set paused_phones
-create table wa_handoff (
-  id uuid primary key default gen_random_uuid(),
-  conversation_id uuid not null references wa_conversation(id) on delete cascade,
-  phone text not null check (phone ~ '^[0-9]{6,15}$'),
-  reason text not null check (reason in (
-    'guest_asked_for_human',
-    'complaint_or_cancel',
-    'not_booking',
-    'stalled',
-    'asking_limit',
-    'partner_self_serve',
-    'turn_failed'
-  )),
-  missing_fields text[] not null default '{}',
-  context text check (context is null or char_length(context) <= 200),
-  since timestamptz not null default now(),
-  told_at timestamptz,
-  resolved_at timestamptz,
-  resolved_by_ref text,
-  resolution text check (resolution is null or resolution in ('resume', 'reset', 'auto_resume', 'expired')),
-  constraint wa_handoff_resolved_pair check ((resolved_at is null) = (resolution is null))
-);
-
-create unique index wa_handoff_active_phone_uidx on wa_handoff (phone)
-  where resolved_at is null;
-
-create index wa_handoff_pending_idx on wa_handoff (since desc)
-  where resolved_at is null;
-
-create index wa_handoff_phone_since_idx on wa_handoff (phone, since desc);
-
--- 5. ai_enquiry: phần siêu dữ liệu riêng của bot gắn vào scenario của team
-create table ai_enquiry (
-  scenario_id uuid primary key references scenario(id) on delete cascade,
-  conversation_id uuid references wa_conversation(id) on delete set null,
-  phone text not null check (phone ~ '^[0-9]{6,15}$'),
-  review_state text not null default 'pending_review' check (review_state in ('pending_review', 'approved', 'cancelled')),
-  approved_at timestamptz,
-  approved_by_ref text,
-  staff_alerts text[] not null default '{}',
-  staff_edits jsonb not null default '[]'::jsonb,
-  notes jsonb not null default '{}'::jsonb,
-  confirmed_reply text,
-  sent_to_guest_at timestamptz,
-  closed_at timestamptz,
-  created_at timestamptz not null default now(),
-  updated_at timestamptz not null default now(),
-  constraint ai_enquiry_approved_pair check ((approved_at is null) = (approved_by_ref is null))
-);
-
-create unique index ai_enquiry_active_phone_uidx on ai_enquiry (phone)
-  where closed_at is null;
-
-create index ai_enquiry_review_state_idx on ai_enquiry (review_state, created_at desc);
-create index ai_enquiry_phone_created_idx on ai_enquiry (phone, created_at desc);
-
--- 6. ai_extraction: lưu trạng thái trích xuất theo từng revision do bot sinh ra (author='ai')
-create table ai_extraction (
-  revision_id uuid primary key references revision(id) on delete cascade,
-  field_states jsonb not null default '{}'::jsonb,
-  provider text not null check (provider in ('gemini', 'deepseek')),
-  model text not null,
-  tokens_in int not null default 0 check (tokens_in >= 0),
-  tokens_out int not null default 0 check (tokens_out >= 0),
-  latency_ms int not null default 0 check (latency_ms >= 0),
-  created_at timestamptz not null default now()
-);
-
--- 7. ai_provider_key: quản lý API key của các nhà cung cấp LLM, mã hoá bằng AES-256-GCM giống odoo_key_enc
-create table ai_provider_key (
-  provider text primary key check (provider in ('gemini', 'deepseek')),
-  key_enc bytea not null,
-  last4 text not null check (char_length(last4) = 4),
-  updated_at timestamptz not null default now(),
-  updated_by_ref text not null
-);
-
--- 8. ai_setting_audit: vết kiểm toán thay đổi cấu hình AI (không giới hạn 50 dòng như KV cũ)
-create table ai_setting_audit (
-  id bigserial primary key,
-  at timestamptz not null default now(),
-  actor_ref text not null,
-  diff jsonb not null
-);
-
-create index ai_setting_audit_at_idx on ai_setting_audit (at desc);
-
--- 9. ai_provider_stat: thống kê sản lượng và độ trễ theo ngày, ghi nhận bằng upsert cộng dồn
-create table ai_provider_stat (
-  day date not null,
-  provider text not null check (provider in ('gemini', 'deepseek')),
-  ok int not null default 0 check (ok >= 0),
-  fail int not null default 0 check (fail >= 0),
-  fallback int not null default 0 check (fallback >= 0),
-  ms_sum bigint not null default 0 check (ms_sum >= 0),
-  n int not null default 0 check (n >= 0),
-  primary key (day, provider)
-);
-
--- 10. Cấu hình AI mặc định trong app_setting của team
-insert into app_setting (key, value)
-values (
-  'ai',
-  jsonb_build_object(
-    'version', 1,
-    'primary_provider', 'deepseek',
-    'fallback_provider', 'gemini',
-    'deepseek_model', 'deepseek-chat',
-    'gemini_model', 'gemini-3.1-flash-lite',
-    'timeout_ms', 20000,
-    'circuit_breaker', jsonb_build_object(
-      'failure_threshold', 5,
-      'cooldown_ms', 60000
-    )
-  )
-)
-on conflict (key) do nothing;
-
--- Bật RLS trên tất cả các bảng mới: chỉ backend qua DATABASE_URL được phép truy cập
-alter table wa_conversation enable row level security;
-alter table wa_message enable row level security;
-alter table wa_inbound_claim enable row level security;
-alter table wa_handoff enable row level security;
-alter table ai_enquiry enable row level security;
-alter table ai_extraction enable row level security;
-alter table ai_provider_key enable row level security;
-alter table ai_setting_audit enable row level security;
-alter table ai_provider_stat enable row level security;</pre>
-        </div>
-      </div>
-    </div>
-  </div>
-
   <script>
     // ==========================================
-    // 1. MERMAID DIAGRAM DEFINITIONS
+    // 1. DATA MODEL: TABLES & RELATIONSHIPS
     // ==========================================
 
-    const DIAGRAMS = {
-      // VIEW 1: TOÀN CẢNH HỆ THỐNG (FULL INTEGRATED VIEW)
-      full: `erDiagram
-    %% Core Team Supabase Tables
-    USER_SESSION ||--o{ SCENARIO : "owner_ref (logic)"
-    SCENARIO ||--o{ REVISION : "seq 1..n"
-    REVISION ||--|| SNAPSHOT : "odoo_pricing"
-    SCENARIO ||--o{ SHARE_TOKEN : "quote_token"
-    SCENARIO ||--o{ SUBMISSION : "booking_folio"
-    SUBMISSION }o--|| SNAPSHOT : "submitted_snapshot"
-    SCENARIO ||--o{ GUEST_DOCUMENT : "guest_id"
-    SCENARIO ||--o| INQUIRY_LINK : "odoo_lead"
-    SCENARIO ||--o{ SCENARIO_NOTE : "desk_notes"
-    APP_SETTING ||--o{ AI_SETTING_AUDIT : "diff"
-
-    %% AI WhatsApp Channel Links
-    SCENARIO ||--o| AI_ENQUIRY : "scenario_id"
-    REVISION ||--o| AI_EXTRACTION : "revision_id"
-    WA_CONVERSATION ||--o{ WA_MESSAGE : "conversation_id"
-    WA_CONVERSATION ||--o{ WA_HANDOFF : "conversation_id"
-    WA_CONVERSATION ||--o{ AI_ENQUIRY : "conversation_id"
-
-    %% Standalone AI Tables
-    AI_PROVIDER_KEY
-    AI_PROVIDER_STAT
-    WA_INBOUND_CLAIM
-
-    %% Extractor Domain Links
-    SCENARIO }o--|| TRIP : "working_trip"
-    TRIP ||--o{ ROOM : "rooms"
-    TRIP ||--o{ GUEST : "guests"
-    ROOM ||--o{ GUEST : "roomId"
-    GUEST ||--o{ DAY_PLAN : "days"
-    GUEST ||--o{ COURSE : "courses"
-    TRIP ||--o| TRIP_EXTRAS : "extras"
-    TRIP_EXTRAS ||--o{ GUEST_EXTRAS : "guest_extras"
-
-    %% Entity Declarations
-    WA_CONVERSATION {
-        uuid id PK
-        text phone "unique open"
-        text language "en|zh"
-        text_array open_fields
-        int stall_count
-        jsonb stated_values
-        timestamptz last_guest_at
-        uuid lock_token "lease"
-        timestamptz lock_until
-    }
-    WA_MESSAGE {
-        bigserial id PK
-        uuid conversation_id FK
-        text role "guest|assistant|staff"
-        text body "max 4096"
-        text wa_message_id
-        text reply_kind
-        timestamptz created_at
-    }
-    WA_INBOUND_CLAIM {
-        text wa_message_id PK
-        text state "in_flight|done"
-        uuid fence_token
-        timestamptz expires_at
-    }
-    WA_HANDOFF {
-        uuid id PK
-        uuid conversation_id FK
-        text phone "unique open"
-        text reason "complaint|human..."
-        text context "max 200"
-        timestamptz since
-        timestamptz resolved_at
-    }
-    AI_ENQUIRY {
-        uuid scenario_id PK
-        uuid conversation_id FK
-        text phone "unique open"
-        text review_state "pending|approved"
-        timestamptz approved_at
-        text approved_by_ref
-        jsonb notes
-        timestamptz closed_at
-    }
-    AI_EXTRACTION {
-        uuid revision_id PK
-        jsonb field_states "NLP states"
-        text provider "gemini|deepseek"
-        text model
-        int latency_ms
-    }
-    AI_PROVIDER_KEY {
-        text provider PK
-        bytea key_enc "AES-256-GCM"
-        text last4
-    }
-    AI_PROVIDER_STAT {
-        date day PK
-        text provider PK
-        int ok
-        int fail
-        int fallback
-    }
-    SCENARIO {
-        uuid id PK
-        text owner_ref "wa:hash"
-        text source "whatsapp"
-        text status "draft|submitted"
-        jsonb working_trip "Trip"
-    }
-    REVISION {
-        uuid id PK
-        uuid scenario_id FK
-        int seq
-        jsonb trip "Trip"
-        text author "ai"
-    }
-    SNAPSHOT {
-        uuid id PK
-        uuid revision_id FK
-        jsonb model "Odoo pricing"
-    }
-    SUBMISSION {
-        uuid id PK
-        uuid scenario_id FK
-        int folio_id "Odoo folio"
-    }
-    TRIP {
-        string label
-        string transportType "roundtrip|oneway"
-        date checkIn
-        date checkOut
-    }
-    GUEST {
-        string id PK
-        string name
-        bool diver
-        bool meals
-        string roomId FK
-    }
-`,
-
-      // VIEW 2: KÊNH AI / WHATSAPP (HÌNH C - 9 BẢNG MỚI)
-      ai: `erDiagram
-    SCENARIO ||--o| AI_ENQUIRY : "scenario_id"
-    REVISION ||--o| AI_EXTRACTION : "revision_id"
-    WA_CONVERSATION ||--o{ WA_MESSAGE : "conversation_id"
-    WA_CONVERSATION ||--o{ WA_HANDOFF : "conversation_id"
-    WA_CONVERSATION ||--o{ AI_ENQUIRY : "conversation_id"
-    APP_SETTING ||--o{ AI_SETTING_AUDIT : "theo doi key ai"
-    AI_PROVIDER_KEY
-    AI_PROVIDER_STAT
-    WA_INBOUND_CLAIM
-
-    SCENARIO {
-        uuid id PK
-        text owner_role "guest|staff"
-        text owner_ref "wa:phone_hash"
-        text source "whatsapp"
-        text status "draft|submitted"
-        jsonb working_trip "Trip dang sua"
-        jsonb extras "extras"
-    }
-    REVISION {
-        uuid id PK
-        uuid scenario_id FK
-        int seq "1..n"
-        jsonb trip "Trip chot luot"
-        text author "ai"
-    }
-    AI_ENQUIRY {
-        uuid scenario_id PK
-        uuid conversation_id FK
-        text phone "unique khi closed_at null"
-        text review_state "pending_review|approved|cancelled"
-        timestamptz approved_at
-        text approved_by_ref
-        text_array staff_alerts
-        jsonb staff_edits
-        jsonb notes "diveNotes, specialRequests"
-        text confirmed_reply
-        timestamptz sent_to_guest_at
-        timestamptz closed_at
-    }
-    AI_EXTRACTION {
-        uuid revision_id PK
-        jsonb field_states "given|inferred|default|missing"
-        text provider "gemini|deepseek"
-        text model
-        int tokens_in
-        int tokens_out
-        int latency_ms
-    }
-    WA_CONVERSATION {
-        uuid id PK
-        text phone "unique khi ended_at null"
-        text language "en|zh"
-        text_array open_fields
-        int stall_count
-        jsonb stated_values
-        timestamptz last_guest_at "cua so 24h Meta"
-        timestamptz started_at
-        timestamptz ended_at
-        text end_reason "reset|expired"
-        uuid lock_token "lease 30s"
-        timestamptz lock_until
-    }
-    WA_MESSAGE {
-        bigserial id PK
-        uuid conversation_id FK
-        text role "guest|assistant|staff"
-        text body "max 4096"
-        text wa_message_id "wamid"
-        text reply_kind "converse|handoff|apology..."
-        text staff_ref "chi co khi role=staff"
-        timestamptz created_at
-    }
-    WA_INBOUND_CLAIM {
-        text wa_message_id PK
-        text state "in_flight|done"
-        uuid fence_token
-        timestamptz expires_at
-    }
-    WA_HANDOFF {
-        uuid id PK
-        uuid conversation_id FK
-        text phone "unique khi resolved_at null"
-        text reason "guest_asked_for_human|complaint..."
-        text_array missing_fields
-        text context "max 200"
-        timestamptz since
-        timestamptz told_at
-        timestamptz resolved_at
-        text resolved_by_ref
-        text resolution "resume|reset|auto_resume|expired"
-    }
-    AI_PROVIDER_KEY {
-        text provider PK "gemini|deepseek"
-        bytea key_enc "AES-256-GCM"
-        text last4
-        timestamptz updated_at
-        text updated_by_ref
-    }
-    AI_SETTING_AUDIT {
-        bigserial id PK
-        timestamptz at
-        text actor_ref
-        jsonb diff
-    }
-    AI_PROVIDER_STAT {
-        date day PK
-        text provider PK
-        int ok
-        int fail
-        int fallback
-        bigint ms_sum
-        int n
-    }
-    APP_SETTING {
-        text key PK "key 'ai'"
-        jsonb value "primary, fallback, timeouts"
-    }
-`,
-
-      // VIEW 3: PAYLOAD EXTRACTOR (HÌNH A - TRIP ZOD CONTRACT)
-      extractor: `erDiagram
-    TRIP ||--o{ ROOM : "rooms[] (max 30)"
-    TRIP ||--o{ GUEST : "guests[] (max 40)"
-    ROOM ||--o{ GUEST : "guest.roomId = room.id"
-    GUEST ||--o{ DAY_PLAN : "days{YYYY-MM-DD} (diver)"
-    GUEST ||--o{ COURSE : "courses[] (max 5)"
-    TRIP ||--o| TRIP_EXTRAS : "app-only extras"
-    TRIP_EXTRAS ||--o{ GUEST_EXTRAS : "guests{guest.id}"
-    GUEST ||--o| GUEST_EXTRAS : "cung guest.id"
-    DAY_PLAN }o--o| BOAT : "boatId (staff chon)"
-    TRIP ||--o{ CUSTOM_ITEM : "items[] (staff)"
-    CUSTOM_ITEM }o--o{ GUEST : "gids[]"
-
-    TRIP {
-        string label "ten chuyen, tuy chon"
-        string guestType "KHONG trich, phien quyet"
-        string transportType "none|roundtrip|oneway"
-        date checkIn "YYYY-MM-DD bat buoc"
-        date checkOut "YYYY-MM-DD bat buoc"
-        date diveFrom "bat buoc khi co diver"
-        date diveTo "bat buoc khi co diver"
-    }
-    ROOM {
-        string id "r1, r2..."
-        string type "standard|deluxe|suite"
-        string name "ten phong that"
-    }
-    GUEST {
-        string id "g1, g2..."
-        string name "Guest n"
-        bool diver "default true"
-        bool meals "full board"
-        bool transport "xe dua don"
-        string roomId "tro ROOM.id"
-        date arrive "den muon"
-        date depart "ve som"
-        string comment "max 500"
-    }
-    DAY_PLAN {
-        date day "trong [diveFrom, diveTo]"
-        bool dive "lan ngay do"
-        bool third "lan ca 3"
-        bool night "lan dem"
-    }
-    COURSE {
-        string code "dsd|refresher|ow|aow|rescue"
-    }
-    TRIP_EXTRAS {
-        string transferDirection "arrival|departure"
-    }
-    GUEST_EXTRAS {
-        string diet "vegan|halal|gluten_free..."
-        string dietNote "max 200"
-        string allergies "du lieu suc khoe"
-    }
-    BOAT {
-        string id "GET /api/boats"
-    }
-    CUSTOM_ITEM {
-        string name "phu thu (staff)"
-        number price "gia"
-    }
-`,
-
-      // VIEW 4: SUPABASE CORE TEAM (HÌNH B - BẢNG ĐÃ CÓ)
-      core: `erDiagram
-    USER_SESSION ||--o{ SCENARIO : "owner_ref (logic)"
-    SCENARIO ||--o{ REVISION : "seq 1..n"
-    REVISION ||--|| SNAPSHOT : "gia Odoo dong bang"
-    SCENARIO ||--o{ SHARE_TOKEN : "link /quote/:token"
-    SCENARIO ||--o{ SUBMISSION : "dat cho"
-    SUBMISSION }o--|| SNAPSHOT : "dung ban da gui"
-    SCENARIO ||--o{ GUEST_DOCUMENT : "chung chi lan theo guest_id"
-    SCENARIO ||--o| INQUIRY_LINK : "tao tu web"
-    SCENARIO ||--o{ SCENARIO_NOTE : "ghi chu quay"
-
-    USER_SESSION {
-        text id PK
-        string role "guest|agent|instructor|staff"
-        text odoo_login
-    }
-    SCENARIO {
-        uuid id PK
-        string owner_role "guest|staff"
-        text owner_ref
-        string source "form|ai|whatsapp"
-        string status "draft|submitted|expired|archived"
-        text label
-        jsonb working_trip "TRIP dang sua"
-        jsonb extras "TRIP_EXTRAS + GUEST_EXTRAS"
-    }
-    REVISION {
-        uuid id PK
-        uuid scenario_id FK
-        int seq
-        jsonb trip "TRIP da Save"
-        string author "human|ai"
-    }
-    SNAPSHOT {
-        uuid id PK
-        uuid revision_id FK
-        jsonb model "EstimateModel Odoo"
-        jsonb retail_model "gia le"
-    }
-    SHARE_TOKEN {
-        text token_hash PK "sha256"
-        uuid scenario_id FK
-        timestamptz expires_at
-        timestamptz revoked_at
-    }
-    SUBMISSION {
-        uuid id PK
-        uuid scenario_id FK
-        uuid snapshot_id FK
-        string state "pending|confirmed|failed"
-        jsonb contact "PII"
-        int folio_id "folio Odoo"
-    }
-    GUEST_DOCUMENT {
-        uuid id PK
-        uuid scenario_id FK
-        text guest_id "GUEST.id"
-        text guest_name
-        string status "uploaded|on_file"
-    }
-    INQUIRY_LINK {
-        bigint lead_id PK "crm.lead Odoo"
-        uuid scenario_id FK
-    }
-    SCENARIO_NOTE {
-        uuid scenario_id FK
-        string desk "frontdesk|dive|kitchen"
-        text body
-    }
-`
-    };
-
-    // ==========================================
-    // 2. DETAILED SCHEMA DICTIONARY (METADATA)
-    // ==========================================
-
-    const SCHEMA_DICTIONARY = {
-      // --- 1. KÊNH AI (9 BẢNG MỚI) ---
-      wa_conversation: {
-        domain: 'ai',
-        title: 'wa_conversation',
-        kvReplace: 'thread:{phone} + phonelock:{phone}',
-        summary: 'Quản lý phiên hội thoại WhatsApp và cơ chế khóa xử lý phân tán (lease 30s) chống race condition giữa các tin nhắn tới dồn dập.',
-        columns: [
-          { name: 'id', type: 'uuid', pk: true, meta: 'gen_random_uuid()' },
-          { name: 'phone', type: 'text', uq: true, meta: 'E.164, check: ^[0-9]{6,15}$' },
-          { name: 'language', type: 'text', meta: 'check in (en, zh), mặc định en' },
-          { name: 'open_fields', type: 'text[]', meta: 'mảng trường còn thiếu' },
-          { name: 'stall_count', type: 'integer', meta: 'số lượt bị bế tắc liên tiếp' },
-          { name: 'stated_values', type: 'jsonb', meta: 'giá trị khách đã cung cấp' },
-          { name: 'last_guest_at', type: 'timestamptz', pii: true, meta: 'đo cửa sổ 24h Meta' },
-          { name: 'started_at', type: 'timestamptz', meta: 'thời điểm bắt đầu hội thoại' },
-          { name: 'ended_at', type: 'timestamptz', meta: 'null = hội thoại đang mở' },
-          { name: 'end_reason', type: 'text', meta: 'reset | expired' },
-          { name: 'lock_token', type: 'uuid', meta: 'token lease chống ghi đè' },
-          { name: 'lock_until', type: 'timestamptz', meta: 'thời hạn lease (mặc định 30s)' }
-        ],
-        indexes: [
-          'UNIQUE (phone) WHERE ended_at IS NULL (mỗi số chỉ 1 hội thoại đang mở)',
-          'INDEX (lock_until) WHERE lock_until IS NOT NULL',
-          'INDEX (last_guest_at)'
-        ],
-        concurrency: 'Atomic distributed lease: UPDATE ... SET lock_token = $1, lock_until = now() + 30s WHERE id = $2 AND (lock_until IS NULL OR lock_until < now()) RETURNING id.',
-        ddl: `create table wa_conversation (
+    const ERD_DATA = {
+      tables: [
+        // --- DOMAIN 1: AI / WHATSAPP CHANNEL (HÌNH C) ---
+        {
+          id: 'wa_conversation',
+          name: 'wa_conversation',
+          domain: 'ai',
+          x: 440, y: 120,
+          summary: 'Quản lý phiên hội thoại WhatsApp và cơ chế khóa phân tán lease 30s thay cho thread:{phone} và phonelock:{phone}.',
+          columns: [
+            { name: 'id', type: 'uuid', key: 'pk', desc: 'gen_random_uuid()' },
+            { name: 'phone', type: 'text', key: 'uq', desc: 'E.164, unique where ended_at is null' },
+            { name: 'language', type: 'text', desc: "check in ('en', 'zh')" },
+            { name: 'open_fields', type: 'text[]', desc: 'danh sách trường còn thiếu' },
+            { name: 'stall_count', type: 'integer', desc: 'số lượt bế tắc liên tiếp' },
+            { name: 'stated_values', type: 'jsonb', desc: 'thông tin khách đã cung cấp' },
+            { name: 'last_guest_at', type: 'timestamptz', key: 'pii', desc: 'đo cửa sổ 24h Meta' },
+            { name: 'started_at', type: 'timestamptz', desc: 'thời điểm bắt đầu' },
+            { name: 'ended_at', type: 'timestamptz', desc: 'null = hội thoại đang mở' },
+            { name: 'end_reason', type: 'text', desc: "'reset' | 'expired'" },
+            { name: 'lock_token', type: 'uuid', desc: 'token lease phân tán' },
+            { name: 'lock_until', type: 'timestamptz', desc: 'thời hạn lease 30s' }
+          ],
+          ddl: `create table wa_conversation (
   id uuid primary key default gen_random_uuid(),
   phone text not null check (phone ~ '^[0-9]{6,15}$'),
   language text not null default 'en' check (language in ('en', 'zh')),
@@ -1593,139 +793,113 @@ alter table ai_provider_stat enable row level security;</pre>
   ended_at timestamptz,
   end_reason text check (end_reason is null or end_reason in ('reset', 'expired')),
   lock_token uuid,
-  lock_until timestamptz,
-  constraint wa_conversation_ended_pair check ((ended_at is null) = (end_reason is null)),
-  constraint wa_conversation_lock_pair check ((lock_token is null) = (lock_until is null))
+  lock_until timestamptz
 );
 create unique index wa_conversation_active_phone_uidx on wa_conversation (phone) where ended_at is null;`
-      },
+        },
 
-      wa_message: {
-        domain: 'ai',
-        title: 'wa_message',
-        kvReplace: '20 lượt chat gần nhất trong thread:{phone}',
-        summary: 'Lưu toàn bộ tin nhắn vào/ra của hội thoại WhatsApp, dùng để build ngữ cảnh chat cho LLM và phục vụ tư vấn viên đối soát.',
-        columns: [
-          { name: 'id', type: 'bigserial', pk: true, meta: 'tăng tự động' },
-          { name: 'conversation_id', type: 'uuid', fk: true, meta: 'FK wa_conversation.id ON DELETE CASCADE' },
-          { name: 'role', type: 'text', meta: 'guest | assistant | staff' },
-          { name: 'body', type: 'text', pii: true, meta: 'nội dung tin nhắn (max 4096 ký tự)' },
-          { name: 'wa_message_id', type: 'text', meta: 'Meta wamid (nếu có)' },
-          { name: 'reply_kind', type: 'text', meta: 'converse | handoff | stalled | apology...' },
-          { name: 'staff_ref', type: 'text', meta: 'chỉ có khi role = staff' },
-          { name: 'created_at', type: 'timestamptz', meta: 'thời điểm gửi' }
-        ],
-        indexes: [
-          'INDEX (conversation_id, created_at desc) (lấy 20 tin nhắn gần nhất cực nhanh)',
-          'INDEX (wa_message_id) WHERE wa_message_id IS NOT NULL'
-        ],
-        concurrency: 'Append-only. Truy vấn lấy ngữ cảnh: SELECT role, body, reply_kind FROM wa_message WHERE conversation_id = $1 ORDER BY created_at DESC LIMIT 20.',
-        ddl: `create table wa_message (
+        {
+          id: 'wa_message',
+          name: 'wa_message',
+          domain: 'ai',
+          x: 100, y: 120,
+          summary: 'Lưu 20 lượt chat gần nhất để build prompt cho LLM, thay thế mảng tin nhắn trong thread:{phone}.',
+          columns: [
+            { name: 'id', type: 'bigserial', key: 'pk', desc: 'tăng tự động' },
+            { name: 'conversation_id', type: 'uuid', key: 'fk', desc: 'FK wa_conversation.id' },
+            { name: 'role', type: 'text', desc: "'guest' | 'assistant' | 'staff'" },
+            { name: 'body', type: 'text', key: 'pii', desc: 'nội dung tin nhắn (max 4096)' },
+            { name: 'wa_message_id', type: 'text', desc: 'Meta wamid' },
+            { name: 'reply_kind', type: 'text', desc: "'converse' | 'handoff' | 'apology'..." },
+            { name: 'staff_ref', type: 'text', desc: 'chỉ có khi role = staff' },
+            { name: 'created_at', type: 'timestamptz', desc: 'thời điểm gửi' }
+          ],
+          ddl: `create table wa_message (
   id bigserial primary key,
   conversation_id uuid not null references wa_conversation(id) on delete cascade,
   role text not null check (role in ('guest', 'assistant', 'staff')),
-  body text not null check (char_length(body) > 0 and char_length(body) <= 4096),
+  body text not null check (char_length(body) <= 4096),
   wa_message_id text,
   reply_kind text,
   staff_ref text,
-  created_at timestamptz not null default now(),
-  constraint wa_message_staff_ref_check check ((role = 'staff') = (staff_ref is not null))
-);
-create index wa_message_conversation_created_idx on wa_message (conversation_id, created_at desc);`
-      },
+  created_at timestamptz not null default now()
+);`
+        },
 
-      wa_inbound_claim: {
-        domain: 'ai',
-        title: 'wa_inbound_claim',
-        kvReplace: 'claim:{wa_message_id} (60s in_flight / 24h done)',
-        summary: 'Chống Meta webhook gửi trùng tin nhắn hoặc retry đồng thời. Sử dụng atomic upsert với fence token và thời hạn hết hạn.',
-        columns: [
-          { name: 'wa_message_id', type: 'text', pk: true, meta: 'Meta wamid' },
-          { name: 'state', type: 'text', meta: 'in_flight (đang xử lý) | done (đã xong)' },
-          { name: 'fence_token', type: 'uuid', meta: 'fence token chống stale commit' },
-          { name: 'expires_at', type: 'timestamptz', meta: '60s khi in_flight, 24h khi done' },
-          { name: 'created_at', type: 'timestamptz', meta: 'now()' }
-        ],
-        indexes: [
-          'PRIMARY KEY (wa_message_id)',
-          'INDEX (expires_at) (phục vụ cron dọn dẹp ban đêm)'
-        ],
-        concurrency: 'Single-statement atomic claim: INSERT INTO wa_inbound_claim VALUES ($1, in_flight, $2, now()+60s) ON CONFLICT (wa_message_id) DO UPDATE SET fence_token = $2, expires_at = now()+60s WHERE state = in_flight AND expires_at < now() RETURNING fence_token.',
-        ddl: `create table wa_inbound_claim (
+        {
+          id: 'wa_inbound_claim',
+          name: 'wa_inbound_claim',
+          domain: 'ai',
+          x: 100, y: 460,
+          summary: 'Chống Meta webhook gửi trùng tin nhắn bằng atomic upsert, thay cho claim:{wa_message_id}.',
+          columns: [
+            { name: 'wa_message_id', type: 'text', key: 'pk', desc: 'Meta wamid' },
+            { name: 'state', type: 'text', desc: "'in_flight' | 'done'" },
+            { name: 'fence_token', type: 'uuid', desc: 'token chống stale commit' },
+            { name: 'expires_at', type: 'timestamptz', desc: 'hạn 60s (in_flight) / 24h (done)' },
+            { name: 'created_at', type: 'timestamptz', desc: 'thời điểm nhận webhook' }
+          ],
+          ddl: `create table wa_inbound_claim (
   wa_message_id text primary key,
   state text not null check (state in ('in_flight', 'done')),
   fence_token uuid not null,
   expires_at timestamptz not null,
-  created_at timestamptz not null default now(),
-  updated_at timestamptz not null default now()
-);
-create index wa_inbound_claim_expires_idx on wa_inbound_claim (expires_at);`
-      },
+  created_at timestamptz not null default now()
+);`
+        },
 
-      wa_handoff: {
-        domain: 'ai',
-        title: 'wa_handoff',
-        kvReplace: 'pause:{phone} + set paused_phones',
-        summary: 'Hàng đợi chuyển giao cho tư vấn viên (human takeover inbox). Lưu giữ toàn bộ lịch sử các lần tạm dừng thay vì ghi đè mất dấu.',
-        columns: [
-          { name: 'id', type: 'uuid', pk: true, meta: 'gen_random_uuid()' },
-          { name: 'conversation_id', type: 'uuid', fk: true, meta: 'FK wa_conversation.id' },
-          { name: 'phone', type: 'text', uq: true, pii: true, meta: 'số điện thoại khách' },
-          { name: 'reason', type: 'text', meta: 'guest_asked_for_human | complaint | pricing_dispute...' },
-          { name: 'missing_fields', type: 'text[]', meta: 'trường còn thiếu' },
-          { name: 'context', type: 'text', meta: 'tóm tắt ngữ cảnh (max 200 ký tự)' },
-          { name: 'since', type: 'timestamptz', meta: 'thời điểm chuyển máy' },
-          { name: 'told_at', type: 'timestamptz', meta: 'thời điểm bot thông báo cho khách' },
-          { name: 'resolved_at', type: 'timestamptz', meta: 'thời điểm nhân viên xử lý xong' },
-          { name: 'resolved_by_ref', type: 'text', meta: 'mã nhân viên xử lý' },
-          { name: 'resolution', type: 'text', meta: 'resume | reset | auto_resume | expired' }
-        ],
-        indexes: [
-          'UNIQUE (phone) WHERE resolved_at IS NULL (chỉ 1 yêu cầu mở trên mỗi số)',
-          'INDEX (since desc) WHERE resolved_at IS NULL (sắp xếp hộp thư chuyển máy)'
-        ],
-        concurrency: 'Giữ audit log đầy đủ. Nhân viên mở lại hội thoại: UPDATE wa_handoff SET resolved_at = now(), resolved_by_ref = $1, resolution = resume WHERE phone = $2 AND resolved_at IS NULL.',
-        ddl: `create table wa_handoff (
+        {
+          id: 'wa_handoff',
+          name: 'wa_handoff',
+          domain: 'ai',
+          x: 440, y: 560,
+          summary: 'Hàng đợi chuyển máy cho tư vấn viên, giữ lịch sử các lần tạm dừng thay vì ghi đè như pause:{phone}.',
+          columns: [
+            { name: 'id', type: 'uuid', key: 'pk', desc: 'gen_random_uuid()' },
+            { name: 'conversation_id', type: 'uuid', key: 'fk', desc: 'FK wa_conversation.id' },
+            { name: 'phone', type: 'text', key: 'uq', desc: 'unique where resolved_at is null' },
+            { name: 'reason', type: 'text', desc: "'guest_asked_for_human' | 'complaint'..." },
+            { name: 'missing_fields', type: 'text[]', desc: 'các trường còn thiếu' },
+            { name: 'context', type: 'text', desc: 'tóm tắt ngữ cảnh (max 200)' },
+            { name: 'since', type: 'timestamptz', desc: 'thời điểm chuyển máy' },
+            { name: 'resolved_at', type: 'timestamptz', desc: 'thời điểm quầy giải quyết' },
+            { name: 'resolved_by_ref', type: 'text', desc: 'nhân viên xử lý' },
+            { name: 'resolution', type: 'text', desc: "'resume' | 'reset' | 'auto_resume'" }
+          ],
+          ddl: `create table wa_handoff (
   id uuid primary key default gen_random_uuid(),
-  conversation_id uuid not null references wa_conversation(id) on delete cascade,
+  conversation_id uuid references wa_conversation(id) on delete set null,
   phone text not null check (phone ~ '^[0-9]{6,15}$'),
   reason text not null,
   missing_fields text[] not null default '{}',
-  context text check (context is null or char_length(context) <= 200),
+  context text check (char_length(context) <= 200),
   since timestamptz not null default now(),
   resolved_at timestamptz,
   resolved_by_ref text,
   resolution text
-);
-create unique index wa_handoff_active_phone_uidx on wa_handoff (phone) where resolved_at is null;`
-      },
+);`
+        },
 
-      ai_enquiry: {
-        domain: 'ai',
-        title: 'ai_enquiry',
-        kvReplace: 'staffAlerts, staffEdits, notes trong HonoQuotationDraft',
-        summary: 'Bảng mở rộng 1:1 với scenario của team dành riêng cho báo giá kênh AI. Thay thế hàm findOpenQuotationForPhone quét toàn bộ Redis KV.',
-        columns: [
-          { name: 'scenario_id', type: 'uuid', pk: true, fk: true, meta: 'FK scenario.id ON DELETE CASCADE' },
-          { name: 'conversation_id', type: 'uuid', fk: true, meta: 'FK wa_conversation.id' },
-          { name: 'phone', type: 'text', uq: true, pii: true, meta: 'số điện thoại khách' },
-          { name: 'review_state', type: 'text', meta: 'pending_review | approved | cancelled' },
-          { name: 'approved_at', type: 'timestamptz', meta: 'thời điểm nhân viên duyệt báo giá' },
-          { name: 'approved_by_ref', type: 'text', meta: 'nhân viên duyệt' },
-          { name: 'staff_alerts', type: 'text[]', meta: 'cảnh báo AI ghi nhận' },
-          { name: 'staff_edits', type: 'jsonb', meta: 'chỉnh sửa thủ công của quầy' },
-          { name: 'notes', type: 'jsonb', meta: 'diveNotes, specialRequests' },
-          { name: 'confirmed_reply', type: 'text', meta: 'câu trả lời xác nhận gửi khách' },
-          { name: 'sent_to_guest_at', type: 'timestamptz', meta: 'thời điểm gửi khách' },
-          { name: 'closed_at', type: 'timestamptz', meta: 'đóng khi booking hoàn tất hoặc hủy' }
-        ],
-        indexes: [
-          'UNIQUE (phone) WHERE closed_at IS NULL (tìm báo giá đang mở O(1) thay vì SCAN KV)',
-          'INDEX (review_state, created_at desc)',
-          'INDEX (phone, created_at desc)'
-        ],
-        concurrency: 'Ràng buộc nghiệp vụ nghiêm ngặt: check ((approved_at is null) = (approved_by_ref is null)).',
-        ddl: `create table ai_enquiry (
+        {
+          id: 'ai_enquiry',
+          name: 'ai_enquiry',
+          domain: 'ai',
+          x: 820, y: 120,
+          summary: 'Bảng mở rộng 1:1 với scenario của team, lưu trạng thái duyệt và ghi chú quầy của báo giá AI.',
+          columns: [
+            { name: 'scenario_id', type: 'uuid', key: 'pk', desc: 'PK / FK scenario.id' },
+            { name: 'conversation_id', type: 'uuid', key: 'fk', desc: 'FK wa_conversation.id' },
+            { name: 'phone', type: 'text', key: 'uq', desc: 'unique where closed_at is null' },
+            { name: 'review_state', type: 'text', desc: "'pending_review' | 'approved' | 'cancelled'" },
+            { name: 'approved_at', type: 'timestamptz', desc: 'thời điểm duyệt' },
+            { name: 'approved_by_ref', type: 'text', desc: 'nhân viên duyệt' },
+            { name: 'staff_alerts', type: 'text[]', desc: 'cảnh báo AI' },
+            { name: 'staff_edits', type: 'jsonb', desc: 'chỉnh sửa của nhân viên' },
+            { name: 'notes', type: 'jsonb', desc: 'diveNotes, specialRequests' },
+            { name: 'confirmed_reply', type: 'text', desc: 'câu trả lời xác nhận gửi khách' },
+            { name: 'closed_at', type: 'timestamptz', desc: 'thời điểm đóng báo giá' }
+          ],
+          ddl: `create table ai_enquiry (
   scenario_id uuid primary key references scenario(id) on delete cascade,
   conversation_id uuid references wa_conversation(id) on delete set null,
   phone text not null check (phone ~ '^[0-9]{6,15}$'),
@@ -1733,729 +907,692 @@ create unique index wa_handoff_active_phone_uidx on wa_handoff (phone) where res
   approved_at timestamptz,
   approved_by_ref text,
   staff_alerts text[] not null default '{}',
+  staff_edits jsonb not null default '[]'::jsonb,
   notes jsonb not null default '{}'::jsonb,
   closed_at timestamptz
-);
-create unique index ai_enquiry_active_phone_uidx on ai_enquiry (phone) where closed_at is null;`
-      },
+);`
+        },
 
-      ai_extraction: {
-        domain: 'ai',
-        title: 'ai_extraction',
-        kvReplace: 'Trường field_states trong phản hồi của extractor',
-        summary: 'Ghi nhận siêu dữ liệu NLP cho mỗi bản revision có author = ai (trạng thái trích xuất given/inferred/default/missing, token, độ trễ).',
-        columns: [
-          { name: 'revision_id', type: 'uuid', pk: true, fk: true, meta: 'FK revision.id ON DELETE CASCADE' },
-          { name: 'field_states', type: 'jsonb', meta: 'given | inferred | default | missing' },
-          { name: 'provider', type: 'text', meta: 'gemini | deepseek' },
-          { name: 'model', type: 'text', meta: 'tên model thực tế (vd: gemini-2.5-flash)' },
-          { name: 'tokens_in', type: 'integer', meta: 'prompt tokens' },
-          { name: 'tokens_out', type: 'integer', meta: 'completion tokens' },
-          { name: 'latency_ms', type: 'integer', meta: 'thời gian gọi model (ms)' },
-          { name: 'created_at', type: 'timestamptz', meta: 'now()' }
-        ],
-        indexes: [
-          'PRIMARY KEY (revision_id)'
-        ],
-        concurrency: 'Ghi kèm theo transaction tạo revision của bot.',
-        ddl: `create table ai_extraction (
+        {
+          id: 'ai_extraction',
+          name: 'ai_extraction',
+          domain: 'ai',
+          x: 1160, y: 560,
+          summary: 'Lưu siêu dữ liệu NLP (trạng thái trích xuất given/inferred/default/missing, latency, tokens) cho revision author=ai.',
+          columns: [
+            { name: 'revision_id', type: 'uuid', key: 'pk', desc: 'PK / FK revision.id' },
+            { name: 'field_states', type: 'jsonb', desc: 'given | inferred | default | missing' },
+            { name: 'provider', type: 'text', desc: "'gemini' | 'deepseek'" },
+            { name: 'model', type: 'text', desc: 'tên model thực tế' },
+            { name: 'tokens_in', type: 'integer', desc: 'prompt tokens' },
+            { name: 'tokens_out', type: 'integer', desc: 'completion tokens' },
+            { name: 'latency_ms', type: 'integer', desc: 'thời gian gọi model' }
+          ],
+          ddl: `create table ai_extraction (
   revision_id uuid primary key references revision(id) on delete cascade,
   field_states jsonb not null default '{}'::jsonb,
   provider text not null check (provider in ('gemini', 'deepseek')),
   model text not null,
   tokens_in int not null default 0,
   tokens_out int not null default 0,
-  latency_ms int not null default 0,
-  created_at timestamptz not null default now()
+  latency_ms int not null default 0
 );`
-      },
+        },
 
-      ai_provider_key: {
-        domain: 'ai',
-        title: 'ai_provider_key',
-        kvReplace: 'settings:ai.keys trong Redis KV',
-        summary: 'Lưu trữ bí mật API Key của các LLM Provider được mã hóa đối xứng AES-256-GCM, bảo vệ nghiêm ngặt bằng RLS và cơ chế bytea.',
-        columns: [
-          { name: 'provider', type: 'text', pk: true, meta: 'gemini | deepseek' },
-          { name: 'key_enc', type: 'bytea', meta: 'mã hóa AES-256-GCM đồng nhất odoo_key_enc' },
-          { name: 'last4', type: 'text', meta: '4 ký tự cuối để đối soát' },
-          { name: 'updated_at', type: 'timestamptz', meta: 'thời điểm cập nhật' },
-          { name: 'updated_by_ref', type: 'text', meta: 'nhân viên cập nhật' }
-        ],
-        indexes: ['PRIMARY KEY (provider)'],
-        concurrency: 'Chỉ ghi khi nhân viên đổi key trong trang quản trị.',
-        ddl: `create table ai_provider_key (
+        {
+          id: 'ai_provider_key',
+          name: 'ai_provider_key',
+          domain: 'ai',
+          x: 820, y: 560,
+          summary: 'Lưu API Key của các nhà cung cấp LLM, mã hóa AES-256-GCM đồng nhất odoo_key_enc.',
+          columns: [
+            { name: 'provider', type: 'text', key: 'pk', desc: "'gemini' | 'deepseek'" },
+            { name: 'key_enc', type: 'bytea', desc: 'mã hóa AES-256-GCM' },
+            { name: 'last4', type: 'text', desc: '4 ký tự cuối đối soát' },
+            { name: 'updated_at', type: 'timestamptz', desc: 'thời điểm đổi key' }
+          ],
+          ddl: `create table ai_provider_key (
   provider text primary key check (provider in ('gemini', 'deepseek')),
   key_enc bytea not null,
   last4 text not null check (char_length(last4) = 4),
-  updated_at timestamptz not null default now(),
-  updated_by_ref text not null
+  updated_at timestamptz not null default now()
 );`
-      },
+        },
 
-      ai_setting_audit: {
-        domain: 'ai',
-        title: 'ai_setting_audit',
-        kvReplace: 'settings:ai:audit (bị cắt ngắn 50 dòng trong Redis)',
-        summary: 'Nhật ký kiểm toán thay đổi cấu hình AI (model chính, model phụ, thời gian timeout, circuit breaker) lưu trữ không giới hạn.',
-        columns: [
-          { name: 'id', type: 'bigserial', pk: true, meta: 'tăng tự động' },
-          { name: 'at', type: 'timestamptz', meta: 'thời điểm thay đổi' },
-          { name: 'actor_ref', type: 'text', meta: 'người thực hiện' },
-          { name: 'diff', type: 'jsonb', meta: 'nội dung thay đổi (trước và sau)' }
-        ],
-        indexes: [
-          'PRIMARY KEY (id)',
-          'INDEX (at desc)'
-        ],
-        concurrency: 'Append-only audit trail.',
-        ddl: `create table ai_setting_audit (
+        {
+          id: 'ai_setting_audit',
+          name: 'ai_setting_audit',
+          domain: 'ai',
+          x: 1160, y: 120,
+          summary: 'Vết kiểm toán thay đổi cấu hình AI, lưu trữ không giới hạn thay vì bị cắt ở 50 dòng như KV cũ.',
+          columns: [
+            { name: 'id', type: 'bigserial', key: 'pk', desc: 'tăng tự động' },
+            { name: 'at', type: 'timestamptz', desc: 'thời điểm thay đổi' },
+            { name: 'actor_ref', type: 'text', desc: 'người thực hiện' },
+            { name: 'diff', type: 'jsonb', desc: 'nội dung thay đổi' }
+          ],
+          ddl: `create table ai_setting_audit (
   id bigserial primary key,
   at timestamptz not null default now(),
   actor_ref text not null,
   diff jsonb not null
-);
-create index ai_setting_audit_at_idx on ai_setting_audit (at desc);`
-      },
+);`
+        },
 
-      ai_provider_stat: {
-        domain: 'ai',
-        title: 'ai_provider_stat',
-        kvReplace: 'stats:ai:{day}:{provider}:{field} (bộ đếm TTL 14 ngày)',
-        summary: 'Thống kê lượng gọi AI hàng ngày (thành công, thất bại, kích hoạt model fallback, tổng thời gian trễ).',
-        columns: [
-          { name: 'day', type: 'date', pk: true, meta: 'ngày thống kê (YYYY-MM-DD)' },
-          { name: 'provider', type: 'text', pk: true, meta: 'gemini | deepseek' },
-          { name: 'ok', type: 'integer', meta: 'số lượt thành công' },
-          { name: 'fail', type: 'integer', meta: 'số lượt thất bại' },
-          { name: 'fallback', type: 'integer', meta: 'số lượt fallback sang model phụ' },
-          { name: 'ms_sum', type: 'bigint', meta: 'tổng thời gian phản hồi (ms)' },
-          { name: 'n', type: 'integer', meta: 'tổng số lượt gọi' }
-        ],
-        indexes: [
-          'PRIMARY KEY (day, provider)'
-        ],
-        concurrency: 'Ghi dồn bằng Atomic Upsert: INSERT ... ON CONFLICT (day, provider) DO UPDATE SET ok = ok + $1, fail = fail + $2, ms_sum = ms_sum + $3, n = n + 1.',
-        ddl: `create table ai_provider_stat (
+        {
+          id: 'ai_provider_stat',
+          name: 'ai_provider_stat',
+          domain: 'ai',
+          x: 100, y: 700,
+          summary: 'Thống kê sản lượng gọi LLM hàng ngày bằng upsert cộng dồn, thay thế bộ đếm Redis.',
+          columns: [
+            { name: 'day', type: 'date', key: 'pk', desc: 'ngày YYYY-MM-DD' },
+            { name: 'provider', type: 'text', key: 'pk', desc: "'gemini' | 'deepseek'" },
+            { name: 'ok', type: 'integer', desc: 'số lượt thành công' },
+            { name: 'fail', type: 'integer', desc: 'số lượt lỗi' },
+            { name: 'fallback', type: 'integer', desc: 'số lượt fallback' },
+            { name: 'ms_sum', type: 'bigint', desc: 'tổng thời gian phản hồi' }
+          ],
+          ddl: `create table ai_provider_stat (
   day date not null,
-  provider text not null check (provider in ('gemini', 'deepseek')),
+  provider text not null,
   ok int not null default 0,
   fail int not null default 0,
   fallback int not null default 0,
   ms_sum bigint not null default 0,
-  n int not null default 0,
   primary key (day, provider)
 );`
-      },
+        },
 
-      // --- 2. SUPABASE CORE TEAM (10 BẢNG) ---
-      scenario: {
-        domain: 'core',
-        title: 'scenario',
-        kvReplace: 'Phần gốc của HonoQuotationDraft',
-        summary: 'Bảng cốt lõi của team lưu trữ toàn bộ các kịch bản báo giá (Web form, WhatsApp Bot). Kênh AI sử dụng source = whatsapp.',
-        columns: [
-          { name: 'id', type: 'uuid', pk: true, meta: 'gen_random_uuid()' },
-          { name: 'owner_role', type: 'text', meta: 'guest | agent | instructor | staff' },
-          { name: 'owner_ref', type: 'text', pii: true, meta: 'wa:hash_phone đối với kênh AI' },
-          { name: 'source', type: 'text', meta: 'form | ai | whatsapp' },
-          { name: 'status', type: 'text', meta: 'draft | submitted | expired | archived' },
-          { name: 'label', type: 'text', meta: 'tên kịch bản' },
-          { name: 'working_trip', type: 'jsonb', meta: 'Trip extractor đang chỉnh sửa' },
-          { name: 'extras', type: 'jsonb', meta: 'transferDirection, diet, allergies' }
-        ],
-        indexes: ['PRIMARY KEY (id)', 'INDEX (owner_ref)', 'INDEX (status)'],
-        concurrency: 'Quản lý bởi BFF của team.',
-        ddl: `-- Bảng team đã có sẵn trong supabase/migrations`
-      },
+        // --- DOMAIN 2: SUPABASE CORE TEAM (HÌNH B) ---
+        {
+          id: 'scenario',
+          name: 'scenario',
+          domain: 'core',
+          x: 1600, y: 120,
+          summary: 'Bảng cốt lõi của team lưu báo giá. Báo giá bot tạo có source = whatsapp, owner_ref = wa:phone_hash.',
+          columns: [
+            { name: 'id', type: 'uuid', key: 'pk', desc: 'gen_random_uuid()' },
+            { name: 'owner_role', type: 'text', desc: "'guest' | 'staff'" },
+            { name: 'owner_ref', type: 'text', key: 'pii', desc: "'wa:phone_hash'" },
+            { name: 'source', type: 'text', desc: "'whatsapp' | 'form' | 'ai'" },
+            { name: 'status', type: 'text', desc: "'draft' | 'submitted' | 'expired'" },
+            { name: 'working_trip', type: 'jsonb', desc: 'Trip extractor đang chỉnh sửa' },
+            { name: 'extras', type: 'jsonb', desc: 'TRIP_EXTRAS + GUEST_EXTRAS' }
+          ],
+          ddl: `-- Bảng team đã có trong supabase/migrations`
+        },
 
-      revision: {
-        domain: 'core',
-        title: 'revision',
-        kvReplace: 'Lịch sử lưu từng đợt của Trip',
-        summary: 'Mỗi lần khách cập nhật thông tin chuyến đi qua chat, bot tạo một revision mới với author = ai và seq tăng dần.',
-        columns: [
-          { name: 'id', type: 'uuid', pk: true, meta: 'gen_random_uuid()' },
-          { name: 'scenario_id', type: 'uuid', fk: true, meta: 'FK scenario.id' },
-          { name: 'seq', type: 'integer', meta: '1..n' },
-          { name: 'trip', type: 'jsonb', meta: 'Trip hoàn chỉnh chốt tại revision này' },
-          { name: 'author', type: 'text', meta: 'human | ai' }
-        ],
-        indexes: ['PRIMARY KEY (id)', 'UNIQUE (scenario_id, seq)'],
-        concurrency: 'Mỗi revision đóng băng trạng thái Trip tại thời điểm đó.',
-        ddl: `-- Bảng team đã có sẵn trong supabase/migrations`
-      },
+        {
+          id: 'revision',
+          name: 'revision',
+          domain: 'core',
+          x: 1960, y: 120,
+          summary: 'Mỗi lần chat bổ sung thông tin sẽ sinh một revision mới với author = ai, seq tăng dần.',
+          columns: [
+            { name: 'id', type: 'uuid', key: 'pk', desc: 'gen_random_uuid()' },
+            { name: 'scenario_id', type: 'uuid', key: 'fk', desc: 'FK scenario.id' },
+            { name: 'seq', type: 'integer', desc: '1..n' },
+            { name: 'trip', type: 'jsonb', desc: 'Trip đã chốt lượt này' },
+            { name: 'author', type: 'text', desc: "'ai' | 'human'" }
+          ],
+          ddl: `-- Bảng team đã có trong supabase/migrations`
+        },
 
-      snapshot: {
-        domain: 'core',
-        title: 'snapshot',
-        kvReplace: 'pricing trong HonoQuotationDraft',
-        summary: 'Lưu trữ kết quả tính giá thực tế trả về từ Odoo (EstimateModel). Bot AI không tự tính giá mà luôn dùng snapshot này.',
-        columns: [
-          { name: 'id', type: 'uuid', pk: true, meta: 'gen_random_uuid()' },
-          { name: 'revision_id', type: 'uuid', fk: true, meta: 'FK revision.id' },
-          { name: 'model', type: 'jsonb', meta: 'EstimateModel từ Odoo' },
-          { name: 'retail_model', type: 'jsonb', meta: 'giá lẻ' }
-        ],
-        indexes: ['PRIMARY KEY (id)', 'UNIQUE (revision_id)'],
-        concurrency: 'Read-only sau khi Odoo compute trả về.',
-        ddl: `-- Bảng team đã có sẵn trong supabase/migrations`
-      },
+        {
+          id: 'snapshot',
+          name: 'snapshot',
+          domain: 'core',
+          x: 2320, y: 120,
+          summary: 'Lưu trữ giá Odoo tính toán thực tế (EstimateModel). Bot tuyệt đối không tự tính giá.',
+          columns: [
+            { name: 'id', type: 'uuid', key: 'pk', desc: 'gen_random_uuid()' },
+            { name: 'revision_id', type: 'uuid', key: 'fk', desc: 'FK revision.id' },
+            { name: 'model', type: 'jsonb', desc: 'EstimateModel từ Odoo' },
+            { name: 'retail_model', type: 'jsonb', desc: 'giá lẻ' }
+          ],
+          ddl: `-- Bảng team đã có trong supabase/migrations`
+        },
 
-      user_session: {
-        domain: 'core',
-        title: 'user_session',
-        kvReplace: 'Phiên đăng nhập web',
-        summary: 'Quản lý phiên của người dùng trên web form (guest hoặc nhân viên quầy đăng nhập Odoo).',
-        columns: [
-          { name: 'id', type: 'text', pk: true, meta: 'session token' },
-          { name: 'role', type: 'text', meta: 'guest | agent | instructor | staff' },
-          { name: 'odoo_login', type: 'text', meta: 'tài khoản Odoo liên kết' }
-        ],
-        indexes: ['PRIMARY KEY (id)'],
-        concurrency: 'Phiên người dùng.',
-        ddl: `-- Bảng team đã có sẵn`
-      },
+        {
+          id: 'submission',
+          name: 'submission',
+          domain: 'core',
+          x: 1960, y: 460,
+          summary: 'Bản đặt chỗ đã gửi sang Odoo để tạo Folio.',
+          columns: [
+            { name: 'id', type: 'uuid', key: 'pk', desc: 'gen_random_uuid()' },
+            { name: 'scenario_id', type: 'uuid', key: 'fk', desc: 'FK scenario.id' },
+            { name: 'snapshot_id', type: 'uuid', key: 'fk', desc: 'FK snapshot.id' },
+            { name: 'state', type: 'text', desc: "'pending' | 'confirmed' | 'failed'" },
+            { name: 'contact', type: 'jsonb', key: 'pii', desc: 'thông tin khách đặt' },
+            { name: 'folio_id', type: 'integer', desc: 'mã folio Odoo' }
+          ],
+          ddl: `-- Bảng team đã có`
+        },
 
-      share_token: {
-        domain: 'core',
-        title: 'share_token',
-        kvReplace: 'slug trong HonoQuotationDraft',
-        summary: 'Token chia sẻ link báo giá dạng /quote/:token cho khách xem trực tuyến trên điện thoại.',
-        columns: [
-          { name: 'token_hash', type: 'text', pk: true, meta: 'sha256 (không lưu token gốc)' },
-          { name: 'scenario_id', type: 'uuid', fk: true, meta: 'FK scenario.id' },
-          { name: 'expires_at', type: 'timestamptz', meta: 'thời hạn xem' },
-          { name: 'revoked_at', type: 'timestamptz', meta: 'thời điểm thu hồi' }
-        ],
-        indexes: ['PRIMARY KEY (token_hash)', 'INDEX (scenario_id)'],
-        concurrency: 'Bảo mật hash SHA256.',
-        ddl: `-- Bảng team đã có sẵn`
-      },
+        {
+          id: 'share_token',
+          name: 'share_token',
+          domain: 'core',
+          x: 1600, y: 460,
+          summary: 'Token chia sẻ link báo giá /quote/:token cho khách xem trên mobile.',
+          columns: [
+            { name: 'token_hash', type: 'text', key: 'pk', desc: 'sha256 (không lưu token gốc)' },
+            { name: 'scenario_id', type: 'uuid', key: 'fk', desc: 'FK scenario.id' },
+            { name: 'expires_at', type: 'timestamptz', desc: 'thời hạn xem' }
+          ],
+          ddl: `-- Bảng team đã có`
+        },
 
-      submission: {
-        domain: 'core',
-        title: 'submission',
-        kvReplace: 'submission trong HonoQuotationDraft',
-        summary: 'Bản ghi đặt chỗ chính thức đã gửi sang Odoo tạo Folio.',
-        columns: [
-          { name: 'id', type: 'uuid', pk: true, meta: 'gen_random_uuid()' },
-          { name: 'scenario_id', type: 'uuid', fk: true, meta: 'FK scenario.id' },
-          { name: 'snapshot_id', type: 'uuid', fk: true, meta: 'FK snapshot.id' },
-          { name: 'state', type: 'text', meta: 'pending | confirmed | failed' },
-          { name: 'contact', type: 'jsonb', pii: true, meta: 'thông tin liên hệ khách' },
-          { name: 'folio_id', type: 'integer', meta: 'mã folio Odoo' }
-        ],
-        indexes: ['PRIMARY KEY (id)', 'UNIQUE (scenario_id) WHERE state IN (pending, confirmed)'],
-        concurrency: 'Chống bấm đúp bằng partial unique index submission_one_live.',
-        ddl: `-- Bảng team đã có sẵn`
-      },
+        {
+          id: 'guest_document',
+          name: 'guest_document',
+          domain: 'core',
+          x: 1600, y: 680,
+          summary: 'Chứng chỉ lặn và giấy tờ của từng khách theo guest_id.',
+          columns: [
+            { name: 'id', type: 'uuid', key: 'pk', desc: 'gen_random_uuid()' },
+            { name: 'scenario_id', type: 'uuid', key: 'fk', desc: 'FK scenario.id' },
+            { name: 'guest_id', type: 'text', desc: '= GUEST.id (g1..gn)' },
+            { name: 'status', type: 'text', desc: "'uploaded' | 'on_file'" }
+          ],
+          ddl: `-- Bảng team đã có`
+        },
 
-      guest_document: {
-        domain: 'core',
-        title: 'guest_document',
-        kvReplace: 'Chưa có trong KV',
-        summary: 'Lưu trữ chứng chỉ lặn, hộ chiếu của từng khách theo guest_id.',
-        columns: [
-          { name: 'id', type: 'uuid', pk: true, meta: 'gen_random_uuid()' },
-          { name: 'scenario_id', type: 'uuid', fk: true, meta: 'FK scenario.id' },
-          { name: 'guest_id', type: 'text', meta: '= GUEST.id (g1, g2...)' },
-          { name: 'guest_name', type: 'text', meta: 'tên khách' },
-          { name: 'status', type: 'text', meta: 'uploaded | on_file' }
-        ],
-        indexes: ['PRIMARY KEY (id)', 'INDEX (scenario_id, guest_id)'],
-        concurrency: 'Nối qua guest_id ổn định.',
-        ddl: `-- Bảng team đã có sẵn`
-      },
+        {
+          id: 'app_setting',
+          name: 'app_setting',
+          domain: 'core',
+          x: 2320, y: 460,
+          summary: 'Cấu hình toàn hệ thống dạng JSONB. Cấu hình AI lưu tại key "ai".',
+          columns: [
+            { name: 'key', type: 'text', key: 'pk', desc: "key 'ai', 'raw_text_ttl_days'" },
+            { name: 'value', type: 'jsonb', desc: 'phiên bản version, timeouts, breaker' }
+          ],
+          ddl: `-- Bảng team đã có`
+        },
 
-      inquiry_link: {
-        domain: 'core',
-        title: 'inquiry_link',
-        kvReplace: 'Chưa có trong KV',
-        summary: 'Liên kết giữa CRM Lead Odoo và báo giá scenario.',
-        columns: [
-          { name: 'lead_id', type: 'bigint', pk: true, meta: 'crm.lead Odoo' },
-          { name: 'scenario_id', type: 'uuid', fk: true, meta: 'FK scenario.id' }
-        ],
-        indexes: ['PRIMARY KEY (lead_id)'],
-        concurrency: 'Liên kết 1:1 CRM.',
-        ddl: `-- Bảng team đã có sẵn`
-      },
+        // --- DOMAIN 3: EXTRACTOR PAYLOAD CONTRACT (HÌNH A) ---
+        {
+          id: 'TRIP',
+          name: 'TRIP',
+          domain: 'extractor',
+          x: 100, y: 1120,
+          summary: 'Thực thể gốc của payload trích xuất. Định nghĩa thời gian lưu trú và di chuyển.',
+          columns: [
+            { name: 'label', type: 'string', desc: 'tên chuyến đi' },
+            { name: 'transportType', type: 'enum', desc: "'none' | 'roundtrip' | 'oneway'" },
+            { name: 'checkIn', type: 'date', desc: 'YYYY-MM-DD bắt buộc' },
+            { name: 'checkOut', type: 'date', desc: 'YYYY-MM-DD bắt buộc' },
+            { name: 'diveFrom', type: 'date', desc: 'ngày bắt đầu lặn' },
+            { name: 'diveTo', type: 'date', desc: 'ngày kết thúc lặn' }
+          ],
+          ddl: `-- Định nghĩa trong contracts/src/trip.zod.ts`
+        },
 
-      scenario_note: {
-        domain: 'core',
-        title: 'scenario_note',
-        kvReplace: 'Chưa có trong KV',
-        summary: 'Ghi chú nội bộ giữa các bộ phận quầy (lễ tân, đội lặn, bếp).',
-        columns: [
-          { name: 'scenario_id', type: 'uuid', fk: true, meta: 'FK scenario.id' },
-          { name: 'desk', type: 'text', meta: 'frontdesk | dive | kitchen' },
-          { name: 'body', type: 'text', meta: 'nội dung ghi chú' }
-        ],
-        indexes: ['INDEX (scenario_id)'],
-        concurrency: 'Append-only ghi chú.',
-        ddl: `-- Bảng team đã có sẵn`
-      },
+        {
+          id: 'ROOM',
+          name: 'ROOM',
+          domain: 'extractor',
+          x: 480, y: 1120,
+          summary: 'Danh sách phòng trong chuyến (tối đa 30 phòng).',
+          columns: [
+            { name: 'id', type: 'string', key: 'pk', desc: "'r1', 'r2'..." },
+            { name: 'type', type: 'enum', desc: "'standard' | 'deluxe' | 'suite'" },
+            { name: 'name', type: 'string', desc: 'tên phòng thật' }
+          ],
+          ddl: `-- Định nghĩa trong contracts/src/trip.zod.ts`
+        },
 
-      app_setting: {
-        domain: 'core',
-        title: 'app_setting',
-        kvReplace: 'Cấu hình hệ thống chung',
-        summary: 'Lưu trữ cài đặt toàn hệ thống dạng key-value JSONB (raw_text_ttl_days, cấu hình AI key "ai").',
-        columns: [
-          { name: 'key', type: 'text', pk: true, meta: 'mã cấu hình (vd: raw_text_ttl_days, ai)' },
-          { name: 'value', type: 'jsonb', meta: 'giá trị cấu hình' }
-        ],
-        indexes: ['PRIMARY KEY (key)'],
-        concurrency: 'Optimistic Locking: UPDATE ... WHERE value->>version = $oldVersion.',
-        ddl: `-- Bảng team đã có sẵn`
-      },
+        {
+          id: 'GUEST',
+          name: 'GUEST',
+          domain: 'extractor',
+          x: 860, y: 1120,
+          summary: 'Thông tin từng khách (tối đa 40). GUEST.id giữ cố định (g1..gn) để không mất chứng chỉ.',
+          columns: [
+            { name: 'id', type: 'string', key: 'pk', desc: "'g1', 'g2'..." },
+            { name: 'name', type: 'string', desc: 'tên khách' },
+            { name: 'diver', type: 'bool', desc: 'mặc định true, không lặn phải ghi false' },
+            { name: 'meals', type: 'bool', desc: 'full board (ăn trọn gói)' },
+            { name: 'roomId', type: 'string', key: 'fk', desc: 'trỏ ROOM.id' }
+          ],
+          ddl: `-- Định nghĩa trong contracts/src/trip.zod.ts`
+        },
 
-      // --- 3. EXTRACTOR DOMAIN (9 THỰC THỂ HÌNH A) ---
-      trip: {
-        domain: 'extractor',
-        title: 'TRIP (Root Payload)',
-        kvReplace: 'bffTrip trong HonoQuotationDraft',
-        summary: 'Thực thể gốc mà extractor điền từ nội dung chat. Định nghĩa thời gian lưu trú, di chuyển và lịch lặn.',
-        columns: [
-          { name: 'label', type: 'string', meta: 'tên chuyến đi (tùy chọn)' },
-          { name: 'guestType', type: 'enum', meta: 'retail | agent | instructor (KHÔNG trích, phiên quyết)' },
-          { name: 'transportType', type: 'enum', meta: 'none | roundtrip | oneway (bắt buộc)' },
-          { name: 'checkIn', type: 'date', meta: 'YYYY-MM-DD (bắt buộc, không đoán)' },
-          { name: 'checkOut', type: 'date', meta: 'YYYY-MM-DD (bắt buộc, không đoán)' },
-          { name: 'diveFrom', type: 'date', meta: 'bắt buộc khi có khách lặn' },
-          { name: 'diveTo', type: 'date', meta: 'bắt buộc khi có khách lặn' }
-        ],
-        indexes: ['Zod Schema Validation: TripSchema'],
-        concurrency: 'Lưu vào scenario.working_trip và revision.trip.',
-        ddl: `-- Định nghĩa trong contracts/src/trip.zod.ts`
-      },
+        {
+          id: 'DAY_PLAN',
+          name: 'DAY_PLAN',
+          domain: 'extractor',
+          x: 1240, y: 1120,
+          summary: 'Lịch lặn từng ngày của từng diver trong khoảng [diveFrom, diveTo].',
+          columns: [
+            { name: 'day', type: 'date', key: 'pk', desc: 'YYYY-MM-DD' },
+            { name: 'dive', type: 'bool', desc: 'lặn 2 ca ban ngày' },
+            { name: 'third', type: 'bool', desc: 'lặn ca thứ 3' },
+            { name: 'night', type: 'bool', desc: 'lặn đêm' }
+          ],
+          ddl: `-- Định nghĩa trong contracts/src/trip.zod.ts`
+        },
 
-      room: {
-        domain: 'extractor',
-        title: 'ROOM',
-        kvReplace: 'Trip.rooms[]',
-        summary: 'Danh sách phòng khách đặt (tối đa 30 phòng).',
-        columns: [
-          { name: 'id', type: 'string', pk: true, meta: 'r1, r2, r3...' },
-          { name: 'type', type: 'enum', meta: 'standard | deluxe | suite' },
-          { name: 'name', type: 'string', meta: 'tên phòng thực tế (tùy chọn)' }
-        ],
-        indexes: ['rooms[].id là khóa liên kết với GUEST.roomId'],
-        concurrency: 'Mặc định 1 phòng standard r1 nếu khách không chỉ định.',
-        ddl: `-- Định nghĩa trong contracts/src/trip.zod.ts`
-      },
+        {
+          id: 'COURSE',
+          name: 'COURSE',
+          domain: 'extractor',
+          x: 1620, y: 1120,
+          summary: 'Khóa học lặn khách đăng ký (tối đa 5 khóa học mỗi khách).',
+          columns: [
+            { name: 'code', type: 'enum', desc: "'dsd' | 'refresher' | 'ow' | 'aow' | 'rescue'" }
+          ],
+          ddl: `-- Định nghĩa trong contracts/src/trip.zod.ts`
+        },
 
-      guest: {
-        domain: 'extractor',
-        title: 'GUEST',
-        kvReplace: 'Trip.guests[]',
-        summary: 'Danh sách khách lưu trú (tối đa 40 khách). GUEST.id giữ ổn định (g1..gn) qua các lần sửa để không mất chứng chỉ và ghi chú ăn uống.',
-        columns: [
-          { name: 'id', type: 'string', pk: true, meta: 'g1, g2... (giữ cố định)' },
-          { name: 'name', type: 'string', meta: 'mặc định "Guest n"' },
-          { name: 'diver', type: 'bool', meta: 'mặc định TRUE - người không lặn phải ghi FALSE' },
-          { name: 'meals', type: 'bool', meta: 'full board (ăn trọn gói)' },
-          { name: 'transport', type: 'bool', meta: 'ngồi xe đưa đón' },
-          { name: 'roomId', type: 'string', fk: true, meta: 'bắt buộc trỏ ROOM.id' },
-          { name: 'arrive', type: 'date', meta: 'đến muộn (trong kỳ ở)' },
-          { name: 'depart', type: 'date', meta: 'về sớm (trong kỳ ở)' },
-          { name: 'comment', type: 'string', meta: 'max 500 ký tự' }
-        ],
-        indexes: ['Khóa nối GUEST.id với GUEST_DOCUMENT và scenario.extras.guests'],
-        concurrency: 'Khách không lặn thì diver: false.',
-        ddl: `-- Định nghĩa trong contracts/src/trip.zod.ts`
-      },
+        {
+          id: 'TRIP_EXTRAS',
+          name: 'TRIP_EXTRAS',
+          domain: 'extractor',
+          x: 2000, y: 1120,
+          summary: 'Siêu dữ liệu chuyển phát chỉ của ứng dụng (lưu tại scenario.extras).',
+          columns: [
+            { name: 'transferDirection', type: 'enum', desc: "'arrival' | 'departure'" }
+          ],
+          ddl: `-- Định nghĩa trong contracts/src/trip.zod.ts`
+        },
 
-      day_plan: {
-        domain: 'extractor',
-        title: 'DAY_PLAN',
-        kvReplace: 'Guest.days{YYYY-MM-DD}',
-        summary: 'Kế hoạch lặn chi tiết theo từng ngày của khách diver, nằm trong khoảng [diveFrom, diveTo].',
-        columns: [
-          { name: 'day', type: 'date', pk: true, meta: 'YYYY-MM-DD trong [diveFrom, diveTo]' },
-          { name: 'dive', type: 'bool', meta: 'lặn 2 ca ban ngày' },
-          { name: 'third', type: 'bool', meta: 'lặn ca thứ 3' },
-          { name: 'night', type: 'bool', meta: 'lặn đêm' },
-          { name: 'boatId', type: 'string', meta: 'KHÔNG trích, do staff chọn sau' }
-        ],
-        indexes: ['Map key là YYYY-MM-DD'],
-        concurrency: 'Chỉ áp dụng cho khách có diver: true.',
-        ddl: `-- Định nghĩa trong contracts/src/trip.zod.ts`
-      },
+        {
+          id: 'GUEST_EXTRAS',
+          name: 'GUEST_EXTRAS',
+          domain: 'extractor',
+          x: 2380, y: 1120,
+          summary: 'Dị ứng và chế độ ăn kiêng riêng của từng khách.',
+          columns: [
+            { name: 'diet', type: 'enum', desc: "'vegetarian' | 'vegan' | 'halal'..." },
+            { name: 'dietNote', type: 'string', desc: 'ghi chú món ăn' },
+            { name: 'allergies', type: 'string', key: 'pii', desc: 'dị ứng (dữ liệu sức khỏe)' }
+          ],
+          ddl: `-- Định nghĩa trong contracts/src/trip.zod.ts`
+        }
+      ],
 
-      course: {
-        domain: 'extractor',
-        title: 'COURSE',
-        kvReplace: 'Guest.courses[]',
-        summary: 'Các khóa học lặn mà khách đăng ký học (tối đa 5 khóa học mỗi khách).',
-        columns: [
-          { name: 'code', type: 'enum', meta: 'dsd | refresher | ow | aow | rescue' }
-        ],
-        indexes: ['Array trong GUEST'],
-        concurrency: 'Extractor trích xuất khi khách nhắc đến học chứng chỉ.',
-        ddl: `-- Định nghĩa trong contracts/src/trip.zod.ts`
-      },
+      relationships: [
+        // AI Channel internal
+        { from: 'wa_conversation', to: 'wa_message', label: '1 : N', fromCol: 'id', toCol: 'conversation_id' },
+        { from: 'wa_conversation', to: 'wa_handoff', label: '1 : N', fromCol: 'id', toCol: 'conversation_id' },
+        { from: 'wa_conversation', to: 'ai_enquiry', label: '1 : N', fromCol: 'id', toCol: 'conversation_id' },
+        
+        // AI Channel <-> Supabase Core Bridges
+        { from: 'scenario', to: 'ai_enquiry', label: '1 : 1', fromCol: 'id', toCol: 'scenario_id' },
+        { from: 'revision', to: 'ai_extraction', label: '1 : 1', fromCol: 'id', toCol: 'revision_id' },
+        { from: 'app_setting', to: 'ai_setting_audit', label: "theo dõi 'ai'", fromCol: 'key', toCol: 'actor_ref' },
 
-      trip_extras: {
-        domain: 'extractor',
-        title: 'TRIP_EXTRAS',
-        kvReplace: 'scenario.extras',
-        summary: 'Siêu dữ liệu mở rộng chỉ của ứng dụng, không gửi sang Odoo compute mà chỉ lưu vào Odoo lúc booking.',
-        columns: [
-          { name: 'transferDirection', type: 'enum', meta: 'arrival | departure (chỉ khi oneway)' }
-        ],
-        indexes: ['Lưu trong scenario.extras'],
-        concurrency: 'Ở bước tạo POST /api/estimates, extras chỉ nhận transferDirection.',
-        ddl: `-- Định nghĩa trong contracts/src/trip.zod.ts`
-      },
+        // Supabase Core internal
+        { from: 'scenario', to: 'revision', label: '1 : N', fromCol: 'id', toCol: 'scenario_id' },
+        { from: 'revision', to: 'snapshot', label: '1 : 1', fromCol: 'id', toCol: 'revision_id' },
+        { from: 'scenario', to: 'submission', label: '1 : N', fromCol: 'id', toCol: 'scenario_id' },
+        { from: 'snapshot', to: 'submission', label: '1 : 1', fromCol: 'id', toCol: 'snapshot_id' },
+        { from: 'scenario', to: 'share_token', label: '1 : N', fromCol: 'id', toCol: 'scenario_id' },
+        { from: 'scenario', to: 'guest_document', label: '1 : N', fromCol: 'id', toCol: 'scenario_id' },
 
-      guest_extras: {
-        domain: 'extractor',
-        title: 'GUEST_EXTRAS',
-        kvReplace: 'scenario.extras.guests{guest.id}',
-        summary: 'Yêu cầu ăn kiêng và dị ứng. Gửi sau qua PATCH /api/estimates/:id/extras.',
-        columns: [
-          { name: 'diet', type: 'enum', meta: 'none | vegetarian | vegan | pescatarian | halal | no_pork | gluten_free | other' },
-          { name: 'dietNote', type: 'string', meta: 'ghi chú ăn uống (max 200 ký tự)' },
-          { name: 'allergies', type: 'string', pii: true, meta: 'dị ứng - dữ liệu sức khỏe nhạy cảm (max 200 ký tự)' },
-          { name: 'meals', type: 'map', meta: '{YYYY-MM-DD: {b,l,d}} - tùy chọn' }
-        ],
-        indexes: ['Nối theo GUEST.id'],
-        concurrency: 'Dị ứng là dữ liệu sức khỏe: không ghi log thô.',
-        ddl: `-- Định nghĩa trong bff/src/trip/meals.ts`
-      },
-
-      boat: {
-        domain: 'extractor',
-        title: 'BOAT',
-        kvReplace: 'Odoo Boats list',
-        summary: 'Tàu lặn từ GET /api/boats do nhân viên điều phối chọn, bot AI KHÔNG trích xuất.',
-        columns: [
-          { name: 'id', type: 'string', meta: 'mã tàu từ Odoo' }
-        ],
-        indexes: ['Lookup tàu'],
-        concurrency: 'Staff gán sau.',
-        ddl: `-- Odoo master data`
-      },
-
-      custom_item: {
-        domain: 'extractor',
-        title: 'CUSTOM_ITEM',
-        kvReplace: 'items[]',
-        summary: 'Phụ thu hoặc mục chi phí riêng biệt do quầy nhân viên thêm vào báo giá, bot AI KHÔNG trích xuất.',
-        columns: [
-          { name: 'name', type: 'string', meta: 'tên phụ thu' },
-          { name: 'price', type: 'number', meta: 'đơn giá' }
-        ],
-        indexes: ['Liên kết gids[]'],
-        concurrency: 'Chỉ nhân viên Studio thao tác.',
-        ddl: `-- Định nghĩa trong contracts/src/trip.zod.ts`
-      }
+        // Extractor domain internal
+        { from: 'TRIP', to: 'ROOM', label: 'rooms[]', fromCol: 'checkIn', toCol: 'id' },
+        { from: 'TRIP', to: 'GUEST', label: 'guests[]', fromCol: 'checkIn', toCol: 'id' },
+        { from: 'ROOM', to: 'GUEST', label: 'roomId', fromCol: 'id', toCol: 'roomId' },
+        { from: 'GUEST', to: 'DAY_PLAN', label: 'days{}', fromCol: 'id', toCol: 'day' },
+        { from: 'GUEST', to: 'COURSE', label: 'courses[]', fromCol: 'id', toCol: 'code' },
+        { from: 'TRIP', to: 'TRIP_EXTRAS', label: 'extras', fromCol: 'checkIn', toCol: 'transferDirection' },
+        { from: 'GUEST', to: 'GUEST_EXTRAS', label: 'guest_extras', fromCol: 'id', toCol: 'diet' }
+      ]
     };
 
-    // MATRIX ROWS
-    const MATRIX_DATA = [
-      {
-        kv: 'thread:{phone} (TTL 24h)',
-        pg: 'wa_conversation (id, phone, language, open_fields, stall_count, stated_values, last_guest_at, started_at, ended_at)',
-        concurrency: 'Partial Unique: <code>unique (phone) where ended_at is null</code>. Không còn giới hạn TTL 24h cứng.',
-        index: '<code>wa_conversation_active_phone_uidx</code>, <code>idx_wa_conversation_last_guest</code>',
-        ttl: 'Hội thoại giữ vĩnh viễn theo lịch sử; cột <code>last_guest_at</code> đo cửa sổ 24h Meta.'
-      },
-      {
-        kv: 'Danh sách 20 lượt chat trong thread:{phone}',
-        pg: 'wa_message (id, conversation_id, role, body, wa_message_id, reply_kind, staff_ref, created_at)',
-        concurrency: 'Append-only. Truy vấn: <code>WHERE conversation_id = $1 ORDER BY created_at DESC LIMIT 20</code>.',
-        index: '<code>wa_message_conversation_created_idx</code> (conversation_id, created_at desc)',
-        ttl: '30 ngày theo cấu hình <code>raw_text_ttl_days</code> của team. Chứa PII tin nhắn khách.'
-      },
-      {
-        kv: 'claim:{wa_message_id} (60s in_flight / 24h done)',
-        pg: 'wa_inbound_claim (wa_message_id, state, fence_token, expires_at)',
-        concurrency: 'Atomic Claim: 1 câu <code>INSERT ... ON CONFLICT DO UPDATE WHERE expires_at < now() RETURNING fence_token</code>.',
-        index: 'PK <code>wa_message_id</code>, <code>wa_inbound_claim_expires_idx</code>',
-        ttl: 'Cron đêm xóa các claim <code>done</code> quá 24h và <code>in_flight</code> hết hạn.'
-      },
-      {
-        kv: 'phonelock:{phone} (SET NX 30s)',
-        pg: 'wa_conversation (lock_token, lock_until)',
-        concurrency: 'Distributed Lease: <code>UPDATE ... SET lock_token, lock_until = now()+30s WHERE lock_until < now()</code>.',
-        index: '<code>idx_wa_conversation_lock</code> (lock_until)',
-        ttl: 'Tự động giải phóng sau 30 giây nếu worker bị crash.'
-      },
-      {
-        kv: 'pause:{phone} + set paused_phones',
-        pg: 'wa_handoff (id, conversation_id, phone, reason, missing_fields, context, since, resolved_at, resolution)',
-        concurrency: 'Partial Unique: <code>unique (phone) where resolved_at is null</code>. Giữ toàn bộ lịch sử các lần chuyển máy.',
-        index: '<code>wa_handoff_active_phone_uidx</code>, <code>wa_handoff_pending_idx</code> (since desc)',
-        ttl: 'Lịch sử giữ vĩnh viễn. Cột context (tối đa 200 ký tự) xóa sau 30 ngày.'
-      },
-      {
-        kv: 'HonoQuotationDraft (JSON khổng lồ quét SCAN)',
-        pg: 'scenario (team) + revision (team) + snapshot (team) + ai_enquiry (mới)',
-        concurrency: 'Tách dữ liệu: giá dùng Odoo snapshot, trạng thái duyệt dùng <code>ai_enquiry</code>.',
-        index: '<code>ai_enquiry_active_phone_uidx</code>: tìm báo giá mở theo số trong O(1).',
-        ttl: 'Lưu trữ theo vòng đời báo giá. PII số điện thoại được quản lý an toàn.'
-      },
-      {
-        kv: 'settings:ai.keys (JSON)',
-        pg: 'ai_provider_key (provider, key_enc, last4, updated_at, updated_by_ref)',
-        concurrency: 'Mã hóa AES-256-GCM đồng nhất với <code>odoo_key_enc</code>. Bảo vệ qua RLS.',
-        index: 'PK <code>provider</code>',
-        ttl: 'Bảo mật tuyệt đối, không log ra console hay URL.'
-      },
-      {
-        kv: 'settings:ai:audit (chỉ giữ 50 dòng)',
-        pg: 'ai_setting_audit (id, at, actor_ref, diff)',
-        concurrency: 'Append-only audit trail ghi lại mọi thay đổi cấu hình LLM.',
-        index: 'PK <code>id</code>, <code>ai_setting_audit_at_idx</code> (at desc)',
-        ttl: 'Lưu trữ vĩnh viễn phục vụ kiểm toán bảo mật.'
-      },
-      {
-        kv: 'stats:ai:{day}:{provider}:* (TTL 14 ngày)',
-        pg: 'ai_provider_stat (day, provider, ok, fail, fallback, ms_sum, n)',
-        concurrency: 'Atomic Upsert: <code>INSERT ... ON CONFLICT (day, provider) DO UPDATE SET ok = ok + 1...</code>',
-        index: 'PK <code>(day, provider)</code>',
-        ttl: 'Giữ 90 ngày phục vụ báo cáo chất lượng và chi phí token.'
-      }
-    ];
-
     // ==========================================
-    // 3. ZOOM & PAN STATE ENGINE
+    // 2. CANVAS ENGINE (PAN, ZOOM, RENDER)
     // ==========================================
 
-    let currentScale = 1.0;
-    let translateX = 0;
-    let translateY = 0;
+    let scale = 1.0;
+    let panX = 40;
+    let panY = 40;
     let isDragging = false;
-    let startX = 0;
-    let startY = 0;
-    let currentView = 'full';
+    let dragStartX = 0;
+    let dragStartY = 0;
+    let currentDomain = 'ai';
 
     const stage = document.getElementById('diagram-stage');
-    const container = document.getElementById('canvas-container');
-    const zoomText = document.getElementById('zoom-text');
+    const viewport = document.getElementById('canvas-viewport');
+    const zoomIndicator = document.getElementById('zoom-indicator');
+    const svgOverlay = document.getElementById('connector-svg');
+    const tablesContainer = document.getElementById('tables-container');
 
     function updateTransform() {
-      stage.style.transform = `translate(${translateX}px, ${translateY}px) scale(${currentScale})`;
-      zoomText.innerText = `${Math.round(currentScale * 100)}%`;
+      stage.style.transform = `translate(${panX}px, ${panY}px) scale(${scale})`;
+      zoomIndicator.innerText = `${Math.round(scale * 100)}%`;
     }
 
-    container.addEventListener('mousedown', (e) => {
-      if (e.target.closest('.canvas-controls') || e.target.closest('.filter-bar') || e.target.closest('.search-box')) return;
+    viewport.addEventListener('mousedown', (e) => {
+      if (e.target.closest('.erd-table') || e.target.closest('.canvas-dock') || e.target.closest('.search-floater')) return;
       isDragging = true;
-      startX = e.clientX - translateX;
-      startY = e.clientY - translateY;
+      dragStartX = e.clientX - panX;
+      dragStartY = e.clientY - panY;
     });
 
     window.addEventListener('mousemove', (e) => {
       if (!isDragging) return;
-      translateX = e.clientX - startX;
-      translateY = e.clientY - startY;
+      panX = e.clientX - dragStartX;
+      panY = e.clientY - dragStartY;
       updateTransform();
     });
 
-    window.addEventListener('mouseup', () => {
-      isDragging = false;
-    });
+    window.addEventListener('mouseup', () => { isDragging = false; });
 
-    container.addEventListener('wheel', (e) => {
+    viewport.addEventListener('wheel', (e) => {
       e.preventDefault();
-      const zoomFactor = e.deltaY < 0 ? 1.1 : 0.9;
-      const newScale = Math.min(Math.max(currentScale * zoomFactor, 0.3), 3.0);
+      const factor = e.deltaY < 0 ? 1.1 : 0.9;
+      const newScale = Math.min(Math.max(scale * factor, 0.25), 2.5);
       
-      const rect = container.getBoundingClientRect();
+      const rect = viewport.getBoundingClientRect();
       const mouseX = e.clientX - rect.left;
       const mouseY = e.clientY - rect.top;
-      
-      translateX = mouseX - (mouseX - translateX) * (newScale / currentScale);
-      translateY = mouseY - (mouseY - translateY) * (newScale / currentScale);
-      currentScale = newScale;
+
+      panX = mouseX - (mouseX - panX) * (newScale / scale);
+      panY = mouseY - (mouseY - panY) * (newScale / scale);
+      scale = newScale;
       updateTransform();
     }, { passive: false });
 
-    function zoomStep(delta) {
-      currentScale = Math.min(Math.max(currentScale + delta, 0.3), 3.0);
+    function zoomDelta(d) {
+      scale = Math.min(Math.max(scale + d, 0.25), 2.5);
       updateTransform();
     }
 
-    function resetZoom() {
-      currentScale = 1.0;
-      translateX = 0;
-      translateY = 0;
+    function resetCanvas() {
+      scale = 1.0;
+      panX = 40;
+      panY = 40;
       updateTransform();
     }
 
-    function fitToScreen() {
-      const containerW = container.clientWidth;
-      const containerH = container.clientHeight;
-      const stageW = 1600;
-      const stageH = 1100;
-      const scaleX = (containerW - 80) / stageW;
-      const scaleY = (containerH - 80) / stageH;
-      currentScale = Math.min(scaleX, scaleY, 1.2);
-      translateX = Math.max((containerW - stageW * currentScale) / 2, 40);
-      translateY = Math.max((containerH - stageH * currentScale) / 2, 40);
+    function fitView() {
+      if (currentDomain === 'ai') {
+        panX = 20;
+        panY = 20;
+        scale = 0.82;
+      } else if (currentDomain === 'core') {
+        panX = -1200;
+        panY = 20;
+        scale = 0.82;
+      } else if (currentDomain === 'extractor') {
+        panX = 20;
+        panY = -780;
+        scale = 0.75;
+      } else {
+        panX = 20;
+        panY = 20;
+        scale = 0.45;
+      }
       updateTransform();
     }
 
     // ==========================================
-    // 4. MERMAID RENDERING & VIEW SWITCHING
+    // 3. TABLE CARD BUILDER & RENDERER
     // ==========================================
 
-    mermaid.initialize({
-      startOnLoad: false,
-      theme: 'dark',
-      themeVariables: {
-        darkMode: true,
-        background: '#090d16',
-        primaryColor: '#1e293b',
-        primaryTextColor: '#f8fafc',
-        primaryBorderColor: '#38bdf8',
-        lineColor: '#60a5fa',
-        secondaryColor: '#0f172a',
-        tertiaryColor: '#1e293b'
-      },
-      er: {
-        fontSize: 12,
-        useMaxWidth: false
-      }
-    });
+    function renderTables() {
+      tablesContainer.innerHTML = '';
 
-    async function renderDiagram(viewKey) {
-      const wrapper = document.getElementById('mermaid-wrapper');
-      const target = document.getElementById('mermaid-target');
-      const matrixWrapper = document.getElementById('matrix-wrapper');
+      ERD_DATA.tables.forEach(table => {
+        const card = document.createElement('div');
+        card.className = `erd-table domain-${table.domain}`;
+        card.id = `table-${table.id}`;
+        card.style.left = `${table.x}px`;
+        card.style.top = `${table.y}px`;
 
-      if (viewKey === 'matrix') {
-        wrapper.style.display = 'none';
-        matrixWrapper.style.display = 'block';
-        return;
-      }
+        const pillClass = table.domain === 'ai' ? 'pill-ai' : (table.domain === 'core' ? 'pill-core' : 'pill-extractor');
+        const pillText = table.domain === 'ai' ? 'AI NEW' : (table.domain === 'core' ? 'CORE' : 'PAYLOAD');
 
-      matrixWrapper.style.display = 'none';
-      wrapper.style.display = 'block';
+        let colsHtml = '';
+        table.columns.forEach(col => {
+          let badge = '';
+          if (col.key === 'pk') badge = '<span class="key-badge key-pk">PK</span>';
+          else if (col.key === 'fk') badge = '<span class="key-badge key-fk">FK</span>';
+          else if (col.key === 'uq') badge = '<span class="key-badge key-uq">UQ</span>';
+          else if (col.key === 'pii') badge = '<span class="key-badge key-pii">PII</span>';
 
-      try {
-        const diagramCode = DIAGRAMS[viewKey];
-        target.innerHTML = '';
-        const { svg } = await mermaid.render('mermaid-svg-' + Date.now(), diagramCode);
-        target.innerHTML = svg;
-
-        // Attach click listeners to rendered entity nodes
-        attachSvgClickListeners();
-      } catch (err) {
-        console.error('Mermaid render error:', err);
-        target.innerHTML = `<div style="padding:40px; color:#f43f5e; font-size:14px;">Lỗi vẽ sơ đồ: ${err.message}</div>`;
-      }
-    }
-
-    function switchView(viewKey) {
-      currentView = viewKey;
-      
-      document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
-      const activeBtn = document.getElementById('tab-' + viewKey);
-      if (activeBtn) activeBtn.classList.add('active');
-
-      renderDiagram(viewKey);
-      resetZoom();
-      setTimeout(fitToScreen, 150);
-    }
-
-    function attachSvgClickListeners() {
-      const entityNodes = document.querySelectorAll('#mermaid-target g.entityBox, #mermaid-target g[id*="entity-"], #mermaid-target g[class*="entity"]');
-      entityNodes.forEach(node => {
-        node.style.cursor = 'pointer';
-        node.addEventListener('click', (e) => {
-          e.stopPropagation();
-          const textEl = node.querySelector('text.entityLabel') || node.querySelector('text');
-          if (!textEl) return;
-          const raw = textEl.textContent.trim().toLowerCase();
-          const normalized = raw.replace(/[^a-z0-9]/g, '');
-          
-          const matchKey = Object.keys(SCHEMA_DICTIONARY).find(k => {
-            const kNorm = k.toLowerCase().replace(/[^a-z0-9]/g, '');
-            return kNorm === normalized || kNorm.includes(normalized) || normalized.includes(kNorm);
-          });
-
-          if (matchKey) {
-            showTableDetails(matchKey);
-          }
+          colsHtml += `
+            <li class="col-row" data-col="${col.name}">
+              <div class="col-left">
+                ${badge}
+                <span class="col-name">${col.name}</span>
+              </div>
+              <span class="col-type">${col.type}</span>
+            </li>
+          `;
         });
+
+        card.innerHTML = `
+          <div class="table-header">
+            <div class="table-title">
+              <span>🗄️</span>
+              <span>${table.name}</span>
+            </div>
+            <span class="table-domain-pill ${pillClass}">${pillText}</span>
+          </div>
+          <ul class="col-list">
+            ${colsHtml}
+          </ul>
+        `;
+
+        card.addEventListener('mouseenter', () => highlightConnections(table.id));
+        card.addEventListener('mouseleave', () => resetHighlights());
+        card.addEventListener('click', (e) => {
+          e.stopPropagation();
+          showTableDetails(table.id);
+        });
+
+        tablesContainer.appendChild(card);
+      });
+
+      // Render relationships after DOM elements are created
+      requestAnimationFrame(renderRelationships);
+    }
+
+    // ==========================================
+    // 4. RELATIONSHIP BEZIER CURVE RENDERER
+    // ==========================================
+
+    function renderRelationships() {
+      svgOverlay.innerHTML = '';
+
+      ERD_DATA.relationships.forEach((rel, index) => {
+        const fromEl = document.getElementById(`table-${rel.from}`);
+        const toEl = document.getElementById(`table-${rel.to}`);
+        if (!fromEl || !toEl) return;
+
+        const fromTable = ERD_DATA.tables.find(t => t.id === rel.from);
+        const toTable = ERD_DATA.tables.find(t => t.id === rel.to);
+        if (!fromTable || !toTable) return;
+
+        // Calculate card anchor boundaries
+        const w = 280;
+        const fromH = fromEl.offsetHeight;
+        const toH = toEl.offsetHeight;
+
+        let x1, y1, x2, y2, cx1, cy1, cx2, cy2;
+
+        // Horizontal or Vertical orientation logic
+        const dx = toTable.x - fromTable.x;
+        const dy = toTable.y - fromTable.y;
+
+        if (Math.abs(dx) > Math.abs(dy)) {
+          // Connect horizontal (right to left or left to right)
+          if (dx > 0) {
+            x1 = fromTable.x + w;
+            y1 = fromTable.y + 35;
+            x2 = toTable.x;
+            y2 = toTable.y + 35;
+            cx1 = x1 + Math.abs(dx) * 0.45;
+            cy1 = y1;
+            cx2 = x2 - Math.abs(dx) * 0.45;
+            cy2 = y2;
+          } else {
+            x1 = fromTable.x;
+            y1 = fromTable.y + 35;
+            x2 = toTable.x + w;
+            y2 = toTable.y + 35;
+            cx1 = x1 - Math.abs(dx) * 0.45;
+            cy1 = y1;
+            cx2 = x2 + Math.abs(dx) * 0.45;
+            cy2 = y2;
+          }
+        } else {
+          // Connect vertical (bottom to top or top to bottom)
+          if (dy > 0) {
+            x1 = fromTable.x + w / 2;
+            y1 = fromTable.y + fromH;
+            x2 = toTable.x + w / 2;
+            y2 = toTable.y;
+            cx1 = x1;
+            cy1 = y1 + Math.abs(dy) * 0.45;
+            cx2 = x2;
+            cy2 = y2 - Math.abs(dy) * 0.45;
+          } else {
+            x1 = fromTable.x + w / 2;
+            y1 = fromTable.y;
+            x2 = toTable.x + w / 2;
+            y2 = toTable.y + toH;
+            cx1 = x1;
+            cy1 = y1 - Math.abs(dy) * 0.45;
+            cx2 = x2;
+            cy2 = y2 + Math.abs(dy) * 0.45;
+          }
+        }
+
+        const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+        path.setAttribute('d', `M ${x1} ${y1} C ${cx1} ${cy1}, ${cx2} ${cy2}, ${x2} ${y2}`);
+        path.setAttribute('class', `rel-line rel-from-${rel.from} rel-to-${rel.to}`);
+        path.setAttribute('id', `rel-path-${index}`);
+
+        // Middle badge text
+        const mx = (x1 + x2) / 2;
+        const my = (y1 + y2) / 2;
+        const text = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+        text.setAttribute('x', mx);
+        text.setAttribute('y', my - 6);
+        text.setAttribute('text-anchor', 'middle');
+        text.setAttribute('class', `rel-badge rel-badge-${rel.from} rel-badge-${rel.to}`);
+        text.textContent = rel.label;
+
+        svgOverlay.appendChild(path);
+        svgOverlay.appendChild(text);
       });
     }
 
     // ==========================================
-    // 5. SIDEBAR INSPECTOR LOGIC
+    // 5. INTERACTIVE HIGHLIGHTING & FOCUS
+    // ==========================================
+
+    function highlightConnections(tableId) {
+      document.querySelectorAll('.erd-table').forEach(t => t.classList.add('dimmed'));
+      const targetTable = document.getElementById(`table-${tableId}`);
+      if (targetTable) {
+        targetTable.classList.remove('dimmed');
+        targetTable.classList.add('active-table');
+      }
+
+      // Find connected lines
+      document.querySelectorAll(`.rel-from-${tableId}, .rel-to-${tableId}`).forEach(line => {
+        line.classList.add('active');
+      });
+
+      document.querySelectorAll(`.rel-badge-${tableId}`).forEach(badge => {
+        badge.classList.add('active');
+      });
+
+      // Highlight related neighbor tables
+      ERD_DATA.relationships.forEach(rel => {
+        if (rel.from === tableId) {
+          const neighbor = document.getElementById(`table-${rel.to}`);
+          if (neighbor) neighbor.classList.remove('dimmed');
+        } else if (rel.to === tableId) {
+          const neighbor = document.getElementById(`table-${rel.from}`);
+          if (neighbor) neighbor.classList.remove('dimmed');
+        }
+      });
+    }
+
+    function resetHighlights() {
+      document.querySelectorAll('.erd-table').forEach(t => {
+        t.classList.remove('dimmed');
+        t.classList.remove('active-table');
+      });
+      document.querySelectorAll('.rel-line').forEach(l => l.classList.remove('active'));
+      document.querySelectorAll('.rel-badge').forEach(b => b.classList.remove('active'));
+    }
+
+    // ==========================================
+    // 6. DOMAIN VIEW SWITCHER
+    // ==========================================
+
+    function switchDomainView(domain) {
+      currentDomain = domain;
+      document.querySelectorAll('.tab-item').forEach(b => b.classList.remove('active'));
+      const activeTab = document.getElementById(`tab-${domain}`);
+      if (activeTab) activeTab.classList.add('active');
+
+      fitView();
+    }
+
+    // ==========================================
+    // 7. DRAWER INSPECTOR
     // ==========================================
 
     function toggleInspector() {
-      const sidebar = document.getElementById('inspector-sidebar');
-      sidebar.classList.toggle('collapsed');
+      const panel = document.getElementById('inspector-panel');
+      panel.classList.toggle('collapsed');
     }
 
-    function showTableDetails(tableKey) {
-      const data = SCHEMA_DICTIONARY[tableKey];
-      if (!data) return;
+    function showTableDetails(tableId) {
+      const table = ERD_DATA.tables.find(t => t.id === tableId);
+      if (!table) return;
 
-      const sidebar = document.getElementById('inspector-sidebar');
-      sidebar.classList.remove('collapsed');
+      const panel = document.getElementById('inspector-panel');
+      panel.classList.remove('collapsed');
 
-      const placeholder = document.getElementById('inspector-placeholder');
-      const detail = document.getElementById('inspector-detail');
-      placeholder.style.display = 'none';
-      detail.style.display = 'block';
+      document.getElementById('inspector-empty').style.display = 'none';
+      const content = document.getElementById('inspector-content');
+      content.style.display = 'block';
 
-      const domainBadgeClass = data.domain === 'ai' ? 'badge-ai' : (data.domain === 'core' ? 'badge-core' : 'badge-extractor');
-      const domainLabel = data.domain === 'ai' ? 'Kênh AI / WhatsApp (Mới)' : (data.domain === 'core' ? 'Supabase Core Team' : 'Extractor Payload');
+      const domainLabel = table.domain === 'ai' ? 'Kênh AI / WhatsApp Mới' : (table.domain === 'core' ? 'Supabase Core Team' : 'Extractor Payload');
 
       let colsHtml = '';
-      data.columns.forEach(col => {
-        let tags = '';
-        if (col.pk) tags += '<span class="pk-tag">PK</span> ';
-        if (col.fk) tags += '<span class="fk-tag">FK</span> ';
-        if (col.uq) tags += '<span class="uq-tag">UQ</span> ';
-        if (col.pii) tags += '<span class="pii-tag">PII</span> ';
-
+      table.columns.forEach(col => {
+        let keyTag = col.key ? `<span class="key-badge key-${col.key}">${col.key.toUpperCase()}</span>` : '';
         colsHtml += `
-          <tr>
-            <td>
-              <div class="col-name">${col.name} ${tags}</div>
-            </td>
-            <td><span class="col-type">${col.type}</span></td>
-            <td><div class="col-meta">${col.meta}</div></td>
+          <tr style="border-bottom:1px solid var(--border-subtle);">
+            <td style="padding:8px 6px; font-family:var(--font-mono); font-weight:600; font-size:12px;">${col.name} ${keyTag}</td>
+            <td style="padding:8px 6px; font-family:var(--font-mono); font-size:11px; color:var(--accent-ai);">${col.type}</td>
+            <td style="padding:8px 6px; font-size:11px; color:var(--text-muted);">${col.desc || ''}</td>
           </tr>
         `;
       });
 
-      let indexesHtml = '';
-      data.indexes.forEach(idx => {
-        indexesHtml += `<li style="margin-bottom:4px; font-family:var(--font-mono); font-size:11px; color:#93c5fd;">${idx}</li>`;
-      });
-
-      detail.innerHTML = `
-        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
-          <button class="action-btn" onclick="backToQuickList()" style="font-size:11px; padding:4px 8px;">← Quay lại danh sách</button>
-        </div>
-
-        <div class="table-card">
-          <div class="table-badge-row">
-            <span class="badge-pill ${domainBadgeClass}">${domainLabel}</span>
-            <span class="badge-pill badge-kv">KV: ${data.kvReplace}</span>
+      content.innerHTML = `
+        <div style="background:var(--bg-card); border:1px solid var(--border-card); border-radius:12px; padding:16px;">
+          <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:8px;">
+            <span style="font-size:11px; font-weight:700; text-transform:uppercase; color:var(--accent-ai);">${domainLabel}</span>
+            <span style="font-family:var(--font-mono); font-size:11px; color:var(--text-faint);">${table.columns.length} Cột</span>
           </div>
-          <div class="table-name">${data.title}</div>
-          <p class="table-desc">${data.summary}</p>
+          <h2 style="font-family:var(--font-mono); font-size:18px; font-weight:800; color:var(--text-main); margin-bottom:6px;">${table.name}</h2>
+          <p style="font-size:13px; color:var(--text-muted); line-height:1.5;">${table.summary}</p>
         </div>
 
         <div>
-          <div class="section-label">Danh Sách Cột (${data.columns.length} cột):</div>
-          <table class="cols-table">
+          <div style="font-size:11px; font-weight:700; text-transform:uppercase; color:var(--text-faint); margin-bottom:10px; letter-spacing:0.5px;">Cấu Trúc Cột & Ràng Buộc:</div>
+          <table style="width:100%; border-collapse:collapse; font-size:12px;">
             <thead>
-              <tr>
-                <th style="width:38%;">Cột</th>
-                <th style="width:24%;">Kiểu</th>
-                <th style="width:38%;">Mô Tả / Check</th>
+              <tr style="border-bottom:1px solid var(--border-strong); text-align:left; color:var(--text-faint); font-size:11px;">
+                <th style="padding:6px;">Cột</th>
+                <th style="padding:6px;">Kiểu</th>
+                <th style="padding:6px;">Mô Tả / Check</th>
               </tr>
             </thead>
             <tbody>
@@ -2465,102 +1602,45 @@ create index ai_setting_audit_at_idx on ai_setting_audit (at desc);`
         </div>
 
         <div>
-          <div class="section-label">Chỉ Mục & Cơ Chế Đồng Thời:</div>
-          <ul style="padding-left:16px; margin-bottom:8px;">
-            ${indexesHtml}
-          </ul>
-          <p style="font-size:12px; color:var(--text-muted); line-height:1.4;">${data.concurrency}</p>
-        </div>
-
-        <div>
-          <div class="section-label">Mã DDL PostgreSQL:</div>
+          <div style="font-size:11px; font-weight:700; text-transform:uppercase; color:var(--text-faint); margin-bottom:10px; letter-spacing:0.5px;">Mã DDL PostgreSQL:</div>
           <div class="code-box">
-            <button class="copy-btn" onclick="navigator.clipboard.writeText(\`${data.ddl}\`); alert('Đã copy DDL!');">Copy</button>
-            <pre>${data.ddl}</pre>
+            <button class="copy-btn" onclick="navigator.clipboard.writeText(\`${table.ddl}\`); alert('Đã copy DDL!');">Copy</button>
+            <pre>${table.ddl}</pre>
           </div>
         </div>
       `;
     }
 
-    function backToQuickList() {
-      document.getElementById('inspector-detail').style.display = 'none';
-      document.getElementById('inspector-placeholder').style.display = 'block';
-    }
-
-    // Build quick table pills by domain
-    function initQuickTableList() {
-      const listAi = document.getElementById('quick-list-ai');
-      const listCore = document.getElementById('quick-list-core');
-      const listExtractor = document.getElementById('quick-list-extractor');
-
-      Object.keys(SCHEMA_DICTIONARY).forEach(key => {
-        const item = SCHEMA_DICTIONARY[key];
-        const btn = document.createElement('button');
-        btn.className = 'tab-btn';
-        btn.style.justifyContent = 'space-between';
-        btn.style.width = '100%';
-        btn.innerHTML = `
-          <span style="font-family:var(--font-mono); font-weight:600;">${item.title}</span>
-          <span style="font-size:10px; color:var(--text-faint);">${item.columns.length} cols</span>
-        `;
-        btn.onclick = () => showTableDetails(key);
-
-        if (item.domain === 'ai') listAi.appendChild(btn);
-        else if (item.domain === 'core') listCore.appendChild(btn);
-        else if (item.domain === 'extractor') listExtractor.appendChild(btn);
-      });
-    }
-
-    // Build Matrix Table
-    function initMatrixTable() {
-      const tbody = document.getElementById('matrix-body');
-      MATRIX_DATA.forEach(row => {
-        const tr = document.createElement('tr');
-        tr.innerHTML = `
-          <td><strong style="color:var(--brand-amber); font-family:var(--font-mono); font-size:12px;">${row.kv}</strong></td>
-          <td><span style="color:var(--brand-primary); font-family:var(--font-mono); font-weight:600; font-size:12px;">${row.pg}</span></td>
-          <td>${row.concurrency}</td>
-          <td>${row.index}</td>
-          <td>${row.ttl}</td>
-        `;
-        tbody.appendChild(tr);
-      });
-    }
-
     // ==========================================
-    // 6. SEARCH & FILTER
+    // 8. SEARCH & LIVE FILTER
     // ==========================================
 
-    function handleSearch(query) {
-      if (!query || query.trim() === '') return;
-      const q = query.toLowerCase().trim();
-      
-      const foundKey = Object.keys(SCHEMA_DICTIONARY).find(k => {
-        const table = SCHEMA_DICTIONARY[k];
-        if (k.toLowerCase().includes(q)) return true;
-        if (table.title.toLowerCase().includes(q)) return true;
-        if (table.summary.toLowerCase().includes(q)) return true;
-        if (table.kvReplace.toLowerCase().includes(q)) return true;
-        return table.columns.some(c => c.name.toLowerCase().includes(q) || c.meta.toLowerCase().includes(q));
-      });
-
-      if (foundKey) {
-        showTableDetails(foundKey);
+    function handleErdSearch(query) {
+      if (!query || query.trim() === '') {
+        resetHighlights();
+        return;
       }
-    }
+      const q = query.toLowerCase().trim();
 
-    function filterDomain(domain, evt) {
-      document.querySelectorAll('.filter-chip').forEach(c => c.classList.remove('active'));
-      if (evt && evt.currentTarget) evt.currentTarget.classList.add('active');
+      document.querySelectorAll('.erd-table').forEach(card => card.classList.add('dimmed'));
 
-      if (domain === 'all') switchView('full');
-      else if (domain === 'ai') switchView('ai');
-      else if (domain === 'core') switchView('core');
-      else if (domain === 'extractor') switchView('extractor');
+      const matchedTables = ERD_DATA.tables.filter(t => {
+        if (t.name.toLowerCase().includes(q)) return true;
+        if (t.summary.toLowerCase().includes(q)) return true;
+        return t.columns.some(c => c.name.toLowerCase().includes(q) || (c.desc && c.desc.toLowerCase().includes(q)));
+      });
+
+      matchedTables.forEach(t => {
+        const card = document.getElementById(`table-${t.id}`);
+        if (card) {
+          card.classList.remove('dimmed');
+          card.classList.add('active-table');
+        }
+      });
     }
 
     // ==========================================
-    // 7. THEME & MODAL UTILITIES
+    // 9. THEME TOGGLE
     // ==========================================
 
     function toggleTheme() {
@@ -2571,65 +1651,19 @@ create index ai_setting_audit_at_idx on ai_setting_audit (at desc);`
 
       document.getElementById('theme-icon').innerText = next === 'dark' ? '🌙' : '☀️';
       document.getElementById('theme-label').innerText = next === 'dark' ? 'Tối' : 'Sáng';
-
-      mermaid.initialize({
-        startOnLoad: false,
-        theme: next === 'dark' ? 'dark' : 'default',
-        themeVariables: {
-          darkMode: next === 'dark',
-          background: next === 'dark' ? '#090d16' : '#ffffff',
-          primaryColor: next === 'dark' ? '#1e293b' : '#f1f5f9',
-          primaryTextColor: next === 'dark' ? '#f8fafc' : '#0f172a',
-          primaryBorderColor: next === 'dark' ? '#38bdf8' : '#0284c7'
-        }
-      });
-
-      renderDiagram(currentView);
     }
-
-    function openSqlModal() {
-      document.getElementById('sql-modal').classList.add('open');
-    }
-
-    function closeSqlModal() {
-      document.getElementById('sql-modal').classList.remove('open');
-    }
-
-    function copyFullSql() {
-      const code = document.getElementById('full-sql-code').innerText;
-      navigator.clipboard.writeText(code);
-      alert('Đã copy toàn bộ mã DDL vào clipboard!');
-    }
-
-    function exportSvg() {
-      const svgEl = document.querySelector('#mermaid-target svg');
-      if (!svgEl) {
-        alert('Không tìm thấy SVG để xuất!');
-        return;
-      }
-      const svgData = new XMLSerializer().serializeToString(svgEl);
-      const blob = new Blob([svgData], { type: 'image/svg+xml;charset=utf-8' });
-      const url = URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = `casa-erd-${currentView}-${Date.now()}.svg`;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-    }
-
-    window.addEventListener('keydown', (e) => {
-      if (e.key === 'Escape') closeSqlModal();
-    });
 
     // ==========================================
-    // 8. INITIALIZATION ON LOAD
+    // 10. INITIALIZATION
     // ==========================================
 
     window.addEventListener('DOMContentLoaded', () => {
-      initQuickTableList();
-      initMatrixTable();
-      switchView('full');
+      renderTables();
+      switchDomainView('ai');
+    });
+
+    window.addEventListener('resize', () => {
+      renderRelationships();
     });
   </script>
 </body>
