@@ -1,0 +1,283 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {
+    "title": "Casa Escondida Anilao - AI Channel & Postgres Architecture",
+    "output": "ai-channel-architecture.html",
+    "quality_profile": "showcase",
+    "locale": "en",
+    "views": [
+      {
+        "id": "ingress-dedup",
+        "label": "Ingress & Deduplication",
+        "focus": ["guests", "bff", "claim", "conv", "msg"],
+        "note": "Meta webhook arrival, atomic claim fence, and 30-second distributed conversation lease."
+      },
+      {
+        "id": "extraction-pipeline",
+        "label": "AI Extraction & Core Trip",
+        "focus": ["conv", "scenario", "llm", "revision"],
+        "note": "LLM extracts Zod Trip payload and updates versioned scenario revisions."
+      },
+      {
+        "id": "pricing-snapshot",
+        "label": "Odoo ERP Compute & Snapshot",
+        "focus": ["revision", "odoo", "snapshot"],
+        "note": "Official rate card computed by Odoo ERP and frozen into immutable pricing snapshot."
+      },
+      {
+        "id": "staff-governance",
+        "label": "Handoff & Staff Review",
+        "focus": ["conv", "handoff", "scenario", "ai_enquiry"],
+        "note": "Human takeover queue and quotation approval workflow for frontdesk staff."
+      }
+    ]
+  },
+  "components": [
+    {
+      "id": "guests",
+      "type": "external",
+      "label": "WhatsApp Guests",
+      "sublabel": "Meta Webhook :443",
+      "brand": "whatsapp",
+      "pos": [40, 245],
+      "size": [130, 56]
+    },
+    {
+      "id": "bff",
+      "type": "backend",
+      "label": "Casa BFF Service",
+      "sublabel": "Hono / TypeScript",
+      "brand": "cloudflare",
+      "tag": "Ingress & Logic",
+      "pos": [250, 245],
+      "size": [130, 56]
+    },
+    {
+      "id": "claim",
+      "type": "database",
+      "label": "Inbound Claim",
+      "sublabel": "wa_inbound_claim",
+      "brand": "postgresql",
+      "tag": "Atomic Upsert",
+      "pos": [250, 120],
+      "size": [130, 56]
+    },
+    {
+      "id": "conv",
+      "type": "database",
+      "label": "Conversation",
+      "sublabel": "wa_conversation",
+      "brand": "postgresql",
+      "tag": "Phone Lease 30s",
+      "pos": [460, 245],
+      "size": [130, 56]
+    },
+    {
+      "id": "msg",
+      "type": "database",
+      "label": "Message History",
+      "sublabel": "wa_message",
+      "brand": "postgresql",
+      "tag": "30d Text TTL",
+      "pos": [460, 120],
+      "size": [130, 56]
+    },
+    {
+      "id": "handoff",
+      "type": "database",
+      "label": "Handoff Queue",
+      "sublabel": "wa_handoff",
+      "brand": "postgresql",
+      "tag": "Takeover Inbox",
+      "pos": [460, 370],
+      "size": [130, 56]
+    },
+    {
+      "id": "llm",
+      "type": "cloud",
+      "label": "LLM Providers",
+      "sublabel": "Gemini / DeepSeek",
+      "tag": "Fallback Circuit",
+      "pos": [670, 120],
+      "size": [130, 56]
+    },
+    {
+      "id": "scenario",
+      "type": "database",
+      "label": "Scenario Table",
+      "sublabel": "scenario (source=wa)",
+      "brand": "supabase",
+      "tag": "Working Trip",
+      "pos": [670, 245],
+      "size": [130, 56]
+    },
+    {
+      "id": "ai_enquiry",
+      "type": "database",
+      "label": "AI Enquiry Meta",
+      "sublabel": "ai_enquiry",
+      "brand": "postgresql",
+      "tag": "Review State",
+      "pos": [670, 370],
+      "size": [130, 56]
+    },
+    {
+      "id": "odoo",
+      "type": "external",
+      "label": "Odoo Resort ERP",
+      "sublabel": "Compute & Folio",
+      "tag": "Single Source",
+      "pos": [880, 120],
+      "size": [130, 56]
+    },
+    {
+      "id": "revision",
+      "type": "database",
+      "label": "Revision History",
+      "sublabel": "revision (author=ai)",
+      "brand": "supabase",
+      "tag": "seq 1..n",
+      "pos": [880, 245],
+      "size": [130, 56]
+    },
+    {
+      "id": "snapshot",
+      "type": "database",
+      "label": "Pricing Snapshot",
+      "sublabel": "snapshot",
+      "brand": "supabase",
+      "tag": "Frozen Estimate",
+      "pos": [880, 370],
+      "size": [130, 56]
+    }
+  ],
+  "boundaries": [
+    {
+      "kind": "region",
+      "label": "Supabase Postgres 17+ (RLS Enabled - Zero Public Leak)",
+      "wraps": ["claim", "conv", "msg", "handoff", "scenario", "ai_enquiry", "revision", "snapshot"]
+    },
+    {
+      "kind": "security-group",
+      "label": "AI / WhatsApp Domain (Replacing KV)",
+      "wraps": ["claim", "conv", "msg", "handoff", "ai_enquiry"]
+    }
+  ],
+  "connections": [
+    {
+      "id": "guests-to-bff",
+      "from": "guests",
+      "to": "bff",
+      "label": "Webhook POST",
+      "variant": "emphasis"
+    },
+    {
+      "id": "bff-to-claim",
+      "from": "bff",
+      "to": "claim",
+      "label": "fence claim",
+      "variant": "security",
+      "fromSide": "top",
+      "toSide": "bottom"
+    },
+    {
+      "id": "bff-to-conv",
+      "from": "bff",
+      "to": "conv",
+      "label": "acquire lease"
+    },
+    {
+      "id": "conv-to-msg",
+      "from": "conv",
+      "to": "msg",
+      "label": "chat turns",
+      "fromSide": "top",
+      "toSide": "bottom"
+    },
+    {
+      "id": "conv-to-handoff",
+      "from": "conv",
+      "to": "handoff",
+      "label": "escalate pause",
+      "variant": "dashed",
+      "fromSide": "bottom",
+      "toSide": "top",
+      "labelDy": 24
+    },
+    {
+      "id": "conv-to-scenario",
+      "from": "conv",
+      "to": "scenario",
+      "label": "open enquiry"
+    },
+    {
+      "id": "llm-to-scenario",
+      "from": "llm",
+      "to": "scenario",
+      "label": "extract Trip",
+      "fromSide": "bottom",
+      "toSide": "top",
+      "labelDy": 24
+    },
+    {
+      "id": "scenario-to-enquiry",
+      "from": "scenario",
+      "to": "ai_enquiry",
+      "label": "1:1 review state",
+      "fromSide": "bottom",
+      "toSide": "top",
+      "labelDy": 24
+    },
+    {
+      "id": "scenario-to-rev",
+      "from": "scenario",
+      "to": "revision",
+      "label": "commit seq 1..n"
+    },
+    {
+      "id": "rev-to-odoo",
+      "from": "revision",
+      "to": "odoo",
+      "label": "POST /compute",
+      "variant": "emphasis",
+      "fromSide": "top",
+      "toSide": "bottom"
+    },
+    {
+      "id": "rev-to-snap",
+      "from": "revision",
+      "to": "snapshot",
+      "label": "freeze snapshot",
+      "fromSide": "bottom",
+      "toSide": "top",
+      "labelDy": 24
+    }
+  ],
+  "cards": [
+    {
+      "dot": "cyan",
+      "title": "Concurrency & Inbound Deduplication",
+      "items": [
+        "Meta webhook retries deduplicated via atomic wa_inbound_claim upsert with fence token",
+        "30s distributed lease on wa_conversation prevents simultaneous message race conditions"
+      ]
+    },
+    {
+      "dot": "emerald",
+      "title": "AI Extraction & Odoo Pricing Integrity",
+      "items": [
+        "Zero client-side pricing: LLM extracts Zod Trip payload and saves immutable revisions",
+        "Official pricing models computed exclusively by Odoo ERP and frozen into snapshots"
+      ]
+    },
+    {
+      "dot": "rose",
+      "title": "Security & Human Takeover Governance",
+      "items": [
+        "100% RLS enabled across all Postgres tables; zero anonymous PostgREST data exposure",
+        "wa_handoff preserves takeover queue; ai_enquiry enforces staff review before dispatch"
+      ]
+    }
+  ]
+}
