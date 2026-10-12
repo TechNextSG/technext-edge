@@ -142,8 +142,7 @@ The first guest-visible effect of a mixed message is one reply, not two. The quo
 
 ## 9. Observability
 
-- **LangSmith stays off.** It sends traces to a third party, and which provider may see real guest messages is still an open question (Q-021, Q-029 in
-  the team repo). The tracing switches (`LANGSMITH_TRACING`, `LANGCHAIN_TRACING_V2`) must never be set; a test should fail if either is present.
+- **LangSmith stays off.** It sends traces to a third party, and which provider may see real guest messages is still an open question (Q-038). The tracing switches (`LANGSMITH_TRACING`, `LANGCHAIN_TRACING_V2`) must never be set; a test should fail if either is present.
 - Use our **own trace**, the pattern the quotation tool already uses: `HonoToolCallTrace` (`bff/src/quote/domain/quotationDraft.ts:184`, built at
   `bff/src/quote/application/converseWithQuotation.ts:34`). Every logged phone number or message goes through `maskForLogging` (as at
   `turn.ts:394,403`).

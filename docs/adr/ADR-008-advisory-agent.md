@@ -149,7 +149,7 @@ agrees, only documents change in this repository.
 | Misrouting | A booking read as advice loses the guest's details | Booking facts win over advice (3.1); the router is tested on the judge's s21 and s22 first |
 | A guest takes the bot's word as the resort's policy | Wrong hours or capacity would be a promise | Only owned entries; wording says "our team will confirm" for anything not in the store |
 | Scope creep | "Advice" slides into prices and availability | There is no price or availability tool; the gate blocks both |
-| Real guest data reaches a provider | Q-021 is still open | Shadow logs follow the same masking as the judge (`maskForLogging`); no change to what providers see until Q-021 is answered |
+| Real guest data reaches a provider | Q-038 is still open | Shadow logs follow the same masking as the judge (`maskForLogging`); no change to what providers see until Q-038 is answered |
 
 ## 6. What does not change
 
@@ -172,7 +172,7 @@ hand-off inbox and the rule that the bot never quotes a price.
 2. **Ownership.** Who writes and approves the knowledge store, and how often is it reviewed?
 3. **Public price ranges.** May advice mention the price ranges on the resort's website? Our proposal is **no**: prices come only from a
    quotation.
-4. **Providers.** Which provider may see real guest messages? (Q-021, still open; Q-029 in the team repo.)
+4. **Providers.** Which provider may see real guest messages? (Q-038, still open.)
 5. **Open facts.** Van capacity and price, free children, and day use need the resort's answer before they can be advised (section 3.3).
 
 ## 9. References checked on 2026-10-02

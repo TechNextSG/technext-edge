@@ -16,7 +16,7 @@ what has moved, what has not, and what must never move. Written 2026-10-01; the 
 | Piece | Here | What the move involves |
 |---|---|---|
 | WhatsApp channel (webhook, signature, turn loop, phone lock) | `bff/src/routes/whatsapp.ts`, `channels/whatsapp/`, `store/conversationStore.ts` | New route group in their `bff/`; the store becomes Postgres (their `supabase/`), not Redis. The turn loop (`channels/whatsapp/turn.ts`) is the part worth keeping verbatim |
-| Admin AI dashboard + KV settings | `routes/admin.ts`, `store/settingsStore.ts`, `crypto/secretBox.ts`, `views/adminAiPage.ts` | Settings table in Postgres; key encryption stays. Decide first whether they want a dashboard at all (Q-021 is about which model may see guest text) |
+| Admin AI dashboard + KV settings | `routes/admin.ts`, `store/settingsStore.ts`, `crypto/secretBox.ts`, `views/adminAiPage.ts` | Settings table in Postgres; key encryption stays. Decide first whether they want a dashboard at all (Q-038 is about which model may see guest text) |
 | Handoff inbox | `routes/handoff.ts`, `views/handoffPage.ts` | Depends on the conversation store |
 | `toInquiryLead` (F10) | `bff/src/quote/application/inquiryLead.ts` | Their inquiry route does not exist yet (B-043, waiting for Phillip) |
 
@@ -41,7 +41,7 @@ and Odoo do those jobs. Do not port them; port the *calls* the studio makes (`co
 
 ## Order
 
-1. Merge PR #5 (needs Anthony on Q-021 and `EXTRACT_ENABLED`). Renumber its flow doc: on `main` the number F08 is now the
+1. Merge PR #5 (needs Anthony on Q-038 and `EXTRACT_ENABLED`). Renumber its flow doc: on `main` the number F08 is now the
    agent profile (F10 is the inquiry), so the AI channel needs a new number; its ledger codes (Q-021, D-064, L-044) also clash
    with `main`'s Q-021…Q-028. `git merge origin/main` into the branch conflicts only in docs/ledgers, `bff/.env.example` and
    `scripts/suites.json`.

@@ -99,7 +99,7 @@ only by calibrated criteria plus clean machine checks.
 
 By default only the invented scenarios run. A scenario file that is not marked `"synthetic": true` is refused unless you pass
 `--allow-real` **and** set `JUDGE_REAL_OK=1`; its text is then masked with `maskForLogging` (phones, emails) before it goes to
-the judge. Which provider may see real guest messages is a team decision (Q-021, with Anthony; Q-029 in the team repo).
+the judge. Which provider may see real guest messages is a team decision (Q-038, with Anthony).
 
 ## Tests
 

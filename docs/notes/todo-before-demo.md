@@ -33,7 +33,7 @@ Kết quả lần kiểm 2026-10-01: tất cả xanh.
 - [ ] Đánh số lại flow kênh AI: F08 ở `main` là hồ sơ đại lý -> dùng F11; đổi Q-021, D-064, L-044 trùng mã
 - [ ] `git merge origin/main` vào nhánh PR, giải xung đột: ledgers, `bff/.env.example`, `scripts/suites.json`
 - [ ] Đóng PR #2 và #4 của nhánh cũ
-- [ ] Hỏi Anthony: Q-021 (tin khách thật đi qua model nào), có bật `EXTRACT_ENABLED` không
+- [ ] Hỏi Anthony: Q-038 (tin khách thật đi qua model nào), có bật `EXTRACT_ENABLED` không
 - [ ] Sau merge: đổi `AI_REF` trong `tools/ops/mirror-check.mjs` sang `origin/main`, cập nhật mốc trong `docs/notes/upstream-provenance.md`
 
 ## D. Phần plan chưa làm
