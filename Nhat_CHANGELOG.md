@@ -7,6 +7,23 @@ How to write: add an entry as soon as a PR merges or something outside the repo 
 
 ---
 
+## 2026-10-14
+
+### Architecture Diagrams & Executive Briefing
+- Added `docs/diagrams/erd-pre-migration-database.architecture.json` & `.html`: Interactive standalone pre-migration database ERD diagram with 10 tables, complete foreign key relations, dark/light themes, and export utilities.
+- Added `docs/ai-extractor-executive-briefing.html`: Standalone single-page executive briefing report with official TechNext branding & vector assets, seamless bilingual VI/EN mode, interactive architecture pipeline, turn loop & anchor point state machine gates, Zod data contracts, and token cost economics (~18 VNĐ / booking). Redundant checkpoints and sidebar quote metrics stripped for high-level management presentation.
+- Saved official TechNext corporate mark to `docs/assets/technext-logo.png` and embedded directly as self-contained base64 asset.
+
+### Infrastructure (outside the repo)
+- Vercel project `tn-casa-quotation-estimator` (static site, noindex): published live to production at `https://tn-casa-quotation-estimator.vercel.app`.
+  - Architecture updated across all hub pages: confirmed decision to **keep `technext-edge` as an independent standalone repo/service**, communicating with `tn-casa-quotation-estimator` via standard HTTP REST API (`POST /api/estimates`) instead of merging into a monorepo workspace.
+  - Added direct route for the single-page executive briefing: `https://tn-casa-quotation-estimator.vercel.app/ai-extractor-executive-briefing`
+  - Added direct route for the pre-migration ERD database diagram: `https://tn-casa-quotation-estimator.vercel.app/erd-pre-migration-database`
+  - Hub homepage updated with prominent bilingual feature cards linking directly to both deliverables.
+- The older Artifact of the same meeting still describes the previous in-BFF design and has not been updated.
+
+---
+
 ## 2026-10-12
 
 ### Guest-data model question now points at Q-038

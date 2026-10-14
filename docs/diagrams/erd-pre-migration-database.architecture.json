@@ -1,0 +1,388 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {
+    "title": "Casa Escondida Anilao: Pre-Migration Database & KV Entity Architecture",
+    "output": "docs/diagrams/erd-pre-migration-database.html",
+    "quality_profile": "showcase",
+    "locale": "en",
+    "views": [
+      {
+        "id": "whatsapp-session",
+        "label": "WhatsApp Session",
+        "focus": [
+          "inbound_claim",
+          "phone_lock",
+          "thread_store",
+          "pause_store"
+        ],
+        "note": "Meta webhook claims, phone concurrency lease, and 24h thread context."
+      },
+      {
+        "id": "quotation-aggregate",
+        "label": "Quotation Aggregate",
+        "focus": [
+          "quote_slug",
+          "quotes_all",
+          "quote_doc",
+          "bff_trip",
+          "line_items",
+          "quote_submission"
+        ],
+        "note": "Monolithic HonoQuotationDraft JSON document and secondary lookup keys."
+      },
+      {
+        "id": "ai-governance",
+        "label": "AI Governance",
+        "focus": [
+          "settings_ai",
+          "stats_ai",
+          "bff_trip"
+        ],
+        "note": "Runtime model parameters, AES encrypted keys, and daily provider latency metrics."
+      }
+    ]
+  },
+  "components": [
+    {
+      "id": "inbound_claim",
+      "type": "security",
+      "label": "claim:{wa_message_id}",
+      "sublabel": "Meta deduplication (60s/24h)",
+      "tag": "String & Fence Token",
+      "pos": [
+        50,
+        60
+      ],
+      "size": [
+        200,
+        68
+      ]
+    },
+    {
+      "id": "phone_lock",
+      "type": "security",
+      "label": "phonelock:{phone}",
+      "sublabel": "Distributed turn mutex (30s)",
+      "tag": "SET NX PX Lease",
+      "pos": [
+        50,
+        170
+      ],
+      "size": [
+        200,
+        68
+      ]
+    },
+    {
+      "id": "thread_store",
+      "type": "database",
+      "label": "thread:{phone}",
+      "sublabel": "Turns, open fields & values",
+      "tag": "JSON doc (TTL 24h)",
+      "brand": "redis",
+      "pos": [
+        50,
+        280
+      ],
+      "size": [
+        200,
+        68
+      ]
+    },
+    {
+      "id": "pause_store",
+      "type": "database",
+      "label": "pause:{phone} & paused_phones",
+      "sublabel": "Handoff queue & pause reason",
+      "tag": "JSON doc & Redis SET",
+      "pos": [
+        50,
+        390
+      ],
+      "size": [
+        200,
+        68
+      ]
+    },
+    {
+      "id": "quote_slug",
+      "type": "database",
+      "label": "quote_slug:{slug}",
+      "sublabel": "URL slug to quoteId pointer",
+      "tag": "String Index Key",
+      "pos": [
+        320,
+        170
+      ],
+      "size": [
+        200,
+        68
+      ]
+    },
+    {
+      "id": "quote_doc",
+      "type": "database",
+      "label": "quote:{quoteId}",
+      "sublabel": "HonoQuotationDraft master doc",
+      "tag": "JSON doc (Persistent)",
+      "brand": "redis",
+      "pos": [
+        320,
+        280
+      ],
+      "size": [
+        200,
+        68
+      ]
+    },
+    {
+      "id": "quote_submission",
+      "type": "database",
+      "label": "QuotationSubmission",
+      "sublabel": "State, contact & Odoo folio",
+      "tag": "Nested Booking State",
+      "pos": [
+        320,
+        390
+      ],
+      "size": [
+        200,
+        68
+      ]
+    },
+    {
+      "id": "quotes_all",
+      "type": "database",
+      "label": "quotes:all",
+      "sublabel": "Active quotation ID registry",
+      "tag": "Redis SET Index",
+      "pos": [
+        590,
+        170
+      ],
+      "size": [
+        200,
+        68
+      ]
+    },
+    {
+      "id": "bff_trip",
+      "type": "backend",
+      "label": "BffTrip Contract",
+      "sublabel": "Rooms, guests & dive dates",
+      "tag": "Zod Contract Schema",
+      "pos": [
+        590,
+        280
+      ],
+      "size": [
+        200,
+        68
+      ]
+    },
+    {
+      "id": "line_items",
+      "type": "database",
+      "label": "QuotationLineItem[]",
+      "sublabel": "Local category pricing items",
+      "tag": "Nested Item Array",
+      "pos": [
+        590,
+        390
+      ],
+      "size": [
+        200,
+        68
+      ]
+    },
+    {
+      "id": "settings_ai",
+      "type": "backend",
+      "label": "settings:ai & audit",
+      "sublabel": "Models, AES keys & audit log",
+      "tag": "JSON doc & LPUSH List",
+      "brand": "redis",
+      "pos": [
+        860,
+        170
+      ],
+      "size": [
+        200,
+        68
+      ]
+    },
+    {
+      "id": "stats_ai",
+      "type": "database",
+      "label": "stats:ai:{date}:{provider}",
+      "sublabel": "Counters (ok, fail, latency ms)",
+      "tag": "Redis Ingestion Counters",
+      "pos": [
+        860,
+        280
+      ],
+      "size": [
+        200,
+        68
+      ]
+    }
+  ],
+  "boundaries": [
+    {
+      "kind": "region",
+      "label": "Ephemeral WhatsApp Session & Concurrency (TTL 24h)",
+      "wraps": [
+        "inbound_claim",
+        "phone_lock",
+        "thread_store",
+        "pause_store"
+      ]
+    },
+    {
+      "kind": "region",
+      "label": "Quotation Aggregate & Document Store (Persistent / No TTL)",
+      "wraps": [
+        "quote_slug",
+        "quote_doc",
+        "quote_submission",
+        "quotes_all",
+        "bff_trip",
+        "line_items"
+      ]
+    },
+    {
+      "kind": "region",
+      "label": "AI Configuration & Provider Telemetry (Admin Store)",
+      "wraps": [
+        "settings_ai",
+        "stats_ai"
+      ]
+    }
+  ],
+  "connections": [
+    {
+      "id": "claim-lock",
+      "from": "inbound_claim",
+      "to": "phone_lock",
+      "label": "verifies idempotency",
+      "fromSide": "bottom",
+      "toSide": "top",
+      "labelDy": 20
+    },
+    {
+      "id": "lock-thread",
+      "from": "phone_lock",
+      "to": "thread_store",
+      "label": "acquires lease",
+      "fromSide": "bottom",
+      "toSide": "top",
+      "labelDy": 20
+    },
+    {
+      "id": "thread-pause",
+      "from": "thread_store",
+      "to": "pause_store",
+      "label": "escalates stall",
+      "fromSide": "bottom",
+      "toSide": "top",
+      "labelDy": 20
+    },
+    {
+      "id": "thread-quote",
+      "from": "thread_store",
+      "to": "quote_doc",
+      "label": "extracts draft",
+      "fromSide": "right",
+      "toSide": "left",
+      "labelDy": -26
+    },
+    {
+      "id": "slug-quote",
+      "from": "quote_slug",
+      "to": "quote_doc",
+      "label": "resolves slug",
+      "fromSide": "bottom",
+      "toSide": "top",
+      "labelDy": 20
+    },
+    {
+      "id": "quote-all",
+      "from": "quote_doc",
+      "to": "quotes_all",
+      "label": "registers quoteId",
+      "fromSide": "top",
+      "toSide": "left"
+    },
+    {
+      "id": "quote-trip",
+      "from": "quote_doc",
+      "to": "bff_trip",
+      "label": "embeds bffTrip",
+      "fromSide": "right",
+      "toSide": "left",
+      "labelDy": -26
+    },
+    {
+      "id": "quote-sub",
+      "from": "quote_doc",
+      "to": "quote_submission",
+      "label": "embeds booking",
+      "fromSide": "bottom",
+      "toSide": "top",
+      "labelDy": 20
+    },
+    {
+      "id": "trip-items",
+      "from": "bff_trip",
+      "to": "line_items",
+      "label": "calculates items",
+      "fromSide": "bottom",
+      "toSide": "top",
+      "labelDy": 20
+    },
+    {
+      "id": "settings-stats",
+      "from": "settings_ai",
+      "to": "stats_ai",
+      "label": "telemetry counts",
+      "fromSide": "bottom",
+      "toSide": "top",
+      "labelDy": 20
+    },
+    {
+      "id": "trip-settings",
+      "from": "settings_ai",
+      "to": "bff_trip",
+      "label": "model params",
+      "fromSide": "left",
+      "toSide": "right"
+    }
+  ],
+  "cards": [
+    {
+      "dot": "cyan",
+      "title": "Key-Value & Document Model",
+      "items": [
+        "The pre-migration system stores state in Upstash Redis REST without relational schemas or foreign keys",
+        "A quotation is a single monolithic JSON document (HonoQuotationDraft) holding nested trips, lines and submissions"
+      ]
+    },
+    {
+      "dot": "amber",
+      "title": "Ephemeral WhatsApp Concurrency",
+      "items": [
+        "Meta webhooks are deduplicated via claim:{id} with fence tokens, expiring after 60 seconds or 24 hours",
+        "Per-phone turns are protected by a 30s distributed lease (phonelock) and paused threads queue in a Redis SET"
+      ]
+    },
+    {
+      "dot": "rose",
+      "title": "Migration Driver to Supabase PostgreSQL",
+      "items": [
+        "Redis lacks atomic multi-key transactions, queryable indexes for staff queues, and PII audit compliance",
+        "PostgreSQL migration normalizes the draft into scenario, revision, ai_enquiry and typed conversation tables"
+      ]
+    }
+  ]
+}
