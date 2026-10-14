@@ -9,7 +9,11 @@ How to write: add an entry as soon as a PR merges or something outside the repo 
 
 ## 2026-10-14
 
-### Architecture Diagrams & Executive Briefing
+### P0: Standalone AI Service & Mirror Retired (feat/p0-drop-mirror)
+- Removed `tools/ops/mirror-check.mjs` and dropped `mirror:check` script from `package.json`.
+- Added **[ADR-011](docs/adr/ADR-011-separate-ai-service.md)**: Formalized decision that `technext-edge` is an autonomous AI + WhatsApp service calling Estimator strictly over REST API and Webhooks. Outlined 5-pattern refactor plan.
+- Updated documentation and README to reflect first-class ownership of `ai/` and `contracts/` in this repository, replacing file mirroring with Zod contract tests.
+
 - Added `docs/diagrams/erd-pre-migration-database.architecture.json` & `.html`: Interactive standalone pre-migration database ERD diagram with 10 tables, complete foreign key relations, dark/light themes, and export utilities.
 - Added `docs/ai-extractor-executive-briefing.html`: Standalone single-page executive briefing report with official TechNext branding & vector assets, seamless bilingual VI/EN mode, interactive architecture pipeline, turn loop & anchor point state machine gates, Zod data contracts, and token cost economics (~18 VNĐ / booking). Redundant checkpoints and sidebar quote metrics stripped for high-level management presentation.
 - Saved official TechNext corporate mark to `docs/assets/technext-logo.png` and embedded directly as self-contained base64 asset.

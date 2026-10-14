@@ -10,12 +10,12 @@ Refactor `technext-edge` into an autonomous, dedicated AI Extractor + WhatsApp c
 6. Streamline `ai/` (Field Registry, modular questions rules, unified count lexicon)
 
 ## Milestones & Status
-- [/] P0: Bỏ mirror, ghi lại quyết định
+- [x] P0: Bỏ mirror, ghi lại quyết định
   - [x] Tạo nhánh `feat/p0-drop-mirror`
-  - [ ] Xóa `tools/ops/mirror-check.mjs` và bỏ script `mirror:check` khỏi `package.json`
-  - [ ] Soạn ADR mới: `docs/adr/ADR-011-separate-ai-service.md`
-  - [ ] Cập nhật memory & tài liệu kiến trúc liên quan
-  - [ ] Chạy `npm run verify` và ghi nhật ký vào `Nhat_CHANGELOG.md`
+  - [x] Xóa `tools/ops/mirror-check.mjs` và bỏ script `mirror:check` khỏi `package.json`
+  - [x] Soạn ADR mới: `docs/adr/ADR-011-separate-ai-service.md`
+  - [x] Cập nhật memory & tài liệu kiến trúc liên quan
+  - [x] Chạy `npm run verify` và ghi nhật ký vào `Nhat_CHANGELOG.md`
 - [ ] P1: Pattern 2 · Anti-Corruption Layer + Contract
   - [ ] Tạo nhánh `feat/p1-acl-contract`
   - [ ] Tạo `contracts/src/estimator-api.ts` với Zod schema (201/422/409, GET /estimates/:id, webhook payloads)
