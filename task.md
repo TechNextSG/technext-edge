@@ -16,13 +16,13 @@ Refactor `technext-edge` into an autonomous, dedicated AI Extractor + WhatsApp c
   - [x] Soạn ADR mới: `docs/adr/ADR-011-separate-ai-service.md`
   - [x] Cập nhật memory & tài liệu kiến trúc liên quan
   - [x] Chạy `npm run verify` và ghi nhật ký vào `Nhat_CHANGELOG.md`
-- [ ] P1: Pattern 2 · Anti-Corruption Layer + Contract
-  - [ ] Tạo nhánh `feat/p1-acl-contract`
-  - [ ] Tạo `contracts/src/estimator-api.ts` với Zod schema (201/422/409, GET /estimates/:id, webhook payloads)
-  - [ ] Cập nhật `bff/src/estimator/client.ts` parse an toàn bằng Zod
-  - [ ] Thêm fixtures mẫu vào `contracts/fixtures/estimator/` và viết contract test
-  - [ ] Thêm script `contract:check`
-  - [ ] Chạy `npm run verify` và ghi nhật ký
+- [x] P1: Pattern 2 · Anti-Corruption Layer + Contract
+  - [x] Tạo nhánh `feat/p1-acl-contract`
+  - [x] Tạo `contracts/src/estimator-api.ts` với Zod schema (201/422/409, GET /estimates/:id, webhook payloads)
+  - [x] Cập nhật `bff/src/estimator/client.ts` parse an toàn bằng Zod
+  - [x] Thêm fixtures mẫu vào `contracts/fixtures/estimator/` và viết contract test
+  - [x] Thêm script `contract:check`
+  - [x] Chạy `npm run verify` và ghi nhật ký
 - [ ] P2: Pattern 1 · Ports & Adapters
   - [ ] Tạo nhánh `feat/p2-ports-adapters`
   - [ ] Chuyển `QuotationStore` vào `createDeps`, bỏ singleton

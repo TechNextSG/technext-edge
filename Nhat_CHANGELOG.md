@@ -9,6 +9,14 @@ How to write: add an entry as soon as a PR merges or something outside the repo 
 
 ## 2026-10-14
 
+### P1: Pattern 2 · Anti-Corruption Layer & Contract Verification (feat/p1-acl-contract)
+- Added `contracts/src/estimator-api.ts`: Strict Zod validation schemas for Estimator API (201 Success, 422 Refusal, 409 Conflict, 200 Commit, 200 Share, 200 Extras, GET /estimates/:id, and signed staff approval/archive webhooks).
+- Exported all schemas and safe parse helpers from `contracts/src/index.ts`.
+- Created real response fixtures under `contracts/fixtures/estimator/` (`estimate-201.json`, `refusal-422.json`, `conflict-409.json`, `commit-200.json`, `share-200.json`, `extras-200.json`, `get-estimate-200.json`, `webhook-approved.json`, `webhook-archived.json`).
+- Updated `bff/src/estimator/client.ts`: Replaced unsafe `as Record<string, unknown>` type assertions with Zod schema parsing. Schema mismatches fail into structured `{ ok: false, reason: "unexpected" }` envelopes with sanitized logs via `maskSensitive` (masking guest emails, phone numbers, bearer tokens, cookies).
+- Implemented `getEstimate(id, session)` on client and `EstimatorPort` for webhook catch-up / reconciliation.
+- Added contract tests in `contracts/test/estimator-api.test.ts` and automated verification script `npm run contract:check` (`tools/ops/contract-check.mjs`).
+
 ### P0: Standalone AI Service & Mirror Retired (feat/p0-drop-mirror)
 - Removed `tools/ops/mirror-check.mjs` and dropped `mirror:check` script from `package.json`.
 - Added **[ADR-011](docs/adr/ADR-011-separate-ai-service.md)**: Formalized decision that `technext-edge` is an autonomous AI + WhatsApp service calling Estimator strictly over REST API and Webhooks. Outlined 5-pattern refactor plan.

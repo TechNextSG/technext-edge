@@ -406,4 +406,58 @@ describe("checkHealth", () => {
       if (saved !== undefined) process.env.ESTIMATOR_BASE_URL = saved;
     }
   });
+
+  describe("Anti-Corruption Layer (Pattern 2) schema validation", () => {
+    it("rejects 200 response lacking required model field with reason 'unexpected'", async () => {
+      const logged = vi.spyOn(console, "error").mockImplementation(() => {});
+      // Invalid response: status 200 but no `model` in body
+      const fetchImpl = vi.fn(async () => jsonResponse(200, {
+        role: "guest",
+        guestEmail: "ana.secret@example.com",
+        guestPhone: "+639171234567",
+      }));
+      const client = createEstimatorClient({ baseUrl: "http://bff.test", fetchImpl: fetchImpl as never });
+
+      const res = await client.sendEstimate(sampleTrip());
+      expect(res.ok).toBe(false);
+      if (res.ok) throw new Error("unreachable");
+      expect(res.reason).toBe("unexpected");
+      expect(res.detail).toContain("schema validation");
+
+      // Verify that logged output masks sensitive PII
+      expect(logged).toHaveBeenCalled();
+      const logMsg = String(logged.mock.calls[0]?.[1]);
+      expect(logMsg).toContain("***@example.com");
+      expect(logMsg).not.toContain("ana.secret@example.com");
+    });
+
+    it("rejects commit response with invalid schema", async () => {
+      const logged = vi.spyOn(console, "error").mockImplementation(() => {});
+      const fetchImpl = vi.fn(async () => jsonResponse(200, { seq: "not-a-number" }));
+      const client = createEstimatorClient({ baseUrl: "http://bff.test", fetchImpl: fetchImpl as never });
+
+      const res = await client.commit({ id: "scn_1", cookie: null }, sampleTrip());
+      expect(res.ok).toBe(false);
+      if (res.ok) throw new Error("unreachable");
+      expect(res.reason).toBe("unexpected");
+      expect(res.detail).toContain("schema validation");
+    });
+
+    it("fetches and parses estimate by ID via getEstimate", async () => {
+      const fetchImpl = vi.fn(async () => jsonResponse(200, {
+        id: "scn_123",
+        status: "draft",
+        extras: [],
+        revisions: [],
+      }));
+      const client = createEstimatorClient({ baseUrl: "http://bff.test", fetchImpl: fetchImpl as never });
+
+      const res = await client.getEstimate("scn_123");
+      expect(res.ok).toBe(true);
+      if (!res.ok) throw new Error("unreachable");
+      expect(res.estimate.id).toBe("scn_123");
+      expect(res.estimate.status).toBe("draft");
+    });
+  });
 });
+

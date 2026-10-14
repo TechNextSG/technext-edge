@@ -1,0 +1,36 @@
+{
+  "id": "scn_20261014_retail_couple",
+  "role": "guest",
+  "computedAt": "2026-10-14T10:00:00.000Z",
+  "sample": false,
+  "mode": "fixture",
+  "issues": [],
+  "model": {
+    "N": 2,
+    "stayDates": ["2026-11-20", "2026-11-21"],
+    "diveDates": ["2026-11-21"],
+    "quotes": [
+      {
+        "g": { "id": "g1", "name": "Ana", "diver": true },
+        "gross": 20600.0,
+        "total": 20600.0
+      },
+      {
+        "g": { "id": "g2", "name": "Ben", "diver": false },
+        "gross": 10600.0,
+        "total": 10600.0
+      }
+    ],
+    "catRev": {
+      "room": 15200.0,
+      "meals": 6000.0,
+      "dive": 10000.0
+    },
+    "kpis": {
+      "revenue": 31200.0,
+      "guests": 2,
+      "nights": 2
+    }
+  },
+  "retail_model": null
+}

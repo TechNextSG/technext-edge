@@ -1,0 +1,14 @@
+{
+  "ok": false,
+  "error": "The stay dates must be at least one night.",
+  "code": "INVALID_DATES",
+  "fields": ["checkIn", "checkOut"],
+  "issues": [
+    {
+      "code": "too_small",
+      "path": ["checkOut"],
+      "message": "checkOut must be after checkIn",
+      "params": { "minimum": 1 }
+    }
+  ]
+}

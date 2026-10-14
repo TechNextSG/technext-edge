@@ -1,0 +1,14 @@
+{
+  "id": "scn_20261014_retail_couple",
+  "status": "committed",
+  "computedAt": "2026-10-14T10:05:00.000Z",
+  "trip": {
+    "guestCount": 2,
+    "checkIn": "2026-11-20",
+    "checkOut": "2026-11-22"
+  },
+  "extras": [],
+  "revisions": [
+    { "seq": 1, "createdAt": "2026-10-14T10:05:00.000Z" }
+  ]
+}

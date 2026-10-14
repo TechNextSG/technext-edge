@@ -215,6 +215,11 @@ export interface EstimatorPort {
   commit(session: EstimatorSession, trip: BffTrip): Promise<CommitResult>;
   /** Mint the guest link for a committed revision. Their `POST /api/estimates/:id/share`. */
   share(session: EstimatorSession): Promise<ShareResult>;
+  /** Look up an estimate by id (GET /api/estimates/:id) when reconciling or catching up. */
+  getEstimate?(
+    id: string,
+    session?: EstimatorSession,
+  ): Promise<{ ok: true; estimate: import("../../../contracts/src/index.ts").GetEstimateResponse } | { ok: false; reason: EstimatorFailure; detail: string }>;
   /**
    * Can the guest actually OPEN the link we just minted?
    *
