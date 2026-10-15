@@ -9,6 +9,22 @@ How to write: add an entry as soon as a PR merges or something outside the repo 
 
 ## 2026-10-15
 
+### Provider Kernel Architecture & Repo Rules (feat/provider-kernel: T1–T5, T7–T8)
+- **Unified Transport Layer & SDK Removal (`ai/src/infra/providers/transports/`)**:
+  - Abstracted all provider HTTP communication (`anthropic`, `gemini`, `deepseek`) into lightweight `fetch`-based vendor transports with unified `TransportRequest` / `TransportResponse` contracts, eliminating heavyweight SDK dependencies.
+- **Single Source of Truth Provider Registry (`ai/src/infra/providers/providerRegistry.ts`)**:
+  - Consolidated provider kinds, vendor descriptors, model catalogs, and environment variable requirements into `PROVIDER_REGISTRY`.
+  - Adding a new vendor is now a single-entry configuration that automatically feeds BFF `/admin/ai`, environment resolution, and the resilient fallback chain.
+- **BFF Alignment & Registry Guard Test (`bff/src/routes/adminAi.ts`, `bff/test/providerRegistryGuard.test.ts`)**:
+  - Dynamically binds `/admin/ai` options to `PROVIDER_REGISTRY`.
+  - Guard tests enforce that any vendor kind in the registry is supported by admin settings, declared in `env.ts`, and vendor names do not leak outside `ai/src/infra/providers/`.
+- **Architectural Realignment (ADR-011 Superseded)**:
+  - Marked `ADR-011` as superseded per Anthony & Lead Duy's 15/10/2026 decision: AI runs colocated inside `tn-casa-quotation-estimator` via in-process function calls (`@casa/ai`), dropping multi-service network overhead and standalone DB requirements.
+- **Repo Rules & Boundaries Documented (`AGENTS.md`, `CLAUDE.md`)**:
+  - Rewrote `AGENTS.md` specifying the real dependency map `contracts ← ai ← bff`, 4 extension point recipes with guard tests, and strict boundary rules (D-129, no ambient `.env`, signed webhooks, masked PII). Created `CLAUDE.md`.
+- **Verification**:
+  - `npm run verify` passes 100% across all 3 workspaces: 69 test files, 915 tests passing, zero errors.
+
 ### Review Fixes (Post P0–P6 Audit)
 - **Webhook Fail-Closed Security (`bff/src/routes/estimatorWebhook.ts`)**:
   - Eliminated fail-open vulnerability where unset `ESTIMATOR_WEBHOOK_SECRET` bypassed signature verification. Missing secret now immediately rejects with HTTP 503 (`webhook_secret_not_configured`) without executing side-effects or dispatching WhatsApp messages.
