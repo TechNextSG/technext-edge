@@ -29,3 +29,4 @@ GET /v1/channels/whatsapp/threads
 POST /v1/channels/whatsapp/threads/:phone/resume
 POST /v1/channels/whatsapp/threads/:phone/reset
 GET /v1/channels/whatsapp/status
+POST /v1/estimator/webhook

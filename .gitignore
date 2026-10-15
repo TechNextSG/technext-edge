@@ -50,3 +50,4 @@ cookies.txt
 tools/judge/results/
 
 .vitest/
+.vscode/

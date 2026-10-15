@@ -167,6 +167,34 @@ beforeEach(() => {
   vi.setSystemTime(new Date("2026-09-15T00:00:00Z"));
   vi.stubEnv("WHATSAPP_VERIFY_TOKEN", VERIFY_TOKEN);
   vi.stubEnv("WHATSAPP_APP_SECRET", APP_SECRET);
+  vi.stubGlobal(
+    "fetch",
+    vi.fn().mockImplementation(async (url: string | URL) => {
+      const urlStr = String(url);
+      if (urlStr.includes("/api/estimates")) {
+        if (urlStr.includes("/commit")) {
+          return new Response(JSON.stringify({ seq: 1, computedAt: new Date().toISOString() }), {
+            status: 200,
+            headers: { "content-type": "application/json" },
+          });
+        }
+        return new Response(
+          JSON.stringify({
+            id: "remote-draft-123",
+            role: "guest",
+            model: {},
+            computedAt: new Date().toISOString(),
+            sample: false,
+          }),
+          {
+            status: 201,
+            headers: { "content-type": "application/json", "set-cookie": "ubg_sid=remote-draft-123; Path=/" },
+          },
+        );
+      }
+      return new Response("{}", { status: 200, headers: { "content-type": "application/json" } });
+    }),
+  );
 });
 
 afterEach(() => {

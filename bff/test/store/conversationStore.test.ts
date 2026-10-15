@@ -268,4 +268,37 @@ describe("createConversationStoreFromEnv", () => {
     await store.append("111", { role: "guest", text: "hi" });
     expect(await store.history("111")).toEqual([{ role: "guest", text: "hi" }]);
   });
+
+  it("manages conversation lifecycle states via getState and transitionState (Pattern 5)", async () => {
+    const store = createInMemoryConversationStore();
+    const phone = "639171239999";
+
+    // Defaults to collecting
+    expect(await store.getState(phone)).toBe("collecting");
+
+    // Transition to drafted
+    const toDrafted = await store.transitionState(phone, {
+      type: "DRAFT_CREATED",
+      estimateId: "est-1",
+    });
+    expect(toDrafted.ok).toBe(true);
+    expect(await store.getState(phone)).toBe("drafted");
+
+    // Transition to link_sent
+    const toLinkSent = await store.transitionState(phone, {
+      type: "STAFF_APPROVED",
+      estimateUrl: "https://casa.test/quote/est-1",
+    });
+    expect(toLinkSent.ok).toBe(true);
+    expect(await store.getState(phone)).toBe("link_sent");
+
+    // Parking transitions state to handed_off
+    await store.pause(phone, "guest_complaint");
+    expect(await store.getState(phone)).toBe("handed_off");
+
+    // Resuming transitions back to collecting
+    await store.resume(phone);
+    expect(await store.getState(phone)).toBe("collecting");
+  });
 });
+

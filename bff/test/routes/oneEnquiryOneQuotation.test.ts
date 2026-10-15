@@ -240,7 +240,10 @@ describe("a restarted conversation is a new enquiry", () => {
     expect(second.confirmedAt).toBeUndefined();
     expect(second.aiConfirmedReply).toBeUndefined();
     expect(second.pricing ?? null).toBeNull();
-    expect(second.estimator ?? null).toBeNull();
+    expect(second.estimator?.sharedAt ?? null).toBeNull();
+    if (first.estimator?.id) {
+      expect(second.estimator?.id).not.toBe(first.estimator.id);
+    }
   });
 
   it("closes it for the staff reset route too, so clearing a thread is one action", async () => {

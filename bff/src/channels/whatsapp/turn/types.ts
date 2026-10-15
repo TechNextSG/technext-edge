@@ -2,6 +2,7 @@ import type { ExtractProvider, GuestLanguage, Trip, ConversationTurn } from "../
 import type { ConversationStore } from "../../../store/conversationStore.ts";
 import type { QuotationStore } from "../../../store/quotationStoreClient.ts";
 import type { EstimatorPort } from "../../../estimator/index.ts";
+import type { EstimatorOutbox } from "../../../estimator/outbox.ts";
 import type { InboundTextMessage, WhatsAppSendText, WhatsAppConfig } from "../meta.ts";
 import type { HonoQuotationDraft, QuotationConverseOutcome } from "../../../quote/index.ts";
 
@@ -11,6 +12,7 @@ export interface WhatsAppTurnDeps {
   provider: ExtractProvider;
   sendWhatsApp: WhatsAppSendText;
   estimator: EstimatorPort;
+  outbox?: EstimatorOutbox;
   config: WhatsAppConfig;
 }
 

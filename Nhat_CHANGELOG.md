@@ -9,6 +9,27 @@ How to write: add an entry as soon as a PR merges or something outside the repo 
 
 ## 2026-10-15
 
+### P5: Pattern 5 · State Machine & Outbox (feat/p5-state-machine-outbox)
+- **Explicit Conversation State Machine (`bff/src/store/conversationState.ts`)**:
+  - Implemented formal 4-state lifecycle: `collecting | drafted | link_sent | handed_off`.
+  - State transitions are strictly gated via pure transition function `transitionConversationState(current, event)`:
+    - `collecting` ──(`DRAFT_CREATED`)──> `drafted`
+    - `drafted` ──(`STAFF_APPROVED`)──> `link_sent`
+    - `collecting | drafted | link_sent` ──(`HANDOFF_REQUESTED | STAFF_ARCHIVED | TURN_ERROR | RESET`)──> `handed_off` / `collecting`
+  - Integrated `getState(phone)` and `transitionState(phone, event)` into `ConversationStore` (both in-memory and Redis implementations).
+- **Estimator Outbox with Deterministic Idempotency & Retry (`bff/src/estimator/outbox.ts`)**:
+  - Implemented `createEstimatorOutbox`: executes upstream Estimator draft creation with message-id idempotency key.
+  - Automatically deduplicates concurrent/duplicate deliveries, retrying transient network errors while immediately halting on business refusals (422 / 409).
+- **Secure Webhook Receiver for Estimator (`bff/src/routes/estimatorWebhook.ts`)**:
+  - Mounted at `POST /v1/estimator/webhook` with HMAC-SHA256 signature verification (`x-signature-256`) and timestamp freshness check (<= 5 minutes).
+  - Handles `approved`: validates payload with Zod schema (`EstimatorWebhookPayloadSchema`), marks quotation as `confirmed_by_hono`, transitions state to `link_sent`, and sends WhatsApp confirmation link to guest.
+  - Handles `archived`: cancels quotation, transitions conversation to `handed_off`.
+  - Idempotent execution: ignores already-processed events.
+- **Verification**:
+  - Added unit test suites [conversationState.test.ts](file:///e:/technext-edge/bff/test/domain/conversationState.test.ts), [outbox.test.ts](file:///e:/technext-edge/bff/test/estimator/outbox.test.ts), and [estimatorWebhook.test.ts](file:///e:/technext-edge/bff/test/routes/estimatorWebhook.test.ts).
+  - Added comprehensive end-to-end integration test [pattern5Flow.test.ts](file:///e:/technext-edge/bff/test/channels/whatsapp/pattern5Flow.test.ts) covering the full lifecycle from WhatsApp enquiry -> draft created -> staff approval webhook -> link dispatched -> subsequent clarification.
+  - 100% verified across all suites: 61 test files, 825 tests passed.
+
 ### P4: Pattern 3 · Strategy & Registry + Decorator (feat/p4-provider-registry)
 - **Declarative Provider Registry (`PROVIDERS` in `ai/src/infra/providers/providerFromEnv.ts`)**:
   - Replaced rigid hard-coded switch statements with an extensible, tabular registry mapping provider keys (`anthropic`, `gemini`, `deepseek`) to their creator factory, environment key requirements, supported model catalogs, and user-facing labels.

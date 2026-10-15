@@ -12,6 +12,7 @@ import { docsRoutes } from "./routes/docs.ts";
 import { extractorRoutes } from "./routes/extractor.ts";
 import { handoffRoutes } from "./routes/handoff.ts";
 import { whatsAppRoutes } from "./routes/whatsapp.ts";
+import { estimatorWebhookRoutes } from "./routes/estimatorWebhook.ts";
 
 export { guestPendingQuotationNote };
 export type { AppOptions };
@@ -32,7 +33,8 @@ export function createApp(options: AppOptions = {}) {
     );
   });
 
-  const d = createDeps(options.env ?? loadEnv(), options);
+  const env = options.env ?? loadEnv();
+  const d = createDeps(env, options);
   const { staffSession, staffWriter, adminGuard, handoffAuthorized } = d.guards;
 
   app.use(
@@ -69,6 +71,15 @@ export function createApp(options: AppOptions = {}) {
       sendWhatsApp: d.sendWhatsApp,
       estimator: d.estimator,
       handoffAuthorized,
+    }),
+  );
+  app.route(
+    "/",
+    estimatorWebhookRoutes({
+      store: d.store,
+      quotationStore: d.quotationStore,
+      sendWhatsApp: d.sendWhatsApp,
+      webhookSecret: env.ESTIMATOR_WEBHOOK_SECRET,
     }),
   );
 

@@ -10,6 +10,7 @@ import {
   pricedFactsChanged,
   type HonoQuotationDraft,
 } from "../../../../quote/index.ts";
+import { createEstimatorOutbox } from "../../../../estimator/outbox.ts";
 import type { TurnContext, StepResult } from "../types.ts";
 
 export function absoluteUrl(url: string, baseUrl: string | undefined): string | null {
@@ -106,13 +107,13 @@ export async function stepDoneCheck(ctx: TurnContext): Promise<StepResult> {
           staffAlerts: keepCorrectedTrip
             ? keptPricedDifference
               ? [
-                  ...outcome.quotationDraft.staffAlerts,
+                  ...(carried.staffAlerts.length > 0 ? carried.staffAlerts : outcome.quotationDraft.staffAlerts),
                   `The guest's latest message would change priced facts you corrected (${changedPaths.join(", ")}). The corrected trip and its price were kept — edit the trip if the guest is right.`,
                 ]
-              : outcome.quotationDraft.staffAlerts
+              : (carried.staffAlerts.length > 0 ? carried.staffAlerts : outcome.quotationDraft.staffAlerts)
             : pricedFactsMoved
               ? [
-                  ...outcome.quotationDraft.staffAlerts,
+                  ...(carried.staffAlerts.length > 0 ? carried.staffAlerts : outcome.quotationDraft.staffAlerts),
                   "The guest changed the trip after it was priced, so the price and the approval were dropped — review it again.",
                 ]
               : outcome.quotationDraft.staffAlerts,
@@ -137,6 +138,39 @@ export async function stepDoneCheck(ctx: TurnContext): Promise<StepResult> {
     );
     const valueChanges = await ctx.deps.store.noteStatedValues(ctx.phone, ctx.statedMoneyValues);
     const changeNotice = changedValueNotice(valueChanges, ctx.language);
+
+    const shouldCreateEstimate = !carried || pricedFactsMoved;
+
+    if (shouldCreateEstimate && ctx.deps.estimator && draft.bffTrip && draft.bffTrip.checkIn && draft.bffTrip.checkOut) {
+      try {
+        const trip = draft.bffTrip;
+        const idempotencyKey = ctx.batch[0]?.message.id ?? `turn-${ctx.phone}-${Date.now()}`;
+        const outbox = ctx.deps.outbox ?? createEstimatorOutbox({ estimator: ctx.deps.estimator });
+        const draftRes = await outbox.executeDraft(idempotencyKey, trip);
+        if (draftRes.ok) {
+          draft.estimator = {
+            id: draftRes.id,
+            cookie: draftRes.session?.cookie ?? null,
+            seq: draftRes.seq ?? null,
+            guestUrl: null,
+            sharedAt: null,
+          };
+        } else if (draftRes.status === 422) {
+          const refusalMsg = draftRes.detail ?? "We could not calculate an estimate for these dates or guest count. Please check and let us know.";
+          return {
+            type: "stop",
+            outcome: {
+              kind: "reply",
+              replyText: `${outcome.reply}\n\n${refusalMsg}`,
+            },
+          };
+        }
+      } catch (err) {
+        // eslint-disable-next-line no-console
+        console.warn("[turn] estimator createDraft error:", err);
+      }
+    }
+
     const replyText = `${outcome.reply}${changeNotice ? `\n\n${changeNotice}` : ""}${guestPendingQuotationNote()}`;
 
     return {

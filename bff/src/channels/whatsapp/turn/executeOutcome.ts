@@ -44,6 +44,7 @@ export async function executeOutcome(
 
   switch (outcome.kind) {
     case "reset": {
+      await store.transitionState(phone, { type: "RESET" });
       await closeEnquiryQuotation(phone, deps.quotationStore);
       await store.clear(phone);
       await callbacks.sendText(outcome.replyText);
@@ -56,6 +57,7 @@ export async function executeOutcome(
       break;
     }
     case "handoff": {
+      await store.transitionState(phone, { type: "HANDOFF", reason: outcome.reason });
       await store.pause(phone, outcome.reason, {
         missingFields: outcome.missingFields,
         context: outcome.context,
@@ -71,6 +73,11 @@ export async function executeOutcome(
     case "reply": {
       if (outcome.quotationDraft) {
         await saveQuotationDraft(outcome.quotationDraft, deps.quotationStore);
+        await store.transitionState(phone, {
+          type: "DRAFT_CREATED",
+          quoteId: outcome.quotationDraft.quoteId,
+          estimateId: outcome.quotationDraft.estimator?.id ?? undefined,
+        });
       }
       await store.append(phone, { role: "assistant", text: outcome.replyText });
       await callbacks.sendText(outcome.replyText);
