@@ -373,6 +373,55 @@ describe("Transports (T3)", () => {
       expect(res.cacheRead).toBe(10);
     });
 
+    it("uses req.toolDescription when provided in structured request", async () => {
+      let capturedBody: any;
+      globalThis.fetch = vi.fn(async (_url: string | URL | Request, init?: RequestInit) => {
+        capturedBody = JSON.parse(String(init?.body));
+        return new Response(
+          JSON.stringify({
+            content: [{ type: "tool_use", name: "record_guests", input: { guests: 2 } }],
+            usage: { input_tokens: 10, output_tokens: 5 },
+          }),
+          { status: 200, headers: { "content-type": "application/json" } },
+        );
+      }) as unknown as typeof fetch;
+
+      const transport = createAnthropicTransport({ apiKey: "key" });
+      await transport.structured({
+        system: "s",
+        user: "u",
+        toolName: "record_guests",
+        toolDescription: "Custom guest extraction description",
+        schema: {},
+      });
+
+      expect(capturedBody.tools[0].description).toBe("Custom guest extraction description");
+    });
+
+    it("falls back to toolName-specific defaults when toolDescription is omitted", async () => {
+      let capturedBody: any;
+      globalThis.fetch = vi.fn(async (_url: string | URL | Request, init?: RequestInit) => {
+        capturedBody = JSON.parse(String(init?.body));
+        return new Response(
+          JSON.stringify({
+            content: [{ type: "tool_use", name: "record_guests", input: { guests: 2 } }],
+            usage: { input_tokens: 10, output_tokens: 5 },
+          }),
+          { status: 200, headers: { "content-type": "application/json" } },
+        );
+      }) as unknown as typeof fetch;
+
+      const transport = createAnthropicTransport({ apiKey: "key" });
+      await transport.structured({
+        system: "s",
+        user: "u",
+        toolName: "record_guests",
+        schema: {},
+      });
+
+      expect(capturedBody.tools[0].description).toBe("Record the total guest count.");
+    });
+
     it("supports plain text completion", async () => {
       globalThis.fetch = vi.fn(async () => {
         return new Response(

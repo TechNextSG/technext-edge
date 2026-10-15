@@ -28,6 +28,13 @@ function toAnthropicSchema(node: unknown): unknown {
   return node;
 }
 
+function defaultToolDescription(name: string): string {
+  if (name === "record_guests") return "Record the total guest count.";
+  if (name === "record_checkin") return "Record the check-in date.";
+  if (name === "record_dive_window") return "Record diving start and end dates.";
+  return "Extract structured trip details from a dive resort inquiry.";
+}
+
 export function createAnthropicTransport(options: AnthropicTransportOptions): Transport {
   const apiKey = options.apiKey;
   const model = options.model ?? "claude-haiku-5-5";
@@ -39,6 +46,8 @@ export function createAnthropicTransport(options: AnthropicTransportOptions): Tr
       const timer = req.timeoutMs ? setTimeout(() => controller.abort(), req.timeoutMs) : undefined;
 
       try {
+        const description = req.toolDescription ?? defaultToolDescription(req.toolName);
+
         const payload = {
           model,
           max_tokens: 4096,
@@ -46,7 +55,7 @@ export function createAnthropicTransport(options: AnthropicTransportOptions): Tr
           tools: [
             {
               name: req.toolName,
-              description: "Extract structured trip details from a dive resort inquiry.",
+              description,
               input_schema: toAnthropicSchema(req.schema),
             },
           ],
