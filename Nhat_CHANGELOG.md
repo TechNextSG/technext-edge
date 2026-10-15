@@ -9,6 +9,33 @@ How to write: add an entry as soon as a PR merges or something outside the repo 
 
 ## 2026-10-15
 
+### Review Fixes (Post P0–P6 Audit)
+- **Webhook Fail-Closed Security (`bff/src/routes/estimatorWebhook.ts`)**:
+  - Eliminated fail-open vulnerability where unset `ESTIMATOR_WEBHOOK_SECRET` bypassed signature verification. Missing secret now immediately rejects with HTTP 503 (`webhook_secret_not_configured`) without executing side-effects or dispatching WhatsApp messages.
+- **Atomic KV Webhook Deduplication & Strict EstimateId Lookup**:
+  - Migrated `processedEvents` from in-process `Map` to atomic KV store with 24h TTL (`SET NX, EX 86400`).
+  - Event claim is executed **prior** to sending WhatsApp messages, preventing double-sends under concurrent webhook retries.
+  - Removed payload `guestPhone` matching fallback; quotations are resolved strictly by `estimateId` via indexed KV (`getByEstimateId` in `QuotationStore`).
+- **Singleton Outbox & Resilient Error Handling (`bff/src/deps.ts`, `stepDoneCheck.ts`)**:
+  - Outbox is now created once inside `createDeps` backed by KV `createRedisOutboxStore` / `createOutboxStoreFromEnv`, ensuring idempotency across serverless turns.
+  - Non-422 upstream Estimator errors (`unreachable`, `unexpected`) are no longer swallowed: draft status transitions to `"estimator_pending"` and is flagged in `draft.staffAlerts` for retry or staff review.
+- **Robust D-129 Production Compliance Gate (`ai/src/infra/providers/providerFromEnv.ts`)**:
+  - Validates all providers across the entire fallback chain (`primary` and `fallback`), barring non-Anthropic providers in production.
+  - Determines production using `VERCEL_ENV === "production"` and `GUEST_DATA_MODE === "production"`, preventing false alarms on Vercel preview builds where `NODE_ENV=production`.
+- **Anthropic Model Update**:
+  - Updated default model from legacy `claude-3-5-haiku-20241022` to `claude-haiku-5-5` across defaults, descriptor, and model catalog.
+- **Reinstated Security Regression Tests (`bff/test/auth/securityFixes.test.ts`)**:
+  - Re-implemented 7 security regression tests covering:
+    - HTML/XSS escaping for guest phone and context on the handoff page.
+    - Session enforcement for AI submit and converse routes.
+    - Open-redirect protection on `/login` (`next` parameter).
+    - Unpredictable UUID v4 quotation slugs.
+    - Zero PII leakage in 401 unauthorized envelopes.
+- **Repository Cleanups**:
+  - Removed redundant `bff/src/domain/conversationState.ts` in favor of direct store imports.
+  - Removed obsolete `system-runtime` and `structure-compare` documentation entries from `bff/src/routes/docs.ts`.
+  - Clarified in `ADR-011` that the approval webhook fixture is an assumed contract until `tn-casa` implements the emitter.
+
 ### P6: Modular AI Engine & Field Registry (feat/p6-ai-refactor)
 - **Centralized Field Registry (`ai/src/domain/fieldRegistry.ts`)**:
   - Established a single source of truth table (`FIELD_REGISTRY`) defining every trip property (schema type, bilingual labels in English and Chinese, default question prompts, handoff necessity, gating conditions, and fact-gate auditing rules).

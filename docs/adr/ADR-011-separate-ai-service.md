@@ -85,8 +85,10 @@ To resolve technical debt, eliminate tight coupling, and establish long-term mai
       └→ handed_off ←───┘ (human request, complaint, stall, error, archived)
   ```
 - **State Transition Guard**: Ensure state transitions only occur through a single transition function (`transitionTo(nextState, context)`).
-- **Transactional Outbox**: Outbound calls to Estimator use an outbox pattern with deterministic message-id idempotency keys and exponential backoff retry.
 - **Secure Webhook Verification**: Inbound staff approval webhooks verify HMAC-SHA256 signatures and timestamp freshness, guaranteeing idempotent, exactly-once processing.
+
+> [!NOTE]
+> **Giả định về Webhook Fixture:** Payload và fixture của webhook duyệt (`POST /v1/estimator/webhook`, `contracts/fixtures/estimator/webhook-approved.json`) hiện tại là **giả định thiết kế** (assumed contract) do phía `tn-casa` chưa cài đặt endpoint phát webhook này. Ngay khi `tn-casa` triển khai webhook thực tế, fixture và contract schema sẽ được cập nhật đồng bộ.
 
 ---
 

@@ -18,13 +18,11 @@ export const DOCUMENTS: readonly DocEntry[] = [
   { slug: "benchmark-latency", file: "reports/benchmark-latency-2026-10-01.html", group: "Reports", title: "Benchmark and latency", about: "Accuracy and speed of the AI channel on production, cold start, run-to-run spread, simultaneous guests." },
   { slug: "manual-test-checklist", file: "guides/manual-test-checklist.html", group: "Testing", title: "Hand-test checklist", about: "51 cases with copyable WhatsApp messages and result boxes." },
   { slug: "advanced-demo-scenarios", file: "guides/advanced-demo-scenarios.html", group: "Testing", title: "Advanced demo scenarios", about: "Six stress and edge-case scenarios for the live demo, with expected replies." },
-  { slug: "system-runtime", file: "diagrams/system-runtime.html", group: "Architecture", title: "Runtime architecture", about: "Guest, Meta, the Vercel function, Gemini, KV, the studio and the team estimator." },
   { slug: "whatsapp-turn", file: "diagrams/whatsapp-turn.html", group: "Architecture", title: "One WhatsApp turn", about: "From a signed webhook to a draft quotation and the reply, step by step." },
   { slug: "quotation-lifecycle", file: "diagrams/quotation-lifecycle.html", group: "Architecture", title: "Quotation lifecycle", about: "Enquiry, draft, priced, approved, link sent; re-price and archive." },
   { slug: "repo-structure", file: "diagrams/repo-structure.html", group: "Architecture", title: "Repo map", about: "Packages, folders and the boundaries between them." },
   { slug: "advisory-architecture", file: "diagrams/advisory-architecture.html", group: "Architecture", title: "Advisory architecture (proposed)", about: "ADR-008: a tool-using advisory branch next to the quotation flow. Dashed nodes are not in code yet." },
   { slug: "handoff-flow", file: "diagrams/handoff-flow.html", group: "Architecture", title: "Staff hand-off (proposed)", about: "ADR-010: how staff are told when the bot hands a guest over, and where they reply. Dashed nodes are not in code yet." },
-  { slug: "structure-compare", file: "notes/structure-compare.html", group: "Architecture", title: "This repo and the team repo", about: "What is mirrored, what moves to the team estimator, what never does." },
 ];
 
 /**

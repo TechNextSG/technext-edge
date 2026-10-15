@@ -146,4 +146,47 @@ describe("Pattern 5: Estimator Outbox", () => {
     expect(res.reason).toBe("unreachable");
     expect(callCount).toBe(3);
   });
+
+  it("stores and retrieves draft results using Redis/KV OutboxStore", async () => {
+    const kvStore = new Map<string, string>();
+    const mockKv = { url: "https://mock.kv", token: "secret" };
+
+    const originalFetch = globalThis.fetch;
+    globalThis.fetch = async (input: RequestInfo | URL, init?: RequestInit) => {
+      if (typeof input === "string" && input.includes("mock.kv")) {
+        const cmd = JSON.parse(init?.body as string);
+        if (cmd[0] === "GET") {
+          const val = kvStore.get(cmd[1]) ?? null;
+          return new Response(JSON.stringify({ result: val }));
+        }
+        if (cmd[0] === "SET") {
+          kvStore.set(cmd[1], cmd[2]);
+          return new Response(JSON.stringify({ result: "OK" }));
+        }
+      }
+      return originalFetch(input, init);
+    };
+
+    try {
+      const mockEstimator = createMockEstimator();
+      // createRedisOutboxStore imported from outbox.ts
+      const { createRedisOutboxStore } = await import("../../src/estimator/outbox.ts");
+      const store = createRedisOutboxStore(mockKv);
+      const outbox = createEstimatorOutbox({ estimator: mockEstimator, store });
+
+      const res1 = await outbox.executeDraft("msg-kv-1", mockTrip);
+      expect(res1.ok).toBe(true);
+      expect(mockEstimator.createDraftCalls).toBe(1);
+
+      // Verify stored in KV map
+      expect(kvStore.has("outbox:msg-kv-1")).toBe(true);
+
+      // Second call uses KV cached result
+      const res2 = await outbox.executeDraft("msg-kv-1", mockTrip);
+      expect(res2).toEqual(res1);
+      expect(mockEstimator.createDraftCalls).toBe(1);
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
+  });
 });

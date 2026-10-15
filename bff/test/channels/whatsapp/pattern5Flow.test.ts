@@ -42,6 +42,31 @@ function textEvent(id: string, text: string, from = GUEST): string {
   });
 }
 
+const PARTIAL_RAW = {
+  language: { value: null, state: "missing" as const, evidence: null },
+  checkIn: { value: null, state: "stated" as const, evidence: "next Saturday" },
+  checkOut: { value: null, state: "missing" as const, evidence: null },
+  nights: { value: 3, state: "stated" as const, evidence: "3 nights" },
+  guests: { value: null, state: "missing" as const, evidence: null },
+  rooms: { value: null, state: "missing" as const, evidence: null },
+  roomType: { value: null, state: "missing" as const, evidence: null },
+  meals: { value: null, state: "missing" as const, evidence: null },
+  transport: { value: null, state: "missing" as const, evidence: null },
+  contactName: { value: null, state: "missing" as const, evidence: null },
+  diver: { value: null, state: "missing" as const, evidence: null },
+  diveFrom: { value: null, state: "missing" as const, evidence: null },
+  diveTo: { value: null, state: "missing" as const, evidence: null },
+  transportType: { value: null, state: "missing" as const, evidence: null },
+};
+
+const COMPLETE_RAW = {
+  ...PARTIAL_RAW,
+  guests: { value: 4, state: "stated" as const, evidence: "4 of us" },
+  roomType: { value: "suite", state: "stated" as const, evidence: "the suite" },
+  contactName: { value: "Ana", state: "stated" as const, evidence: "Ana" },
+  diver: { value: false, state: "stated" as const, evidence: "no diving" },
+};
+
 describe("Pattern 5 End-to-End: State Machine, Outbox & Signed Approval Webhook", () => {
   beforeEach(() => {
     vi.stubEnv("WHATSAPP_VERIFY_TOKEN", VERIFY_TOKEN);
@@ -83,31 +108,6 @@ describe("Pattern 5 End-to-End: State Machine, Outbox & Signed Approval Webhook"
     const sentWhatsApp: { to: string; body: string }[] = [];
     const sendWhatsApp = async ({ to, body }: { to: string; body: string }) => {
       sentWhatsApp.push({ to, body });
-    };
-
-    const PARTIAL_RAW = {
-      language: { value: null, state: "missing", evidence: null },
-      checkIn: { value: null, state: "stated", evidence: "next Saturday" },
-      checkOut: { value: null, state: "missing", evidence: null },
-      nights: { value: 3, state: "stated", evidence: "3 nights" },
-      guests: { value: null, state: "missing", evidence: null },
-      rooms: { value: null, state: "missing", evidence: null },
-      roomType: { value: null, state: "missing", evidence: null },
-      meals: { value: null, state: "missing", evidence: null },
-      transport: { value: null, state: "missing", evidence: null },
-      contactName: { value: null, state: "missing", evidence: null },
-      diver: { value: null, state: "missing", evidence: null },
-      diveFrom: { value: null, state: "missing", evidence: null },
-      diveTo: { value: null, state: "missing", evidence: null },
-      transportType: { value: null, state: "missing", evidence: null },
-    };
-
-    const COMPLETE_RAW = {
-      ...PARTIAL_RAW,
-      guests: { value: 4, state: "stated", evidence: "4 of us" },
-      roomType: { value: "suite", state: "stated", evidence: "the suite" },
-      contactName: { value: "Ana", state: "stated", evidence: "Ana" },
-      diver: { value: false, state: "stated", evidence: "no diving" },
     };
 
     const sequence = [PARTIAL_RAW, COMPLETE_RAW, COMPLETE_RAW];
@@ -212,5 +212,74 @@ describe("Pattern 5 End-to-End: State Machine, Outbox & Signed Approval Webhook"
     });
 
     expect(await store.getState(GUEST)).toBe("handed_off");
+  });
+
+  it("marks draft as estimator_pending and adds staff alert when Estimator returns non-422 error", async () => {
+    const store = createInMemoryConversationStore();
+    const quotationStore = createInMemoryQuotationStore();
+
+    const failingEstimator: EstimatorPort = {
+      async createDraft() {
+        return {
+          ok: false,
+          reason: "unreachable",
+          detail: "Upstream timeout connecting to tn-casa",
+        };
+      },
+      async calculatePrice() {
+        return { ok: false, reason: "unimplemented" as const };
+      },
+      async validate() {
+        return { ok: true, valid: true };
+      },
+      async submit() {
+        return { ok: false, reason: "unimplemented" as const };
+      },
+    };
+
+    const sequence = [PARTIAL_RAW, COMPLETE_RAW, COMPLETE_RAW];
+    let seqIdx = 0;
+    const readyProvider: ExtractProvider = {
+      id: "fake:ready",
+      call: vi.fn().mockImplementation(async () => {
+        const raw = sequence[Math.min(seqIdx, sequence.length - 1)];
+        seqIdx++;
+        return { raw, tokensIn: 10, tokensOut: 10, cacheReadTokens: 0, ms: 5 };
+      }),
+    };
+
+    const app = createApp({
+      env: {
+        WHATSAPP_VERIFY_TOKEN: VERIFY_TOKEN,
+        WHATSAPP_APP_SECRET: APP_SECRET,
+        ESTIMATOR_WEBHOOK_SECRET: WEBHOOK_SECRET,
+        ENABLE_HONO_QUOTATION_TOOL: "true",
+      },
+      store,
+      quotationStore,
+      estimator: failingEstimator,
+      provider: readyProvider,
+      sendWhatsApp: async () => {},
+    });
+
+    const event1 = textEvent("m-err-1", "Hi, next Saturday for 3 nights");
+    await app.request("/v1/channels/whatsapp/webhook", {
+      method: "POST",
+      headers: { "x-hub-signature-256": signMeta(event1), "content-type": "application/json" },
+      body: event1,
+    });
+
+    const event2 = textEvent("m-err-2", "4 of us, the suite, no diving, my name is Ana");
+    await app.request("/v1/channels/whatsapp/webhook", {
+      method: "POST",
+      headers: { "x-hub-signature-256": signMeta(event2), "content-type": "application/json" },
+      body: event2,
+    });
+
+    const drafts = await quotationStore.list();
+    expect(drafts).toHaveLength(1);
+    const draft = drafts[0];
+    expect(draft.status).toBe("estimator_pending");
+    expect(draft.staffAlerts.some((alert) => alert.includes("Upstream timeout"))).toBe(true);
   });
 });

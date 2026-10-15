@@ -5,12 +5,19 @@ import type { ConversationStore } from "../store/conversationStore.ts";
 import type { QuotationStore } from "../store/quotationStoreClient.ts";
 import type { WhatsAppSendText } from "../channels/whatsapp/meta.ts";
 import type { HonoQuotationDraft } from "../quote/index.ts";
+import { kvCommand, type KvConfig } from "../store/kv.ts";
+
+export interface DedupeStore {
+  claim(key: string, ttlSeconds?: number): Promise<boolean>;
+}
 
 export interface EstimatorWebhookDeps {
   store: ConversationStore;
   quotationStore?: QuotationStore;
   sendWhatsApp?: WhatsAppSendText;
   webhookSecret?: string;
+  kv?: KvConfig | null;
+  dedupeStore?: DedupeStore;
 }
 
 export function verifyEstimatorSignature(
@@ -35,39 +42,59 @@ export function verifyEstimatorSignature(
 }
 
 const MAX_TIMESTAMP_DRIFT_MS = 5 * 60 * 1000; // 5 minutes
+const EVENT_DEDUPE_TTL_SECONDS = 24 * 60 * 60; // 24 hours
 
 export function estimatorWebhookRoutes(deps: EstimatorWebhookDeps): Hono {
   const app = new Hono();
-  const { store, quotationStore, sendWhatsApp, webhookSecret } = deps;
+  const { store, quotationStore, sendWhatsApp, webhookSecret, kv, dedupeStore } = deps;
 
-  // Cache of processed event fingerprints for exactly-once idempotency
-  const processedEvents = new Map<string, number>();
+  // In-memory fallback for local dev / tests when KV is not configured
+  const memProcessedEvents = new Map<string, number>();
 
-  function isProcessed(fingerprint: string): boolean {
-    const now = Date.now();
-    for (const [key, exp] of processedEvents) {
-      if (exp <= now) processedEvents.delete(key);
+  async function claimEvent(fingerprint: string): Promise<boolean> {
+    if (dedupeStore) {
+      return await dedupeStore.claim(fingerprint, EVENT_DEDUPE_TTL_SECONDS);
     }
-    return processedEvents.has(fingerprint);
-  }
-
-  function markProcessed(fingerprint: string): void {
-    processedEvents.set(fingerprint, Date.now() + 24 * 60 * 60 * 1000);
+    if (kv) {
+      try {
+        const res = await kvCommand<string | null>(kv, [
+          "SET",
+          `webhook:event:${fingerprint}`,
+          "1",
+          "EX",
+          EVENT_DEDUPE_TTL_SECONDS,
+          "NX",
+        ]);
+        return res === "OK";
+      } catch {
+        // Fall back to memory if KV call fails
+      }
+    }
+    const now = Date.now();
+    for (const [key, exp] of memProcessedEvents) {
+      if (exp <= now) memProcessedEvents.delete(key);
+    }
+    if (memProcessedEvents.has(fingerprint)) {
+      return false;
+    }
+    memProcessedEvents.set(fingerprint, now + EVENT_DEDUPE_TTL_SECONDS * 1000);
+    return true;
   }
 
   app.post("/v1/estimator/webhook", async (c) => {
     const secret = webhookSecret;
+    if (!secret) {
+      return c.json({ ok: false, error: "webhook_secret_not_configured" }, 503);
+    }
+
     const raw = await c.req.text();
+    const sigHeader =
+      c.req.header("x-estimator-signature") ??
+      c.req.header("x-hub-signature-256") ??
+      c.req.header("x-signature");
 
-    if (secret) {
-      const sigHeader =
-        c.req.header("x-estimator-signature") ??
-        c.req.header("x-hub-signature-256") ??
-        c.req.header("x-signature");
-
-      if (!verifyEstimatorSignature(raw, sigHeader, secret)) {
-        return c.json({ ok: false, error: "invalid_signature" }, 401);
-      }
+    if (!verifyEstimatorSignature(raw, sigHeader, secret)) {
+      return c.json({ ok: false, error: "invalid_signature" }, 401);
     }
 
     let parsedJson: unknown;
@@ -90,22 +117,23 @@ export function estimatorWebhookRoutes(deps: EstimatorWebhookDeps): Hono {
       return c.json({ ok: false, error: "stale_timestamp" }, 400);
     }
 
-    // Idempotent exactly-once check
+    // Idempotent exactly-once claim via KV (SET NX, TTL 24h) BEFORE side effects
     const fingerprint = `${payload.event}:${payload.estimateId}:${payload.timestamp}`;
-    if (isProcessed(fingerprint)) {
+    const claimed = await claimEvent(fingerprint);
+    if (!claimed) {
       return c.json({ ok: true, duplicate: true });
     }
 
-    // Lookup corresponding quotation draft
+    // Lookup corresponding quotation draft strictly by estimateId
     let quotation: HonoQuotationDraft | undefined;
     if (quotationStore) {
-      const all = await quotationStore.list();
-      quotation = all.find(
-        (q) => q.estimator?.id === payload.estimateId || (payload.guestPhone && q.phone === payload.guestPhone && q.status !== "cancelled"),
-      );
+      quotation = await quotationStore.getByEstimateId(payload.estimateId);
+      if (!quotation) {
+        return c.json({ ok: false, error: "quotation_not_found" }, 404);
+      }
     }
 
-    const phone = payload.guestPhone ?? quotation?.phone;
+    const phone = quotation?.phone;
 
     if (payload.event === "approved") {
       if (quotation && quotationStore) {
@@ -135,7 +163,6 @@ export function estimatorWebhookRoutes(deps: EstimatorWebhookDeps): Hono {
         }
       }
 
-      markProcessed(fingerprint);
       return c.json({ ok: true, event: "approved", processed: true, quoteId: quotation?.quoteId });
     }
 
@@ -152,7 +179,6 @@ export function estimatorWebhookRoutes(deps: EstimatorWebhookDeps): Hono {
         });
       }
 
-      markProcessed(fingerprint);
       return c.json({ ok: true, event: "archived", processed: true });
     }
 

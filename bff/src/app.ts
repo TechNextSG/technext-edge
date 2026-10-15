@@ -13,6 +13,7 @@ import { extractorRoutes } from "./routes/extractor.ts";
 import { handoffRoutes } from "./routes/handoff.ts";
 import { whatsAppRoutes } from "./routes/whatsapp.ts";
 import { estimatorWebhookRoutes } from "./routes/estimatorWebhook.ts";
+import { kvConfigFromEnv } from "./store/kv.ts";
 
 export { guestPendingQuotationNote };
 export type { AppOptions };
@@ -70,6 +71,7 @@ export function createApp(options: AppOptions = {}) {
       providerFor: d.providerFor,
       sendWhatsApp: d.sendWhatsApp,
       estimator: d.estimator,
+      outbox: d.outbox,
       handoffAuthorized,
     }),
   );
@@ -80,6 +82,7 @@ export function createApp(options: AppOptions = {}) {
       quotationStore: d.quotationStore,
       sendWhatsApp: d.sendWhatsApp,
       webhookSecret: env.ESTIMATOR_WEBHOOK_SECRET,
+      kv: kvConfigFromEnv(env),
     }),
   );
 

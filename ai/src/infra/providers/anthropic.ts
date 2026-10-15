@@ -9,7 +9,7 @@ import type {
 import { MalformedArgumentsError } from "../../ports/provider.ts";
 import { EXTRACT_SYSTEM_PROMPT } from "./extractPrompt.ts";
 
-export const DEFAULT_ANTHROPIC_MODEL = "claude-3-5-haiku-20241022";
+export const DEFAULT_ANTHROPIC_MODEL = "claude-haiku-5-5";
 const DEFAULT_TIMEOUT_MS = 10_000;
 const ANTHROPIC_VERSION = "2023-06-01";
 const TOOL_NAME = "extract_trip";

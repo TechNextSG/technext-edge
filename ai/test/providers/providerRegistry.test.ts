@@ -36,7 +36,7 @@ describe("PROVIDERS registry & Pattern 3 Strategy", () => {
 
   it("creates Anthropic provider by name", () => {
     const p1 = createProviderByName("anthropic", "test-key", {});
-    expect(p1.id).toBe("anthropic:claude-3-5-haiku-20241022");
+    expect(p1.id).toBe("anthropic:claude-haiku-5-5");
 
     const p2 = createProviderByName("claude-3-5-haiku-latest", "test-key", {});
     expect(p2.id).toBe("anthropic:claude-3-5-haiku-latest");
@@ -64,17 +64,51 @@ describe("PROVIDERS registry & Pattern 3 Strategy", () => {
       ).toThrow("Production policy gate (D-129) violation: only Anthropic Claude is permitted in production");
     });
 
+    it("rejects non-Anthropic fallback provider in production even if primary is Anthropic", () => {
+      const mixedSettings: ProviderSettings = {
+        ...baseSettings,
+        primary: { provider: "anthropic", model: "claude-haiku-5-5" },
+        fallback: { provider: "gemini", model: "gemini-3.1-flash-lite" },
+      };
+
+      expect(() =>
+        createProviderFromSettings(mixedSettings, {
+          VERCEL_ENV: "production",
+          ANTHROPIC_API_KEY: "ant-key",
+          GEMINI_API_KEY: "gem-key",
+        }),
+      ).toThrow("Production policy gate (D-129) violation: only Anthropic Claude is permitted in production (configured fallback is \"gemini\")");
+    });
+
+    it("allows non-Anthropic when VERCEL_ENV is preview even if NODE_ENV is production", () => {
+      const provider = createProviderFromSettings(baseSettings, {
+        NODE_ENV: "production",
+        VERCEL_ENV: "preview",
+        GEMINI_API_KEY: "gemini-key",
+      });
+      expect(provider.id).toBe("google:gemini-3.1-flash-lite");
+    });
+
+    it("enforces D-129 policy when GUEST_DATA_MODE is production", () => {
+      expect(() =>
+        createProviderFromSettings(baseSettings, {
+          GUEST_DATA_MODE: "production",
+          GEMINI_API_KEY: "gemini-key",
+        }),
+      ).toThrow("Production policy gate (D-129) violation: only Anthropic Claude is permitted in production");
+    });
+
     it("allows Anthropic primary provider when NODE_ENV is production", () => {
       const anthropicSettings: ProviderSettings = {
         ...baseSettings,
-        primary: { provider: "anthropic", model: "claude-3-5-haiku-20241022" },
+        primary: { provider: "anthropic", model: "claude-haiku-5-5" },
       };
 
       const provider = createProviderFromSettings(anthropicSettings, {
         NODE_ENV: "production",
         ANTHROPIC_API_KEY: "anthropic-key",
       });
-      expect(provider.id).toBe("anthropic:claude-3-5-haiku-20241022");
+      expect(provider.id).toBe("anthropic:claude-haiku-5-5");
     });
 
     it("allows non-Anthropic in production only if ALLOW_NON_ANTHROPIC_IN_PRODUCTION is explicitly set", () => {
@@ -96,5 +130,12 @@ describe("PROVIDERS registry & Pattern 3 Strategy", () => {
 
     expect(settings.primary.provider).toBe("anthropic");
     expect(settings.fallback?.provider).toBe("gemini");
+  });
+
+  it("uses claude-haiku-5-5 as default Anthropic model", () => {
+    expect(PROVIDERS.anthropic.defaultModel).toBe("claude-haiku-5-5");
+    expect(PROVIDERS.anthropic.models).toContain("claude-haiku-5-5");
+    const provider = createProviderByName("claude-haiku-5-5", "test-key", {});
+    expect(provider.id).toBe("anthropic:claude-haiku-5-5");
   });
 });

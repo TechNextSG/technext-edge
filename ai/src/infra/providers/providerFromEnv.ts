@@ -37,6 +37,7 @@ export const PROVIDERS: Record<ProviderKind, ProviderDescriptor> = {
     label: "Anthropic Claude",
     defaultModel: DEFAULT_ANTHROPIC_MODEL,
     models: [
+      "claude-haiku-5-5",
       "claude-3-5-haiku-20241022",
       "claude-3-5-haiku-latest",
       "claude-3-5-sonnet-20241022",
@@ -114,6 +115,7 @@ export const KNOWN_PROVIDER_NAMES = [
   "deepseek-flash",
   "deepseek-pro",
   "anthropic",
+  "claude-haiku-5-5",
   "claude-3-5-haiku-20241022",
   "claude-3-5-haiku-latest",
 ] as const;
@@ -134,6 +136,8 @@ export interface AiEnv {
   ANTHROPIC_TIMEOUT_MS?: string | number | undefined;
   ALLOW_NON_ANTHROPIC_IN_PRODUCTION?: string | undefined;
   NODE_ENV?: string | undefined;
+  VERCEL_ENV?: string | undefined;
+  GUEST_DATA_MODE?: string | undefined;
 }
 
 export const DEFAULT_MODELS: Record<ProviderKind, string> = {
@@ -383,12 +387,23 @@ export function createProviderFromSettings(
   env: AiEnv,
   hooks: { onOutcome?: (outcome: ProviderOutcome) => void } = {},
 ): ExtractProvider {
-  // Production compliance gate (D-129): Production must strictly run on Anthropic Claude
-  const isProduction = env.NODE_ENV === "production";
-  if (isProduction && settings.primary.provider !== "anthropic" && env.ALLOW_NON_ANTHROPIC_IN_PRODUCTION !== "true") {
-    throw new Error(
-      `Production policy gate (D-129) violation: only Anthropic Claude is permitted in production (configured primary is "${settings.primary.provider}")`,
-    );
+  // Production compliance gate (D-129): Production must strictly run on Anthropic Claude across entire fallback chain
+  const isProduction =
+    env.VERCEL_ENV === "production" ||
+    env.GUEST_DATA_MODE === "production" ||
+    (env.NODE_ENV === "production" && (!env.VERCEL_ENV || env.VERCEL_ENV === "production") && env.GUEST_DATA_MODE !== "development");
+
+  if (isProduction && env.ALLOW_NON_ANTHROPIC_IN_PRODUCTION !== "true") {
+    if (settings.primary.provider !== "anthropic") {
+      throw new Error(
+        `Production policy gate (D-129) violation: only Anthropic Claude is permitted in production (configured primary is "${settings.primary.provider}")`,
+      );
+    }
+    if (settings.fallback && settings.fallback.provider !== "anthropic") {
+      throw new Error(
+        `Production policy gate (D-129) violation: only Anthropic Claude is permitted in production (configured fallback is "${settings.fallback.provider}")`,
+      );
+    }
   }
 
   const tuning: BuildTuning = {

@@ -164,10 +164,22 @@ export async function stepDoneCheck(ctx: TurnContext): Promise<StepResult> {
               replyText: `${outcome.reply}\n\n${refusalMsg}`,
             },
           };
+        } else {
+          draft.status = "estimator_pending";
+          const errDetail = draftRes.detail ? `: ${draftRes.detail}` : "";
+          draft.staffAlerts = [
+            ...draft.staffAlerts,
+            `Estimator draft creation pending (${draftRes.reason ?? "error"}${errDetail}). Flagged for retry or manual staff review.`,
+          ];
         }
       } catch (err) {
         // eslint-disable-next-line no-console
         console.warn("[turn] estimator createDraft error:", err);
+        draft.status = "estimator_pending";
+        draft.staffAlerts = [
+          ...draft.staffAlerts,
+          `Estimator draft creation failed (${err instanceof Error ? err.message : String(err)}). Flagged for retry or manual staff review.`,
+        ];
       }
     }
 

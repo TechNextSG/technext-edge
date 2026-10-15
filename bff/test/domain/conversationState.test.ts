@@ -2,7 +2,7 @@ import { describe, it, expect } from "vitest";
 import {
   transitionConversationState,
   type ConversationState,
-} from "../../src/domain/conversationState.ts";
+} from "../../src/store/conversationState.ts";
 
 describe("Conversation State Machine (Pattern 5)", () => {
   it("starts in collecting state and transitions to drafted when a draft is created", () => {

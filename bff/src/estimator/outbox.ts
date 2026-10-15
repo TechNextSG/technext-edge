@@ -1,5 +1,7 @@
 import type { BffTrip } from "../../../ai/src/index.ts";
 import type { EstimatorPort, CreateDraftResult } from "./port.ts";
+import { kvCommand, kvConfigFromEnv, type KvConfig } from "../store/kv.ts";
+import { loadEnv, type Env } from "../env.ts";
 
 export interface OutboxStore {
   get(key: string): Promise<CreateDraftResult | undefined>;
@@ -35,6 +37,32 @@ export function createInMemoryOutboxStore(ttlMs = 24 * 60 * 60 * 1000): OutboxSt
       });
     },
   };
+}
+
+export function createRedisOutboxStore(config: KvConfig, ttlSeconds = 24 * 60 * 60): OutboxStore {
+  const command = <T = unknown>(args: (string | number)[]): Promise<T> => kvCommand<T>(config, args);
+
+  return {
+    async get(key: string): Promise<CreateDraftResult | undefined> {
+      const raw = await command<string | null>(["GET", `outbox:${key}`]);
+      if (!raw) return undefined;
+      try {
+        return JSON.parse(raw) as CreateDraftResult;
+      } catch {
+        return undefined;
+      }
+    },
+    async set(key: string, result: CreateDraftResult, customTtlMs?: number): Promise<void> {
+      const exp = customTtlMs ? Math.ceil(customTtlMs / 1000) : ttlSeconds;
+      await command(["SET", `outbox:${key}`, JSON.stringify(result), "EX", exp]);
+    },
+  };
+}
+
+export function createOutboxStoreFromEnv(env: Env = loadEnv(), options?: { kv?: KvConfig | null }): OutboxStore {
+  const kv = options?.kv ?? kvConfigFromEnv(env);
+  if (kv) return createRedisOutboxStore(kv);
+  return createInMemoryOutboxStore();
 }
 
 export interface EstimatorOutboxOptions {

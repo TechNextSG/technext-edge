@@ -247,4 +247,166 @@ describe("Pattern 5: Estimator Webhook Receiver", () => {
     // Verified state transitioned to handed_off
     expect(await store.getState(q.phone!)).toBe("handed_off");
   });
+
+  it("fails closed with 503 when ESTIMATOR_WEBHOOK_SECRET is not configured, rejecting valid body and not sending WhatsApp", async () => {
+    const store = createInMemoryConversationStore();
+    const quotationStore = createInMemoryQuotationStore();
+    const q = mockQuotation();
+    await quotationStore.save(q);
+
+    const sentMessages: { to: string; text: string }[] = [];
+    const sendWhatsApp = async ({ to, body: text }: { to: string; body: string }) => {
+      sentMessages.push({ to, text });
+    };
+
+    // Note: webhookSecret is undefined
+    const app = new Hono().route("/", estimatorWebhookRoutes({
+      store,
+      quotationStore,
+      sendWhatsApp,
+      webhookSecret: undefined,
+    }));
+
+    const body = JSON.stringify({
+      event: "approved",
+      estimateId: "est-ana-999",
+      url: "https://casa.test/quote/token-ana-999",
+      timestamp: Date.now(),
+    });
+
+    const res = await app.request("/v1/estimator/webhook", {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        "x-estimator-signature": signPayload(body, "any-secret"),
+      },
+      body,
+    });
+
+    expect(res.status).toBe(503);
+    const json = await res.json();
+    expect(json.error).toBe("webhook_secret_not_configured");
+    expect(sentMessages).toHaveLength(0);
+  });
+
+  it("looks up quotation strictly by estimateId, refusing to match quotation by guestPhone", async () => {
+    const store = createInMemoryConversationStore();
+    const quotationStore = createInMemoryQuotationStore();
+    const q = mockQuotation({ estimator: { id: "est-ana-999", cookie: null, seq: 1, guestUrl: null, sharedAt: null } });
+    await quotationStore.save(q);
+
+    const sentMessages: { to: string; text: string }[] = [];
+    const sendWhatsApp = async ({ to, body: text }: { to: string; body: string }) => {
+      sentMessages.push({ to, text });
+    };
+
+    const app = new Hono().route("/", estimatorWebhookRoutes({
+      store,
+      quotationStore,
+      sendWhatsApp,
+      webhookSecret: SECRET,
+    }));
+
+    // Payload has the guest's phone, but a different estimateId
+    const body = JSON.stringify({
+      event: "approved",
+      estimateId: "est-different-id",
+      guestPhone: q.phone,
+      url: "https://casa.test/quote/token-ana-999",
+      timestamp: Date.now(),
+    });
+
+    const res = await app.request("/v1/estimator/webhook", {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        "x-estimator-signature": signPayload(body),
+      },
+      body,
+    });
+
+    // Should NOT match q and should NOT send WhatsApp
+    expect(sentMessages).toHaveLength(0);
+    const untouchedDraft = await quotationStore.get(q.quoteId);
+    expect(untouchedDraft?.status).toBe("pending_hono_review");
+    expect(res.status).toBe(404);
+  });
+
+  it("uses KV dedupe with SET NX 24h TTL to claim events before sending WhatsApp", async () => {
+    const store = createInMemoryConversationStore();
+    const quotationStore = createInMemoryQuotationStore();
+    const q = mockQuotation();
+    await quotationStore.save(q);
+
+    const kvCalls: (string | number)[][] = [];
+    const mockKv = {
+      url: "https://mock-kv.upstash.io",
+      token: "mock-token",
+    };
+
+    // Intercept fetch for mock Kv
+    const originalFetch = globalThis.fetch;
+    let setNxCallCount = 0;
+    globalThis.fetch = async (input: RequestInfo | URL, init?: RequestInit) => {
+      if (typeof input === "string" && input.includes("mock-kv.upstash.io")) {
+        const cmd = JSON.parse(init?.body as string);
+        kvCalls.push(cmd);
+        if (cmd[0] === "SET" && cmd.includes("NX")) {
+          setNxCallCount++;
+          // First call succeeds, second call returns null (already claimed)
+          if (setNxCallCount === 1) {
+            return new Response(JSON.stringify({ result: "OK" }));
+          } else {
+            return new Response(JSON.stringify({ result: null }));
+          }
+        }
+        return new Response(JSON.stringify({ result: "OK" }));
+      }
+      return originalFetch(input, init);
+    };
+
+    try {
+      const sentMessages: { to: string; text: string }[] = [];
+      const sendWhatsApp = async ({ to, body: text }: { to: string; body: string }) => {
+        sentMessages.push({ to, text });
+      };
+
+      const app = new Hono().route("/", estimatorWebhookRoutes({
+        store,
+        quotationStore,
+        sendWhatsApp,
+        webhookSecret: SECRET,
+        kv: mockKv,
+      }));
+
+      const body = JSON.stringify({
+        event: "approved",
+        estimateId: "est-ana-999",
+        url: "https://casa.test/quote/token-ana-999",
+        timestamp: Date.now(),
+      });
+      const headers = {
+        "content-type": "application/json",
+        "x-estimator-signature": signPayload(body),
+      };
+
+      const res1 = await app.request("/v1/estimator/webhook", { method: "POST", headers, body });
+      expect(res1.status).toBe(200);
+      expect((await res1.json()).processed).toBe(true);
+      expect(sentMessages).toHaveLength(1);
+
+      // Verify KV SET NX was called with 86400 (24h) TTL
+      const setNxCmd = kvCalls.find((cmd) => cmd[0] === "SET" && cmd.includes("NX"));
+      expect(setNxCmd).toBeDefined();
+      expect(setNxCmd).toContain(86400);
+
+      // Retry should be recognized as duplicate via KV
+      const res2 = await app.request("/v1/estimator/webhook", { method: "POST", headers, body });
+      expect(res2.status).toBe(200);
+      expect((await res2.json()).duplicate).toBe(true);
+      expect(sentMessages).toHaveLength(1);
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
+  });
 });
