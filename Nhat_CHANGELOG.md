@@ -9,6 +9,24 @@ How to write: add an entry as soon as a PR merges or something outside the repo 
 
 ## 2026-10-15
 
+### P6: Modular AI Engine & Field Registry (feat/p6-ai-refactor)
+- **Centralized Field Registry (`ai/src/domain/fieldRegistry.ts`)**:
+  - Established a single source of truth table (`FIELD_REGISTRY`) defining every trip property (schema type, bilingual labels in English and Chinese, default question prompts, handoff necessity, gating conditions, and fact-gate auditing rules).
+  - Eliminates multi-file shotgun surgery when adding new trip fields: summary labels, missing-field phrases, handoff checks, and question generation now derive automatically from the registry.
+- **Decomposed Questions Architecture (`ai/src/application/questions/`)**:
+  - Split monolithic ~1,200-line `questions.ts` into 4 cohesive submodules:
+    - `rules.ts`: field question rules, handoff eligibility contract (`isReadyForHandoff`, `HANDOFF_REQUIRED_FIELDS`, `NEVER_ASKED_FIELDS`), dive window estimation detection, and staff alert generation.
+    - `render.ts`: deterministic reply rendering (`renderReply`, `renderSummary`, `renderAckAndQuestions`, `summaryLines`, `ackParts`, date and range formatting).
+    - `fallback.ts`: static outage apologies, human handoff notices, partner invitation links, and changed-money-value notices (`ASK_LIMIT`, `STALL_LIMIT`).
+    - `intent.ts`: fast regular-expression intent classification for human requests (`wantsHuman`) and agency declines (`declinesPartner`).
+  - Preserved backward-compatible facade at `ai/src/application/questions.ts` re-exporting all interfaces and functions.
+- **Unified Count & Diving Lexicon (`ai/src/domain/lexicon.ts`)**:
+  - Consolidated regex patterns for guest nouns (`GUEST_NOUNS`), diver nouns (`DIVER_NOUNS`), room nouns (`ROOM_NOUNS`), night nouns (`NIGHT_NOUNS`), number words (`LATIN_NUMBER_WORDS`, `HAN_NUMBER_WORDS`), and diving clause guards.
+  - De-duplicated count extraction between extraction corroboration (`counts.ts`) and post-generation fact-gating (`synthesis.ts`).
+- **Verification**:
+  - Added [fieldRegistry.test.ts](file:///e:/technext-edge/ai/test/fieldRegistry.test.ts) (5 tests) and [questionsDecomposed.test.ts](file:///e:/technext-edge/ai/test/questionsDecomposed.test.ts) (10 tests).
+  - 100% verified across all suites: 63 test files, 840 tests passed, 0 failures.
+
 ### P5: Pattern 5 · State Machine & Outbox (feat/p5-state-machine-outbox)
 - **Explicit Conversation State Machine (`bff/src/store/conversationState.ts`)**:
   - Implemented formal 4-state lifecycle: `collecting | drafted | link_sent | handed_off`.

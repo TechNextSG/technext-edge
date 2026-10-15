@@ -13,6 +13,25 @@ export {
   HOUSE_NORM_FIELDS,
 } from "./domain/schema.ts";
 export type { Field } from "./domain/schema.ts";
+export {
+  FIELD_REGISTRY,
+  TRIP_FIELD_KEYS,
+  getFieldDefinition,
+} from "./domain/fieldRegistry.ts";
+export type { FieldDefinition } from "./domain/fieldRegistry.ts";
+export {
+  GUEST_NOUNS,
+  DIVER_NOUNS,
+  ROOM_NOUNS,
+  NIGHT_NOUNS,
+  PERSON_NOUNS,
+  DIVE_CLAUSE_AFTER_NOUN,
+  LATIN_NUMBER_WORDS,
+  HAN_NUMBER_WORDS,
+  NUMBER_WORDS,
+  COUNT_NOUNS,
+} from "./domain/lexicon.ts";
+export type { CountField } from "./domain/lexicon.ts";
 export { createGeminiProvider } from "./infra/providers/gemini.ts";
 export { createDeepSeekProvider } from "./infra/providers/deepseek.ts";
 export { createAnthropicProvider } from "./infra/providers/anthropic.ts";

@@ -46,7 +46,20 @@
 // Fabrication is already guarded by enforceVerbatimEvidence (the quote must be the guest's own
 // words); this file now only vetoes on a contradiction the guest's words actually state.
 
-export type CountField = "nights" | "guests" | "rooms" | "divers";
+import {
+  type CountField,
+  COUNT_NOUNS,
+  LATIN_NUMBER_WORDS,
+  HAN_NUMBER_WORDS,
+  NUMBER_WORDS,
+  DIGITS_RE_STR as DIGITS,
+  CLASSIFIER_RE_STR as CLASSIFIER,
+  PERSON_NOUNS,
+  DIVE_AUX_RE_STR as DIVE_AUX,
+  DIVE_CLAUSE_AFTER_NOUN,
+} from "./lexicon.ts";
+
+export type { CountField };
 
 /** The verdict on a number the model proposed for one of the three counts. */
 export type CountCorroboration =
@@ -54,49 +67,6 @@ export type CountCorroboration =
   | "conflicting" // they put a different number on it, or more than one
   | "no-opinion"; // nothing this reader recognises — the caller decides, and keeps it
 
-// The noun (or measure word) that makes a number a count of this field, in the three
-// languages the corpus is written in, plus the unmarked Vietnamese spellings guests
-// actually type ("4 nguoi", "3 phong", "2 dem"). normalize() collapses whitespace but
-// never strips diacritics, so both spellings reach this file as the guest typed them.
-const COUNT_NOUNS: Record<CountField, string> = {
-  // `divers?` deliberately absent here even though a diver is a guest: it became its own
-  // count below, and a noun that reads for two counts makes one phrase answer both. "2
-  // divers" would then be read as a guest count too, so a party of 5 with 2 divers looks
-  // like two different guest numbers and `guests` goes back to being a question it has
-  // already been told the answer to.
-  guests:
-    "pax|of\\s+us|people|persons?|adults?|kids?|children|guests?|客人|大人|小孩|位|名|人|口|are\\s+staying|is\\s+staying|staying|入住",
-  rooms: "rooms?|房间|房間|房",
-  nights: "nights?|晚上|晚",
-  // The dive line is priced per head, so this count is money the same way `guests` is, and
-  // it gets the same reader. Only nouns that mean "a person who dives" — never the activity
-  // ("2 boat dives" is a number of dives, not of divers).
-  divers: "divers?|潜水员|潛水員|潜水者",
-};
-
-// A measure word may sit between the number and the noun it counts: "8位客人", "3間房",
-// "2個人". Optional, because English guests write the number straight against the noun
-// ("4 of us").
-const CLASSIFIER = "(?:位|個|个|名|間|间)?";
-
-// Numbers written as words. The Han forms cannot take a \p{L} boundary — Chinese is
-// written without spaces, so 两 in 我们有两位 is a letter to Unicode — which is why they are
-// matched separately from the Latin ones below.
-//
-// The Vietnamese number words were removed on 2026-09-24 with the rest of the Vietnamese
-// support, and that removal also closed a real bug: "nam" (five), "sau" (six) and "bay"
-// (seven) are ordinary English words, so an English message containing them could be read
-// as a guest count.
-const LATIN_NUMBER_WORDS: Record<string, number> = {
-  one: 1, two: 2, three: 3, four: 4, five: 5, six: 6, seven: 7, eight: 8, nine: 9, ten: 10, eleven: 11, twelve: 12,
-};
-const HAN_NUMBER_WORDS: Record<string, number> = {
-  "一": 1, "二": 2, "两": 2, "兩": 2, "三": 3, "四": 4, "五": 5, "六": 6, "七": 7, "八": 8, "九": 9, "十": 10,
-};
-
-const NUMBER_WORDS: Record<string, number> = { ...LATIN_NUMBER_WORDS, ...HAN_NUMBER_WORDS };
-
-const DIGITS = "(?<!\\d)(\\d{1,3})(?!\\d)";
 // Longest first, so a shorter word can never shadow a longer one if one is ever added:
 // the alternation is ordered by length rather than by the object's key order.
 const LATIN_WORDS = Object.keys(LATIN_NUMBER_WORDS)
@@ -132,11 +102,6 @@ const COLLECTIVE_OF = new RegExp(`(?:party|group|family|team)\\s+of\\s+${NUMBER}
 //
 // Only a *person* noun may carry this count, never the activity: "2 boat dives" and "12 dives
 // logged" are numbers of dives, not of divers, and stay invisible here.
-const PERSON_NOUNS = "pax|of\\s+us|people|persons?|guests?|adults?|kids?|children|divers?";
-// Optional, so "4 of us dive both days" reads as readily as "the 4 of us are diving". A person
-// noun followed by a stay verb ("4 of us are staying") matches none of these and stays a guest
-// count, which is the distinction the guest's own sentence is making.
-const DIVE_AUX = "(?:(?:will|would|want\\s+to|wanna|going\\s+to|gonna|can|are|is|to)\\s+)?";
 const DIVERS_CLAUSE = new RegExp(
   `${NUMBER}\\s*${CLASSIFIER}\\s*(?:(?:${PERSON_NOUNS})\\s+${DIVE_AUX}(?:dive|dives|diving)\\b` +
     `|(?:人|客人|大人|小孩)\\s*(?:(?:去|要|会|想)\\s*)?(?:潜水|潛水|深潜))`,
@@ -153,8 +118,6 @@ const DIVERS_CLAUSE = new RegExp(
 // statement of total staying guests. Excluding nouns immediately followed by a diving verb
 // prevents `corroborateCount("guests", ...)` from misreading diver head-counts as conflicting
 // total guest counts and wiping the stated `guests` field back to `missing`.
-const DIVE_CLAUSE_AFTER_NOUN =
-  "(?!\\s+(?:will\\s+|want\\s+to\\s+|going\\s+to\\s+|are\\s+|is\\s+)?(?:dive|dives|diving)\\b|\\s*(?:去|要|会)?(?:潜水|潛水))";
 
 function patternFor(field: CountField): RegExp {
   let pattern = PATTERNS.get(field);

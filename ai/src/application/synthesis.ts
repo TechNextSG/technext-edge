@@ -1,4 +1,5 @@
 import type { Trip } from "../domain/schema.ts";
+import { GUEST_NOUNS, DIVER_NOUNS, ROOM_NOUNS, NIGHT_NOUNS } from "../domain/lexicon.ts";
 import type { GuestQuestion, ReplyKind } from "./questions.ts";
 import { diveWindowIsGuessed } from "./questions.ts";
 import type { ExtractProvider } from "../ports/provider.ts";
@@ -217,14 +218,14 @@ export function verifyGuestFacingText(text: string, facts: GuestFacingFacts): Fa
 
   if (typeof facts.nights === "number") {
     const expectedNights = facts.nights;
-    for (const count of countsFor(text, "nights?|晚")) {
+    for (const count of countsFor(text, NIGHT_NOUNS)) {
       if (count !== expectedNights) return { ok: false, reason: "mismatched_nights_count" };
     }
   }
 
   if (typeof facts.rooms === "number") {
     const expectedRooms = facts.rooms;
-    for (const count of countsFor(text, "rooms?|间房")) {
+    for (const count of countsFor(text, ROOM_NOUNS)) {
       if (count !== expectedRooms) return { ok: false, reason: "mismatched_rooms_count" };
     }
   }
@@ -233,13 +234,13 @@ export function verifyGuestFacingText(text: string, facts: GuestFacingFacts): Fa
   // a quotation was the one number a model could contradict freely. "people" is included because
   // that is how a guest's own count is echoed back.
   if (typeof facts.guests === "number") {
-    for (const count of countsFor(text, "guests?|people|pax|adults?|客人", { excludeDiveClause: true })) {
+    for (const count of countsFor(text, GUEST_NOUNS, { excludeDiveClause: true })) {
       if (count !== facts.guests) return { ok: false, reason: "mismatched_guests_count" };
     }
   }
 
   if (typeof facts.divers === "number") {
-    for (const count of countsFor(text, "divers?|潜水员")) {
+    for (const count of countsFor(text, DIVER_NOUNS)) {
       if (count !== facts.divers) return { ok: false, reason: "mismatched_divers_count" };
     }
   }
