@@ -182,6 +182,10 @@ export const KNOWN_PROVIDER_NAMES: readonly string[] = Array.from(
   ),
 );
 
+export const ENV_KEY_NAME: Record<ProviderKind, string> = Object.fromEntries(
+  PROVIDER_KINDS.map((kind) => [kind, PROVIDER_REGISTRY[kind].envKeys.apiKey]),
+) as Record<ProviderKind, string>;
+
 export function isKnownModel(provider: ProviderKind, model: string): boolean {
   const entry = PROVIDER_REGISTRY[provider];
   if (!entry) return false;

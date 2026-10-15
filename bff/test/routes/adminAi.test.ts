@@ -117,7 +117,8 @@ describe("what it accepts", () => {
       expect(res.status, JSON.stringify(body)).toBe(422);
       return res.json();
     };
-    await bad({ primary: { provider: "anthropic", model: "claude-opus-5-5" } }); // no such provider here
+    await bad({ primary: { provider: "openai", model: "gpt-4o" } }); // no such provider here
+    await bad({ primary: { provider: "anthropic", model: "gpt-5" } });
     await bad({ primary: { provider: "gemini", model: "gpt-5" } });
     await bad({ timeoutsMs: { extract: 50, synthesis: 8000 } });
     await bad({ timeoutsMs: { extract: 15000, synthesis: 999999 } });

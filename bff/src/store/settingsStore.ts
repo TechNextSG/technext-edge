@@ -12,6 +12,7 @@ import {
   DEFAULT_MODELS,
   MODEL_CATALOG,
   PROVIDER_KINDS,
+  ENV_KEY_NAME,
   settingsFromEnv,
   type ModelChoice,
   type ProviderKind,
@@ -149,12 +150,6 @@ function envOrDefaultSettings(env: Env): ProviderSettings {
   }
 }
 
-const ENV_KEY_NAME: Record<ProviderKind, keyof Env> = {
-  gemini: "GEMINI_API_KEY",
-  deepseek: "DEEPSEEK_GATEWAY_KEY",
-  anthropic: "ANTHROPIC_API_KEY",
-};
-
 export function createSettingsStore(options: SettingsStoreOptions = {}): SettingsStore {
   const env = options.env ?? loadEnv();
   const kv = options.kv === undefined ? kvConfigFromEnv(env) : options.kv;
@@ -255,7 +250,7 @@ export function createSettingsStore(options: SettingsStoreOptions = {}): Setting
     const keys = {} as Record<ProviderKind, KeyView>;
     for (const kind of PROVIDER_KINDS) {
       const secret = stored?.keys?.[kind];
-      const envKey = env[ENV_KEY_NAME[kind]];
+      const envKey = env[ENV_KEY_NAME[kind] as keyof Env];
       if (secret && !keyProblems.includes(kind)) {
         keys[kind] = { present: true, source: "kv", masked: maskSecret(secret.last4) };
       } else if (envKey) {

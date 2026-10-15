@@ -21,7 +21,7 @@ export interface AdminRouteDeps {
   env?: Env;
 }
 
-const Kind = z.enum(["gemini", "deepseek"]);
+export const Kind = z.enum(PROVIDER_KINDS as unknown as [ProviderKind, ...ProviderKind[]]);
 const Choice = z.object({ provider: Kind, model: z.string().min(1).max(80) }).strict();
 const ms = (min: number, max: number) => z.number().int().min(min).max(max);
 
