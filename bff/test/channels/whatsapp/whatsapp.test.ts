@@ -13,6 +13,7 @@ import { createInMemoryConversationStore, type ConversationStore } from "../../.
 import { ASK_LIMIT, STALL_LIMIT } from "../../../../ai/src/index.ts";
 import type { ExtractProvider } from "../../../../ai/src/index.ts";
 import { listQuotations } from "../../../src/store/quotationStore.ts";
+import { resetDefaultQuotationStore } from "../../../src/store/quotationStoreClient.ts";
 
 const VERIFY_TOKEN = "casa-verify-token";
 const APP_SECRET = "casa-app-secret";
@@ -160,6 +161,7 @@ async function abandon<T>(pending: Promise<T> | T, ms = TURN_TIMEOUT_MS): Promis
 }
 
 beforeEach(() => {
+  resetDefaultQuotationStore();
   // Same fixed "today" as converse.test.ts, so "next Saturday" resolves the same way.
   vi.useFakeTimers();
   vi.setSystemTime(new Date("2026-09-15T00:00:00Z"));

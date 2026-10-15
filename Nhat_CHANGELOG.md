@@ -9,6 +9,26 @@ How to write: add an entry as soon as a PR merges or something outside the repo 
 
 ## 2026-10-15
 
+### P3: Pattern 4 · Turn Pipeline & ASK_LIMIT Fixes (feat/p3-turn-pipeline)
+- **Modular Turn Pipeline (`channels/whatsapp/turn/`)**: Decomposed monolithic `turn.ts` into discrete, composable pipeline steps executing `(ctx) => Continue | Stop(outcome)`:
+  - `steps/stepReset.ts`: Detects explicit reset commands, clears state, cancels active drafts.
+  - `steps/stepHumanGate.ts`: Manages parked threads, explicit human requests, cancellations, and non-booking intent.
+  - `steps/stepConverse.ts`: AI model extraction and natural hospitality synthesis.
+  - `steps/stepDoneCheck.ts`: Handles partner self-serve links and creates/updates quotation drafts when complete facts are provided. **Runs before limits check**.
+  - `steps/stepLimits.ts`: Handles repetitive stalling (STALL_LIMIT=3) and enforces `ASK_LIMIT` strictly when **no draft exists yet**.
+  - `steps/stepAskNext.ts`: Continues conversational interrogation with changed-value notices.
+- **Unified Outcome Executor (`executeOutcome.ts`)**: Replaced 4 duplicated pause/append/send/markTold blocks with a single centralized handler for `reset`, `silence`, `handoff`, and `reply` outcomes.
+- **ASK_LIMIT Bug Fix**:
+  - Inverted legacy execution order so that completed enquiries on turn >= ASK_LIMIT immediately mint drafts instead of being aborted with `asking_limit`.
+  - Re-anchored `ASK_LIMIT` check so that existing drafts can be revised repeatedly without being blocked.
+- **Comprehensive TDD Verification**:
+  - Added [turnPipeline.test.ts](file:///e:/technext-edge/bff/test/channels/whatsapp/turnPipeline.test.ts) covering all 4 critical cases:
+    1. Turn 9 completion produces draft without premature termination.
+    2. Multi-turn step-by-step disclosure across 10 messages is never interrupted.
+    3. 3 uninformative repetitions trigger stalled human handoff.
+    4. Established drafts can be updated multiple times past ASK_LIMIT.
+  - Full suite verified: 54 test files, 783 passed across all packages.
+
 ### P2: Pattern 1 · Ports & Adapters (feat/p2-ports-adapters)
 - **QuotationStore Dependency Injection**: Injected `QuotationStore` through `createDeps` in `bff/src/deps.ts`, eliminating the module-level singleton and allowing clean mock/in-memory substitution across all tests.
 - **Single Pricing Authority via EstimatorPort**:

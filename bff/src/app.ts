@@ -64,6 +64,7 @@ export function createApp(options: AppOptions = {}) {
     "/",
     whatsAppRoutes({
       store: d.store,
+      quotationStore: d.quotationStore,
       providerFor: d.providerFor,
       sendWhatsApp: d.sendWhatsApp,
       estimator: d.estimator,

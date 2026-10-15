@@ -3,6 +3,7 @@ import type { ExtractProvider } from "../../../ai/src/index.ts";
 import type { ConversationStore } from "../store/conversationStore.ts";
 import type { EstimatorPort } from "../estimator/index.ts";
 import { whatsAppConfig, verifySignature, parseInboundTexts, checkSenderCredentials, createWhatsAppSender, type WhatsAppSendText } from "../channels/whatsapp/index.ts";
+import type { QuotationStore } from "../store/quotationStoreClient.ts";
 import {
   processPhoneTurnBatch,
   closeEnquiryQuotation,
@@ -11,6 +12,7 @@ import {
 
 export interface WhatsAppRouteDeps {
   store: ConversationStore;
+  quotationStore?: QuotationStore;
   providerFor: (data: { provider?: string; apiKey?: string }) => Promise<ExtractProvider>;
   sendWhatsApp?: WhatsAppSendText;
   estimator: EstimatorPort;
@@ -99,6 +101,7 @@ export function whatsAppRoutes(deps: WhatsAppRouteDeps): Hono {
     for (const [phone, batch] of byPhone) {
       const result = await processPhoneTurnBatch(phone, batch, {
         store,
+        quotationStore: deps.quotationStore,
         provider,
         sendWhatsApp: sendText,
         estimator,
