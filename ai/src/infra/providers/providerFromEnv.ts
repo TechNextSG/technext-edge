@@ -1,6 +1,105 @@
 import type { ExtractProvider } from "../../ports/provider.ts";
 import { DEFAULT_GEMINI_MODEL, createGeminiProvider } from "./gemini.ts";
 import { createDeepSeekProvider } from "./deepseek.ts";
+import { DEFAULT_ANTHROPIC_MODEL, createAnthropicProvider } from "./anthropic.ts";
+
+export type ProviderKind = "gemini" | "deepseek" | "anthropic";
+
+export const PROVIDER_KINDS: readonly ProviderKind[] = ["gemini", "deepseek", "anthropic"];
+
+export interface ProviderDescriptor {
+  kind: ProviderKind;
+  label: string;
+  defaultModel: string;
+  models: readonly string[];
+  envKeys: {
+    apiKey: "GEMINI_API_KEY" | "DEEPSEEK_GATEWAY_KEY" | "ANTHROPIC_API_KEY";
+    model?: string | undefined;
+    timeoutMs?: string | undefined;
+    baseUrl?: string | undefined;
+  };
+  create: (params: {
+    apiKey: string;
+    model?: string | undefined;
+    timeoutMs?: number | undefined;
+    synthesisTimeoutMs?: number | undefined;
+    baseUrl?: string | undefined;
+  }) => ExtractProvider;
+}
+
+/**
+ * Strategy + Registry table for all supported AI providers (Pattern 3).
+ * Centralizes provider construction, environment mapping, and model catalog.
+ */
+export const PROVIDERS: Record<ProviderKind, ProviderDescriptor> = {
+  anthropic: {
+    kind: "anthropic",
+    label: "Anthropic Claude",
+    defaultModel: DEFAULT_ANTHROPIC_MODEL,
+    models: [
+      "claude-3-5-haiku-20241022",
+      "claude-3-5-haiku-latest",
+      "claude-3-5-sonnet-20241022",
+      "claude-3-7-sonnet-20250219",
+    ],
+    envKeys: {
+      apiKey: "ANTHROPIC_API_KEY",
+      model: "ANTHROPIC_MODEL",
+      timeoutMs: "ANTHROPIC_TIMEOUT_MS",
+      baseUrl: "ANTHROPIC_BASE_URL",
+    },
+    create: (params) =>
+      createAnthropicProvider(params.apiKey, params.model, {
+        timeoutMs: params.timeoutMs,
+        baseUrl: params.baseUrl,
+      }),
+  },
+  gemini: {
+    kind: "gemini",
+    label: "Gemini",
+    defaultModel: DEFAULT_GEMINI_MODEL,
+    models: [
+      "gemini-3.1-flash-lite",
+      "gemini-3.5-flash",
+      "gemini-3.8-flash",
+      "gemini-flash-latest",
+      "gemini-2.5-pro",
+      "gemini-2.5-flash",
+      "gemini-2.0-flash",
+    ],
+    envKeys: {
+      apiKey: "GEMINI_API_KEY",
+      model: "GEMINI_MODEL",
+      timeoutMs: "GEMINI_TIMEOUT_MS",
+    },
+    create: (params) =>
+      createGeminiProvider(params.apiKey, params.model, {
+        timeoutMs: params.timeoutMs,
+        synthesisTimeoutMs: params.synthesisTimeoutMs,
+      }),
+  },
+  deepseek: {
+    kind: "deepseek",
+    label: "DeepSeek",
+    defaultModel: "deepseek-flash",
+    models: ["deepseek-flash", "deepseek-pro"],
+    envKeys: {
+      apiKey: "DEEPSEEK_GATEWAY_KEY",
+      model: "DEEPSEEK_MODEL",
+      timeoutMs: "DEEPSEEK_TIMEOUT_MS",
+      baseUrl: "DEEPSEEK_BASE_URL",
+    },
+    create: (params) => {
+      if (!params.baseUrl) {
+        throw new Error("DeepSeek is not configured: no gateway base URL (DEEPSEEK_BASE_URL)");
+      }
+      return createDeepSeekProvider(params.apiKey, params.model as "deepseek-flash" | "deepseek-pro", {
+        timeoutMs: params.timeoutMs,
+        baseUrl: params.baseUrl,
+      });
+    },
+  },
+};
 
 export const KNOWN_PROVIDER_NAMES = [
   "gemini",
@@ -14,21 +113,12 @@ export const KNOWN_PROVIDER_NAMES = [
   "gemini-2.0-flash",
   "deepseek-flash",
   "deepseek-pro",
+  "anthropic",
+  "claude-3-5-haiku-20241022",
+  "claude-3-5-haiku-latest",
 ] as const;
 export type ProviderName = (typeof KNOWN_PROVIDER_NAMES)[number];
 
-// ---------------------------------------------------------------------------------------------------------------
-// One table of defaults. They used to disagree: `gemini.ts` said gemini-2.5-flash, this file said
-// gemini-3.1-flash-lite, and the test page said DeepSeek was primary. The model a deployment actually runs is
-// whatever this table says, unless a setting (admin dashboard) or an env var names another.
-// ---------------------------------------------------------------------------------------------------------------
-export type ProviderKind = "gemini" | "deepseek";
-
-/**
- * The part of the environment this package reads — passed in, never read from the process. The caller owns
- * parsing and validation (the BFF's `env.ts`); this package only says which names it looks at. Timeouts may arrive
- * as numbers (already parsed) or strings (a raw environment).
- */
 export interface AiEnv {
   EXTRACTOR_PROVIDER?: string | undefined;
   GEMINI_API_KEY?: string | undefined;
@@ -38,33 +128,31 @@ export interface AiEnv {
   DEEPSEEK_BASE_URL?: string | undefined;
   DEEPSEEK_MODEL?: string | undefined;
   DEEPSEEK_TIMEOUT_MS?: string | number | undefined;
+  ANTHROPIC_API_KEY?: string | undefined;
+  ANTHROPIC_BASE_URL?: string | undefined;
+  ANTHROPIC_MODEL?: string | undefined;
+  ANTHROPIC_TIMEOUT_MS?: string | number | undefined;
+  ALLOW_NON_ANTHROPIC_IN_PRODUCTION?: string | undefined;
+  NODE_ENV?: string | undefined;
 }
 
 export const DEFAULT_MODELS: Record<ProviderKind, string> = {
-  gemini: DEFAULT_GEMINI_MODEL,
-  deepseek: "deepseek-flash",
+  gemini: PROVIDERS.gemini.defaultModel,
+  deepseek: PROVIDERS.deepseek.defaultModel,
+  anthropic: PROVIDERS.anthropic.defaultModel,
 };
 
-/** What an admin may choose, per provider. Gemini also accepts any `gemini-…` id (see `isKnownModel`). */
 export const MODEL_CATALOG: Record<ProviderKind, readonly string[]> = {
-  gemini: [
-    "gemini-3.1-flash-lite",
-    "gemini-3.5-flash",
-    "gemini-3.8-flash",
-    "gemini-flash-latest",
-    "gemini-2.5-pro",
-    "gemini-2.5-flash",
-    "gemini-2.0-flash",
-  ],
-  deepseek: ["deepseek-flash", "deepseek-pro"],
+  gemini: PROVIDERS.gemini.models,
+  deepseek: PROVIDERS.deepseek.models,
+  anthropic: PROVIDERS.anthropic.models,
 };
 
-export const PROVIDER_KINDS: readonly ProviderKind[] = ["gemini", "deepseek"];
-
-/** Is `model` something this provider can be asked for? A list, plus the `gemini-…` family for new releases. */
 export function isKnownModel(provider: ProviderKind, model: string): boolean {
-  if (MODEL_CATALOG[provider].includes(model)) return true;
-  return provider === "gemini" && /^gemini-[a-z0-9][a-z0-9.\-]{1,60}$/.test(model);
+  if (MODEL_CATALOG[provider]?.includes(model)) return true;
+  if (provider === "gemini") return /^gemini-[a-z0-9][a-z0-9.\-]{1,60}$/.test(model);
+  if (provider === "anthropic") return /^claude-[a-z0-9.\-]{1,60}$/.test(model);
+  return false;
 }
 
 export interface ModelChoice {
@@ -75,38 +163,32 @@ export interface ModelChoice {
 export interface ProviderSettings {
   primary: ModelChoice;
   fallback: ModelChoice | null;
+  fallbacks?: ModelChoice[] | undefined;
   timeoutsMs: { extract: number; synthesis: number };
   breaker: { cooldownMs: number; authCooldownMs: number };
-  /** Off = no written replies from the model; the deterministic reply is used. */
   synthesisEnabled: boolean;
-  /** Decrypted keys from the dashboard. Missing ones fall back to the environment. */
   keys: Partial<Record<ProviderKind, string>>;
   deepseekBaseUrl?: string | undefined;
+  anthropicBaseUrl?: string | undefined;
 }
 
-/** What one call did, for the dashboard's 7-day health table. */
 export interface ProviderOutcome {
   provider: ProviderKind;
-  /** `ok` = answered as the primary; `fallback` = answered because the primary did not; `fail` = did not answer. */
   kind: "ok" | "fail" | "fallback";
   ms: number;
 }
 
-// ---------------------------------------------------------------------------------------------------------------
-// By name (the test page's per-request override, and the env var's value)
-// ---------------------------------------------------------------------------------------------------------------
-
-// Builds a provider from an explicit (name, key) pair. Kept separate so "which provider, which key" is decided
-// in exactly one place regardless of whether the answer came from env vars, a setting, or a request body.
 export function createProviderByName(name: string, apiKey: string, env: AiEnv): ExtractProvider {
   const choice = choiceFromName(name, env);
   if (!choice) {
     throw new Error(`Unknown provider: "${name}" (expected ${KNOWN_PROVIDER_NAMES.join(", ")})`);
   }
-  return buildProvider(choice, apiKey, { deepseekBaseUrl: env.DEEPSEEK_BASE_URL });
+  return buildProvider(choice, apiKey, {
+    deepseekBaseUrl: env.DEEPSEEK_BASE_URL,
+    anthropicBaseUrl: env.ANTHROPIC_BASE_URL,
+  });
 }
 
-/** `gemini-2.5-flash`, `deepseek-pro`, `gemini:<model>` -> a choice, or null. */
 export function choiceFromName(name: string, env: AiEnv): ModelChoice | null {
   const lower = name.toLowerCase();
   if (lower === "gemini" || lower === "gemini-flash") {
@@ -119,46 +201,56 @@ export function choiceFromName(name: string, env: AiEnv): ModelChoice | null {
   if (lower === "gemini-2") return { provider: "gemini", model: "gemini-2.0-flash" };
   if (lower.startsWith("gemini:")) return { provider: "gemini", model: name.slice(7).trim() };
   if (MODEL_CATALOG.gemini.includes(lower)) return { provider: "gemini", model: lower };
+
   if (lower === "deepseek") {
     return { provider: "deepseek", model: env.DEEPSEEK_MODEL === "deepseek-pro" ? "deepseek-pro" : DEFAULT_MODELS.deepseek };
   }
   if (lower === "deepseek-flash" || lower === "deepseek-pro") return { provider: "deepseek", model: lower };
+
+  if (lower === "anthropic") {
+    return { provider: "anthropic", model: env.ANTHROPIC_MODEL ?? DEFAULT_MODELS.anthropic };
+  }
+  if (lower === "claude-3-5-haiku" || lower === "claude-haiku") {
+    return { provider: "anthropic", model: DEFAULT_MODELS.anthropic };
+  }
+  if (lower.startsWith("anthropic:") || lower.startsWith("claude:")) {
+    const colonIdx = name.indexOf(":");
+    return { provider: "anthropic", model: name.slice(colonIdx + 1).trim() };
+  }
+  if (MODEL_CATALOG.anthropic.includes(lower)) return { provider: "anthropic", model: lower };
+
   return null;
 }
-
-// ---------------------------------------------------------------------------------------------------------------
-// Building
-// ---------------------------------------------------------------------------------------------------------------
 
 interface BuildTuning {
   timeoutsMs?: { extract: number; synthesis: number } | undefined;
   deepseekBaseUrl?: string | undefined;
+  anthropicBaseUrl?: string | undefined;
 }
 
 export function buildProvider(choice: ModelChoice, apiKey: string, tuning: BuildTuning): ExtractProvider {
+  const descriptor = PROVIDERS[choice.provider];
+  if (!descriptor) {
+    throw new Error(`Unsupported provider kind: ${choice.provider}`);
+  }
+
   const timeoutMs = tuning.timeoutsMs?.extract;
   const synthesisTimeoutMs = tuning.timeoutsMs?.synthesis;
-  switch (choice.provider) {
-    case "gemini":
-      return createGeminiProvider(apiKey, choice.model, { timeoutMs, synthesisTimeoutMs });
-    case "deepseek":
-      if (!tuning.deepseekBaseUrl) throw new Error("DeepSeek is not configured: no gateway base URL (DEEPSEEK_BASE_URL)");
-      return createDeepSeekProvider(apiKey, choice.model as "deepseek-flash" | "deepseek-pro", {
-        timeoutMs,
-        baseUrl: tuning.deepseekBaseUrl,
-      });
-  }
+  const baseUrl = choice.provider === "deepseek" ? tuning.deepseekBaseUrl : tuning.anthropicBaseUrl;
+
+  return descriptor.create({
+    apiKey,
+    model: choice.model,
+    timeoutMs,
+    synthesisTimeoutMs,
+    baseUrl,
+  });
 }
 
-const DISPLAY_NAME: Record<ProviderKind, string> = { gemini: "Gemini", deepseek: "DeepSeek" };
-
-const ENV_KEY: Record<ProviderKind, "GEMINI_API_KEY" | "DEEPSEEK_GATEWAY_KEY"> = {
-  gemini: "GEMINI_API_KEY",
-  deepseek: "DEEPSEEK_GATEWAY_KEY",
-};
-
 export function keyFor(kind: ProviderKind, settings: Pick<ProviderSettings, "keys">, env: AiEnv): string | undefined {
-  return settings.keys[kind] || env[ENV_KEY[kind]] || undefined;
+  const descriptor = PROVIDERS[kind];
+  if (!descriptor) return undefined;
+  return settings.keys[kind] || env[descriptor.envKeys.apiKey] || undefined;
 }
 
 export interface ResilienceOptions {
@@ -168,14 +260,7 @@ export interface ResilienceOptions {
 }
 
 /**
- * The primary, with a fallback behind a circuit breaker, and a record of who actually answered.
- *
- * Built once per process and kept: the breaker's "the primary is down for the next 60s / 1h" is state, and a
- * provider rebuilt for every request forgets it after one call (which is how it worked before — the cooldown
- * only ever applied inside a single request).
- *
- * `id` is the primary's, as it always was, but `answeredBy()` names the provider that *answered the last
- * extraction call* — with a fallback in play those two differ, and `meta.provider` used to report the wrong one.
+ * Decorator implementing circuit breaker and fallback resilience across providers.
  */
 export function createResilientProvider(
   primary: ExtractProvider,
@@ -293,25 +378,27 @@ export function createResilientProvider(
   };
 }
 
-/**
- * The one place that turns settings into a live provider.
- *
- * Primary without a key falls back to the fallback as the primary (and says so), exactly as the env-only path
- * always did; with no usable key at all it throws, so the caller answers with its own "not configured" rather
- * than a provider that fails every call.
- */
 export function createProviderFromSettings(
   settings: ProviderSettings,
   env: AiEnv,
   hooks: { onOutcome?: (outcome: ProviderOutcome) => void } = {},
 ): ExtractProvider {
+  // Production compliance gate (D-129): Production must strictly run on Anthropic Claude
+  const isProduction = env.NODE_ENV === "production";
+  if (isProduction && settings.primary.provider !== "anthropic" && env.ALLOW_NON_ANTHROPIC_IN_PRODUCTION !== "true") {
+    throw new Error(
+      `Production policy gate (D-129) violation: only Anthropic Claude is permitted in production (configured primary is "${settings.primary.provider}")`,
+    );
+  }
+
   const tuning: BuildTuning = {
     timeoutsMs: settings.timeoutsMs,
     deepseekBaseUrl: settings.deepseekBaseUrl,
+    anthropicBaseUrl: settings.anthropicBaseUrl,
   };
+
   const usable = (choice: ModelChoice | null): { choice: ModelChoice; key: string } | null => {
     if (!choice) return null;
-    // DeepSeek has no default host: without a configured gateway URL it is simply not configured.
     if (choice.provider === "deepseek" && !settings.deepseekBaseUrl) return null;
     const key = keyFor(choice.provider, settings, env);
     return key ? { choice, key } : null;
@@ -319,28 +406,34 @@ export function createProviderFromSettings(
 
   const first = usable(settings.primary);
   const second = usable(settings.fallback);
-  // A fallback that is the same model as the primary protects nothing.
   const distinctSecond =
     second && first && second.choice.provider === first.choice.provider && second.choice.model === first.choice.model
       ? null
       : second;
 
   if (!first && !distinctSecond) {
-    const backup = settings.fallback?.provider ?? (settings.primary.provider === "gemini" ? "deepseek" : "gemini");
+    const primaryKey = PROVIDERS[settings.primary.provider]?.envKeys.apiKey ?? "API_KEY";
+    const backupKey = settings.fallback
+      ? PROVIDERS[settings.fallback.provider]?.envKeys.apiKey
+      : PROVIDERS[settings.primary.provider === "gemini" ? "deepseek" : "gemini"].envKeys.apiKey;
     throw new Error(
-      `${ENV_KEY[settings.primary.provider]} not set (and no fallback ${ENV_KEY[backup]} found)` +
+      `${primaryKey} not set (and no fallback ${backupKey} found)` +
         ` — set it in the environment or add a key in the admin dashboard`,
     );
   }
+
   if (!first) {
     // eslint-disable-next-line no-console
     console.warn(
-      `[provider] ${ENV_KEY[settings.primary.provider]} not set; falling back to ${DISPLAY_NAME[distinctSecond!.choice.provider]} (${distinctSecond!.choice.model})`,
+      `[provider] ${PROVIDERS[settings.primary.provider].envKeys.apiKey} not set; falling back to ${PROVIDERS[distinctSecond!.choice.provider].label} (${distinctSecond!.choice.model})`,
     );
     return withSynthesis(
-      createResilientProvider(buildProvider(distinctSecond!.choice, distinctSecond!.key, tuning), undefined, {
-        primary: distinctSecond!.choice.provider,
-      }, { ...settings.breaker, onOutcome: hooks.onOutcome }),
+      createResilientProvider(
+        buildProvider(distinctSecond!.choice, distinctSecond!.key, tuning),
+        undefined,
+        { primary: distinctSecond!.choice.provider },
+        { ...settings.breaker, onOutcome: hooks.onOutcome },
+      ),
       settings,
     );
   }
@@ -364,38 +457,64 @@ function withSynthesis(provider: ExtractProvider, settings: ProviderSettings): E
   return rest;
 }
 
-/** The settings the environment alone describes — what a deployment runs on before anyone opens the dashboard. */
 export function settingsFromEnv(env: AiEnv): ProviderSettings {
   const name = (env.EXTRACTOR_PROVIDER ?? DEFAULT_MODELS.gemini).toLowerCase();
   const primary = choiceFromName(name, env);
   if (!primary) {
     throw new Error(`Unknown EXTRACTOR_PROVIDER: "${name}" (expected ${KNOWN_PROVIDER_NAMES.join(", ")})`);
   }
-  // The other provider backs it up: Gemini <-> DeepSeek.
+
   const backupKind: ProviderKind | null =
-    primary.provider === "gemini"
-      ? env.DEEPSEEK_GATEWAY_KEY && env.DEEPSEEK_BASE_URL ? "deepseek" : null
-      : env.GEMINI_API_KEY ? "gemini" : null;
+    primary.provider === "anthropic"
+      ? env.GEMINI_API_KEY
+        ? "gemini"
+        : env.DEEPSEEK_GATEWAY_KEY && env.DEEPSEEK_BASE_URL
+          ? "deepseek"
+          : null
+      : primary.provider === "gemini"
+        ? env.DEEPSEEK_GATEWAY_KEY && env.DEEPSEEK_BASE_URL
+          ? "deepseek"
+          : env.ANTHROPIC_API_KEY
+            ? "anthropic"
+            : null
+        : env.ANTHROPIC_API_KEY
+          ? "anthropic"
+          : env.GEMINI_API_KEY
+            ? "gemini"
+            : null;
+
   const fallback: ModelChoice | null = backupKind
-    ? { provider: backupKind, model: backupKind === "gemini" ? (env.GEMINI_MODEL ?? DEFAULT_MODELS.gemini) : DEFAULT_MODELS[backupKind] }
+    ? {
+        provider: backupKind,
+        model:
+          backupKind === "gemini"
+            ? (env.GEMINI_MODEL ?? DEFAULT_MODELS.gemini)
+            : backupKind === "anthropic"
+              ? (env.ANTHROPIC_MODEL ?? DEFAULT_MODELS.anthropic)
+              : DEFAULT_MODELS.deepseek,
+      }
     : null;
+
   return {
     primary,
     fallback,
     timeoutsMs: {
-      // `GEMINI_TIMEOUT_MS` / `DEEPSEEK_TIMEOUT_MS` are still honoured: they are read where each provider is built.
-      extract: primary.provider === "deepseek" ? Number(env.DEEPSEEK_TIMEOUT_MS ?? 8_000) : Number(env.GEMINI_TIMEOUT_MS ?? 15_000),
+      extract:
+        primary.provider === "deepseek"
+          ? Number(env.DEEPSEEK_TIMEOUT_MS ?? 8_000)
+          : primary.provider === "anthropic"
+            ? Number(env.ANTHROPIC_TIMEOUT_MS ?? 10_000)
+            : Number(env.GEMINI_TIMEOUT_MS ?? 15_000),
       synthesis: 8_000,
     },
     breaker: { cooldownMs: 60_000, authCooldownMs: 3_600_000 },
     synthesisEnabled: true,
     keys: {},
     ...(env.DEEPSEEK_BASE_URL ? { deepseekBaseUrl: env.DEEPSEEK_BASE_URL } : {}),
+    ...(env.ANTHROPIC_BASE_URL ? { anthropicBaseUrl: env.ANTHROPIC_BASE_URL } : {}),
   };
 }
 
-// Policy: Gemini 3.1 Flash-Lite is the default for sub-4s latency, which keeps a slow gateway from running past
-// the 20s WhatsApp deadline.
 export function createProviderFromEnv(env: AiEnv): ExtractProvider {
   return createProviderFromSettings(settingsFromEnv(env), env);
 }

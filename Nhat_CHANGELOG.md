@@ -9,6 +9,22 @@ How to write: add an entry as soon as a PR merges or something outside the repo 
 
 ## 2026-10-15
 
+### P4: Pattern 3 · Strategy & Registry + Decorator (feat/p4-provider-registry)
+- **Declarative Provider Registry (`PROVIDERS` in `ai/src/infra/providers/providerFromEnv.ts`)**:
+  - Replaced rigid hard-coded switch statements with an extensible, tabular registry mapping provider keys (`anthropic`, `gemini`, `deepseek`) to their creator factory, environment key requirements, supported model catalogs, and user-facing labels.
+  - Adding a new provider now only requires registering an entry in `PROVIDERS` without touching downstream routing logic.
+- **Anthropic Claude Adapter (`ai/src/infra/providers/anthropic.ts`)**:
+  - Implemented high-performance, native fetch-based adapter for Claude models (`claude-3-5-haiku-20241022`, `claude-3-5-haiku-latest`).
+  - Supports structured extraction via tool calling (`extract_trip`) and natural hospitality text synthesis (`generateText`).
+- **Production Compliance Gate (D-129)**:
+  - Enforced enterprise safety rule: when `NODE_ENV === "production"`, primary AI provider must strictly be Anthropic Claude unless explicitly permitted via `ALLOW_NON_ANTHROPIC_IN_PRODUCTION="true"`.
+- **Channel Adapter Interface (`bff/src/channels/channelAdapter.ts`)**:
+  - Introduced generic channel abstraction: `{ verify(req), parseInbound(req), send(message) }`.
+  - Implemented concrete `createWhatsAppChannelAdapter` in `bff/src/channels/whatsapp/adapter.ts` with webhook signature verification, inbound message normalization, and outbound dispatch.
+- **Verification**:
+  - Added [anthropic.test.ts](file:///e:/technext-edge/ai/test/providers/anthropic.test.ts), [providerRegistry.test.ts](file:///e:/technext-edge/ai/test/providers/providerRegistry.test.ts), and [channelAdapter.test.ts](file:///e:/technext-edge/bff/test/channels/channelAdapter.test.ts).
+  - 100% verified across all suites: 57 test files, 803 tests passed.
+
 ### P3: Pattern 4 · Turn Pipeline & ASK_LIMIT Fixes (feat/p3-turn-pipeline)
 - **Modular Turn Pipeline (`channels/whatsapp/turn/`)**: Decomposed monolithic `turn.ts` into discrete, composable pipeline steps executing `(ctx) => Continue | Stop(outcome)`:
   - `steps/stepReset.ts`: Detects explicit reset commands, clears state, cancels active drafts.

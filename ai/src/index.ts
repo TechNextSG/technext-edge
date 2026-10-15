@@ -15,6 +15,7 @@ export {
 export type { Field } from "./domain/schema.ts";
 export { createGeminiProvider } from "./infra/providers/gemini.ts";
 export { createDeepSeekProvider } from "./infra/providers/deepseek.ts";
+export { createAnthropicProvider } from "./infra/providers/anthropic.ts";
 export {
   createProviderFromEnv,
   createProviderByName,
@@ -25,12 +26,20 @@ export {
   isKnownModel,
   keyFor,
   buildProvider,
+  PROVIDERS,
   DEFAULT_MODELS,
   MODEL_CATALOG,
   PROVIDER_KINDS,
   KNOWN_PROVIDER_NAMES,
 } from "./infra/providers/providerFromEnv.ts";
-export type { AiEnv, ProviderKind, ModelChoice, ProviderSettings, ProviderOutcome } from "./infra/providers/providerFromEnv.ts";
+export type {
+  AiEnv,
+  ProviderKind,
+  ProviderDescriptor,
+  ModelChoice,
+  ProviderSettings,
+  ProviderOutcome,
+} from "./infra/providers/providerFromEnv.ts";
 export type { ExtractProvider, ExtractCall, ExtractResult } from "./ports/provider.ts";
 export { resolveRelativeDate, deriveCheckOut, manilaToday } from "./domain/dates.ts";
 // Exported for whoever logs raw guest text — the webhook in bff is

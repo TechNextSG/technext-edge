@@ -74,6 +74,11 @@ export const EnvSchema = z.object({
   DEEPSEEK_GATEWAY_URL: text, // an older name for the base URL; the dashboard only reports whether it is set
   DEEPSEEK_MODEL: text,
   DEEPSEEK_TIMEOUT_MS: text,
+  ANTHROPIC_API_KEY: text,
+  ANTHROPIC_MODEL: text,
+  ANTHROPIC_TIMEOUT_MS: text,
+  ANTHROPIC_BASE_URL: text,
+  ALLOW_NON_ANTHROPIC_IN_PRODUCTION: text,
 });
 
 export type Env = z.infer<typeof EnvSchema>;

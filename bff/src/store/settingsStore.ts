@@ -152,6 +152,7 @@ function envOrDefaultSettings(env: Env): ProviderSettings {
 const ENV_KEY_NAME: Record<ProviderKind, keyof Env> = {
   gemini: "GEMINI_API_KEY",
   deepseek: "DEEPSEEK_GATEWAY_KEY",
+  anthropic: "ANTHROPIC_API_KEY",
 };
 
 export function createSettingsStore(options: SettingsStoreOptions = {}): SettingsStore {
