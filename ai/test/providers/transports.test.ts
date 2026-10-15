@@ -80,6 +80,127 @@ describe("Transports (T3)", () => {
       expect(res.tokensOut).toBe(5);
     });
 
+    describe("Review Item 4: openAiCompatible cacheRead mapping", () => {
+      it("maps cacheRead from usage.prompt_cache_hit_tokens", async () => {
+        globalThis.fetch = vi.fn(async () => {
+          return new Response(
+            JSON.stringify({
+              choices: [{ message: { tool_calls: [{ function: { name: "t", arguments: "{}" } }] } }],
+              usage: { prompt_tokens: 100, completion_tokens: 20, prompt_cache_hit_tokens: 42 },
+            }),
+            { status: 200, headers: { "content-type": "application/json" } },
+          );
+        }) as unknown as typeof fetch;
+
+        const transport = createOpenAiCompatibleTransport({
+          apiKey: "key",
+          baseUrl: "https://gateway.test",
+        });
+
+        const res = await transport.structured({ system: "s", user: "u", toolName: "t", schema: {} });
+        expect(res.cacheRead).toBe(42);
+      });
+
+      it("maps cacheRead from usage.prompt_tokens_details.cached_tokens", async () => {
+        globalThis.fetch = vi.fn(async () => {
+          return new Response(
+            JSON.stringify({
+              choices: [{ message: { tool_calls: [{ function: { name: "t", arguments: "{}" } }] } }],
+              usage: { prompt_tokens: 100, completion_tokens: 20, prompt_tokens_details: { cached_tokens: 33 } },
+            }),
+            { status: 200, headers: { "content-type": "application/json" } },
+          );
+        }) as unknown as typeof fetch;
+
+        const transport = createOpenAiCompatibleTransport({
+          apiKey: "key",
+          baseUrl: "https://gateway.test",
+        });
+
+        const res = await transport.structured({ system: "s", user: "u", toolName: "t", schema: {} });
+        expect(res.cacheRead).toBe(33);
+      });
+
+      it("defaults cacheRead to 0 when no cache fields present in usage", async () => {
+        globalThis.fetch = vi.fn(async () => {
+          return new Response(
+            JSON.stringify({
+              choices: [{ message: { tool_calls: [{ function: { name: "t", arguments: "{}" } }] } }],
+              usage: { prompt_tokens: 100, completion_tokens: 20 },
+            }),
+            { status: 200, headers: { "content-type": "application/json" } },
+          );
+        }) as unknown as typeof fetch;
+
+        const transport = createOpenAiCompatibleTransport({
+          apiKey: "key",
+          baseUrl: "https://gateway.test",
+        });
+
+        const res = await transport.structured({ system: "s", user: "u", toolName: "t", schema: {} });
+        expect(res.cacheRead).toBe(0);
+      });
+    });
+
+    describe("Review Item 7: openAiCompatible tool description by toolName", () => {
+      it("uses toolDescription from request when provided", async () => {
+        let capturedInit: RequestInit | undefined;
+        globalThis.fetch = vi.fn(async (_url, init) => {
+          capturedInit = init;
+          return new Response(
+            JSON.stringify({
+              choices: [{ message: { tool_calls: [{ function: { name: "custom_tool", arguments: "{}" } }] } }],
+            }),
+            { status: 200, headers: { "content-type": "application/json" } },
+          );
+        }) as unknown as typeof fetch;
+
+        const transport = createOpenAiCompatibleTransport({
+          apiKey: "key",
+          baseUrl: "https://gateway.test",
+        });
+
+        await transport.structured({
+          system: "s",
+          user: "u",
+          toolName: "custom_tool",
+          toolDescription: "Custom description for testing.",
+          schema: {},
+        });
+
+        const body = JSON.parse(String(capturedInit?.body));
+        expect(body.tools[0].function.description).toBe("Custom description for testing.");
+      });
+
+      it("falls back to toolName-specific defaults when toolDescription is omitted", async () => {
+        let capturedInit: RequestInit | undefined;
+        globalThis.fetch = vi.fn(async (_url, init) => {
+          capturedInit = init;
+          return new Response(
+            JSON.stringify({
+              choices: [{ message: { tool_calls: [{ function: { name: "record_guests", arguments: "{}" } }] } }],
+            }),
+            { status: 200, headers: { "content-type": "application/json" } },
+          );
+        }) as unknown as typeof fetch;
+
+        const transport = createOpenAiCompatibleTransport({
+          apiKey: "key",
+          baseUrl: "https://gateway.test",
+        });
+
+        await transport.structured({
+          system: "s",
+          user: "u",
+          toolName: "record_guests",
+          schema: {},
+        });
+
+        const body = JSON.parse(String(capturedInit?.body));
+        expect(body.tools[0].function.description).toBe("Record the total guest count.");
+      });
+    });
+
     it("supports plain text completion", async () => {
       globalThis.fetch = vi.fn(async () => {
         return new Response(

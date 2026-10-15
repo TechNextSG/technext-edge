@@ -21,6 +21,7 @@ export interface StructuredRequest {
   system: string;
   user: string;
   toolName: string;
+  toolDescription?: string | undefined;
   schema: unknown;
   timeoutMs?: number | undefined;
 }
@@ -74,14 +75,18 @@ function parseFocusedJson(json: unknown): any {
   if (typeof json === "string") {
     try {
       return JSON.parse(json);
-    } catch {
-      return {};
+    } catch (err) {
+      const detail = err instanceof Error ? err.message : String(err);
+      throw new MalformedArgumentsError(`not valid JSON: ${detail}`, json.slice(0, 2000), err);
     }
   }
   if (typeof json === "object" && json !== null) {
     return json;
   }
-  return {};
+  throw new MalformedArgumentsError(
+    "Missing or invalid tool arguments",
+    JSON.stringify(json ?? null),
+  );
 }
 
 /**
@@ -115,6 +120,7 @@ export function createExtractProvider(
           system: EXTRACT_SYSTEM_PROMPT,
           user: userPrompt,
           toolName: "extract_trip",
+          toolDescription: "Extract structured trip details from a dive resort inquiry.",
           schema: input.jsonSchema,
           timeoutMs,
         });
@@ -144,6 +150,7 @@ export function createExtractProvider(
           system: GUESTS_ONLY_PROMPT,
           user: `Guest message:\n${text}`,
           toolName: "record_guests",
+          toolDescription: "Record the total guest count.",
           schema: GUESTS_SCHEMA,
           timeoutMs,
         });
@@ -179,6 +186,7 @@ export function createExtractProvider(
           system: CHECKIN_ONLY_PROMPT,
           user: `Today's date (Asia/Manila): ${today}\n\nGuest message:\n${text}`,
           toolName: "record_checkin",
+          toolDescription: "Record the check-in date.",
           schema: CHECKIN_SCHEMA,
           timeoutMs,
         });
@@ -212,8 +220,9 @@ export function createExtractProvider(
       try {
         res = await transport.structured({
           system: DIVE_WINDOW_ONLY_PROMPT,
-          user: `Today's date (Asia/Manila): ${today}\n\nGuest message:\n${text}`,
+          user: `Today's date (Asia/Manila): ${today}\n\nConversation so far:\n${text}`,
           toolName: "record_dive_window",
+          toolDescription: "Record diving start and end dates.",
           schema: DIVE_WINDOW_SCHEMA,
           timeoutMs,
         });
@@ -271,15 +280,16 @@ export function createExtractProvider(
       };
     },
 
-    async generateText(systemPrompt: string, userPrompt: string): Promise<string> {
-      if (!transport.text) {
-        return "";
-      }
-      return transport.text({
-        system: systemPrompt,
-        user: userPrompt,
-        timeoutMs: synthesisTimeoutMs,
-      });
-    },
+    ...(transport.text
+      ? {
+          async generateText(systemPrompt: string, userPrompt: string): Promise<string> {
+            return transport.text!({
+              system: systemPrompt,
+              user: userPrompt,
+              timeoutMs: synthesisTimeoutMs,
+            });
+          },
+        }
+      : {}),
   };
 }

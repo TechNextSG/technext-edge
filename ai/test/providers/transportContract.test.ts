@@ -4,7 +4,7 @@ import { createGeminiProvider } from "../../src/infra/providers/gemini.ts";
 import { createDeepSeekProvider } from "../../src/infra/providers/deepseek.ts";
 import { MalformedArgumentsError } from "../../src/ports/provider.ts";
 import type { ExtractProvider } from "../../src/ports/provider.ts";
-import { EXTRACT_SYSTEM_PROMPT } from "../../src/infra/providers/extractPrompt.ts";
+import { EXTRACT_SYSTEM_PROMPT } from "../../src/infra/providers/prompts.ts";
 
 const REAL_FETCH = globalThis.fetch;
 

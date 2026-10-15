@@ -1,13 +1,22 @@
 // Shared prompts and schemas for all AI providers (Pattern 3).
-// Centralizes the main extraction prompt and the three focused extraction passes.
+// Centralizes the main extraction prompt (union of Gemini and DeepSeek rules)
+// and the three focused extraction passes.
 
 export const EXTRACT_SYSTEM_PROMPT =
   "You extract trip details from a dive-resort guest's message into the given " +
   "JSON schema. Every field needs a state: 'stated' (quote it in evidence, verbatim), " +
-  "'inferred' (context implies it, no exact quote), or 'missing'. Never invent a value. " +
+  "'inferred' (context implies it, no exact quote), or 'missing'. " +
+  "Never invent a value that state 'stated' cannot point to verbatim evidence for. " +
+  "Evidence must only be a verbatim substring for 'stated'; set it to null for every other state. " +
+  "When state is 'missing', set both value and evidence to null; " +
+  "never use 0 as a placeholder for an unknown count, and never assign unlabeled " +
+  "comma-separated numbers to trip fields. " +
+  "Nights, guests, and rooms are 'stated' only when their evidence quotes the exact guest wording; otherwise mark them missing. " +
   "For 'guests': when a message mentions both a party/group size and a different number of people staying (e.g. 'group of 6 but only 3 are staying' or '4 are day visitors, 2 staying overnight'), always extract the number of guests staying overnight (state 'stated', evidence quoting the staying phrase) — even when the two numbers sit right next to each other with no other words between them. " +
   "Example: 'We are a group of 6 but only 4 of us are joining this trip.' -> guests is stated 4, evidence 'only 4 of us are joining this trip' — 6 is the group size, not the staying count, and this is not a case for 'missing' just because two counts appear. " +
   "When adults and children are specified (e.g. '2 adults and 2 kids'), extract their sum as guests. " +
+  "A guest count the message states as a total is never reduced or nulled by a later detail about who is or is not diving, or any other per-person detail — that detail only affects fields it is actually about (like 'diver'), never 'guests'. " +
+  "Example: 'We are a group of five in total: myself, my husband, and our three children (one of whom won't be diving with us).' -> guests is stated 5, evidence 'a group of five in total' — the note about one child not diving is not a reason to question or drop the stated total. " +
   "When a message gives a diving window as two dates joined by 'and' with no 'to'/'through' between them (e.g. 'dive on October 16th and 17th'), extract diveFrom as the first date and diveTo as the second date, both stated. " +
   "'transport' is true (stated) only when the guest asks the resort for an airport " +
   "pickup or transfer. Set it to false (stated) when they say they have their own " +

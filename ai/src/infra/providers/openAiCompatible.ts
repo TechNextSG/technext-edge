@@ -27,6 +27,13 @@ function toOpenAiSchema(node: unknown): unknown {
   return node;
 }
 
+function defaultToolDescription(name: string): string {
+  if (name === "record_guests") return "Record the total guest count.";
+  if (name === "record_checkin") return "Record the check-in date.";
+  if (name === "record_dive_window") return "Record diving start and end dates.";
+  return "Extract structured trip details from a dive resort inquiry.";
+}
+
 export function createOpenAiCompatibleTransport(options: OpenAiCompatibleOptions): Transport {
   if (!options.baseUrl) {
     throw new Error("Base URL is required for OpenAI-compatible transport");
@@ -41,6 +48,8 @@ export function createOpenAiCompatibleTransport(options: OpenAiCompatibleOptions
       const timer = req.timeoutMs ? setTimeout(() => controller.abort(), req.timeoutMs) : undefined;
 
       try {
+        const description = req.toolDescription ?? defaultToolDescription(req.toolName);
+
         const payload: Record<string, unknown> = {
           model,
           messages: [
@@ -52,7 +61,7 @@ export function createOpenAiCompatibleTransport(options: OpenAiCompatibleOptions
               type: "function",
               function: {
                 name: req.toolName,
-                description: "Extract structured trip details from a dive resort inquiry.",
+                description,
                 parameters: toOpenAiSchema(req.schema),
               },
             },
@@ -86,10 +95,16 @@ export function createOpenAiCompatibleTransport(options: OpenAiCompatibleOptions
         const usage = body.usage ?? {};
         const args = body.choices?.[0]?.message?.tool_calls?.[0]?.function?.arguments ?? "{}";
 
+        const cacheRead =
+          usage.prompt_cache_hit_tokens ??
+          usage.prompt_tokens_details?.cached_tokens ??
+          0;
+
         return {
           json: args,
           tokensIn: usage.prompt_tokens ?? 0,
           tokensOut: usage.completion_tokens ?? 0,
+          cacheRead,
         };
       } finally {
         if (timer) clearTimeout(timer);
