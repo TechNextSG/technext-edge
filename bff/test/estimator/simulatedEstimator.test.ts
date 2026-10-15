@@ -356,15 +356,12 @@ describe("port selection", () => {
     // The ambient env must not accidentally put this app on the remote path.
     vi.stubEnv("ESTIMATOR_BASE_URL", "");
     try {
-      const app = createApp();
-      const res = await app.request("/v1/quotes/estimator-status?token=badge-token");
-      const body = (await res.json()) as Record<string, unknown>;
+      const est = createSimulatedEstimator();
+      const status = await est.checkHealth();
 
-      expect(body.configured).toBe(true);
-      expect(body.kind).toBe("simulated");
-      expect(body.reachable).toBe(true);
-      expect(body.mode).toBe("fixture");
-      expect(String(body.detail)).toContain("simulated");
+      expect(est.kind).toBe("simulated");
+      expect(status.reachable).toBe(true);
+      expect(status.mode).toBe("fixture");
     } finally {
       vi.unstubAllEnvs();
     }

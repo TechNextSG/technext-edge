@@ -147,6 +147,12 @@ export function createRedisQuotationStore(config: KvConfig): QuotationStore {
  * fallback here is exactly the bug this file exists to fix (guest links that work until the next
  * deploy).
  */
+let defaultInMemoryStore: QuotationStore | null = null;
+
+export function resetDefaultQuotationStore(): void {
+  defaultInMemoryStore = null;
+}
+
 export function createQuotationStoreFromEnv(env: Env = loadEnv()): QuotationStore {
   const kv = kvConfigFromEnv(env);
   if (kv) return createRedisQuotationStore(kv);
@@ -158,5 +164,8 @@ export function createQuotationStoreFromEnv(env: Env = loadEnv()): QuotationStor
         "Set KV_REST_API_URL + KV_REST_API_TOKEN (or the UPSTASH_* equivalents).",
     );
   }
-  return createInMemoryQuotationStore();
+  if (!defaultInMemoryStore) {
+    defaultInMemoryStore = createInMemoryQuotationStore();
+  }
+  return defaultInMemoryStore;
 }

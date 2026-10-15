@@ -27,13 +27,13 @@ export function authRoutes(deps: AuthRouteDeps): Hono {
   const app = new Hono();
   const { loginLimiter, setSession } = deps;
 
-  app.get("/login", (c) => c.html(renderLoginHtml(false, c.req.query("next") || "/quotes")));
+  app.get("/login", (c) => c.html(renderLoginHtml(false, c.req.query("next") || "/handoff")));
 
   app.post("/login", async (c) => {
     const body = await c.req.parseBody().catch(() => ({}) as Record<string, unknown>);
     const password = typeof body.password === "string" ? body.password : "";
     const rawNext = typeof body.next === "string" ? body.next : "";
-    const nextPath = SAFE_NEXT_PREFIXES.some((prefix) => rawNext.startsWith(prefix)) ? rawNext : "/quotes";
+    const nextPath = SAFE_NEXT_PREFIXES.some((prefix) => rawNext.startsWith(prefix)) ? rawNext : "/handoff";
 
     // Checked before the comparison, so a brute force is answered the same way however the key is
     // guessed. The address is the one the platform forwards; without a proxy header there is no
@@ -60,7 +60,7 @@ export function authRoutes(deps: AuthRouteDeps): Hono {
     }
     if (ip) loginLimiter.reset(ip);
     setSession(c, isAdmin ? "admin" : "staff");
-    return c.redirect(isAdmin && nextPath === "/quotes" ? "/admin/ai" : nextPath);
+    return c.redirect(isAdmin && nextPath === "/handoff" ? "/admin/ai" : nextPath);
   });
 
   // Signing out clears the cookie. There is no server-side session to revoke — the demo session is

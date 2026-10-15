@@ -46,4 +46,4 @@ export type {
 } from "./application/quotationTool.ts";
 export { converseWithQuotation } from "./application/converseWithQuotation.ts";
 export type { QuotationConverseOutcome } from "./application/converseWithQuotation.ts";
-export * from "./domain/rates.ts";
+

@@ -93,7 +93,7 @@ describe("who may open the dashboard", () => {
     const staff = await login(STAFF, "admin");
     expect((await app.request("/v1/admin/ai/settings", { headers: { cookie: cookieOf(staff) } })).status).toBe(403);
     // …but an admin is still allowed to do what staff do.
-    expect((await app.request("/v1/quotes", { headers: { cookie: cookieOf(admin) } })).status).toBe(200);
+    expect((await app.request("/handoff", { headers: { cookie: cookieOf(admin) } })).status).toBe(200);
   });
 
   it("the same value for both keys gives staff, not an admin everyone can be", async () => {

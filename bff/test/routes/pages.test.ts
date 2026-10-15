@@ -18,10 +18,10 @@ describe("BFF Endpoints", () => {
     expect(body).toEqual({ ok: true });
   });
 
-  it("sends GET / to the studio, which sends a signed-out visitor on to sign in", async () => {
+  it("sends GET / to the handoff inbox, which sends a signed-out visitor on to sign in", async () => {
     const res = await app.request("/");
     expect(res.status).toBe(302);
-    expect(res.headers.get("location")).toBe("/quotes");
+    expect(res.headers.get("location")).toBe("/handoff");
   });
 
   describe("the test console is for staff", () => {

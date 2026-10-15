@@ -44,7 +44,7 @@ ${themeCss()}
 </head>
 <body>
   <main>
-    <a class="back" href="/quotes">&larr; Studio</a>
+    <a class="back" href="/handoff">&larr; Handoff</a>
     <h1>Documents</h1>
     <p class="sub">For signed-in staff. Each opens as a standalone page.</p>
     ${body}

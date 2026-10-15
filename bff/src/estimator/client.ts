@@ -44,6 +44,7 @@ import {
 import { describeRefusal, refusalCode, refusalIssues } from "./refusalCopy.ts";
 import type {
   CommitResult,
+  CreateDraftResult,
   EstimateSendResult,
   EstimatorFailure,
   EstimatorHealth,
@@ -138,10 +139,15 @@ function transportDetail(err: unknown, what: string): string {
   return `could not reach the booking engine to ${what} — check the estimator address in the deployment settings`;
 }
 
-/** The headers for one call about one quotation: JSON, plus their session cookie when we hold one. */
+/** The headers for one call about one quotation: JSON, plus their session cookie and service key when configured. */
 function sessionHeaders(session?: EstimatorSession | null): Record<string, string> {
   const headers: Record<string, string> = { "content-type": "application/json" };
   if (session?.cookie) headers.cookie = session.cookie;
+  const serviceKey = loadEnv().ESTIMATOR_SERVICE_KEY;
+  if (serviceKey) {
+    headers["x-service-key"] = serviceKey;
+    headers["authorization"] = `Bearer ${serviceKey}`;
+  }
   return headers;
 }
 
@@ -676,12 +682,55 @@ export function createEstimatorClient(options: EstimatorClientOptions = {}) {
     }
   }
 
+  async function createDraft(trip: BffTrip, extras?: unknown[]): Promise<CreateDraftResult> {
+    const estimateRes = await sendEstimate(trip);
+    if (!estimateRes.ok) {
+      return {
+        ok: false,
+        reason: estimateRes.reason,
+        status: estimateRes.status,
+        detail: estimateRes.detail,
+        fields: estimateRes.fields,
+        code: estimateRes.code,
+      };
+    }
+
+    const session: EstimatorSession = {
+      id: estimateRes.id,
+      cookie: estimateRes.sessionCookie,
+    };
+
+    if (extras && extras.length > 0 && session.id) {
+      await postToScenario(session, "/extras", JSON.stringify({ extras }));
+    }
+
+    const commitRes = await commit(session, trip);
+    if (!commitRes.ok) {
+      return {
+        ok: false,
+        reason: commitRes.reason,
+        detail: commitRes.detail,
+      };
+    }
+
+    return {
+      ok: true,
+      id: estimateRes.id ?? "",
+      seq: commitRes.seq,
+      model: estimateRes.model,
+      sample: estimateRes.sample,
+      session,
+      computedAt: commitRes.computedAt ?? estimateRes.computedAt,
+    };
+  }
+
   // Still deliberately absent: our own `/q/:slug` guest page was removed in favour of the
   // the team estimator's `/quote/<token>`, so `commit`/`share` above ARE the guest-link path now. What
   // remains unwired is only their `/revisions` reads, which nothing here needs.
   return {
     kind: "remote" as const,
     sendEstimate,
+    createDraft,
     updateEstimate,
     commit,
     share,

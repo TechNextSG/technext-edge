@@ -50,7 +50,7 @@ ${themeCss()}
 <main>
   <h1>AI settings</h1>
   <div class="sub">Which model answers guests, what backs it up, and the keys it uses. Changes apply to the next message — no deploy.
-    <a href="/quotes">Back to the studio</a></div>
+    <a href="/handoff">Handoff inbox</a></div>
   <div id="notice" class="notice" role="status" aria-live="polite"></div>
 
   <section class="card" id="current">

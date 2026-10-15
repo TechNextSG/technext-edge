@@ -3,7 +3,6 @@ import { secureHeaders } from "hono/secure-headers";
 import { loadEnv } from "./env.ts";
 import { createDeps, type AppOptions } from "./deps.ts";
 import { setSession } from "./auth/session.ts";
-import { saveQuotationDraft } from "./store/quotationStore.ts";
 import { closeEnquiryQuotation, guestPendingQuotationNote } from "./channels/whatsapp/index.ts";
 import { authRoutes } from "./routes/auth.ts";
 import { adminRoutes } from "./routes/admin.ts";
@@ -13,7 +12,6 @@ import { docsRoutes } from "./routes/docs.ts";
 import { extractorRoutes } from "./routes/extractor.ts";
 import { handoffRoutes } from "./routes/handoff.ts";
 import { whatsAppRoutes } from "./routes/whatsapp.ts";
-import { quotesRoutes } from "./routes/quotes/index.ts";
 
 export { guestPendingQuotationNote };
 export type { AppOptions };
@@ -52,7 +50,15 @@ export function createApp(options: AppOptions = {}) {
   app.route("/", healthRoutes());
   app.route("/", pageRoutes({ staffSession }));
   app.route("/", docsRoutes({ staffSession }));
-  app.route("/", extractorRoutes({ providerFor: d.providerFor, staffWriter, staffSession, saveQuotationDraft }));
+  app.route(
+    "/",
+    extractorRoutes({
+      providerFor: d.providerFor,
+      staffWriter,
+      staffSession,
+      saveQuotationDraft: (q) => d.quotationStore.save(q),
+    }),
+  );
   app.route("/", handoffRoutes({ store: d.store, staffSession, staffWriter, closeEnquiryQuotation }));
   app.route(
     "/",
@@ -62,17 +68,6 @@ export function createApp(options: AppOptions = {}) {
       sendWhatsApp: d.sendWhatsApp,
       estimator: d.estimator,
       handoffAuthorized,
-    }),
-  );
-  app.route(
-    "/",
-    quotesRoutes({
-      estimator: d.estimator,
-      providerHolder: d.providerHolder,
-      optionsProvider: d.injectedProvider,
-      staffSession,
-      staffWriter,
-      sendWhatsApp: d.sendWhatsApp,
     }),
   );
 

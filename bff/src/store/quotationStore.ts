@@ -1,21 +1,32 @@
 import { recalculateQuotationTotals, type HonoQuotationDraft } from "../quote/index.ts";
 import { createQuotationStoreFromEnv, type QuotationStore } from "./quotationStoreClient.ts";
 
+export type { QuotationStore };
+
 /**
- * Lazily-built, so reading the env happens at first use rather than at import time. That keeps
- * importing this module side-effect free (the contract test can still spin up its own stores
- * without the production env leaking in), and means every caller shares one store for the life
- * of the process — the in-memory one behaves like the old module `Map`s did, while the Redis one
- * is the fix for guest links dying on redeploy.
+ * Creates a QuotationService wrapping a QuotationStore instance.
+ * Eliminates module-level singleton: the store is injected via createDeps().
  */
-let storePromise: Promise<QuotationStore> | undefined;
-function getStore(): Promise<QuotationStore> {
-  storePromise ??= Promise.resolve(createQuotationStoreFromEnv());
-  return storePromise;
+export function createQuotationService(store: QuotationStore) {
+  return {
+    save: (draft: HonoQuotationDraft) => store.save(recalculateQuotationTotals(draft)),
+    get: (idOrSlug: string) => store.get(idOrSlug),
+    list: () => store.list(),
+    remove: (idOrSlug: string) => store.remove(idOrSlug),
+    findOpenForPhone: async (phone: string): Promise<HonoQuotationDraft | undefined> => {
+      if (!phone) return undefined;
+      const all = await store.list();
+      return all.find((q) => q.phone === phone && q.status !== "cancelled" && !q.estimator?.sharedAt);
+    },
+    filter: (all: HonoQuotationDraft[], query: QuotationQuery) => filterQuotations(all, query),
+    duplicateIds: (all: HonoQuotationDraft[]) => duplicateQuotationIds(all),
+  };
 }
 
-export async function saveQuotationDraft(draft: HonoQuotationDraft): Promise<HonoQuotationDraft> {
-  const store = await getStore();
+export async function saveQuotationDraft(
+  draft: HonoQuotationDraft,
+  store: QuotationStore = createQuotationStoreFromEnv(),
+): Promise<HonoQuotationDraft> {
   const normalized = recalculateQuotationTotals(draft);
   return store.save(normalized);
 }
@@ -104,30 +115,26 @@ export function duplicateQuotationIds(all: HonoQuotationDraft[]): HonoQuotationD
 }
 
 /** Remove one quotation by id or slug. Returns false when there was nothing to remove. */
-export async function removeQuotation(idOrSlug: string): Promise<boolean> {
-  const store = await getStore();
+export async function removeQuotation(
+  idOrSlug: string,
+  store: QuotationStore = createQuotationStoreFromEnv(),
+): Promise<boolean> {
   return store.remove(idOrSlug);
 }
 
 /**
  * Looks a quotation up by id or by guest-facing slug.
- *
- * Returns `undefined` for anything unknown, and that is the whole security property: the
- * caller serves `/q/:slug` without a credential, so "not found" has to mean not found.
- *
- * What used to be here instead was a fallback that never let a link 404: any unknown slug
- * returned the most recent quotation, and any id matching `/^QT-/` was cloned from the
- * seeded record. The result was that
- * `GET /q/<anything at all>` returned a real guest's name, dates, party size and total —
- * verified against the live deployment, with no credential.
  */
-export async function getQuotationByIdOrSlug(idOrSlug: string): Promise<HonoQuotationDraft | undefined> {
-  const store = await getStore();
+export async function getQuotationByIdOrSlug(
+  idOrSlug: string,
+  store: QuotationStore = createQuotationStoreFromEnv(),
+): Promise<HonoQuotationDraft | undefined> {
   return store.get(idOrSlug);
 }
 
-export async function listQuotations(): Promise<HonoQuotationDraft[]> {
-  const store = await getStore();
+export async function listQuotations(
+  store: QuotationStore = createQuotationStoreFromEnv(),
+): Promise<HonoQuotationDraft[]> {
   return store.list();
 }
 
@@ -193,9 +200,12 @@ export function filterQuotations(all: HonoQuotationDraft[], query: QuotationQuer
  * exist today both re-checked it, which is exactly the sort of rule that survives until somebody
  * writes a third caller.
  */
-export async function findOpenQuotationForPhone(phone: string): Promise<HonoQuotationDraft | undefined> {
+export async function findOpenQuotationForPhone(
+  phone: string,
+  store: QuotationStore = createQuotationStoreFromEnv(),
+): Promise<HonoQuotationDraft | undefined> {
   if (!phone) return undefined;
-  const all = await listQuotations();
+  const all = await listQuotations(store);
   return all.find((q) => q.phone === phone && q.status !== "cancelled" && !q.estimator?.sharedAt);
 }
 

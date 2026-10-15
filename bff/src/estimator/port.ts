@@ -137,6 +137,7 @@ export type EstimatorFailure =
   | "timeout"
   | "rejected"
   | "no_snapshot"
+  | "no_validated_trip"
   | "unexpected";
 
 export type CommitResult =
@@ -153,6 +154,25 @@ export type CommitResult =
 export type ShareResult =
   | { ok: true; url: string; expiresAt: string | null }
   | { ok: false; reason: EstimatorFailure; detail: string };
+
+export type CreateDraftResult =
+  | {
+      ok: true;
+      id: string;
+      seq: number;
+      model: unknown;
+      sample: boolean;
+      session: EstimatorSession;
+      computedAt: string | null;
+    }
+  | {
+      ok: false;
+      reason: EstimatorFailure;
+      status?: number | null;
+      detail: string;
+      fields?: string[];
+      code?: string | null;
+    };
 
 /**
  * What a submit needs.
@@ -193,6 +213,11 @@ export interface EstimatorPort {
    */
   readonly appBaseUrl?: string;
   sendEstimate(trip: BffTrip | null | undefined, session?: EstimatorSession): Promise<EstimateSendResult>;
+  /**
+   * High-level draft creation: creates estimate, applies optional extras, and commits revision.
+   * Single gateway for the bot once an inquiry is complete.
+   */
+  createDraft(trip: BffTrip, extras?: unknown[]): Promise<CreateDraftResult>;
   /**
    * Re-price a trip staff have **edited** in the studio, on the same scenario.
    *

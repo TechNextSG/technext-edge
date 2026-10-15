@@ -7,6 +7,22 @@ How to write: add an entry as soon as a PR merges or something outside the repo 
 
 ---
 
+## 2026-10-15
+
+### P2: Pattern 1 · Ports & Adapters (feat/p2-ports-adapters)
+- **QuotationStore Dependency Injection**: Injected `QuotationStore` through `createDeps` in `bff/src/deps.ts`, eliminating the module-level singleton and allowing clean mock/in-memory substitution across all tests.
+- **Single Pricing Authority via EstimatorPort**:
+  - Removed internal quote studio (`/quotes`, `bff/src/routes/quotes/*`, `bff/src/views/editor/*`, and related editor snapshots), eliminating ~38,000 lines of dead studio code.
+  - Removed self-calculating rates (`bff/src/quote/domain/rates.ts`) and manual pricing logic from `quotationTool.ts`. Pricing is now solely sourced from Estimator.
+  - Decoupled `simulatedEstimator` from `quote/`, extracting isolated rates into `bff/src/estimator/simulatedRates.ts` solely for local testing and dev mode.
+- **Inbound ApprovalEvents Port**: Added `ApprovalEventsPort` in `bff/src/ports/approvalEvents.ts` to receive signed staff approval (`approved`) and cancellation (`archived`) webhooks from `tn-casa`.
+- **High-level `createDraft` Workflow**: Added `createDraft(trip, extras)` to `EstimatorPort`, `estimatorClient`, and `simulatedEstimator`, atomically coordinating estimate creation, optional extras payload, and revision freeze (`commit`), transmitting `ESTIMATOR_SERVICE_KEY`.
+- **Route & Auth Re-anchoring**:
+  - Updated staff authentication navigation to default to `/handoff` (with `/admin` and `/docs`) now that `/quotes` is retired.
+  - Verified full test suite (53 test files, 779 passed) and regenerated route table snapshot.
+
+---
+
 ## 2026-10-14
 
 ### P1: Pattern 2 · Anti-Corruption Layer & Contract Verification (feat/p1-acl-contract)

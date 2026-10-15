@@ -5,15 +5,6 @@ import { getStaffAlerts, diveWindowIsGuessed } from "../../../../ai/src/index.ts
 import { buildBffTrip, datesBetweenInclusive } from "../../../../ai/src/index.ts";
 import { verifyGuestFacingText, withBudget, type GuestFacingFacts } from "../../../../ai/src/index.ts";
 import { quotationValidityLines, quotationValidUntil } from "../domain/quotationValidity.ts";
-import {
-  roomNightlyRate,
-  diveTierPrice,
-  MEAL_RATE,
-  TRANSPORT_RATE,
-  ROOM_TYPE_LABELS,
-  vansForGuests,
-  type RoomType,
-} from "../domain/rates.ts";
 import type {
   QuotationLineItem,
   QuotationSubmissionState,
@@ -75,19 +66,16 @@ export const SUBMIT_QUOTATION_TO_HONO_DECLARATION = {
 } as const;
 
 export function recalculateQuotationTotals(draft: HonoQuotationDraft): HonoQuotationDraft {
-  const updatedItems = draft.lineItems.map((item) => {
+  const updatedItems = (draft.lineItems ?? []).map((item) => {
     const subtotal = Math.round(item.quantity * item.multiplier * item.unitPrice);
     return { ...item, subtotal };
   });
   const subtotalAmount = updatedItems.reduce((sum, item) => sum + item.subtotal, 0);
-  // The only discount in the team estimator's model is the partner/agency rate, and the field guide
-  // is explicit that it is "30% off rooms" — meals are "never guest-type discounted". So the
-  // discount is computed against the ROOM lines only, not the whole table.
   const roomSubtotal = updatedItems
     .filter((item) => item.category === "room")
     .reduce((sum, item) => sum + item.subtotal, 0);
   const discountPercent = Math.max(0, Math.min(100, Number(draft.discountPercent) || 0));
-  const discountAmount = Math.round(roomSubtotal * (discountPercent / 100));
+  const discountAmount = Math.round((roomSubtotal || subtotalAmount) * (discountPercent / 100));
   const totalAmount = Math.max(0, subtotalAmount - discountAmount);
 
   return {
@@ -159,81 +147,13 @@ export function buildHonoQuotationDraft(
 
   const bffTrip = buildBffTrip(trip);
 
+  // Line items and pricing are omitted here: the Estimator API (EstimatorPort)
+  // is the single source of truth for pricing.
   const lineItems: QuotationLineItem[] = [];
 
-  // 1. Rooms — the team estimator's per-night room rate for each room's occupancy, summed over the stay.
-  // buildBffTrip assigns guests to rooms round-robin (standard rooms), so the occupancy that Odoo
-  // will price is read back off it — the draft prices the same thing the payload sends.
-  const occupancyByRoom = new Map<string, number>();
-  for (const guest of bffTrip.guests) {
-    if (guest.roomId) occupancyByRoom.set(guest.roomId, (occupancyByRoom.get(guest.roomId) ?? 0) + 1);
-  }
-  let roomPerNight = 0;
-  let chargedRooms = 0;
-  // Which room types this line actually charges for, in the order they were booked. The description
-  // used to be the fixed string "Standard Room (Twin / Double Occupancy)" beside whatever rate the
-  // booked rooms produced, so a deluxe booking showed a standard room carrying a deluxe unit price —
-  // caught on production, on a reference quotation used to argue that the arithmetic was trustworthy.
-  const chargedRoomTypes: RoomType[] = [];
-  for (const room of bffTrip.rooms) {
-    const occupancy = occupancyByRoom.get(room.id ?? "") ?? 0;
-    if (occupancy > 0) {
-      roomPerNight += roomNightlyRate(room.type as RoomType, occupancy);
-      chargedRooms += 1;
-      chargedRoomTypes.push(room.type as RoomType);
-    }
-  }
-  const distinctRoomTypes = [...new Set(chargedRoomTypes)];
-  const roomDescription =
-    distinctRoomTypes.length === 0
-      ? "Room (Twin / Double Occupancy)"
-      : distinctRoomTypes.length === 1
-        ? `${ROOM_TYPE_LABELS[distinctRoomTypes[0]!]} (Twin / Double Occupancy)`
-        : // More than one type booked: the unit price below is an average of them, and saying so is
-          // the difference between a summary and a wrong statement about the rate.
-          `${distinctRoomTypes.map((type) => ROOM_TYPE_LABELS[type]).join(" + ")} (average rate)`;
-  lineItems.push({
-    id: "item-rooms",
-    category: "room",
-    description: roomDescription,
-    quantity: chargedRooms || rooms,
-    unitLabel: "rooms",
-    multiplier: nights,
-    multiplierLabel: "nights",
-    unitPrice: chargedRooms ? Math.round(roomPerNight / chargedRooms) : roomNightlyRate("standard", 1),
-    subtotal: roomPerNight * nights,
-  });
-
-  // 2. Meals — flat per person per day, never guest-type discounted. The customer has no
-  // half-board rate, and buildBffTrip sends both full_board and half_board as `meals: true`, so
-  // half-board is priced at the full-board rate until a real half-board price exists.
-  if (mealPlan === "full_board" || mealPlan === "half_board") {
-    const mealLabel =
-      mealPlan === "half_board"
-        ? "Half-Board Dining Package"
-        : "Full-Board Dining Package (Breakfast, Lunch & Dinner)";
-    lineItems.push({
-      id: "item-meals",
-      category: "meals",
-      description: mealLabel,
-      quantity: stayingGuests,
-      unitLabel: "staying guests",
-      multiplier: nights,
-      multiplierLabel: "days",
-      unitPrice: MEAL_RATE,
-      subtotal: stayingGuests * nights * MEAL_RATE,
-    });
-  }
-
-  // 3. Diving — one line per dive DAY, at the tier price for the divers-out that day (see
-  // rates.ts). Priced only when the window is STATED (not guessed) and the head count is uniform.
-  // A split-day plan (`diveNotes` while `divers` is missing) carries no invented price: it is
-  // routed to staff by NEVER-RE-ASK and surfaced as a staff alert, exactly as before.
   let totalGroupSize = stayingGuests;
   if (diver) {
     const note = diveNotes ?? "";
-    // `(?<!\d)`: a count starts where the digit run starts, so a long run is not re-scanned from each
-    // digit in it (CodeQL js/polynomial-redos). Same first match and capture.
     const day1Match = note.match(/(?<!\d)(\d+)\s*(?:person|people|pax|diver|divers)\s*dives?\s*(?:on\s*)?day\s*1/i);
     const bothDaysMatch = note.match(/(?<!\d)(\d+)\s*(?:person|people|pax|diver|divers)\s*dives?\s*(?:on\s*)?(?:both\s*days|all\s*days|2\s*days)/i);
     if (day1Match && bothDaysMatch) {
@@ -241,57 +161,8 @@ export function buildHonoQuotationDraft(
     } else if (typeof divers === "number") {
       totalGroupSize = Math.max(stayingGuests, divers);
     }
-
-    if (typeof divers === "number" && divers > 0 && !diveWindowIsGuessed(trip)) {
-      const from = trip.diveFrom?.value as string | null;
-      const to = trip.diveTo?.value as string | null;
-      const diveDates = from && to ? datesBetweenInclusive(from, to) : [];
-      for (const date of diveDates) {
-        const rate = diveTierPrice(divers);
-        lineItems.push({
-          id: `item-dive-${date}`,
-          category: "diving",
-          description: `Anilao Boat Dives — ${date}`,
-          quantity: divers,
-          unitLabel: "divers",
-          multiplier: 1,
-          multiplierLabel: "day",
-          unitPrice: rate,
-          subtotal: divers * rate,
-        });
-      }
-    }
   }
 
-  // 4. Airport transfer — a per-van price, not per guest, and more than one van once the group is
-  //    bigger than a van carries. It used to be `quantity: 1` for every group, so a 10-guest trip was
-  //    drafted with a single van and the engine's answer arrived thousands of pesos higher — the draft
-  //    exists to be the engine's own answer, and a fixed one-van line cannot be that for a big group.
-  if (trip.transport?.value === true) {
-    const oneWay = trip.transportType?.value === "oneway";
-    const rate = oneWay ? TRANSPORT_RATE.oneway : TRANSPORT_RATE.roundtrip;
-    // Who is actually riding: the per-guest flag when the record has one (that is what the payload
-    // sends), and the party size when nobody is flagged — a transfer asked for but not assigned is
-    // still a van.
-    const riding = bffTrip.guests.filter((guest) => guest.transport).length || stayingGuests;
-    const vans = vansForGuests(riding);
-    const label = oneWay ? "One Way" : "Round-Trip";
-    lineItems.push({
-      id: "item-transfer",
-      category: "transfer",
-      description: `Private Van Transfer (${label}${vans > 1 ? `, ${vans} vans` : ""})`,
-      quantity: vans,
-      unitLabel: vans === 1 ? "van" : "vans",
-      multiplier: 1,
-      multiplierLabel: "trip",
-      unitPrice: rate,
-      subtotal: rate * vans,
-    });
-  }
-
-  // No discount from what the guest typed. A partner rate is the team estimator's engine answering an agent
-  // who signed in with their own key; "we are a travel agency" in a WhatsApp message is not that. The
-  // enquiry is held for staff instead (`partner_rate_confirmation_required`).
   const discountPercent = 0;
   const now = new Date().toISOString();
 
