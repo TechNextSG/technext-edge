@@ -1,6 +1,7 @@
 # ADR-011: Standalone AI + WhatsApp Service Communicating with Estimator via API
 
-- **Status:** Accepted (Decided)
+- **Status:** superseded 15/10/2026 by tn-casa docs/superpowers/plans/2026-10-13-whatsapp-channel.md
+> **Note (15/10/2026):** Theo quyết định của Anthony & Lead Duy, AI chạy chung với BFF trong repo `tn-casa-quotation-estimator` (gọi qua function call nội bộ `@casa/ai`). `technext-edge` chỉ giữ vai trò demo/POC, không triển khai production độc lập.
 - **Date:** 2026-10-14
 - **Deciders:** Lead (Duy), Edge Pod (`aidev1-technext`), Product Stakeholders.
 - **Supersedes / Replaces:** Previous assumptions regarding monorepo workspace consolidation; drops mirror checks (`mirror:check`).
