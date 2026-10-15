@@ -12,6 +12,7 @@ import {
   baseUrlFor,
   buildProvider,
   settingsFromEnv,
+  registerProvider,
   type ProviderKind,
   type RegistryEntry,
   type AiEnv,
@@ -33,6 +34,7 @@ export {
   baseUrlFor,
   buildProvider,
   settingsFromEnv,
+  registerProvider,
 };
 
 export type {
@@ -60,14 +62,15 @@ export function createProviderByName(name: string, apiKey: string, env: AiEnv): 
   if (!choice) {
     throw new Error(`Unknown provider: "${name}" (expected ${KNOWN_PROVIDER_NAMES.join(", ")})`);
   }
-  return buildProvider(choice, apiKey, {
-    baseUrls: {
-      ...(env.DEEPSEEK_BASE_URL ? { deepseek: env.DEEPSEEK_BASE_URL } : {}),
-      ...(env.ANTHROPIC_BASE_URL ? { anthropic: env.ANTHROPIC_BASE_URL } : {}),
-    },
-    deepseekBaseUrl: env.DEEPSEEK_BASE_URL,
-    anthropicBaseUrl: env.ANTHROPIC_BASE_URL,
-  });
+  const baseUrls: Partial<Record<ProviderKind, string>> = {};
+  for (const kind of PROVIDER_KINDS) {
+    const entry = PROVIDER_REGISTRY[kind];
+    const baseUrlKey = entry?.envKeys && "baseUrl" in entry.envKeys ? (entry.envKeys as { baseUrl?: string }).baseUrl : undefined;
+    if (baseUrlKey && env[baseUrlKey as keyof AiEnv]) {
+      baseUrls[kind] = String(env[baseUrlKey as keyof AiEnv]);
+    }
+  }
+  return buildProvider(choice, apiKey, { baseUrls });
 }
 
 export interface ResilienceOptions {
@@ -222,13 +225,12 @@ export function createProviderFromSettings(
   const tuning: BuildTuning = {
     timeoutsMs: settings.timeoutsMs,
     baseUrls: settings.baseUrls,
-    deepseekBaseUrl: settings.deepseekBaseUrl,
-    anthropicBaseUrl: settings.anthropicBaseUrl,
   };
 
   const usable = (choice: ModelChoice | null): { choice: ModelChoice; key: string } | null => {
     if (!choice) return null;
-    if (choice.provider === "deepseek" && !baseUrlFor("deepseek", settings, env)) return null;
+    const descriptor = PROVIDERS[choice.provider];
+    if (descriptor?.requiresBaseUrl && !baseUrlFor(choice.provider, settings, env)) return null;
     const key = keyFor(choice.provider, settings, env);
     return key ? { choice, key } : null;
   };
@@ -241,10 +243,12 @@ export function createProviderFromSettings(
       : second;
 
   if (!first && !distinctSecond) {
-    const primaryKey = PROVIDERS[settings.primary.provider]?.envKeys.apiKey ?? "API_KEY";
-    const backupKey = settings.fallback
-      ? PROVIDERS[settings.fallback.provider]?.envKeys.apiKey
-      : PROVIDERS[settings.primary.provider === "gemini" ? "deepseek" : "gemini"].envKeys.apiKey;
+    const primaryDescriptor = PROVIDERS[settings.primary.provider];
+    const primaryKey = primaryDescriptor?.envKeys.apiKey ?? "API_KEY";
+    const fallbackKind = settings.fallback?.provider ?? (primaryDescriptor?.fallbackOrder as readonly ProviderKind[] | undefined)?.[0];
+    const backupKey = fallbackKind
+      ? PROVIDERS[fallbackKind]?.envKeys.apiKey
+      : "BACKUP_KEY";
     throw new Error(
       `${primaryKey} not set (and no fallback ${backupKey} found)` +
         ` — set it in the environment or add a key in the admin dashboard`,

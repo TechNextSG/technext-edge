@@ -53,6 +53,7 @@ export {
   PROVIDER_KINDS,
   KNOWN_PROVIDER_NAMES,
   ENV_KEY_NAME,
+  registerProvider,
 } from "./infra/providers/providerFromEnv.ts";
 export type {
   AiEnv,

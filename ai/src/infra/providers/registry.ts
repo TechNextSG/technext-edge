@@ -23,7 +23,7 @@ export interface RegistryEntry<K extends string = string> {
     synthesis?: number;
   };
   fallbackOrder: readonly string[];
-  supportsBaseUrl?: boolean;
+  requiresBaseUrl: boolean;
   create: (params: {
     apiKey: string;
     model?: string | undefined;
@@ -77,6 +77,7 @@ export const PROVIDER_REGISTRY = {
       synthesis: 8_000,
     },
     fallbackOrder: ["deepseek", "anthropic"] as const,
+    requiresBaseUrl: false,
     create: (params) =>
       createGeminiProvider(params.apiKey, params.model, {
         timeoutMs: params.timeoutMs,
@@ -106,7 +107,7 @@ export const PROVIDER_REGISTRY = {
       synthesis: 8_000,
     },
     fallbackOrder: ["anthropic", "gemini"] as const,
-    supportsBaseUrl: true,
+    requiresBaseUrl: true,
     create: (params) => {
       if (!params.baseUrl) {
         throw new Error("DeepSeek is not configured: no gateway base URL (DEEPSEEK_BASE_URL)");
@@ -123,16 +124,12 @@ export const PROVIDER_REGISTRY = {
     defaultModel: DEFAULT_ANTHROPIC_MODEL,
     models: [
       "claude-haiku-5-5",
-      "claude-3-5-haiku-20241022",
-      "claude-3-5-haiku-latest",
-      "claude-3-5-sonnet-20241022",
-      "claude-3-7-sonnet-20250219",
+      "claude-sonnet-5-5",
     ] as const,
     modelPattern: /^claude-[a-z0-9.\-]{1,60}$/,
     colonPrefixes: ["anthropic", "claude"] as const,
-    aliases: ["anthropic", "claude-3-5-haiku", "claude-haiku"] as const,
+    aliases: ["anthropic", "claude-haiku"] as const,
     aliasModels: {
-      "claude-3-5-haiku": DEFAULT_ANTHROPIC_MODEL,
       "claude-haiku": DEFAULT_ANTHROPIC_MODEL,
     },
     envKeys: {
@@ -146,7 +143,7 @@ export const PROVIDER_REGISTRY = {
       synthesis: 8_000,
     },
     fallbackOrder: ["gemini", "deepseek"] as const,
-    supportsBaseUrl: true,
+    requiresBaseUrl: false,
     create: (params) =>
       createAnthropicProvider(params.apiKey, params.model, {
         timeoutMs: params.timeoutMs,
@@ -157,21 +154,21 @@ export const PROVIDER_REGISTRY = {
 
 export type ProviderKind = keyof typeof PROVIDER_REGISTRY;
 
-export const PROVIDER_KINDS: readonly ProviderKind[] = Object.keys(
+export const PROVIDER_KINDS: ProviderKind[] = Object.keys(
   PROVIDER_REGISTRY,
-) as readonly ProviderKind[];
+) as ProviderKind[];
 
-export const MODEL_CATALOG: Record<ProviderKind, readonly string[]> = {
-  gemini: PROVIDER_REGISTRY.gemini.models,
-  deepseek: PROVIDER_REGISTRY.deepseek.models,
-  anthropic: PROVIDER_REGISTRY.anthropic.models,
-};
+export const MODEL_CATALOG: Record<ProviderKind, readonly string[]> = Object.fromEntries(
+  PROVIDER_KINDS.map((kind) => [kind, PROVIDER_REGISTRY[kind].models]),
+) as unknown as Record<ProviderKind, readonly string[]>;
 
-export const DEFAULT_MODELS: Record<ProviderKind, string> = {
-  gemini: PROVIDER_REGISTRY.gemini.defaultModel,
-  deepseek: PROVIDER_REGISTRY.deepseek.defaultModel,
-  anthropic: PROVIDER_REGISTRY.anthropic.defaultModel,
-};
+export const DEFAULT_MODELS: Record<ProviderKind, string> = Object.fromEntries(
+  PROVIDER_KINDS.map((kind) => [kind, PROVIDER_REGISTRY[kind].defaultModel]),
+) as unknown as Record<ProviderKind, string>;
+
+export const ENV_KEY_NAME: Record<ProviderKind, string> = Object.fromEntries(
+  PROVIDER_KINDS.map((kind) => [kind, PROVIDER_REGISTRY[kind].envKeys.apiKey]),
+) as unknown as Record<ProviderKind, string>;
 
 export const KNOWN_PROVIDER_NAMES: readonly string[] = Array.from(
   new Set(
@@ -182,35 +179,42 @@ export const KNOWN_PROVIDER_NAMES: readonly string[] = Array.from(
   ),
 );
 
-export const ENV_KEY_NAME: Record<ProviderKind, string> = Object.fromEntries(
-  PROVIDER_KINDS.map((kind) => [kind, PROVIDER_REGISTRY[kind].envKeys.apiKey]),
-) as Record<ProviderKind, string>;
+export function registerProvider<K extends string>(entry: RegistryEntry<K>): void {
+  (PROVIDER_REGISTRY as Record<string, RegistryEntry>)[entry.kind] = entry as unknown as RegistryEntry;
+  if (!PROVIDER_KINDS.includes(entry.kind as ProviderKind)) {
+    PROVIDER_KINDS.push(entry.kind as ProviderKind);
+  }
+  MODEL_CATALOG[entry.kind as ProviderKind] = entry.models;
+  DEFAULT_MODELS[entry.kind as ProviderKind] = entry.defaultModel;
+  ENV_KEY_NAME[entry.kind as ProviderKind] = entry.envKeys.apiKey;
+}
 
-export function isKnownModel(provider: ProviderKind, model: string): boolean {
-  const entry = PROVIDER_REGISTRY[provider];
+export function isKnownModel(provider: ProviderKind, model: string, registry = PROVIDER_REGISTRY): boolean {
+  const entry = (registry as Record<string, RegistryEntry | undefined>)[provider];
   if (!entry) return false;
   if ((entry.models as readonly string[]).includes(model)) return true;
   return entry.modelPattern.test(model);
 }
 
-export interface AiEnv {
+type RegistryMap = typeof PROVIDER_REGISTRY;
+type RegistryEnvKey = {
+  [K in keyof RegistryMap]: NonNullable<RegistryMap[K]["envKeys"][keyof RegistryMap[K]["envKeys"]]>;
+}[keyof RegistryMap];
+
+type RegistryProviderEnv = {
+  [K in RegistryEnvKey]?: string | undefined;
+};
+
+export interface CommonAiEnv {
   EXTRACTOR_PROVIDER?: string | undefined;
-  GEMINI_API_KEY?: string | undefined;
-  GEMINI_MODEL?: string | undefined;
-  GEMINI_TIMEOUT_MS?: string | number | undefined;
-  DEEPSEEK_GATEWAY_KEY?: string | undefined;
-  DEEPSEEK_BASE_URL?: string | undefined;
-  DEEPSEEK_MODEL?: string | undefined;
-  DEEPSEEK_TIMEOUT_MS?: string | number | undefined;
-  ANTHROPIC_API_KEY?: string | undefined;
-  ANTHROPIC_BASE_URL?: string | undefined;
-  ANTHROPIC_MODEL?: string | undefined;
-  ANTHROPIC_TIMEOUT_MS?: string | number | undefined;
   ALLOW_NON_ANTHROPIC_IN_PRODUCTION?: string | undefined;
   NODE_ENV?: string | undefined;
   VERCEL_ENV?: string | undefined;
   GUEST_DATA_MODE?: string | undefined;
+  [key: string]: unknown;
 }
+
+export type AiEnv = CommonAiEnv & RegistryProviderEnv;
 
 export interface ModelChoice {
   provider: ProviderKind;
@@ -226,29 +230,34 @@ export interface ProviderSettings {
   synthesisEnabled: boolean;
   keys: Partial<Record<ProviderKind, string>>;
   baseUrls?: Partial<Record<ProviderKind, string>> | undefined;
-  /** @deprecated use baseUrls.deepseek */
+  /** @deprecated legacy field in KV */
   deepseekBaseUrl?: string | undefined;
-  /** @deprecated use baseUrls.anthropic */
-  anthropicBaseUrl?: string | undefined;
 }
 
-export function choiceFromName(name: string, env: AiEnv): ModelChoice | null {
+export function choiceFromName(name: string, env: AiEnv, registry = PROVIDER_REGISTRY): ModelChoice | null {
   const lower = name.toLowerCase().trim();
   const colonIdx = lower.indexOf(":");
+  const kinds = Object.keys(registry) as ProviderKind[];
   if (colonIdx > 0) {
     const prefix = lower.slice(0, colonIdx);
     const customModel = name.slice(colonIdx + 1).trim();
-    for (const kind of PROVIDER_KINDS) {
-      const entry = PROVIDER_REGISTRY[kind];
-      if (entry.kind === prefix || (entry.colonPrefixes as readonly string[] | undefined)?.includes(prefix)) {
+    for (const kind of kinds) {
+      const entry = (registry as Record<string, RegistryEntry | undefined>)[kind];
+      if (!entry) continue;
+      if (
+        entry.kind === prefix ||
+        (entry.colonPrefixes as readonly string[] | undefined)?.includes(prefix) ||
+        (entry.aliases as readonly string[] | undefined)?.includes(prefix)
+      ) {
         return { provider: kind, model: customModel };
       }
     }
     return null;
   }
 
-  for (const kind of PROVIDER_KINDS) {
-    const entry: RegistryEntry = PROVIDER_REGISTRY[kind];
+  for (const kind of kinds) {
+    const entry: RegistryEntry | undefined = (registry as Record<string, RegistryEntry | undefined>)[kind];
+    if (!entry) continue;
     const aliasMap = entry.aliasModels;
     if (aliasMap && lower in aliasMap) {
       return { provider: kind, model: aliasMap[lower]! };
@@ -266,8 +275,13 @@ export function choiceFromName(name: string, env: AiEnv): ModelChoice | null {
   return null;
 }
 
-export function keyFor(kind: ProviderKind, settings: Pick<ProviderSettings, "keys">, env: AiEnv): string | undefined {
-  const entry: RegistryEntry | undefined = PROVIDER_REGISTRY[kind];
+export function keyFor(
+  kind: ProviderKind,
+  settings: Pick<ProviderSettings, "keys">,
+  env: AiEnv,
+  registry = PROVIDER_REGISTRY,
+): string | undefined {
+  const entry: RegistryEntry | undefined = (registry as Record<string, RegistryEntry | undefined>)[kind];
   if (!entry) return undefined;
   const envKey = entry.envKeys.apiKey as keyof AiEnv;
   return settings.keys[kind] || (env[envKey] as string | undefined) || undefined;
@@ -275,15 +289,15 @@ export function keyFor(kind: ProviderKind, settings: Pick<ProviderSettings, "key
 
 export function baseUrlFor(
   kind: ProviderKind,
-  settings: Pick<ProviderSettings, "baseUrls" | "deepseekBaseUrl" | "anthropicBaseUrl">,
+  settings: Pick<ProviderSettings, "baseUrls">,
   env: AiEnv,
+  registry = PROVIDER_REGISTRY,
 ): string | undefined {
   if (settings.baseUrls?.[kind]) return settings.baseUrls[kind];
-  if (kind === "deepseek" && settings.deepseekBaseUrl) return settings.deepseekBaseUrl;
-  if (kind === "anthropic" && settings.anthropicBaseUrl) return settings.anthropicBaseUrl;
-  const entry: RegistryEntry | undefined = PROVIDER_REGISTRY[kind];
-  if (entry?.envKeys.baseUrl) {
-    return env[entry.envKeys.baseUrl as keyof AiEnv] as string | undefined;
+  const entry: RegistryEntry | undefined = (registry as Record<string, RegistryEntry | undefined>)[kind];
+  const baseUrlKey = entry?.envKeys?.baseUrl;
+  if (baseUrlKey) {
+    return env[baseUrlKey as keyof AiEnv] as string | undefined;
   }
   return undefined;
 }
@@ -291,67 +305,81 @@ export function baseUrlFor(
 export interface BuildTuning {
   timeoutsMs?: { extract: number; synthesis: number } | undefined;
   baseUrls?: Partial<Record<ProviderKind, string>> | undefined;
-  deepseekBaseUrl?: string | undefined;
-  anthropicBaseUrl?: string | undefined;
 }
 
-export function buildProvider(choice: ModelChoice, apiKey: string, tuning: BuildTuning): ExtractProvider {
-  const descriptor: RegistryEntry | undefined = PROVIDER_REGISTRY[choice.provider];
+export function buildProvider(
+  choice: ModelChoice,
+  apiKey: string,
+  tuning: BuildTuning,
+  registry = PROVIDER_REGISTRY,
+): ExtractProvider {
+  const descriptor: RegistryEntry | undefined = (registry as Record<string, RegistryEntry | undefined>)[choice.provider];
   if (!descriptor) {
     throw new Error(`Unsupported provider kind: ${choice.provider}`);
   }
 
-  const timeoutMs = tuning.timeoutsMs?.extract;
-  const synthesisTimeoutMs = tuning.timeoutsMs?.synthesis;
-  const baseUrl =
-    tuning.baseUrls?.[choice.provider] ??
-    (choice.provider === "deepseek"
-      ? tuning.deepseekBaseUrl
-      : choice.provider === "anthropic"
-        ? tuning.anthropicBaseUrl
-        : undefined);
+  const baseUrl = tuning.baseUrls?.[choice.provider];
+  if (descriptor.requiresBaseUrl && !baseUrl) {
+    throw new Error(
+      `${descriptor.label} is not configured: no gateway base URL (${descriptor.envKeys.baseUrl ?? "baseUrl"})`,
+    );
+  }
 
   return descriptor.create({
     apiKey,
     model: choice.model,
-    timeoutMs,
-    synthesisTimeoutMs,
+    timeoutMs: tuning.timeoutsMs?.extract,
+    synthesisTimeoutMs: tuning.timeoutsMs?.synthesis,
     baseUrl,
   });
 }
 
-export function settingsFromEnv(env: AiEnv): ProviderSettings {
-  const name = (env.EXTRACTOR_PROVIDER ?? DEFAULT_MODELS.gemini).toLowerCase();
-  const primary = choiceFromName(name, env);
+export function settingsFromEnv(env: AiEnv, registry = PROVIDER_REGISTRY): ProviderSettings {
+  const kinds = Object.keys(registry) as ProviderKind[];
+  const registryRecords = registry as Record<string, RegistryEntry | undefined>;
+  const defaultGeminiModel = registryRecords.gemini?.defaultModel ?? (kinds[0] ? registryRecords[kinds[0]]?.defaultModel : undefined) ?? "";
+  const name = (env.EXTRACTOR_PROVIDER ?? defaultGeminiModel).toLowerCase();
+  const primary = choiceFromName(name, env, registry);
   if (!primary) {
     throw new Error(`Unknown EXTRACTOR_PROVIDER: "${name}" (expected ${KNOWN_PROVIDER_NAMES.join(", ")})`);
   }
 
   const hasCredentials = (kind: ProviderKind): boolean => {
-    const entry: RegistryEntry = PROVIDER_REGISTRY[kind];
+    const entry: RegistryEntry | undefined = registryRecords[kind];
+    if (!entry) return false;
     const key = env[entry.envKeys.apiKey as keyof AiEnv];
     if (!key) return false;
-    if (entry.supportsBaseUrl && entry.envKeys.baseUrl) {
-      if (kind === "deepseek" && !env[entry.envKeys.baseUrl as keyof AiEnv]) return false;
+    if (entry.requiresBaseUrl) {
+      const baseUrlKey = entry.envKeys.baseUrl;
+      if (!baseUrlKey || !env[baseUrlKey as keyof AiEnv]) return false;
     }
     return true;
   };
 
-  const entry: RegistryEntry = PROVIDER_REGISTRY[primary.provider];
+  const entry: RegistryEntry | undefined = registryRecords[primary.provider];
+  if (!entry) {
+    throw new Error(`Unknown provider entry: "${primary.provider}"`);
+  }
   const backupKind = (entry.fallbackOrder as readonly ProviderKind[]).find(hasCredentials) ?? null;
 
-  const fallback: ModelChoice | null = backupKind
+  const fallbackEntry = backupKind ? registryRecords[backupKind] : undefined;
+  const fallback: ModelChoice | null = backupKind && fallbackEntry
     ? {
         provider: backupKind,
         model:
-          (env[PROVIDER_REGISTRY[backupKind].envKeys.model as keyof AiEnv] as string | undefined) ??
-          DEFAULT_MODELS[backupKind],
+          (env[fallbackEntry.envKeys.model as keyof AiEnv] as string | undefined) ??
+          fallbackEntry.defaultModel,
       }
     : null;
 
   const baseUrls: Partial<Record<ProviderKind, string>> = {};
-  if (env.DEEPSEEK_BASE_URL) baseUrls.deepseek = env.DEEPSEEK_BASE_URL;
-  if (env.ANTHROPIC_BASE_URL) baseUrls.anthropic = env.ANTHROPIC_BASE_URL;
+  for (const kind of kinds) {
+    const kEntry = registryRecords[kind];
+    const baseUrlKey = kEntry?.envKeys?.baseUrl;
+    if (baseUrlKey && env[baseUrlKey as keyof AiEnv]) {
+      baseUrls[kind] = env[baseUrlKey as keyof AiEnv] as string;
+    }
+  }
 
   return {
     primary,
@@ -368,7 +396,5 @@ export function settingsFromEnv(env: AiEnv): ProviderSettings {
     synthesisEnabled: true,
     keys: {},
     baseUrls,
-    ...(env.DEEPSEEK_BASE_URL ? { deepseekBaseUrl: env.DEEPSEEK_BASE_URL } : {}),
-    ...(env.ANTHROPIC_BASE_URL ? { anthropicBaseUrl: env.ANTHROPIC_BASE_URL } : {}),
   };
 }

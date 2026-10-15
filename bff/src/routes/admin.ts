@@ -1,7 +1,7 @@
 import { loadEnv, type Env } from "../env.ts";
 import { Hono, type Context } from "hono";
 import { z } from "zod";
-import { isKnownModel, PROVIDER_KINDS, type ModelChoice, type ProviderKind, type ProviderSettings } from "../../../ai/src/index.ts";
+import { isKnownModel, PROVIDER_KINDS, PROVIDER_REGISTRY, type ModelChoice, type ProviderKind, type ProviderSettings } from "../../../ai/src/index.ts";
 import { testChoice, type TestResult } from "../ai/providerHolder.ts";
 import {
   LIMITS,
@@ -21,7 +21,16 @@ export interface AdminRouteDeps {
   env?: Env;
 }
 
-export const Kind = z.enum(PROVIDER_KINDS as unknown as [ProviderKind, ...ProviderKind[]]);
+export const Kind = z.string().superRefine((val, ctx) => {
+  if (!PROVIDER_KINDS.includes(val as ProviderKind) && !(PROVIDER_REGISTRY as Record<string, unknown>)[val]) {
+    ctx.addIssue({ code: "custom", message: `Invalid provider kind: ${val}` });
+  }
+}) as unknown as z.ZodType<ProviderKind> & { readonly options: readonly string[] };
+
+Object.defineProperty(Kind, "options", {
+  get: () => PROVIDER_KINDS,
+});
+
 const Choice = z.object({ provider: Kind, model: z.string().min(1).max(80) }).strict();
 const ms = (min: number, max: number) => z.number().int().min(min).max(max);
 
@@ -43,6 +52,7 @@ const PatchShape = {
     .strict()
     .optional(),
   synthesisEnabled: z.boolean().optional(),
+  baseUrls: z.record(Kind, z.string().max(300).nullable()).optional(),
   deepseekBaseUrl: z.string().max(300).nullable().optional(),
 };
 
@@ -58,6 +68,14 @@ function checked<T extends z.ZodTypeAny>(schema: T) {
     if (v.primary && v.fallback && v.primary.provider === v.fallback.provider && v.primary.model === v.fallback.model) {
       ctx.addIssue({ code: "custom", path: ["fallback"], message: "the fallback is the same model as the primary, which protects nothing" });
     }
+    if (v.baseUrls) {
+      for (const [kind, url] of Object.entries(v.baseUrls)) {
+        if (typeof url === "string" && url !== "") {
+          const problem = validateDeepseekBaseUrl(url);
+          if (problem) ctx.addIssue({ code: "custom", path: ["baseUrls", kind], message: `${kind}: ${problem}` });
+        }
+      }
+    }
     if (typeof v.deepseekBaseUrl === "string" && v.deepseekBaseUrl !== "") {
       const problem = validateDeepseekBaseUrl(v.deepseekBaseUrl);
       if (problem) ctx.addIssue({ code: "custom", path: ["deepseekBaseUrl"], message: problem });
@@ -70,12 +88,38 @@ const TestBody = checked(z.object(PatchShape).strict());
 const KeyBody = z.object({ key: z.string().trim().min(8).max(500) }).strict();
 
 function asPatch(body: z.infer<typeof TestBody>): AiSettingsPatch {
-  const { deepseekBaseUrl, ...rest } = body;
-  return { ...rest, ...(deepseekBaseUrl !== undefined ? { deepseekBaseUrl: deepseekBaseUrl === "" ? null : deepseekBaseUrl } : {}) } as AiSettingsPatch;
+  const { deepseekBaseUrl, baseUrls, ...rest } = body;
+  const patch: AiSettingsPatch = { ...rest };
+  if (baseUrls !== undefined) {
+    patch.baseUrls = {};
+    for (const [k, v] of Object.entries(baseUrls)) {
+      patch.baseUrls[k as ProviderKind] = v === "" ? null : v;
+    }
+  }
+  if (deepseekBaseUrl !== undefined) {
+    patch.deepseekBaseUrl = deepseekBaseUrl === "" ? null : deepseekBaseUrl;
+    if (!patch.baseUrls) patch.baseUrls = {};
+    if (patch.baseUrls.deepseek === undefined) {
+      patch.baseUrls.deepseek = patch.deepseekBaseUrl;
+    }
+  }
+  return patch;
 }
 
 /** The settings as they would be in force if `patch` were saved. */
 function candidate(current: ProviderSettings, patch: AiSettingsPatch): ProviderSettings {
+  const nextBaseUrls: Partial<Record<ProviderKind, string>> = { ...(current.baseUrls ?? {}) };
+  if (patch.baseUrls) {
+    for (const [k, v] of Object.entries(patch.baseUrls)) {
+      if (v === null) delete nextBaseUrls[k as ProviderKind];
+      else if (v) nextBaseUrls[k as ProviderKind] = v;
+    }
+  }
+  if (patch.deepseekBaseUrl !== undefined) {
+    if (patch.deepseekBaseUrl === null) delete nextBaseUrls.deepseek;
+    else nextBaseUrls.deepseek = patch.deepseekBaseUrl;
+  }
+
   return {
     ...current,
     ...(patch.primary ? { primary: patch.primary } : {}),
@@ -83,11 +127,8 @@ function candidate(current: ProviderSettings, patch: AiSettingsPatch): ProviderS
     ...(patch.timeoutsMs ? { timeoutsMs: patch.timeoutsMs } : {}),
     ...(patch.breaker ? { breaker: patch.breaker } : {}),
     ...(patch.synthesisEnabled !== undefined ? { synthesisEnabled: patch.synthesisEnabled } : {}),
-    ...("deepseekBaseUrl" in patch && patch.deepseekBaseUrl !== undefined
-      ? patch.deepseekBaseUrl === null
-        ? { deepseekBaseUrl: undefined }
-        : { deepseekBaseUrl: patch.deepseekBaseUrl }
-      : {}),
+    baseUrls: nextBaseUrls,
+    ...(nextBaseUrls.deepseek ? { deepseekBaseUrl: nextBaseUrls.deepseek } : {}),
   };
 }
 
@@ -101,7 +142,7 @@ export function adminRoutes(deps: AdminRouteDeps): Hono {
   async function runTests(current: ProviderSettings, patch: AiSettingsPatch, onlyWhatChanged: boolean): Promise<TestResult[]> {
     const next = candidate(current, patch);
     const tests: Promise<TestResult>[] = [];
-    const tuning = Boolean(patch.timeoutsMs || patch.deepseekBaseUrl !== undefined);
+    const tuning = Boolean(patch.timeoutsMs || patch.baseUrls || patch.deepseekBaseUrl !== undefined);
     if (!onlyWhatChanged || patch.primary || tuning) {
       tests.push(testChoice("primary", next.primary, next, env));
     }
@@ -134,7 +175,7 @@ export function adminRoutes(deps: AdminRouteDeps): Hono {
     // A model that does not answer is not saved by accident: the dashboard tests what is being set first, and
     // "Save anyway" is the deliberate way past a failed test (a key that is about to be added, say).
     let tests: TestResult[] = [];
-    if (!saveAnyway && (patch.primary || patch.fallback || patch.timeoutsMs || patch.deepseekBaseUrl !== undefined)) {
+    if (!saveAnyway && (patch.primary || patch.fallback || patch.timeoutsMs || patch.baseUrls || patch.deepseekBaseUrl !== undefined)) {
       tests = await runTests((await store.resolve()).settings, patch, true);
       if (tests.some((t) => !t.ok)) {
         return c.json({ ok: false, reason: "test_failed", tests, hint: "Fix the key or the model, or save anyway." }, 409);

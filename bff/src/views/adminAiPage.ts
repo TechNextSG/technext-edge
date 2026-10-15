@@ -95,9 +95,7 @@ ${themeCss()}
     <div class="row">
       <label style="display:flex;gap:8px;align-items:center;margin:0"><input type="checkbox" id="synthesis" /> Let the model write the reply (off = fixed wording)</label>
     </div>
-    <div class="row">
-      <div><label for="ds-url">DeepSeek gateway URL (https)</label><input type="text" id="ds-url" style="min-width:380px" placeholder="leave empty for the default" /></div>
-    </div>
+    <div id="base-urls-container"></div>
     <div class="row"><button type="button" class="primary" id="btn-save-adv">Save advanced settings</button></div>
   </section>
 
@@ -163,7 +161,26 @@ ${themeCss()}
     $('t-extract').value = view.timeoutsMs.extract; $('t-synthesis').value = view.timeoutsMs.synthesis;
     $('b-cooldown').value = view.breaker.cooldownMs; $('b-auth').value = view.breaker.authCooldownMs;
     $('synthesis').checked = view.synthesisEnabled.value;
-    $('ds-url').value = view.deepseekBaseUrl.value || '';
+    var buContainer = $('base-urls-container');
+    clear(buContainer);
+    if (view.baseUrls) {
+      Object.keys(view.baseUrls).forEach(function (kind) {
+        var bu = view.baseUrls[kind];
+        if (!bu.required) return;
+        var r = el('div', null, 'row');
+        var d = el('div');
+        d.appendChild(el('label', bu.label + ' gateway URL (https)'));
+        var inp = document.createElement('input');
+        inp.type = 'text';
+        inp.id = 'base-url-' + kind;
+        inp.style.minWidth = '380px';
+        inp.placeholder = 'leave empty for the default';
+        inp.value = bu.value || '';
+        d.appendChild(inp);
+        r.appendChild(d);
+        buContainer.appendChild(r);
+      });
+    }
   }
 
   function renderKeys() {
@@ -229,7 +246,21 @@ ${themeCss()}
       patch.timeoutsMs = { extract: Number($('t-extract').value), synthesis: Number($('t-synthesis').value) };
       patch.breaker = { cooldownMs: Number($('b-cooldown').value), authCooldownMs: Number($('b-auth').value) };
       patch.synthesisEnabled = $('synthesis').checked;
-      patch.deepseekBaseUrl = $('ds-url').value.trim() === '' ? null : $('ds-url').value.trim();
+      patch.baseUrls = {};
+      if (view.baseUrls) {
+        Object.keys(view.baseUrls).forEach(function (kind) {
+          var bu = view.baseUrls[kind];
+          if (!bu.required) return;
+          var inp = $('base-url-' + kind);
+          if (inp) {
+            var val = inp.value.trim();
+            patch.baseUrls[kind] = val === '' ? null : val;
+          }
+        });
+      }
+      if (patch.baseUrls.deepseek !== undefined) {
+        patch.deepseekBaseUrl = patch.baseUrls.deepseek;
+      }
     }
     return patch;
   }

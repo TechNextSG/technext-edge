@@ -21,13 +21,13 @@ describe("PROVIDERS registry & Pattern 3 Strategy", () => {
     expect(PROVIDERS.gemini.label).toBe("Gemini");
     expect(PROVIDERS.deepseek.label).toBe("DeepSeek");
 
-    expect(PROVIDERS.anthropic.models).toContain("claude-3-5-haiku-20241022");
+    expect(PROVIDERS.anthropic.models).toContain("claude-haiku-5-5");
     expect(PROVIDERS.gemini.models).toContain("gemini-3.1-flash-lite");
     expect(PROVIDERS.deepseek.models).toContain("deepseek-flash");
   });
 
   it("verifies known models for all providers", () => {
-    expect(isKnownModel("anthropic", "claude-3-5-haiku-20241022")).toBe(true);
+    expect(isKnownModel("anthropic", "claude-haiku-5-5")).toBe(true);
     expect(isKnownModel("anthropic", "claude-custom-v1")).toBe(true);
     expect(isKnownModel("gemini", "gemini-3.1-flash-lite")).toBe(true);
     expect(isKnownModel("deepseek", "deepseek-pro")).toBe(true);
@@ -38,8 +38,8 @@ describe("PROVIDERS registry & Pattern 3 Strategy", () => {
     const p1 = createProviderByName("anthropic", "test-key", {});
     expect(p1.id).toBe("anthropic:claude-haiku-5-5");
 
-    const p2 = createProviderByName("claude-3-5-haiku-latest", "test-key", {});
-    expect(p2.id).toBe("anthropic:claude-3-5-haiku-latest");
+    const p2 = createProviderByName("claude-sonnet-5-5", "test-key", {});
+    expect(p2.id).toBe("anthropic:claude-sonnet-5-5");
 
     const p3 = createProviderByName("claude:claude-custom", "test-key", {});
     expect(p3.id).toBe("anthropic:claude-custom");
