@@ -13,6 +13,8 @@ import { createEstimatorPortFromEnv, type EstimatorPort } from "./estimator/inde
 import type { WhatsAppSendText } from "./channels/whatsapp/index.ts";
 import { createSettingsStore, type SettingsStore } from "./store/settingsStore.ts";
 import { createConversationStoreFromEnv, type ConversationStore } from "./store/conversationStore.ts";
+import { createQuotationStoreFromEnv, type QuotationStore } from "./store/quotationStoreClient.ts";
+import { createEstimatorOutbox, createOutboxStoreFromEnv, type EstimatorOutbox, type OutboxStore } from "./estimator/outbox.ts";
 import { ADMIN_ONLY_HTML } from "./views/forbiddenPage.ts";
 
 export interface AppOptions {
@@ -24,16 +26,22 @@ export interface AppOptions {
   /** The admin-editable AI settings. Injectable so a test can run the dashboard without a KV. */
   settings?: SettingsStore;
   store?: ConversationStore;
+  quotationStore?: QuotationStore;
   sendWhatsApp?: WhatsAppSendText;
   /**
    * The pricing/booking engine. Injectable so a test can drive every route without a server.
    */
   estimator?: EstimatorPort;
+  outboxStore?: OutboxStore;
+  outbox?: EstimatorOutbox;
 }
 
 export function createDeps(env: Env, options: AppOptions) {
   const store = options.store ?? createConversationStoreFromEnv(env);
+  const quotationStore = options.quotationStore ?? createQuotationStoreFromEnv(env);
   const estimator = options.estimator ?? createEstimatorPortFromEnv(env);
+  const outboxStore = options.outboxStore ?? createOutboxStoreFromEnv(env);
+  const outbox = options.outbox ?? createEstimatorOutbox({ estimator, store: outboxStore });
   const settings = options.settings ?? createSettingsStore({ env });
   const providerHolder = createProviderHolder(settings, env);
   const loginLimiter = options.loginLimiter ?? createLoginAttemptLimiter();
@@ -44,7 +52,9 @@ export function createDeps(env: Env, options: AppOptions) {
 
   return {
     store,
+    quotationStore,
     estimator,
+    outbox,
     settings,
     providerHolder,
     providerFor,

@@ -18,6 +18,7 @@ import { kvCommand, kvConfigFromEnv, type KvConfig } from "./kv.ts";
 
 export interface QuotationStore {
   get(idOrSlug: string): Promise<HonoQuotationDraft | undefined>;
+  getByEstimateId(estimateId: string): Promise<HonoQuotationDraft | undefined>;
   save(draft: HonoQuotationDraft): Promise<HonoQuotationDraft>;
   list(): Promise<HonoQuotationDraft[]>;
   /**
@@ -38,6 +39,7 @@ export interface QuotationStore {
 export function createInMemoryQuotationStore(): QuotationStore {
   const quotesById = new Map<string, HonoQuotationDraft>();
   const quoteIdBySlug = new Map<string, string>();
+  const quoteIdByEstimateId = new Map<string, string>();
   const allIds = new Set<string>();
 
   return {
@@ -47,9 +49,17 @@ export function createInMemoryQuotationStore(): QuotationStore {
       const mappedId = quoteIdBySlug.get(idOrSlug.toLowerCase());
       return mappedId ? quotesById.get(mappedId) : undefined;
     },
+    async getByEstimateId(estimateId: string): Promise<HonoQuotationDraft | undefined> {
+      const id = quoteIdByEstimateId.get(estimateId);
+      if (id) return quotesById.get(id);
+      return [...quotesById.values()].find((q) => q.estimator?.id === estimateId);
+    },
     async save(draft: HonoQuotationDraft): Promise<HonoQuotationDraft> {
       quotesById.set(draft.quoteId, draft);
       quoteIdBySlug.set(draft.slug.toLowerCase(), draft.quoteId);
+      if (draft.estimator?.id) {
+        quoteIdByEstimateId.set(draft.estimator.id, draft.quoteId);
+      }
       allIds.add(draft.quoteId);
       return draft;
     },
@@ -67,6 +77,9 @@ export function createInMemoryQuotationStore(): QuotationStore {
       if (!draft) return false;
       quotesById.delete(id);
       quoteIdBySlug.delete(draft.slug.toLowerCase());
+      if (draft.estimator?.id) {
+        quoteIdByEstimateId.delete(draft.estimator.id);
+      }
       allIds.delete(id);
       return true;
     },
@@ -80,6 +93,7 @@ export function createInMemoryQuotationStore(): QuotationStore {
  *   quote:<id>             -> JSON of the draft (no TTL)
  *   quote_slug:<lower>     -> quote id (slug lookup; lowercased because URLs are case-sensitive
  *                             while our index is not)
+ *   quote_est:<estId>      -> quote id (estimate ID lookup for webhook)
  *   quotes:all             -> a SET of every quote id, so `list` never needs KEYS/SCAN
  */
 export function createRedisQuotationStore(config: KvConfig): QuotationStore {
@@ -102,10 +116,17 @@ export function createRedisQuotationStore(config: KvConfig): QuotationStore {
       const mappedId = await command<string | null>(["GET", `quote_slug:${idOrSlug.toLowerCase()}`]);
       return mappedId ? read(mappedId) : undefined;
     },
+    async getByEstimateId(estimateId: string): Promise<HonoQuotationDraft | undefined> {
+      const mappedId = await command<string | null>(["GET", `quote_est:${estimateId}`]);
+      return mappedId ? read(mappedId) : undefined;
+    },
     async save(draft: HonoQuotationDraft): Promise<HonoQuotationDraft> {
       const json = JSON.stringify(draft);
       await command(["SET", `quote:${draft.quoteId}`, json]);
       await command(["SET", `quote_slug:${draft.slug.toLowerCase()}`, draft.quoteId]);
+      if (draft.estimator?.id) {
+        await command(["SET", `quote_est:${draft.estimator.id}`, draft.quoteId]);
+      }
       await command(["SADD", "quotes:all", draft.quoteId]);
       return draft;
     },
@@ -135,6 +156,9 @@ export function createRedisQuotationStore(config: KvConfig): QuotationStore {
       // that no longer exists, which reads as "not found" but is really a stale pointer.
       await command(["DEL", `quote:${draft.quoteId}`]);
       await command(["DEL", `quote_slug:${draft.slug.toLowerCase()}`]);
+      if (draft.estimator?.id) {
+        await command(["DEL", `quote_est:${draft.estimator.id}`]);
+      }
       await command(["SREM", "quotes:all", draft.quoteId]);
       return true;
     },
@@ -147,6 +171,12 @@ export function createRedisQuotationStore(config: KvConfig): QuotationStore {
  * fallback here is exactly the bug this file exists to fix (guest links that work until the next
  * deploy).
  */
+let defaultInMemoryStore: QuotationStore | null = null;
+
+export function resetDefaultQuotationStore(): void {
+  defaultInMemoryStore = null;
+}
+
 export function createQuotationStoreFromEnv(env: Env = loadEnv()): QuotationStore {
   const kv = kvConfigFromEnv(env);
   if (kv) return createRedisQuotationStore(kv);
@@ -158,5 +188,8 @@ export function createQuotationStoreFromEnv(env: Env = loadEnv()): QuotationStor
         "Set KV_REST_API_URL + KV_REST_API_TOKEN (or the UPSTASH_* equivalents).",
     );
   }
-  return createInMemoryQuotationStore();
+  if (!defaultInMemoryStore) {
+    defaultInMemoryStore = createInMemoryQuotationStore();
+  }
+  return defaultInMemoryStore;
 }

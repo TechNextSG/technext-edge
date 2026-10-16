@@ -1,0 +1,7 @@
+{
+  "ok": true,
+  "extras": [
+    { "id": "extra_nitrox", "label": "Nitrox Tank", "price": 450 }
+  ],
+  "computedAt": "2026-10-14T10:06:00.000Z"
+}

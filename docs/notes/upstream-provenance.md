@@ -1,21 +1,16 @@
-# The team estimator — what this repo mirrors, and how drift is caught
+# The team estimator — API Contract & Upstream Alignment
 
-The system of record is `TechNextSG/tn-casa-quotation-estimator` (private): its BFF parses a `Trip` and Odoo prices
-it. This repo is the personal studio that simulates the integration and runs the WhatsApp channel. Where the two
-disagree, the team repo wins.
+Per **[ADR-011](../adr/ADR-011-separate-ai-service.md)**, `technext-edge` is an independent, dedicated AI Extractor + WhatsApp Channel service.
+It communicates with `TechNextSG/tn-casa-quotation-estimator` strictly over HTTP REST API (`POST/PATCH /api/estimates`, `/extras`, `/commit`, `GET /api/estimates/:id`) and signed Webhooks.
 
-## What is a byte-copy
+## Code Ownership & Contract Testing
 
-`ai/` and `contracts/` are **mirrored, never edited here**. A change goes into the team repo first (a PR there) and is
-copied back. `npm run mirror:check` compares both directories with the team checkout (`diff` ignoring line endings)
-and fails on any difference, any file only on one side, or a leftover local file.
-
-| Directory | Compared to | Pin |
-|---|---|---|
-| `contracts/` | `origin/main` | `3a3c2068c9ab2da2306821c8087b4755c1f250df` (2026-10-01) |
-| `ai/` | `pr/ai-9-eval-tools` (stack of PRs 8 to 15 that replaced PR 5; PR 5 is a draft, reference only) until merged, then `origin/main` | `8bd3971` (`pr/ai-9-eval-tools`; `ai/src` and `ai/test` equal PR 5 at `6f5eab0`) |
-
-When the stack merges: set `AI_REF` default in `tools/ops/mirror-check.mjs` to `origin/main`, re-copy, update the table. The stack adds `docs/flows/F12-ai-channel.md` and a shared `clientIp` in the team repo; neither is mirrored here.
+`ai/` and `contracts/` are **owned in this repository**. The previous byte-mirror requirement (`mirror:check`) has been retired.
+API compatibility with `tn-casa-quotation-estimator` is strictly enforced through **Zod schemas and automated Contract Tests** (Anti-Corruption Layer).
+Where the two services interact:
+1. `contracts/src/estimator-api.ts` defines the authoritative contract for upstream API payloads.
+2. `contracts/fixtures/estimator/` preserves real response fixtures from the estimator.
+3. Upstream drift is verified via contract tests rather than byte-level file mirroring.
 
 Dependencies follow the team repo: zod 4, `.ts` import suffixes, vitest 5. `bff/` and `quotation/` still compile with
 the looser options in `tsconfig.bff.json`; `ai/` and `contracts/` compile with the team's `tsconfig.base.json`.

@@ -7,18 +7,16 @@ import { SAFE_NEXT_PREFIXES } from "../auth/session.ts";
  * used to say the page had a role picker; it never did, and the picker that existed lived in the
  * studio header and has been removed.)
  */
-export function renderLoginHtml(error = false, nextPath = "/quotes"): string {
+export function renderLoginHtml(error = false, nextPath = "/handoff"): string {
   // An allow-list of prefixes, never a passthrough: `next` arrives from the query string, so
-  // echoing it back unchecked is an open redirect. `/handoff` is here because the handoff inbox
-  // deep-links itself ("/login?next=%2Fhandoff") and the earlier check only knew about `/quotes`,
-  // so a person sent to sign in from the inbox landed in the studio instead.
-  const safeNext = SAFE_NEXT_PREFIXES.some((prefix) => nextPath.startsWith(prefix)) ? nextPath : "/quotes";
+  // echoing it back unchecked is an open redirect.
+  const safeNext = SAFE_NEXT_PREFIXES.some((prefix) => nextPath.startsWith(prefix)) ? nextPath : "/handoff";
   return `<!DOCTYPE html>
 <html lang="en" data-theme="light">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Staff Sign-In — Casa Escondida Quotation Studio</title>
+  <title>Staff Sign-In — Casa WhatsApp &amp; AI Gateway</title>
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@500;600;700;800&display=swap" rel="stylesheet">
   <style>
 ${themeCss()}

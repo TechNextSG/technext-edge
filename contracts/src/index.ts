@@ -18,3 +18,4 @@ export type RatesResponse = components['schemas']['RatesResponse'];
 export type RoomsResponse = components['schemas']['RoomsResponse'];
 
 export * from './trip.zod.ts';
+export * from './estimator-api.ts';

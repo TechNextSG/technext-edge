@@ -12,6 +12,8 @@ import {
   DEFAULT_MODELS,
   MODEL_CATALOG,
   PROVIDER_KINDS,
+  PROVIDER_REGISTRY,
+  ENV_KEY_NAME,
   settingsFromEnv,
   type ModelChoice,
   type ProviderKind,
@@ -41,6 +43,8 @@ export interface StoredAiSettings {
   timeoutsMs?: { extract: number; synthesis: number };
   breaker?: { cooldownMs: number; authCooldownMs: number };
   synthesisEnabled?: boolean;
+  baseUrls?: Partial<Record<ProviderKind, string | null>>;
+  /** @deprecated legacy field in KV */
   deepseekBaseUrl?: string | null;
   keys?: Partial<Record<ProviderKind, EncryptedSecret>>;
   version: number;
@@ -67,6 +71,14 @@ export interface KeyView {
   problem?: string;
 }
 
+export interface BaseUrlView {
+  kind: ProviderKind;
+  label: string;
+  value: string | null;
+  source: Source;
+  required: boolean;
+}
+
 export interface AdminAiView {
   version: number;
   updatedAt: string | null;
@@ -77,6 +89,7 @@ export interface AdminAiView {
   timeoutsMs: ProviderSettings["timeoutsMs"] & { source: Source };
   breaker: ProviderSettings["breaker"] & { source: Source };
   synthesisEnabled: { value: boolean; source: Source };
+  baseUrls: Record<ProviderKind, BaseUrlView>;
   deepseekBaseUrl: { value: string | null; source: Source };
   keys: Record<ProviderKind, KeyView>;
   /** False means keys cannot be saved from the dashboard until SETTINGS_ENCRYPTION_KEY is set. */
@@ -138,8 +151,9 @@ function envOrDefaultSettings(env: Env): ProviderSettings {
   } catch {
     // An env var that names no provider must not take the dashboard down with it: show the defaults, and let
     // the admin fix the value from here.
+    const defaultKind = PROVIDER_KINDS[0]!;
     return {
-      primary: { provider: "gemini", model: DEFAULT_MODELS.gemini },
+      primary: { provider: defaultKind, model: DEFAULT_MODELS[defaultKind] },
       fallback: null,
       timeoutsMs: { extract: 15_000, synthesis: 8_000 },
       breaker: { cooldownMs: 60_000, authCooldownMs: 3_600_000 },
@@ -148,11 +162,6 @@ function envOrDefaultSettings(env: Env): ProviderSettings {
     };
   }
 }
-
-const ENV_KEY_NAME: Record<ProviderKind, keyof Env> = {
-  gemini: "GEMINI_API_KEY",
-  deepseek: "DEEPSEEK_GATEWAY_KEY",
-};
 
 export function createSettingsStore(options: SettingsStoreOptions = {}): SettingsStore {
   const env = options.env ?? loadEnv();
@@ -229,6 +238,18 @@ export function createSettingsStore(options: SettingsStoreOptions = {}): Setting
         else throw err;
       }
     }
+    // MỘT chỗ chuyển đổi (migration) duy nhất:
+    const baseUrls: Partial<Record<ProviderKind, string>> = { ...(base.baseUrls ?? {}) };
+    if (stored?.baseUrls) {
+      for (const [k, v] of Object.entries(stored.baseUrls)) {
+        if (v) baseUrls[k as ProviderKind] = v;
+      }
+    }
+    const legacyRequiresKind = PROVIDER_KINDS.find((k) => PROVIDER_REGISTRY[k]?.requiresBaseUrl);
+    if (stored?.deepseekBaseUrl && legacyRequiresKind && !baseUrls[legacyRequiresKind]) {
+      baseUrls[legacyRequiresKind] = stored.deepseekBaseUrl;
+    }
+
     const settings: ProviderSettings = {
       primary: stored?.primary ?? base.primary,
       fallback: stored && "fallback" in stored && stored.fallback !== undefined ? stored.fallback : base.fallback,
@@ -236,7 +257,8 @@ export function createSettingsStore(options: SettingsStoreOptions = {}): Setting
       breaker: stored?.breaker ?? base.breaker,
       synthesisEnabled: stored?.synthesisEnabled ?? base.synthesisEnabled,
       keys,
-      ...(stored?.deepseekBaseUrl ? { deepseekBaseUrl: stored.deepseekBaseUrl } : {}),
+      baseUrls,
+      ...(legacyRequiresKind && baseUrls[legacyRequiresKind] ? { deepseekBaseUrl: baseUrls[legacyRequiresKind] } : {}),
     };
     return { settings, version: stored?.version ?? 0, keyProblems };
   }
@@ -254,7 +276,7 @@ export function createSettingsStore(options: SettingsStoreOptions = {}): Setting
     const keys = {} as Record<ProviderKind, KeyView>;
     for (const kind of PROVIDER_KINDS) {
       const secret = stored?.keys?.[kind];
-      const envKey = env[ENV_KEY_NAME[kind]];
+      const envKey = env[ENV_KEY_NAME[kind] as keyof Env];
       if (secret && !keyProblems.includes(kind)) {
         keys[kind] = { present: true, source: "kv", masked: maskSecret(secret.last4) };
       } else if (envKey) {
@@ -273,6 +295,23 @@ export function createSettingsStore(options: SettingsStoreOptions = {}): Setting
       }
     }
 
+    const legacyRequiresKind = PROVIDER_KINDS.find((k) => PROVIDER_REGISTRY[k]?.requiresBaseUrl);
+    const baseUrlsView = {} as Record<ProviderKind, BaseUrlView>;
+    for (const kind of PROVIDER_KINDS) {
+      const entry = PROVIDER_REGISTRY[kind];
+      const envKey = entry?.envKeys && "baseUrl" in entry.envKeys ? (entry.envKeys as { baseUrl?: string }).baseUrl : undefined;
+      const inEnv = Boolean(envKey && env[envKey as keyof Env]);
+      const inKv = Boolean(stored?.baseUrls?.[kind] || (entry?.requiresBaseUrl && stored?.deepseekBaseUrl));
+      const val = settings.baseUrls?.[kind] ?? null;
+      baseUrlsView[kind] = {
+        kind,
+        label: entry?.label ?? kind,
+        value: val,
+        source: src(inKv, inEnv),
+        required: Boolean(entry?.requiresBaseUrl),
+      };
+    }
+
     const fallbackInKv = Boolean(stored && "fallback" in stored && stored.fallback !== undefined);
     return {
       version: stored?.version ?? 0,
@@ -284,9 +323,10 @@ export function createSettingsStore(options: SettingsStoreOptions = {}): Setting
       timeoutsMs: { ...settings.timeoutsMs, source: src(Boolean(stored?.timeoutsMs), envDescribes.timeouts) },
       breaker: { ...settings.breaker, source: src(Boolean(stored?.breaker), false) },
       synthesisEnabled: { value: settings.synthesisEnabled, source: src(stored?.synthesisEnabled !== undefined, false) },
+      baseUrls: baseUrlsView,
       deepseekBaseUrl: {
-        value: settings.deepseekBaseUrl ?? null,
-        source: src(Boolean(stored?.deepseekBaseUrl), Boolean(env.DEEPSEEK_BASE_URL || env.DEEPSEEK_GATEWAY_URL)),
+        value: (legacyRequiresKind && settings.baseUrls?.[legacyRequiresKind]) ?? null,
+        source: src(Boolean(stored?.deepseekBaseUrl || (legacyRequiresKind && stored?.baseUrls?.[legacyRequiresKind])), Boolean(env.DEEPSEEK_BASE_URL || env.DEEPSEEK_GATEWAY_URL)),
       },
       keys,
       encryptionConfigured: encryptionKey !== null,
@@ -323,9 +363,17 @@ export function createSettingsStore(options: SettingsStoreOptions = {}): Setting
       changes.synthesisEnabled = patch.synthesisEnabled;
       note("synthesisEnabled", before.synthesisEnabled, patch.synthesisEnabled);
     }
+    if (patch.baseUrls !== undefined) {
+      changes.baseUrls = { ...(previous?.baseUrls ?? {}), ...patch.baseUrls };
+      note("baseUrls", before.baseUrls ?? {}, changes.baseUrls);
+    }
     if ("deepseekBaseUrl" in patch && patch.deepseekBaseUrl !== undefined) {
       changes.deepseekBaseUrl = patch.deepseekBaseUrl;
-      note("deepseekBaseUrl", before.deepseekBaseUrl ?? null, patch.deepseekBaseUrl);
+      const legacyKind = PROVIDER_KINDS.find((k) => PROVIDER_REGISTRY[k]?.requiresBaseUrl);
+      if (legacyKind && !patch.baseUrls) {
+        changes.baseUrls = { ...(changes.baseUrls ?? previous?.baseUrls ?? {}), [legacyKind]: patch.deepseekBaseUrl };
+      }
+      note("deepseekBaseUrl", (legacyKind && before.baseUrls?.[legacyKind]) ?? null, patch.deepseekBaseUrl);
     }
     const next = bump(previous, by, changes);
     await write(next, { at: next.updatedAt, by, diff });

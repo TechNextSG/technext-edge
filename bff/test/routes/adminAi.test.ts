@@ -93,7 +93,7 @@ describe("who may open the dashboard", () => {
     const staff = await login(STAFF, "admin");
     expect((await app.request("/v1/admin/ai/settings", { headers: { cookie: cookieOf(staff) } })).status).toBe(403);
     // …but an admin is still allowed to do what staff do.
-    expect((await app.request("/v1/quotes", { headers: { cookie: cookieOf(admin) } })).status).toBe(200);
+    expect((await app.request("/handoff", { headers: { cookie: cookieOf(admin) } })).status).toBe(200);
   });
 
   it("the same value for both keys gives staff, not an admin everyone can be", async () => {
@@ -117,7 +117,8 @@ describe("what it accepts", () => {
       expect(res.status, JSON.stringify(body)).toBe(422);
       return res.json();
     };
-    await bad({ primary: { provider: "anthropic", model: "claude-opus-5-5" } }); // no such provider here
+    await bad({ primary: { provider: "openai", model: "gpt-4o" } }); // no such provider here
+    await bad({ primary: { provider: "anthropic", model: "gpt-5" } });
     await bad({ primary: { provider: "gemini", model: "gpt-5" } });
     await bad({ timeoutsMs: { extract: 50, synthesis: 8000 } });
     await bad({ timeoutsMs: { extract: 15000, synthesis: 999999 } });

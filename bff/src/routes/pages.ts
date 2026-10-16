@@ -16,7 +16,7 @@ export interface PageRouteDeps {
  */
 export function pageRoutes(deps: PageRouteDeps): Hono {
   const app = new Hono();
-  app.get("/", (c) => c.redirect("/quotes"));
+  app.get("/", (c) => c.redirect("/handoff"));
 
   const testConsole = (c: Context) => (deps.staffSession(c).ok ? c.html(TEST_PAGE_HTML) : c.redirect("/login"));
   app.get("/test", testConsole);

@@ -53,7 +53,7 @@ const SESSION_TTL_MS = 8 * 60 * 60 * 1000;
  * anything not on it falls back to the studio. The single source of truth for both the page's
  * hidden field and the POST handler, so the two cannot disagree about what is allowed.
  */
-export const SAFE_NEXT_PREFIXES = ["/quotes", "/handoff", "/admin"] as const;
+export const SAFE_NEXT_PREFIXES = ["/handoff", "/admin", "/docs", "/test"] as const;
 
 export function isDemoRole(value: unknown): value is StaffRole {
   return typeof value === "string" && (DEMO_ROLES as readonly string[]).includes(value);

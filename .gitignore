@@ -48,3 +48,6 @@ cookies.txt
 
 # LLM-as-a-judge run output: transcripts of model replies and scores (tools/judge)
 tools/judge/results/
+
+.vitest/
+.vscode/

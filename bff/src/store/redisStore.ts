@@ -12,6 +12,12 @@ import {
 } from "./conversationStore.ts";
 import type { StatedValueChange } from "../../../ai/src/index.ts";
 import { randomUUID } from "node:crypto";
+import {
+  transitionConversationState,
+  type ConversationState,
+  type ConversationEvent,
+  type StateTransitionResult,
+} from "./conversationState.ts";
 
 interface StoredThread {
   turns: ConversationTurn[];
@@ -20,6 +26,8 @@ interface StoredThread {
   stallCount?: number;
   /** Money-bearing values as of the last turn; optional for the same reason. */
   statedValues?: Record<string, string | number | boolean>;
+  /** Explicit conversation state (Pattern 5 State Machine). */
+  state?: ConversationState;
 }
 
 interface StoredClaim {
@@ -255,6 +263,8 @@ export function createRedisConversationStore(
       };
       await command(["SET", `pause:${phone}`, JSON.stringify(data), "EX", ttlSeconds]);
       await command(["SADD", "paused_phones", phone]);
+      const thread = await readThread(phone);
+      await writeThread(phone, { ...thread, state: "handed_off" });
     },
 
     async noteOpenFields(phone: string, fields: readonly string[], limit: number): Promise<{ stallCount: number; stalled: boolean }> {
@@ -284,6 +294,24 @@ export function createRedisConversationStore(
     async resume(phone: string): Promise<void> {
       await command(["DEL", `pause:${phone}`]);
       await command(["SREM", "paused_phones", phone]);
+      const thread = await readThread(phone);
+      await writeThread(phone, { ...thread, state: "collecting" });
+    },
+
+    async getState(phone: string): Promise<ConversationState> {
+      if (await this.paused(phone)) return "handed_off";
+      const thread = await readThread(phone);
+      return thread.state ?? "collecting";
+    },
+
+    async transitionState(phone: string, event: ConversationEvent): Promise<StateTransitionResult> {
+      const current = await this.getState(phone);
+      const res = transitionConversationState(current, event);
+      if (res.ok) {
+        const thread = await readThread(phone);
+        await writeThread(phone, { ...thread, state: res.to });
+      }
+      return res;
     },
 
     async paused(phone: string): Promise<PausedThread | undefined> {

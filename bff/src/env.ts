@@ -54,6 +54,8 @@ export const EnvSchema = z.object({
   ESTIMATOR_BASE_URL: text,
   ESTIMATOR_APP_URL: text,
   ESTIMATOR_TIMEOUT_MS: text,
+  ESTIMATOR_SERVICE_KEY: text,
+  ESTIMATOR_WEBHOOK_SECRET: text,
 
   // The quotation tool's trace switch ("true" turns it on)
   ENABLE_HONO_QUOTATION_TOOL: text,
@@ -72,6 +74,11 @@ export const EnvSchema = z.object({
   DEEPSEEK_GATEWAY_URL: text, // an older name for the base URL; the dashboard only reports whether it is set
   DEEPSEEK_MODEL: text,
   DEEPSEEK_TIMEOUT_MS: text,
+  ANTHROPIC_API_KEY: text,
+  ANTHROPIC_MODEL: text,
+  ANTHROPIC_TIMEOUT_MS: text,
+  ANTHROPIC_BASE_URL: text,
+  ALLOW_NON_ANTHROPIC_IN_PRODUCTION: text,
 });
 
 export type Env = z.infer<typeof EnvSchema>;

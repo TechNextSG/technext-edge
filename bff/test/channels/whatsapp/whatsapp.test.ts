@@ -13,6 +13,7 @@ import { createInMemoryConversationStore, type ConversationStore } from "../../.
 import { ASK_LIMIT, STALL_LIMIT } from "../../../../ai/src/index.ts";
 import type { ExtractProvider } from "../../../../ai/src/index.ts";
 import { listQuotations } from "../../../src/store/quotationStore.ts";
+import { resetDefaultQuotationStore } from "../../../src/store/quotationStoreClient.ts";
 
 const VERIFY_TOKEN = "casa-verify-token";
 const APP_SECRET = "casa-app-secret";
@@ -160,11 +161,40 @@ async function abandon<T>(pending: Promise<T> | T, ms = TURN_TIMEOUT_MS): Promis
 }
 
 beforeEach(() => {
+  resetDefaultQuotationStore();
   // Same fixed "today" as converse.test.ts, so "next Saturday" resolves the same way.
   vi.useFakeTimers();
   vi.setSystemTime(new Date("2026-09-15T00:00:00Z"));
   vi.stubEnv("WHATSAPP_VERIFY_TOKEN", VERIFY_TOKEN);
   vi.stubEnv("WHATSAPP_APP_SECRET", APP_SECRET);
+  vi.stubGlobal(
+    "fetch",
+    vi.fn().mockImplementation(async (url: string | URL) => {
+      const urlStr = String(url);
+      if (urlStr.includes("/api/estimates")) {
+        if (urlStr.includes("/commit")) {
+          return new Response(JSON.stringify({ seq: 1, computedAt: new Date().toISOString() }), {
+            status: 200,
+            headers: { "content-type": "application/json" },
+          });
+        }
+        return new Response(
+          JSON.stringify({
+            id: "remote-draft-123",
+            role: "guest",
+            model: {},
+            computedAt: new Date().toISOString(),
+            sample: false,
+          }),
+          {
+            status: 201,
+            headers: { "content-type": "application/json", "set-cookie": "ubg_sid=remote-draft-123; Path=/" },
+          },
+        );
+      }
+      return new Response("{}", { status: 200, headers: { "content-type": "application/json" } });
+    }),
+  );
 });
 
 afterEach(() => {

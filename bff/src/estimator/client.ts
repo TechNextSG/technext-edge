@@ -29,9 +29,22 @@
  */
 import { loadEnv, type Env } from "../env.ts";
 import type { BffTrip } from "../../../ai/src/index.ts";
+import {
+  parseCommitResponse,
+  parseEstimateRefusal,
+  parseEstimateSuccess,
+  parseGetEstimateResponse,
+  parseShareResponse,
+  type CommitResponse,
+  type EstimateRefusalResponse,
+  type EstimateSuccessResponse,
+  type GetEstimateResponse,
+  type ShareResponse,
+} from "../../../contracts/src/index.ts";
 import { describeRefusal, refusalCode, refusalIssues } from "./refusalCopy.ts";
 import type {
   CommitResult,
+  CreateDraftResult,
   EstimateSendResult,
   EstimatorFailure,
   EstimatorHealth,
@@ -41,6 +54,23 @@ import type {
   SubmitInput,
   SubmitResult,
 } from "./port.ts";
+
+/**
+ * Sanitizes and masks sensitive guest PII (emails, phone numbers, tokens, cookies)
+ * from logs before printing.
+ */
+export function maskSensitive(value: unknown): string {
+  if (value == null) return String(value);
+  let str = typeof value === "string" ? value : JSON.stringify(value);
+  str = str.replace(/[a-zA-Z0-9_\-.]+@[a-zA-Z0-9_\-.]+\.[a-zA-Z]{2,}/g, (m) => {
+    const parts = m.split("@");
+    return `***@${parts[1]}`;
+  });
+  str = str.replace(/(\+?[0-9]{2,4}[-.\s]?[0-9]{3,4}[-.\s]?[0-9]{3,4})/g, "***");
+  str = str.replace(/(bearer\s+|key=|token=|ubg_sid=)[a-zA-Z0-9_\-.]+/gi, "$1***");
+  return str.length > 500 ? str.slice(0, 500) + "..." : str;
+}
+
 
 // Re-exported so existing importers keep working. This type was defined here until the simulated
 // port needed the same definition; one type with two implementations is what keeps them honest.
@@ -109,10 +139,15 @@ function transportDetail(err: unknown, what: string): string {
   return `could not reach the booking engine to ${what} — check the estimator address in the deployment settings`;
 }
 
-/** The headers for one call about one quotation: JSON, plus their session cookie when we hold one. */
+/** The headers for one call about one quotation: JSON, plus their session cookie and service key when configured. */
 function sessionHeaders(session?: EstimatorSession | null): Record<string, string> {
   const headers: Record<string, string> = { "content-type": "application/json" };
   if (session?.cookie) headers.cookie = session.cookie;
+  const serviceKey = loadEnv().ESTIMATOR_SERVICE_KEY;
+  if (serviceKey) {
+    headers["x-service-key"] = serviceKey;
+    headers["authorization"] = `Bearer ${serviceKey}`;
+  }
   return headers;
 }
 
@@ -276,38 +311,46 @@ export function createEstimatorClient(options: EstimatorClientOptions = {}) {
     session?: EstimatorSession,
   ): Promise<EstimateSendResult> {
     const text = await res.text();
-    let parsed: Record<string, unknown> = {};
+    let rawJson: unknown = null;
     try {
-      parsed = JSON.parse(text) as Record<string, unknown>;
+      rawJson = JSON.parse(text);
     } catch {
-      // Leave `parsed` empty; the raw text goes into `detail` below.
+      // Leave rawJson null; the raw text goes into detail below.
     }
 
     if (res.status === 200 || res.status === 201) {
-      // Their flag if they sent one, otherwise our own probe. `sample: true` from either source
-      // is enough: the point is that a captured price is never presented as a real one.
-      const mode = (parsed.mode === "fixture" || parsed.mode === "odoo" ? parsed.mode : null) ?? (await probeMode(baseUrl));
+      const parsed = parseEstimateSuccess(rawJson);
+      if (!parsed.ok) {
+        console.error("estimator estimate response schema mismatch", maskSensitive(rawJson));
+        return {
+          ok: false,
+          reason: "unexpected",
+          status: res.status,
+          detail: "estimator estimate response failed schema validation",
+          fields: [],
+        };
+      }
+      const data = parsed.data;
+      const mode = (data.mode === "fixture" || data.mode === "odoo" ? data.mode : null) ?? (await probeMode(baseUrl));
       return {
         ok: true,
         status: res.status,
-        id: typeof parsed.id === "string" ? parsed.id : null,
-        role: typeof parsed.role === "string" ? parsed.role : null,
-        issues: Array.isArray(parsed.issues) ? parsed.issues : [],
-        computedAt: typeof parsed.computedAt === "string" ? parsed.computedAt : null,
-        model: parsed.model,
-        // Their name for it. Null is a real answer — a retail session gets no comparison model.
-        retailModel: parsed.retail_model,
-        // Captured on the way through, because it is the only moment the team estimator's BFF hands it over. A
-        // call that carries an existing session gets it echoed back, so this is never null once a
-        // quotation has been priced at least once against a reachable BFF.
+        id: data.id ?? null,
+        role: data.role ?? null,
+        issues: Array.isArray(data.issues) ? data.issues : [],
+        computedAt: data.computedAt ?? null,
+        model: data.model,
+        retailModel: data.retail_model,
         sessionCookie: readSetCookie(res) ?? session?.cookie ?? null,
-        sample: parsed.sample === true || mode === "fixture",
+        sample: data.sample === true || mode === "fixture",
         mode,
       };
     }
 
-    const fields = Array.isArray(parsed.fields) ? parsed.fields.map(String) : [];
-    const detail = refusalDetail(parsed, text, res.status);
+    const refusal = parseEstimateRefusal(rawJson);
+    const parsedObj = (typeof rawJson === "object" && rawJson !== null ? rawJson : {}) as Record<string, unknown>;
+    const fields = refusal.ok ? refusal.data.fields : [];
+    const detail = refusalDetail(parsedObj, text, res.status);
 
     return {
       ok: false,
@@ -315,8 +358,8 @@ export function createEstimatorClient(options: EstimatorClientOptions = {}) {
       status: res.status,
       detail,
       fields,
-      code: refusalCode(parsed),
-      issues: refusalIssues(parsed),
+      code: refusal.ok ? (refusal.data.code ?? null) : refusalCode(parsedObj),
+      issues: refusal.ok ? (refusal.data.issues as any) : refusalIssues(parsedObj),
     };
   }
 
@@ -432,10 +475,15 @@ export function createEstimatorClient(options: EstimatorClientOptions = {}) {
   async function commit(session: EstimatorSession, _trip: BffTrip): Promise<CommitResult> {
     const out = await postToScenario(session, "/commit", "{}");
     if (!out.ok) return out;
+    const validated = parseCommitResponse(out.parsed);
+    if (!validated.ok) {
+      console.error("estimator commit response schema mismatch", maskSensitive(out.parsed));
+      return { ok: false, reason: "unexpected", detail: "estimator commit response failed schema validation" };
+    }
     return {
       ok: true,
-      seq: typeof out.parsed.seq === "number" ? out.parsed.seq : 0,
-      computedAt: typeof out.parsed.computedAt === "string" ? out.parsed.computedAt : null,
+      seq: validated.data.seq,
+      computedAt: validated.data.computedAt ?? null,
     };
   }
 
@@ -443,11 +491,16 @@ export function createEstimatorClient(options: EstimatorClientOptions = {}) {
   async function share(session: EstimatorSession): Promise<ShareResult> {
     const out = await postToScenario(session, "/share", "{}");
     if (!out.ok) return out;
-    const url = typeof out.parsed.url === "string" ? out.parsed.url : null;
-    // Their route answers `{url}` and nothing else useful; a 200 without one is a contract change,
-    // and guessing a link shape here would send a guest somewhere invented.
-    if (!url) return { ok: false, reason: "unexpected", detail: "their share answered without a url" };
-    return { ok: true, url, expiresAt: typeof out.parsed.expiresAt === "string" ? out.parsed.expiresAt : null };
+    const validated = parseShareResponse(out.parsed);
+    if (!validated.ok) {
+      console.error("estimator share response schema mismatch", maskSensitive(out.parsed));
+      return { ok: false, reason: "unexpected", detail: "their share answered without a valid url" };
+    }
+    return {
+      ok: true,
+      url: validated.data.url,
+      expiresAt: validated.data.expiresAt ?? null,
+    };
   }
 
   /**
@@ -594,15 +647,94 @@ export function createEstimatorClient(options: EstimatorClientOptions = {}) {
     return { ok: false, reason: "rejected", detail };
   }
 
+  async function getEstimate(
+    id: string,
+    session?: EstimatorSession,
+  ): Promise<{ ok: true; estimate: GetEstimateResponse } | { ok: false; reason: EstimatorFailure; detail: string }> {
+    const baseUrl = options.baseUrl?.replace(/\/+$/, "") ?? estimatorBaseUrl();
+    if (!baseUrl) return { ok: false, reason: "not_configured", detail: "ESTIMATOR_BASE_URL is not set" };
+    try {
+      const res = await doFetch(`${baseUrl}${ESTIMATE_PATH}/${encodeURIComponent(id)}`, {
+        method: "GET",
+        headers: sessionHeaders(session),
+        signal: AbortSignal.timeout(timeoutMs),
+      });
+      const text = await res.text();
+      let rawJson: unknown = null;
+      try {
+        rawJson = JSON.parse(text);
+      } catch {}
+      if (!res.ok) {
+        return {
+          ok: false,
+          reason: res.status === 404 ? "unexpected" : "unreachable",
+          detail: `failed to get estimate ${id}: status ${res.status}`,
+        };
+      }
+      const parsed = parseGetEstimateResponse(rawJson);
+      if (!parsed.ok) {
+        console.error("estimator getEstimate schema mismatch", maskSensitive(rawJson));
+        return { ok: false, reason: "unexpected", detail: "get estimate response failed schema validation" };
+      }
+      return { ok: true, estimate: parsed.data };
+    } catch (err) {
+      return { ok: false, reason: "unreachable", detail: transportDetail(err, `fetch estimate ${id}`) };
+    }
+  }
+
+  async function createDraft(trip: BffTrip, extras?: unknown[]): Promise<CreateDraftResult> {
+    const estimateRes = await sendEstimate(trip);
+    if (!estimateRes.ok) {
+      return {
+        ok: false,
+        reason: estimateRes.reason,
+        status: estimateRes.status,
+        detail: estimateRes.detail,
+        fields: estimateRes.fields,
+        code: estimateRes.code,
+      };
+    }
+
+    const session: EstimatorSession = {
+      id: estimateRes.id,
+      cookie: estimateRes.sessionCookie,
+    };
+
+    if (extras && extras.length > 0 && session.id) {
+      await postToScenario(session, "/extras", JSON.stringify({ extras }));
+    }
+
+    const commitRes = await commit(session, trip);
+    if (!commitRes.ok) {
+      return {
+        ok: false,
+        reason: commitRes.reason,
+        detail: commitRes.detail,
+      };
+    }
+
+    return {
+      ok: true,
+      id: estimateRes.id ?? "",
+      seq: commitRes.seq,
+      model: estimateRes.model,
+      sample: estimateRes.sample,
+      session,
+      computedAt: commitRes.computedAt ?? estimateRes.computedAt,
+    };
+  }
+
   // Still deliberately absent: our own `/q/:slug` guest page was removed in favour of the
   // the team estimator's `/quote/<token>`, so `commit`/`share` above ARE the guest-link path now. What
   // remains unwired is only their `/revisions` reads, which nothing here needs.
   return {
     kind: "remote" as const,
     sendEstimate,
+    createDraft,
     updateEstimate,
     commit,
     share,
+    getEstimate,
     verifyGuestLink,
     submit,
     checkHealth,

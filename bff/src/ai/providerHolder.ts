@@ -96,7 +96,7 @@ export async function testChoice(
   try {
     const provider = buildProvider(choice, key, {
       timeoutsMs: settings.timeoutsMs,
-      deepseekBaseUrl: settings.deepseekBaseUrl,
+      baseUrls: settings.baseUrls,
     });
     if (!provider.generateText) throw new Error("this provider cannot answer a test call");
     const text = await provider.generateText("Reply with the single word OK.", "ping");

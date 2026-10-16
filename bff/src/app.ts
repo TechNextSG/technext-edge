@@ -3,7 +3,6 @@ import { secureHeaders } from "hono/secure-headers";
 import { loadEnv } from "./env.ts";
 import { createDeps, type AppOptions } from "./deps.ts";
 import { setSession } from "./auth/session.ts";
-import { saveQuotationDraft } from "./store/quotationStore.ts";
 import { closeEnquiryQuotation, guestPendingQuotationNote } from "./channels/whatsapp/index.ts";
 import { authRoutes } from "./routes/auth.ts";
 import { adminRoutes } from "./routes/admin.ts";
@@ -13,7 +12,8 @@ import { docsRoutes } from "./routes/docs.ts";
 import { extractorRoutes } from "./routes/extractor.ts";
 import { handoffRoutes } from "./routes/handoff.ts";
 import { whatsAppRoutes } from "./routes/whatsapp.ts";
-import { quotesRoutes } from "./routes/quotes/index.ts";
+import { estimatorWebhookRoutes } from "./routes/estimatorWebhook.ts";
+import { kvConfigFromEnv } from "./store/kv.ts";
 
 export { guestPendingQuotationNote };
 export type { AppOptions };
@@ -34,7 +34,8 @@ export function createApp(options: AppOptions = {}) {
     );
   });
 
-  const d = createDeps(options.env ?? loadEnv(), options);
+  const env = options.env ?? loadEnv();
+  const d = createDeps(env, options);
   const { staffSession, staffWriter, adminGuard, handoffAuthorized } = d.guards;
 
   app.use(
@@ -52,27 +53,36 @@ export function createApp(options: AppOptions = {}) {
   app.route("/", healthRoutes());
   app.route("/", pageRoutes({ staffSession }));
   app.route("/", docsRoutes({ staffSession }));
-  app.route("/", extractorRoutes({ providerFor: d.providerFor, staffWriter, staffSession, saveQuotationDraft }));
+  app.route(
+    "/",
+    extractorRoutes({
+      providerFor: d.providerFor,
+      staffWriter,
+      staffSession,
+      saveQuotationDraft: (q) => d.quotationStore.save(q),
+    }),
+  );
   app.route("/", handoffRoutes({ store: d.store, staffSession, staffWriter, closeEnquiryQuotation }));
   app.route(
     "/",
     whatsAppRoutes({
       store: d.store,
+      quotationStore: d.quotationStore,
       providerFor: d.providerFor,
       sendWhatsApp: d.sendWhatsApp,
       estimator: d.estimator,
+      outbox: d.outbox,
       handoffAuthorized,
     }),
   );
   app.route(
     "/",
-    quotesRoutes({
-      estimator: d.estimator,
-      providerHolder: d.providerHolder,
-      optionsProvider: d.injectedProvider,
-      staffSession,
-      staffWriter,
+    estimatorWebhookRoutes({
+      store: d.store,
+      quotationStore: d.quotationStore,
       sendWhatsApp: d.sendWhatsApp,
+      webhookSecret: env.ESTIMATOR_WEBHOOK_SECRET,
+      kv: kvConfigFromEnv(env),
     }),
   );
 

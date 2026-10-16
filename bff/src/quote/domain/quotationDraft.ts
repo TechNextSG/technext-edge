@@ -50,9 +50,10 @@ export interface QuotationSubmission {
   updatedAt: string;
 }
 
-export interface HonoQuotationDraft {  quoteId: string;
+export interface HonoQuotationDraft {
+  quoteId: string;
   slug: string;
-  status: "pending_hono_review" | "confirmed_by_hono" | "cancelled";
+  status: "pending_hono_review" | "confirmed_by_hono" | "cancelled" | "estimator_pending";
   createdAt: string;
   updatedAt: string;
   confirmedAt?: string;
@@ -200,7 +201,7 @@ export interface HonoToolCallTrace {
   };
   result: {
     quoteId: string;
-    status: "pending_hono_review" | "confirmed_by_hono" | "cancelled";
+    status: HonoQuotationDraft["status"];
     quotationUrl: string;
     honoEditorUrl: string;
     totalAmount: number;

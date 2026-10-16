@@ -10,6 +10,14 @@ import type { ConversationTurn } from "../../../ai/src/index.ts";
 import type { StatedValueChange } from "../../../ai/src/index.ts";
 import { randomUUID } from "node:crypto";
 import { createRedisConversationStore } from "./redisStore.ts";
+import {
+  transitionConversationState,
+  type ConversationState,
+  type ConversationEvent,
+  type StateTransitionResult,
+} from "./conversationState.ts";
+
+export type { ConversationState, ConversationEvent, StateTransitionResult };
 
 export interface ClaimResult {
   claimed: boolean;
@@ -91,6 +99,12 @@ export interface ConversationStore {
   noteStatedValues(phone: string, values: StatedValues): Promise<StatedValueChange[]>;
   /** Clears both the conversation transcript and any park record for this phone. */
   clear(phone: string): Promise<void>;
+
+  /** Retrieves the current conversation state ('collecting' | 'drafted' | 'link_sent' | 'handed_off'). */
+  getState(phone: string): Promise<ConversationState>;
+
+  /** Evaluates and updates conversation state via the deterministic state machine. */
+  transitionState(phone: string, event: ConversationEvent): Promise<StateTransitionResult>;
 }
 
 /** The values a price depends on, as the guest most recently stated them. */
@@ -167,6 +181,8 @@ interface ThreadEntry {
   stallCount?: number;
   /** The money-bearing values as of the last turn (see noteStatedValues). */
   statedValues?: StatedValues;
+  /** Explicit conversation state (Pattern 5 State Machine). */
+  state?: ConversationState;
 }
 
 /** Order-insensitive equality: the question order is presentation, not progress. */
@@ -327,6 +343,8 @@ export function createInMemoryConversationStore(ttlMs = THREAD_TTL_MS): Conversa
         ...(extra?.context ? { context: extra.context } : {}),
         expiresAt: Date.now() + ttlMs,
       });
+      const entry = live(phone);
+      if (entry) entry.state = "handed_off";
     },
 
     async noteOpenFields(phone, fields, limit) {
@@ -367,12 +385,38 @@ export function createInMemoryConversationStore(ttlMs = THREAD_TTL_MS): Conversa
     async resume(phone) {
       sweep();
       parkedThreads.delete(phone);
+      const entry = live(phone);
+      if (entry) entry.state = "collecting";
     },
 
     async clear(phone) {
       sweep();
       threads.delete(phone);
       parkedThreads.delete(phone);
+    },
+
+    async getState(phone: string): Promise<ConversationState> {
+      sweep();
+      if (livePause(phone)) return "handed_off";
+      const entry = live(phone);
+      return entry?.state ?? "collecting";
+    },
+
+    async transitionState(phone: string, event: ConversationEvent): Promise<StateTransitionResult> {
+      sweep();
+      const current = await this.getState(phone);
+      const res = transitionConversationState(current, event);
+      if (res.ok) {
+        let entry = live(phone);
+        if (!entry) {
+          entry = { turns: [], expiresAt: Date.now() + ttlMs, state: res.to };
+          threads.set(phone, entry);
+        } else {
+          entry.state = res.to;
+          entry.expiresAt = Date.now() + ttlMs;
+        }
+      }
+      return res;
     },
 
     async paused(phone) {

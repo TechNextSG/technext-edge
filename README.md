@@ -67,9 +67,7 @@ tools/
   live-eval/        scenario runs against a live provider key (not in CI); outside ai/ because ai/ is a mirror
 ```
 
-`ai/` and `contracts/` are **byte-copies of the team repo** (`TechNextSG/tn-casa-quotation-estimator`): change them
-there, then copy them back. `npm run mirror:check` fails when they differ; pins and the rules are in
-[docs/notes/upstream-provenance.md](docs/notes/upstream-provenance.md).
+`ai/` and `contracts/` are **owned first-class in this repo** as part of the standalone AI + WhatsApp service ([ADR-011](docs/adr/ADR-011-separate-ai-service.md)). The service communicates with `tn-casa-quotation-estimator` strictly via REST API and Webhooks. Compatibility is maintained by contract tests.
 
 Rules, enforced by `npm run check:boundaries` (part of `npm run verify` and CI) and `bff/test/layers.test.ts`:
 

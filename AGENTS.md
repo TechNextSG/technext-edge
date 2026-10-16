@@ -1,44 +1,51 @@
-# AGENTS.md — Workspace Engineering & Discipline Guidelines
+# AGENTS.md — technext-edge Architecture & Operating Rules
 
-This workspace follows the synthesized principles of elite agentic engineering: **Superpowers** (strict workflow & TDD), **Ponytail** (YAGNI & minimalist code), **UI/UX Pro Max** (modern design tokens), and **Impeccable** (security & code quality gates).
-
----
-
-## 1. The Ponytail Rule: Minimalist Code & Zero Reinvention (YAGNI)
-> *"The best code is the code you never had to write."*
-
-- **Reuse first:** Before writing any new utility, helper, or model, search the codebase (`packages/extractor/src/`, `apps/casa-bff/src/`) and existing npm dependencies.
-- **Strict YAGNI:** Implement only what is strictly necessary to solve the user's explicit request. Never add speculative abstractions, premature generalizations, or unused helper methods.
-- **Tight diffs:** Keep code changes surgical, minimal, and closely targeted. Avoid touching unrelated files or modifying formatting of untouched blocks.
+Architecture, extension recipes, and non-negotiable boundaries for agents and engineers.
 
 ---
 
-## 2. The Superpowers Discipline: TDD & Workflow Rigor
-> *"Never rush into code without a clear contract and a failing test."*
+## 1. Real Dependency Map
 
-- **Stage 1 — Clarify & Contract:** Understand inputs, outputs, edge cases, and API error formats before writing code.
-- **Stage 2 — Test-Driven Development (Red-Green-Refactor):**
-  - For any logic, bug fix, or endpoint enhancement, identify or write a failing test first in the relevant test suite (e.g. `packages/extractor/test/` or `apps/casa-bff/test/`).
-  - Write the minimal code to make the test pass (Green).
-  - Clean up and optimize without altering external behavior (Refactor).
-- **Stage 3 — Non-Negotiable Verification:** Run `npm run verify` (or project test suite) to ensure zero regressions before reporting completion.
+Strict unidirectional hierarchy: `contracts ← ai ← bff`.
 
----
+- **`contracts`** (`@casa/contracts`): Domain contracts (`Trip`, `ExtractResult`, Zod schemas). Pure types, zero internal dependencies.
+- **`ai`** (`@casa/ai`): Pure neuro-symbolic extraction & synthesis (`extract`, `converse`). **Never** imports `bff`, calls Odoo, reads DB, or touches `process.env`.
+- **`bff`** (`@casa/bff`): Hono HTTP server, stores, WhatsApp channel, Estimator client. Injects config into `ai` via function arguments.
 
-## 3. UI/UX Pro Max Standards
-> *"Interfaces must look polished, purposeful, and production-ready."*
-
-- **Design System Tokens:** Use consistent color palettes (primary, surface, muted, borders, accents), readable typography scales, and unified border radii.
-- **State Completeness:** Every interactive component must handle 4 states cleanly: `Loading / In-flight`, `Success / Populated`, `Empty / Zero data`, and `Error / Fallback`.
-- **Accessibility & Contrast:** Maintain high contrast ratios, meaningful ARIA attributes, and clear hover/focus/active visual feedback.
-- **Responsive & Ergonomic:** Test mobile viewports and sticky touch targets (e.g., sticky WhatsApp docks or bottom CTA bars).
+*Enforced by:* `npm run check:boundaries` and [ai/test/boundaries.test.ts](file:///e:/technext-edge/ai/test/boundaries.test.ts).
 
 ---
 
-## 4. The Impeccable Gate: Security & Reliability Review
-> *"Act as the strictest reviewer before any change is finalized."*
+## 2. Extension Point Recipes
 
-- **Zero Secret Leaks:** Never hardcode tokens, API keys, or private webhook secrets. Never output sensitive tokens into client-facing URLs, query params, or unmasked server logs.
-- **Structured Error Envelopes:** No raw `500 Internal Server Error` strings or unhandled HTML crash pages. Always return structured JSON envelopes (`{ ok: false, reason, detail }`).
-- **Resilient Transport:** Handle timeouts, circuit-breakers for 3rd-party APIs (Odoo/Meta/LLMs), and fallback safely without blocking guest flows.
-- **Data Integrity:** Prevent race conditions, duplicate mutations, or cross-contamination of sessions/cookies across distinct quotations.
+Always extend through these 4 designated extension points with corresponding guard tests:
+
+| Extension Point | How to Extend | Guard Test |
+|---|---|---|
+| **AI Provider** | Add descriptor in `PROVIDER_REGISTRY` ([ai/src/infra/providers/providerRegistry.ts](file:///e:/technext-edge/ai/src/infra/providers/providerRegistry.ts)). Admin, env, and fallback chain update automatically. | [bff/test/providerRegistryGuard.test.ts](file:///e:/technext-edge/bff/test/providerRegistryGuard.test.ts) & [ai/test/providers/registrySingleSource.test.ts](file:///e:/technext-edge/ai/test/providers/registrySingleSource.test.ts) |
+| **Channel Adapter** | Implement `ChannelAdapter` in [bff/src/channels/channelAdapter.ts](file:///e:/technext-edge/bff/src/channels/channelAdapter.ts) (`sendText`, `sendTemplate`, `verifyWebhook`). | [bff/test/channels/channelAdapter.test.ts](file:///e:/technext-edge/bff/test/channels/channelAdapter.test.ts) |
+| **Trip Field** | Add metadata, question rules, and fact-gate logic to `FIELD_REGISTRY` in [ai/src/domain/fieldRegistry.ts](file:///e:/technext-edge/ai/src/domain/fieldRegistry.ts). | [ai/test/fieldRegistry.test.ts](file:///e:/technext-edge/ai/test/fieldRegistry.test.ts) |
+| **Turn Step** | Add discrete step in [bff/src/channels/whatsapp/turn/steps/](file:///e:/technext-edge/bff/src/channels/whatsapp/turn/steps/) and register in pipeline. | [bff/test/channels/whatsapp/turnPipeline.test.ts](file:///e:/technext-edge/bff/test/channels/whatsapp/turnPipeline.test.ts) |
+
+---
+
+## 3. Lines Not to Cross
+
+1. **Rule D-129 (Model Policy):** Production guest messages run on Anthropic or approved paid fallback (DeepSeek/Gemini with paid keys). Free tier models (e.g. Gemini free) are forbidden in production.
+2. **Never read `.env*` ambiently:** `@casa/ai` must never read `process.env`. All configuration and keys must be validated in BFF [env.ts](file:///e:/technext-edge/bff/src/env.ts) and passed into callers.
+3. **Never push to `main` directly:** Every change must go through a feature branch (`feat/*`) and PR with peer review.
+4. **Prices only from Estimator:** AI and BFF must never compute, fabricate, or guess room or package rates. All prices originate strictly from the Estimator API.
+5. **Webhooks must be cryptographically signed:** Inbound Meta requests require valid `x-hub-signature-256`. Missing or invalid signatures reject immediately (HTTP 401/503).
+6. **Zero raw PII:** Never output raw guest phone numbers or email addresses in client logs or query parameters. Mask logs via `maskForLogging`; hash WhatsApp identifiers (`wa:` + sha256).
+
+---
+
+## 4. Verification Gate
+
+Before submitting any commit or PR, verify the full suite passes cleanly:
+
+```bash
+npm run verify
+```
+
+*(Runs package boundary check, workspace typechecks across all 3 packages, and complete Vitest test suites).*

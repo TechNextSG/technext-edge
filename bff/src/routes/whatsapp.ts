@@ -2,7 +2,9 @@ import { Hono } from "hono";
 import type { ExtractProvider } from "../../../ai/src/index.ts";
 import type { ConversationStore } from "../store/conversationStore.ts";
 import type { EstimatorPort } from "../estimator/index.ts";
+import type { EstimatorOutbox } from "../estimator/outbox.ts";
 import { whatsAppConfig, verifySignature, parseInboundTexts, checkSenderCredentials, createWhatsAppSender, type WhatsAppSendText } from "../channels/whatsapp/index.ts";
+import type { QuotationStore } from "../store/quotationStoreClient.ts";
 import {
   processPhoneTurnBatch,
   closeEnquiryQuotation,
@@ -11,16 +13,18 @@ import {
 
 export interface WhatsAppRouteDeps {
   store: ConversationStore;
+  quotationStore?: QuotationStore;
   providerFor: (data: { provider?: string; apiKey?: string }) => Promise<ExtractProvider>;
   sendWhatsApp?: WhatsAppSendText;
   estimator: EstimatorPort;
+  outbox?: EstimatorOutbox;
   /** Whether a request carries the WhatsApp verify token (the handoff JSON routes). */
   handoffAuthorized: (header: string | undefined) => boolean;
 }
 
 export function whatsAppRoutes(deps: WhatsAppRouteDeps): Hono {
   const app = new Hono();
-  const { store, providerFor, estimator, handoffAuthorized } = deps;
+  const { store, providerFor, estimator, handoffAuthorized, outbox } = deps;
 
   // Meta's subscription handshake, called once when the webhook URL is pointed at
   // Meta and again whenever that URL or the token changes.
@@ -99,9 +103,11 @@ export function whatsAppRoutes(deps: WhatsAppRouteDeps): Hono {
     for (const [phone, batch] of byPhone) {
       const result = await processPhoneTurnBatch(phone, batch, {
         store,
+        quotationStore: deps.quotationStore,
         provider,
         sendWhatsApp: sendText,
         estimator,
+        outbox,
         config,
       });
       replied += result.replied;

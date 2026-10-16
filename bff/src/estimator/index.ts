@@ -3,3 +3,5 @@ export * from "./port.ts";
 export * from "./client.ts";
 export * from "./simulated.ts";
 export * from "./refusalCopy.ts";
+export * from "../ports/approvalEvents.ts";
+

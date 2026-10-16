@@ -46,10 +46,11 @@ import {
   vanLoads,
   vansForGuests,
   type RoomType,
-} from "../quote/index.ts";
+} from "./simulatedRates.ts";
 import { describeRefusal, refusalIssues } from "./refusalCopy.ts";
 import type {
   CommitResult,
+  CreateDraftResult,
   EstimateSendResult,
   EstimatorHealth,
   EstimatorPort,
@@ -628,9 +629,38 @@ export function createSimulatedEstimator(options: SimulatedEstimatorOptions = {}
     };
   }
 
+  async function createDraft(trip: BffTrip, _extras?: unknown[]): Promise<CreateDraftResult> {
+    const est = await sendEstimate(trip);
+    if (!est.ok) {
+      return {
+        ok: false,
+        reason: est.reason,
+        status: est.status,
+        detail: est.detail,
+        fields: est.fields,
+        code: est.code,
+      };
+    }
+    const session: EstimatorSession = { id: est.id, cookie: est.sessionCookie };
+    const com = await commit(session, trip);
+    if (!com.ok) {
+      return { ok: false, reason: com.reason, detail: com.detail };
+    }
+    return {
+      ok: true,
+      id: est.id ?? "",
+      seq: com.seq,
+      model: est.model,
+      sample: est.sample,
+      session,
+      computedAt: com.computedAt ?? est.computedAt,
+    };
+  }
+
   return {
     kind: "simulated",
     sendEstimate,
+    createDraft,
     // A simulation has no scenario to keep, so an edit is just another compute. Present anyway,
     // because the studio's edit path has to be exercisable in the mode the demo actually runs in —
     // a port method the default mode does not implement is a method nobody has tested.

@@ -23,6 +23,7 @@ const base = (over: Partial<ProviderSettings> = {}): ProviderSettings => ({
   breaker: { cooldownMs: 60_000, authCooldownMs: 3_600_000 },
   synthesisEnabled: true,
   keys: {},
+  baseUrls: { deepseek: "https://gateway.test/v1" },
   deepseekBaseUrl: "https://gateway.test/v1",
   ...over,
 });
@@ -112,7 +113,7 @@ describe("settings decide the provider", () => {
     expect(isKnownModel("gemini", "gemini-9.9-flash")).toBe(true); // the gemini- family
     expect(isKnownModel("gemini", "gpt-5")).toBe(false);
     expect(isKnownModel("deepseek", "deepseek-flash")).toBe(true);
-    expect(choiceFromName("claude-sonnet-5-5", {})).toBeNull();
+    expect(choiceFromName("claude-3-5-haiku", {})).toBeNull();
   });
 });
 

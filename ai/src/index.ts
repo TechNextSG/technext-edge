@@ -13,8 +13,28 @@ export {
   HOUSE_NORM_FIELDS,
 } from "./domain/schema.ts";
 export type { Field } from "./domain/schema.ts";
+export {
+  FIELD_REGISTRY,
+  TRIP_FIELD_KEYS,
+  getFieldDefinition,
+} from "./domain/fieldRegistry.ts";
+export type { FieldDefinition } from "./domain/fieldRegistry.ts";
+export {
+  GUEST_NOUNS,
+  DIVER_NOUNS,
+  ROOM_NOUNS,
+  NIGHT_NOUNS,
+  PERSON_NOUNS,
+  DIVE_CLAUSE_AFTER_NOUN,
+  LATIN_NUMBER_WORDS,
+  HAN_NUMBER_WORDS,
+  NUMBER_WORDS,
+  COUNT_NOUNS,
+} from "./domain/lexicon.ts";
+export type { CountField } from "./domain/lexicon.ts";
 export { createGeminiProvider } from "./infra/providers/gemini.ts";
 export { createDeepSeekProvider } from "./infra/providers/deepseek.ts";
+export { createAnthropicProvider } from "./infra/providers/anthropic.ts";
 export {
   createProviderFromEnv,
   createProviderByName,
@@ -24,13 +44,25 @@ export {
   choiceFromName,
   isKnownModel,
   keyFor,
+  baseUrlFor,
   buildProvider,
+  PROVIDER_REGISTRY,
+  PROVIDERS,
   DEFAULT_MODELS,
   MODEL_CATALOG,
   PROVIDER_KINDS,
   KNOWN_PROVIDER_NAMES,
+  ENV_KEY_NAME,
+  registerProvider,
 } from "./infra/providers/providerFromEnv.ts";
-export type { AiEnv, ProviderKind, ModelChoice, ProviderSettings, ProviderOutcome } from "./infra/providers/providerFromEnv.ts";
+export type {
+  AiEnv,
+  ProviderKind,
+  ProviderDescriptor,
+  ModelChoice,
+  ProviderSettings,
+  ProviderOutcome,
+} from "./infra/providers/providerFromEnv.ts";
 export type { ExtractProvider, ExtractCall, ExtractResult } from "./ports/provider.ts";
 export { resolveRelativeDate, deriveCheckOut, manilaToday } from "./domain/dates.ts";
 // Exported for whoever logs raw guest text — the webhook in bff is

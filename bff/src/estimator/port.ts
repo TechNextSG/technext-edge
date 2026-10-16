@@ -137,6 +137,7 @@ export type EstimatorFailure =
   | "timeout"
   | "rejected"
   | "no_snapshot"
+  | "no_validated_trip"
   | "unexpected";
 
 export type CommitResult =
@@ -153,6 +154,25 @@ export type CommitResult =
 export type ShareResult =
   | { ok: true; url: string; expiresAt: string | null }
   | { ok: false; reason: EstimatorFailure; detail: string };
+
+export type CreateDraftResult =
+  | {
+      ok: true;
+      id: string;
+      seq: number;
+      model: unknown;
+      sample: boolean;
+      session: EstimatorSession;
+      computedAt: string | null;
+    }
+  | {
+      ok: false;
+      reason: EstimatorFailure;
+      status?: number | null;
+      detail: string;
+      fields?: string[];
+      code?: string | null;
+    };
 
 /**
  * What a submit needs.
@@ -194,6 +214,11 @@ export interface EstimatorPort {
   readonly appBaseUrl?: string;
   sendEstimate(trip: BffTrip | null | undefined, session?: EstimatorSession): Promise<EstimateSendResult>;
   /**
+   * High-level draft creation: creates estimate, applies optional extras, and commits revision.
+   * Single gateway for the bot once an inquiry is complete.
+   */
+  createDraft(trip: BffTrip, extras?: unknown[]): Promise<CreateDraftResult>;
+  /**
    * Re-price a trip staff have **edited** in the studio, on the same scenario.
    *
    * This is not `sendEstimate` again. Their `POST /api/estimates` always mints a NEW scenario, so
@@ -215,6 +240,11 @@ export interface EstimatorPort {
   commit(session: EstimatorSession, trip: BffTrip): Promise<CommitResult>;
   /** Mint the guest link for a committed revision. Their `POST /api/estimates/:id/share`. */
   share(session: EstimatorSession): Promise<ShareResult>;
+  /** Look up an estimate by id (GET /api/estimates/:id) when reconciling or catching up. */
+  getEstimate?(
+    id: string,
+    session?: EstimatorSession,
+  ): Promise<{ ok: true; estimate: import("../../../contracts/src/index.ts").GetEstimateResponse } | { ok: false; reason: EstimatorFailure; detail: string }>;
   /**
    * Can the guest actually OPEN the link we just minted?
    *
