@@ -1,3 +1,5 @@
+Status: superseded 15/10/2026 by tn-casa docs/superpowers/plans/2026-10-13-whatsapp-channel.md
+
 # ADR-011: Standalone AI + WhatsApp Service Communicating with Estimator via API
 
 - **Status:** superseded 15/10/2026 by tn-casa docs/superpowers/plans/2026-10-13-whatsapp-channel.md
